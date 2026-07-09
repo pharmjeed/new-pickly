@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بيكلي — شخصيات المستخدمين (Personas)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{--lime:#C9F339;--lime3:#DDF87A;--lime1:#F2FCD1;--lime9:#5E7A12;--ink:#10241B;--ink6:#2E4A3C;--ink7:#1C3329;--cloud:#F4F7F2;--line:#E3E8E0;--gray:#6E7A72;--ok:#1D9E75;--warn:#EF9F27;--err:#E24B4A}
+*{box-sizing:border-box;margin:0}
+body{font-family:'IBM Plex Sans Arabic',sans-serif;color:var(--ink);background:var(--cloud);line-height:1.75}
+.disp{font-family:'Baloo Bhaijaan 2','IBM Plex Sans Arabic',sans-serif}
+.wrap{max-width:1020px;margin:0 auto;padding:32px 24px}
+.head{background:#fff;border:1px solid var(--line);border-radius:24px;padding:40px 32px;text-align:center;margin-bottom:28px}
+h1{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:36px;font-weight:800;margin:14px 0 6px}
+.meta{color:var(--gray);font-size:14px}
+.persona{background:#fff;border:1px solid var(--line);border-radius:24px;overflow:hidden;margin-bottom:28px}
+.p-head{padding:26px 30px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.p-head.consumer{background:var(--lime1)}
+.p-head.merchant{background:var(--ink);color:var(--cloud)}
+.avatar{width:76px;height:76px;border-radius:50%;background:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'Baloo Bhaijaan 2',sans-serif;font-weight:800;font-size:28px;color:var(--ink);flex-shrink:0}
+.p-head h2{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:24px;font-weight:800}
+.p-head .role{font-size:14px;color:var(--lime9)}
+.p-head.merchant .role{color:var(--lime3)}
+.p-tag{margin-inline-start:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:4px 14px;color:var(--ink6)}
+.p-head.merchant .p-tag{background:var(--ink7);border:none;color:var(--lime3)}
+.p-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0}
+.p-col{padding:24px 30px;border-top:1px solid var(--line)}
+.p-col+.p-col{border-inline-start:1px solid var(--line)}
+h3.lbl{font-size:13px;color:var(--gray);font-weight:500;letter-spacing:.5px;margin-bottom:12px}
+ul{list-style:none;padding:0}
+li{font-size:14.5px;margin-bottom:10px;padding-right:24px;position:relative}
+li.g:before{content:"◆";position:absolute;right:0;color:var(--lime9);font-size:10px;top:7px}
+li.p:before{content:"✕";position:absolute;right:0;color:var(--err);font-size:11px;top:4px}
+li.b:before{content:"←";position:absolute;right:0;color:var(--gray)}
+.quote{background:var(--ink);color:var(--cloud);border-radius:16px;padding:20px 24px;font-family:'Baloo Bhaijaan 2',sans-serif;font-weight:700;font-size:17px;line-height:1.7;margin:0 30px 24px}
+.quote .lm{color:var(--lime)}
+.bars div{margin-bottom:12px}
+.bars label{font-size:13px;display:flex;justify-content:space-between;margin-bottom:4px;color:var(--ink6)}
+.track{background:var(--cloud);border-radius:99px;height:8px}
+.fill{background:var(--lime);border-radius:99px;height:8px}
+.imp{background:var(--lime1);border-radius:16px;padding:18px 24px;margin:0 30px 28px}
+.imp p{font-size:14px;color:var(--lime9)}
+.imp b{color:var(--ink)}
+.facts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.facts span{font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:4px 13px;color:var(--ink6)}
+.p-head.merchant .facts span{background:var(--ink7);border:none;color:#8FA398}
+table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border-radius:18px;overflow:hidden}
+td,th{padding:12px 14px;border-bottom:1px solid var(--line);text-align:right}
+th{background:var(--ink);color:var(--cloud);font-weight:500;font-size:13px}
+.scen{padding:0 30px 26px}
+.scen ol{padding-right:20px;font-size:14.5px;color:var(--ink6)}
+.scen ol li{margin-bottom:8px;padding:0}
+</style>
+</head>
+<body>
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg"><symbol id="badge" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#C9F339"/><g transform="skewX(-8) translate(4,0)" stroke="#10241B" fill="none"><path d="M36,34 L62,34 L59,72 L39,72 Z" stroke-width="4" stroke-linejoin="round"/><path d="M43,34 Q49,24 55,34" stroke-width="3.5" stroke-linecap="round"/><path d="M70,40 H88" stroke-width="5" stroke-linecap="round"/><path d="M74,52 H88" stroke-width="5" stroke-linecap="round" opacity="0.55"/><path d="M70,64 H80" stroke-width="5" stroke-linecap="round" opacity="0.3"/></g></symbol></svg>
+<div class="wrap">
+
+<div class="head">
+<svg width="72" height="72"><use href="#badge"/></svg>
+<h1>شخصيات المستخدمين</h1>
+<p class="meta">بيكلي · ثلاث شخصيات عميل + شخصية متجر · مبنية على أبحاث مرحلة الاكتشاف ورحلة العميل المعتمدة · يوليو ٢٠٢٦</p>
+</div>
+
+<div class="persona">
+<div class="p-head consumer">
+<div class="avatar">س</div>
+<div><h2>سلطان العتيبي</h2><p class="role">«الغداء على السريع» — الشخصية الأساسية ٦٥٪ من الاستخدام المتوقع</p>
+<div class="facts"><span>٢٨ سنة</span><span>محلل مالي — الرياض</span><span>أعزب</span><span>كامري ٢٠٢٣</span><span>iPhone · Apple Pay</span></div></div>
+<span class="p-tag">P-01 · PRIMARY</span>
+</div>
+<div class="p-body">
+<div class="p-col"><h3 class="lbl">الأهداف</h3><ul>
+<li class="g">قهوته وغداؤه في أقل وقت ممكن خلال استراحة العمل القصيرة.</li>
+<li class="g">ألا ينزل من سيارته أبدًا في حر الظهيرة.</li>
+<li class="g">يعرف بالضبط متى يخرج الموظف — لا «دقيقتين» تصير عشر.</li>
+</ul></div>
+<div class="p-col"><h3 class="lbl">الإحباطات اليوم</h3><ul>
+<li class="p">يتصل على المطعم ليقول «أنا برا» ولا أحد يرد وقت الذروة.</li>
+<li class="p">يضغط «وصلت» في تطبيقات أخرى ثم ينتظر ٨ دقائق بلا أي تحديث.</li>
+<li class="p">الموظف يخرج ويلفّ على السيارات يدور عليه.</li>
+</ul></div>
+<div class="p-col"><h3 class="lbl">الدوافع</h3><div class="bars">
+<div><label><span>السرعة</span><span>٩٥٪</span></label><div class="track"><div class="fill" style="width:95%"></div></div></div>
+<div><label><span>اليقين (متى بالضبط؟)</span><span>٩٠٪</span></label><div class="track"><div class="fill" style="width:90%"></div></div></div>
+<div><label><span>السعر</span><span>٤٠٪</span></label><div class="track"><div class="fill" style="width:40%"></div></div></div>
+</div></div>
+</div>
+<div class="quote">«أبغى أوقف، يطلع لي طلبي، وأمشي. <span class="lm">بدون ولا مكالمة.</span>»</div>
+<div class="scen"><h3 class="lbl">سيناريو يوم الثلاثاء</h3><ol>
+<li>١١:٤٠ — يطلب برجر وقهوة من التطبيق قبل خروجه من المكتب، يدفع بـ Apple Pay.</li>
+<li>١١:٥٥ — يركب سيارته، يضغط «انطلقت»، وضع القيادة يشتغل تلقائيًا.</li>
+<li>١٢:٠٧ — يدخل نطاق ٣٠٠ متر: المطعم يستلم إشعار «كامري بيضاء ٨٢٤١ وصلت».</li>
+<li>١٢:٠٩ — راشد يسلّمه الكيس من النافذة، تطابق الكود، تقييم بنجمة واحدة ضغطة. مجموع التوقف: ٩٠ ثانية.</li>
+</ol></div>
+<div class="imp"><p><b>ماذا يعني هذا للتصميم؟</b> شاشة القيادة يجب أن تكون صفرية التدخل، وحالة «تم إبلاغ المطعم» يجب أن تظهر له لحظيًا وبوضوح — اليقين أهم ميزة نبيعها لسلطان.</p></div>
+</div>
+
+<div class="persona">
+<div class="p-head consumer">
+<div class="avatar" style="background:var(--lime3)">ن</div>
+<div><h2>نورة الشهري</h2><p class="role">«أم في مهمة» — الأعلى ولاءً وأكثر حساسية للتجربة</p>
+<div class="facts"><span>٣٤ سنة</span><span>معلمة — جدة</span><span>طفلان (٢ و٥ سنوات)</span><span>يوكن ٢٠٢١</span><span>Android · مدى</span></div></div>
+<span class="p-tag">P-02 · LOYALTY</span>
+</div>
+<div class="p-body">
+<div class="p-col"><h3 class="lbl">الأهداف</h3><ul>
+<li class="g">تستلم أغراض البيت والصيدلية دون إنزال الأطفال من مقاعدهم.</li>
+<li class="g">تجربة يمكن الاعتماد عليها كل مرة — لا مفاجآت.</li>
+<li class="g">تواصل مكتوب داخل التطبيق بدل مكالمات من أرقام غريبة.</li>
+</ul></div>
+<div class="p-col"><h3 class="lbl">الإحباطات اليوم</h3><ul>
+<li class="p">فكّ حزام طفلين والدخول للمحل لأجل كيس واحد.</li>
+<li class="p">مواقف «الاستلام السريع» مشغولة بسيارات لا تستلم شيئًا.</li>
+<li class="p">تطبيقات تطلب منها كتابة وصف سيارتها في خانة ملاحظات كل مرة.</li>
+</ul></div>
+<div class="p-col"><h3 class="lbl">الدوافع</h3><div class="bars">
+<div><label><span>الراحة (البقاء في السيارة)</span><span>١٠٠٪</span></label><div class="track"><div class="fill" style="width:100%"></div></div></div>
+<div><label><span>الموثوقية</span><span>٨٥٪</span></label><div class="track"><div class="fill" style="width:85%"></div></div></div>
+<div><label><span>السرعة</span><span>٦٠٪</span></label><div class="track"><div class="fill" style="width:60%"></div></div></div>
+</div></div>
+</div>
+<div class="quote">«النزول من السيارة مع طفلين مو مشوار — <span class="lm">مشروع.</span>»</div>
+<div class="imp"><p><b>ماذا يعني هذا للتصميم؟</b> ملف السيارة المحفوظ هو البطل عند نورة، والتواصل نصي فقط وبقوالب جاهزة («أنا في الموقف الثالث»). أي فشل في الرصد يجب أن يتحول بسلاسة لزر يدوي دون إشعارها بأن شيئًا «تعطل».</p></div>
+</div>
+
+<div class="persona">
+<div class="p-head consumer">
+<div class="avatar" style="background:#fff;border:2px solid var(--lime9)">ف</div>
+<div><h2>أبو فهد الدوسري</h2><p class="role">«مشوار العائلة» — طلبات كبيرة، حساس للتكلفة</p>
+<div class="facts"><span>٤٥ سنة</span><span>موظف حكومي — الدمام</span><span>عائلة من ٦</span><span>تاهو ٢٠١٩</span><span>يفضّل الدفع الواضح</span></div></div>
+<span class="p-tag">P-03 · WEEKEND</span>
+</div>
+<div class="p-body">
+<div class="p-col"><h3 class="lbl">الأهداف</h3><ul>
+<li class="g">استلام طلب عشاء عائلي كبير يوم الخميس دون ازدحام الصالة.</li>
+<li class="g">رسوم واضحة مقدمًا — يكره «رسوم الخدمة» المخفية.</li>
+<li class="g">طلبه كامل وصحيح من أول مرة — التأكد قبل مغادرة الموقف.</li>
+</ul></div>
+<div class="p-col"><h3 class="lbl">الإحباطات اليوم</h3><ul>
+<li class="p">توصيل الطلبات الكبيرة يتأخر ويصل باردًا، ورسومه مرتفعة.</li>
+<li class="p">الانتظار في زحمة كاونتر الاستلام مساء نهاية الأسبوع.</li>
+<li class="p">لا يعرف إن كان طلبه بدأ تجهيزه أصلًا وهو في الطريق.</li>
+</ul></div>
+<div class="p-col"><h3 class="lbl">الدوافع</h3><div class="bars">
+<div><label><span>وضوح التكلفة</span><span>٩٠٪</span></label><div class="track"><div class="fill" style="width:90%"></div></div></div>
+<div><label><span>اكتمال الطلب</span><span>٨٥٪</span></label><div class="track"><div class="fill" style="width:85%"></div></div></div>
+<div><label><span>السرعة</span><span>٥٥٪</span></label><div class="track"><div class="fill" style="width:55%"></div></div></div>
+</div></div>
+</div>
+<div class="quote">«التوصيل غالي والطلب يبرد. أنا أصلًا <span class="lm">مارّ من عندهم</span> — بس ما أبغى أنزل.»</div>
+<div class="imp"><p><b>ماذا يعني هذا للتصميم؟</b> رسوم الاستلام تُعرض بالريال قبل الدفع بلا لبس، وحالة «قيد التجهيز → جاهز» تظهر أثناء الطريق. زر «في الطلب ملاحظة/نقص» بعد التسليم يخدم طلبات العائلة الكبيرة.</p></div>
+</div>
+
+<div class="persona">
+<div class="p-head merchant">
+<div class="avatar" style="background:var(--lime)">ع</div>
+<div><h2>عبدالله الحربي</h2><p class="role">مدير فرع «بيست برجر» — شخصية المتجر (B2B)</p>
+<div class="facts"><span>٣٩ سنة</span><span>يدير فرعًا بـ ١٤ موظفًا</span><span>يستخدم Foodics POS</span><span>٣٠٪ من طلباته استلام</span></div></div>
+<span class="p-tag">M-01 · MERCHANT</span>
+</div>
+<div class="p-body">
+<div class="p-col"><h3 class="lbl">الأهداف</h3><ul>
+<li class="g">كاونتر استلام أهدأ وقت الذروة — وصالة أقل ازدحامًا.</li>
+<li class="g">لا نظام جديد منفصل: كل شيء داخل Foodics الذي يعرفه فريقه.</li>
+<li class="g">هامش ربحه محفوظ — يرفض عمولات ١٥-٣٠٪ التي تأكل الطلب.</li>
+</ul></div>
+<div class="p-col"><h3 class="lbl">الإحباطات اليوم</h3><ul>
+<li class="p">موظف يقف عند الباب يمسك أكياسًا ويتفرس في السيارات.</li>
+<li class="p">هاتف الفرع لا يتوقف: «أنا برا»، «جاي بعد دقيقة»، «وين طلبي؟».</li>
+<li class="p">طلبات جاهزة تبرد على الرف لأن العميل تأخر ولا أحد يعلم متى يصل.</li>
+</ul></div>
+<div class="p-col"><h3 class="lbl">الدوافع</h3><div class="bars">
+<div><label><span>كفاءة الموظفين</span><span>٩٠٪</span></label><div class="track"><div class="fill" style="width:90%"></div></div></div>
+<div><label><span>حماية الهامش</span><span>٩٥٪</span></label><div class="track"><div class="fill" style="width:95%"></div></div></div>
+<div><label><span>رضا العملاء وتكرارهم</span><span>٨٠٪</span></label><div class="track"><div class="fill" style="width:80%"></div></div></div>
+</div></div>
+</div>
+<div class="quote">«أعطني وقت وصول العميل الحقيقي وشكل سيارته — <span class="lm">وموظفي بيسويها صح</span> من أول مرة.»</div>
+<div class="imp"><p><b>ماذا يعني هذا للتصميم؟</b> لوحة الفرع تُرتّب القادمين حسب زمن الوصول المتوقع، وبطاقة كل طلب تُظهر السيارة بحجم كبير. البيع لعبدالله يبدأ بجملة واحدة: «صفر عمولة، وداخل Foodics».</p></div>
+</div>
+
+<h2 class="disp" style="font-size:24px;font-weight:800;margin:8px 0 16px">مقارنة سريعة</h2>
+<table>
+<tr><th>البعد</th><th>سلطان</th><th>نورة</th><th>أبو فهد</th><th>عبدالله (متجر)</th></tr>
+<tr><td>الدافع الأول</td><td>السرعة واليقين</td><td>البقاء في السيارة</td><td>وضوح التكلفة</td><td>الهامش والكفاءة</td></tr>
+<tr><td>الميزة الحاسمة</td><td>الرصد التلقائي</td><td>ملف السيارة + تواصل نصي</td><td>رسوم معلنة + حالة التجهيز</td><td>لوحة القادمين + صفر عمولة</td></tr>
+<tr><td>لحظة الفشل الحرجة</td><td>تأخر الموظف بعد الرصد</td><td>مكالمة هاتفية غريبة</td><td>رسوم مفاجئة</td><td>وصول بلا إشعار مسبق</td></tr>
+<tr><td>القناة</td><td>iOS</td><td>Android</td><td>iOS/Android</td><td>لوحة ويب + Foodics</td></tr>
+</table>
+<p style="font-size:13px;color:var(--gray);margin-top:14px">الشخصيات افتراضية مبنية على أبحاث مرحلة الاكتشاف — تُحدَّث بعد مقابلات المستخدمين الفعلية.</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بيكلي — كتاب الهوية الشامل</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{--lime:#C9F339;--lime3:#DDF87A;--lime1:#F2FCD1;--lime9:#5E7A12;--ink:#10241B;--ink6:#2E4A3C;--ink7:#1C3329;--cloud:#F4F7F2;--line:#E3E8E0;--gray:#6E7A72;--ok:#1D9E75;--warn:#EF9F27;--err:#E24B4A}
+*{box-sizing:border-box;margin:0}
+body{font-family:'IBM Plex Sans Arabic',sans-serif;color:var(--ink);background:var(--cloud);line-height:1.8}
+.disp{font-family:'Baloo Bhaijaan 2','IBM Plex Sans Arabic',sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+.topnav{position:sticky;top:0;background:rgba(244,247,242,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);z-index:50;overflow-x:auto}
+.topnav .in{display:flex;gap:8px;padding:12px 24px;max-width:1000px;margin:0 auto;white-space:nowrap}
+.topnav a{font-size:12.5px;color:var(--ink6);text-decoration:none;background:#fff;border:1px solid var(--line);border-radius:99px;padding:5px 14px}
+.cover{background:#fff;border:1px solid var(--line);border-radius:28px;padding:64px 32px;text-align:center;margin:28px 0}
+.cover h1{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:40px;font-weight:800;margin:18px 0 4px}
+.cover .meta{color:var(--gray);font-size:14px;margin-top:20px}
+.tag{color:var(--lime9);font-size:19px;font-weight:700;font-family:'Baloo Bhaijaan 2',sans-serif}
+.sec-h{display:flex;align-items:center;gap:12px;margin:52px 0 18px}
+.sec-h .num{background:var(--lime);color:var(--ink);font-weight:700;font-size:14px;border-radius:8px;padding:4px 13px;font-family:'IBM Plex Mono',monospace}
+.sec-h h2{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:27px;font-weight:800}
+.sec-h small{color:var(--gray);font-size:13px;font-family:'IBM Plex Mono',monospace}
+.card{background:#fff;border-radius:20px;padding:30px;margin-bottom:16px;border:1px solid var(--line)}
+.card h3{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:18px;font-weight:700;margin-bottom:10px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.tile{border-radius:14px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:120px;gap:4px}
+.cap{font-size:12.5px;color:var(--gray);text-align:center;margin-top:8px}
+.chip{display:inline-block;background:var(--lime1);color:var(--lime9);border-radius:99px;padding:4px 14px;font-size:13.5px;font-weight:500;margin:0 0 6px 6px}
+ul.cl{list-style:none;padding:0}
+ul.cl li{padding-right:26px;position:relative;margin-bottom:9px;font-size:14.5px}
+ul.cl li.y:before{content:"✓";position:absolute;right:0;color:var(--ok);font-weight:700}
+ul.cl li.n:before{content:"✕";position:absolute;right:0;color:var(--err);font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:10px 10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+th{color:var(--gray);font-weight:500;font-size:12.5px}
+.mono{font-family:'IBM Plex Mono',monospace;direction:ltr;text-align:left}
+.muted{color:var(--gray);font-size:13.5px}
+.sw .c{height:42px;border-radius:8px}
+.sw{background:var(--cloud);border-radius:12px;padding:9px}
+.sw p{margin:5px 0 0;font-size:12.5px}
+.pos{background:var(--ink);color:var(--cloud);border-radius:20px;padding:30px;margin-bottom:16px}
+.pos p{font-size:16.5px;line-height:2}
+.pos .lm{color:var(--lime)}
+.wm-en{font-family:'Baloo Bhaijaan 2',sans-serif;font-weight:800;display:block;line-height:1;direction:ltr}
+.wm-ar{font-family:'Baloo Bhaijaan 2',sans-serif;font-weight:700;display:block;line-height:1.35}
+code.tok{font-family:'IBM Plex Mono',monospace;font-size:12.5px;background:var(--cloud);border-radius:6px;padding:2px 8px;direction:ltr;display:inline-block}
+@media print{.topnav{display:none}.card{break-inside:avoid}}
+</style>
+</head>
+<body>
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+<symbol id="badge" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#C9F339"/><g transform="skewX(-8) translate(4,0)" stroke="#10241B" fill="none"><path d="M36,34 L62,34 L59,72 L39,72 Z" stroke-width="4" stroke-linejoin="round"/><path d="M43,34 Q49,24 55,34" stroke-width="3.5" stroke-linecap="round"/><path d="M70,40 H88" stroke-width="5" stroke-linecap="round"/><path d="M74,52 H88" stroke-width="5" stroke-linecap="round" opacity="0.55"/><path d="M70,64 H80" stroke-width="5" stroke-linecap="round" opacity="0.3"/></g></symbol>
+<symbol id="badge-mono" viewBox="0 0 100 100"><rect x="2.5" y="2.5" width="95" height="95" rx="23" fill="none" stroke="currentColor" stroke-width="4"/><g transform="skewX(-8) translate(4,0)" stroke="currentColor" fill="none"><path d="M36,34 L62,34 L59,72 L39,72 Z" stroke-width="4" stroke-linejoin="round"/><path d="M43,34 Q49,24 55,34" stroke-width="3.5" stroke-linecap="round"/><path d="M70,40 H88" stroke-width="5" stroke-linecap="round"/><path d="M74,52 H88" stroke-width="5" stroke-linecap="round" opacity="0.55"/><path d="M70,64 H80" stroke-width="5" stroke-linecap="round" opacity="0.3"/></g></symbol>
+</svg>
+
+<div class="topnav"><div class="in">
+<a href="#s1">الأسس</a><a href="#s2">التموضع</a><a href="#s3">الرسائل</a><a href="#s4">الصوت والنصوص</a><a href="#s5">الشعار</a><a href="#s6">الألوان</a><a href="#s7">الخطوط</a><a href="#s8">اللغة البصرية</a><a href="#s9">الأيقونات</a><a href="#s10">الحركة</a><a href="#s11">الواجهات</a><a href="#s12">التطبيقات</a><a href="#s13">رموز التصميم</a><a href="#s14">الأصول</a>
+</div></div>
+
+<div class="wrap">
+<div class="cover">
+<div style="display:flex;align-items:center;justify-content:center;gap:24px" dir="ltr">
+<div style="text-align:left"><span class="wm-en" style="font-size:52px">pickly</span><span class="wm-ar" style="font-size:40px">بيكلي</span></div>
+<svg width="112" height="112"><use href="#badge"/></svg>
+</div>
+<p class="tag" style="margin-top:16px">وصلت؟ إحنا عرفنا.</p>
+<h1 style="font-size:26px;margin-top:26px">كتاب الهوية الشامل</h1>
+<p class="meta">الإصدار ١٫٠ · يوليو ٢٠٢٦ · وثيقة مرجعية للتصميم والتطوير والتسويق</p>
+</div>
+
+<div class="sec-h" id="s1"><span class="num">01</span><h2>الأسس</h2><small>FOUNDATIONS</small></div>
+<div class="card">
+<h3>من نحن</h3>
+<p>بيكلي منصة سعودية لتنسيق الاستلام من السيارة (Curbside Pickup Coordination). نربط لحظة اقتراب سيارة العميل بلوحة موظف المتجر عبر استشعار موقعي تلقائي — فيخرج الموظف بالطلب إلى السيارة الصحيحة في اللحظة الصحيحة، دون اتصال أو انتظار أو نزول.</p>
+<div style="margin-top:14px"><span class="chip">سريع</span><span class="chip">مريح</span><span class="chip">ذكي</span><span class="chip">قريب</span></div>
+</div>
+<div class="grid g3">
+<div class="card"><h3>ما نحن</h3><p style="font-size:14px">طبقة تنسيق استلام: نعرف أنك وصلت، ونعرف أي سيارة أنت، ونخبر الشخص الصحيح.</p></div>
+<div class="card"><h3>ما لسنا</h3><p style="font-size:14px">لسنا تطبيق توصيل، ولسنا سوقًا للمطاعم، ولا ندير المطبخ أو قائمة الطعام.</p></div>
+<div class="card"><h3>لماذا نكسب</h3><p style="font-size:14px">تمايزنا ضيّق ومحدد: الرصد التلقائي للوصول. كل توسع يضعف هذه الحدّة مرفوض.</p></div>
+</div>
+<div class="card">
+<h3>قصة الشعار</h3>
+<p>جرّبنا الدبوس والسيارة والصقر — واستقر الرمز على أصدق عنصر في التجربة: <strong>كيس الطلب نفسه، مندفعًا نحوك</strong>. مائل بزاوية −٨°، خلفه ثلاثة خطوط سرعة تتلاشى (١٠٠/٥٥/٣٠٪)، مرسوم بخط مفرغ يمنحه خفة «الراحة»، داخل شارة ليمونية هي لون اللحظة الحية في كل واجهاتنا. الكيس يقول ماذا نفعل، والخطوط تقول كيف نفعله.</p>
+</div>
+
+<div class="sec-h" id="s2"><span class="num">02</span><h2>التموضع</h2><small>POSITIONING</small></div>
+<div class="pos">
+<p>لعملاء المطاعم والمتاجر في السعودية والخليج، بيكلي هو طبقة تنسيق الاستلام الذكية التي تجعل <span class="lm">سيارتك عنوانك</span> — لأنه يرصد وصولك تلقائيًا ويوجّه الموظف إلى سيارتك بالضبط، <span class="lm">فيُلغى الاتصال والانتظار والنزول</span>، دون أن يأخذ عمولة من المتجر على قيمة الطلب.</p>
+<p class="mono" style="font-size:13px;color:#8FA398;margin-top:18px">For restaurant and retail customers in Saudi Arabia and the Gulf, Pickly is the smart pickup-coordination layer that makes your car your address — it auto-detects your arrival and routes staff to your exact vehicle, eliminating calls, waiting, and getting out, with zero commission on order value.</p>
+</div>
+<div class="card">
+<h3>مقابل البدائل</h3>
+<table>
+<tr><th>البديل</th><th>ما يقدمه</th><th>حجة بيكلي</th></tr>
+<tr><td>التوصيل</td><td>يصلك للبيت برسوم وعمولات مرتفعة</td><td>أنت أصلًا مارّ بالحي — استلم في ٩٠ ثانية بجزء يسير من التكلفة، وطلبك حار</td></tr>
+<tr><td>الاستلام التقليدي (اتصال/نزول)</td><td>بلا رسوم لكن بلا يقين</td><td>نفس السعر تقريبًا مع يقين كامل: المتجر يعرف وصولك وسيارتك تلقائيًا</td></tr>
+<tr><td>زر «وصلت» في تطبيقات الطلب</td><td>إشعار يدوي بلا سياق</td><td>عندنا الرصد تلقائي، وملف سيارتك يصل للموظف — لا كتابة ولا وصف كل مرة</td></tr>
+<tr><td>المنافسة المحلية (Nugttah، The List)</td><td>حلول ولاء وطلب مسبق</td><td>تركيزنا الحصري على لحظة الاستلام وعمقنا فيها (رصد، لوحة موظف، Foodics)</td></tr>
+</table>
+</div>
+<div class="sec-h" id="s3"><span class="num">03</span><h2>إطار الرسائل</h2><small>MESSAGING</small></div>
+<div class="card">
+<h3>الرسالة الأم</h3>
+<p class="disp" style="font-size:22px;font-weight:800">خلّك في سيارتك — طلبك يجيك.</p>
+<p class="muted" style="margin-top:6px">كل رسالة تسويقية أو نص واجهة يجب أن يخدم هذه الجملة أو أحد أعمدتها الثلاثة.</p>
+</div>
+<div class="grid g3">
+<div class="card"><h3 style="color:var(--lime9)">عمود ١ — اليقين</h3><p style="font-size:14px">«وصلت؟ إحنا عرفنا.» الرصد التلقائي يلغي سؤال «متى؟» من الطرفين — للعميل وللموظف.</p></div>
+<div class="card"><h3 style="color:var(--lime9)">عمود ٢ — الراحة</h3><p style="font-size:14px">«بلا نزول، بلا اتصال، بلا شرح.» سيارتك عنوانك، والموظف يعرفها قبل أن تصل.</p></div>
+<div class="card"><h3 style="color:var(--lime9)">عمود ٣ — العدالة للمتجر</h3><p style="font-size:14px">«صفر عمولة على قيمة الطلب.» نحن شريك الاستلام، لا وسيطًا يأكل الهامش.</p></div>
+</div>
+
+<div class="sec-h" id="s4"><span class="num">04</span><h2>نبرة الصوت وبنك النصوص</h2><small>VOICE & COPY</small></div>
+<div class="card">
+<h3>النبرة</h3>
+<p style="font-size:15px">صديق سعودي واثق ومرتاح: جمل قصيرة، عامية بيضاء خفيفة، صفر تكلّف. القاعدة الذهبية: <strong>لا نطلب من العميل فعل شيء يستطيع النظام فعله عنه</strong> — هذا جوهر المنتج ويجب أن يظهر في كل جملة.</p>
+<table style="margin-top:16px">
+<tr><th>قل</th><th>لا تقل</th></tr>
+<tr><td style="color:var(--ok)">وصلت؟ إحنا عرفنا.</td><td style="color:var(--err)">الرجاء الضغط على زر تأكيد الوصول.</td></tr>
+<tr><td style="color:var(--ok)">راشد في طريقه إليك.</td><td style="color:var(--err)">تم إشعار الموظف المختص بطلبكم.</td></tr>
+<tr><td style="color:var(--ok)">خلّك في سيارتك، الباقي علينا.</td><td style="color:var(--err)">يرجى الانتظار حتى اكتمال المعالجة.</td></tr>
+</table>
+</div>
+<div class="card">
+<h3>بنك النصوص الجاهزة</h3>
+<table>
+<tr><th>الموضع</th><th>النص المعتمد</th></tr>
+<tr><td>زر الانطلاق</td><td>انطلقت الآن</td></tr>
+<tr><td>حالة الطريق</td><td>المطعم يجهّز طلبك على وقت وصولك</td></tr>
+<tr><td>لحظة الرصد</td><td>تم رصد وصولك — أبلغنا المطعم تلقائيًا</td></tr>
+<tr><td>خروج الموظف</td><td>راشد في طريقه إليك · يحمل طلبك</td></tr>
+<tr><td>فشل GPS (بلا لوم)</td><td>ما قدرنا نحدد موقعك — اضغط «وصلت» ونكمل عادي</td></tr>
+<tr><td>فشل الدفع</td><td>ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ</td></tr>
+<tr><td>الموظف لم يجد السيارة</td><td>راشد قريب منك — أرسل له موقفك بضغطة: «الموقف ٣»</td></tr>
+<tr><td>بعد التسليم</td><td>بالعافية! قيّم استلامك بضغطة</td></tr>
+<tr><td>حالة فارغة (لا طلبات)</td><td>لا طلبات حالية — اطلب من متجرك المفضل وخلّنا على السيارة</td></tr>
+</table>
+</div>
+
+<div class="sec-h" id="s5"><span class="num">05</span><h2>الشعار</h2><small>LOGO</small></div>
+<div class="card">
+<h3>البنية</h3>
+<p style="font-size:14.5px">الشعار من عنصرين: <strong>الشارة</strong> (مربع ليموني مستدير الزوايا ٢٤٪ يحوي كيس الطلب المفرغ المائل −٨° وثلاثة خطوط سرعة متلاشية ١٠٠/٥٥/٣٠٪ بسماكة خط ≈ ٤٪ من عرض الشارة) و<strong>الاسم الثنائي</strong> (pickly بوزن 800 فوق بيكلي بوزن 700 بخط Baloo Bhaijaan 2).</p>
+<div class="grid g4" style="margin-top:16px">
+<div><div class="tile" style="background:#fff;border:1px solid var(--line)" dir="ltr"><div style="text-align:left"><span class="wm-en" style="font-size:22px">pickly</span><span class="wm-ar" style="font-size:17px">بيكلي</span></div><svg width="50" height="50"><use href="#badge"/></svg></div><p class="cap">الأساسي — أبيض وفواتح</p></div>
+<div><div class="tile" style="background:var(--ink)" dir="ltr"><div style="text-align:left"><span class="wm-en" style="font-size:22px;color:var(--cloud)">pickly</span><span class="wm-ar" style="font-size:17px;color:var(--cloud)">بيكلي</span></div><svg width="50" height="50"><use href="#badge"/></svg></div><p class="cap">على الداكن — الشارة ثابتة</p></div>
+<div><div class="tile" style="background:#fff;border:1px solid var(--line);color:#000"><svg width="72" height="72"><use href="#badge-mono"/></svg></div><p class="cap">أحادي — طباعة وأختام</p></div>
+<div><div class="tile" style="background:var(--cloud);border:1px solid var(--line)"><svg width="72" height="72"><use href="#badge"/></svg></div><p class="cap">الشارة وحدها — الأيقونة</p></div>
+</div>
+</div>
+<div class="grid g2">
+<div class="card"><h3>القواعد</h3><ul class="cl">
+<li class="y">الميلان ثابت −٨° للكيس والخطوط، والتلاشي ١٠٠/٥٥/٣٠٪.</li>
+<li class="y">المساحة الآمنة = ربع عرض الشارة من كل جهة.</li>
+<li class="y">الحد الأدنى: الشارة ٢٤ بكسل، الشعار الكامل ١٢٠ بكسل عرضًا.</li>
+<li class="y">تحت ٤٨ بكسل تُستخدم نسخة بخط أسمك ١٫٥×.</li>
+<li class="y">على الصور: الأحادي الأبيض فوق تظليل فحمي ٦٠٪.</li>
+</ul></div>
+<div class="card"><h3>الممنوعات</h3><ul class="cl">
+<li class="n">تعبئة الكيس أو الخطوط — الرسم يبقى مفرغًا.</li>
+<li class="n">تغيير عدد الخطوط أو ترتيب تلاشيها أو فصلها عن الكيس.</li>
+<li class="n">شارة بخلفية غير الليموني (باستثناء الأحادي).</li>
+<li class="n">ظلال، تدرجات، حدود، ميلان إضافي، أو مطّ.</li>
+<li class="n">استخدام الليموني للاسم على خلفية بيضاء — الاسم فحمي دائمًا على الفواتح.</li>
+</ul></div>
+</div>
+<div class="sec-h" id="s6"><span class="num">06</span><h2>الألوان</h2><small>COLOR</small></div>
+<div class="card">
+<div class="grid g3">
+<div class="sw"><div class="c" style="background:#C9F339"></div><p><strong>ليموني ٥٠٠</strong> — الشارة والأزرار والحالات الحية</p><p class="mono muted">#C9F339 · rgb(201,243,57)</p></div>
+<div class="sw"><div class="c" style="background:#DDF87A"></div><p><strong>ليموني ٣٠٠</strong> — تمرير وتمييز</p><p class="mono muted">#DDF87A</p></div>
+<div class="sw"><div class="c" style="background:#F2FCD1"></div><p><strong>ليموني ١٠٠</strong> — خلفيات ناعمة وشرائح</p><p class="mono muted">#F2FCD1</p></div>
+<div class="sw"><div class="c" style="background:#5E7A12"></div><p><strong>ليموني ٩٠٠</strong> — نصوص فوق الليموني</p><p class="mono muted">#5E7A12</p></div>
+<div class="sw"><div class="c" style="background:#10241B"></div><p><strong>فحمي ٩٠٠</strong> — النصوص، رسم الشارة، وضع القيادة</p><p class="mono muted">#10241B</p></div>
+<div class="sw"><div class="c" style="background:#1C3329"></div><p><strong>فحمي ٧٠٠</strong> — بطاقات فوق الداكن</p><p class="mono muted">#1C3329</p></div>
+<div class="sw"><div class="c" style="background:#2E4A3C"></div><p><strong>فحمي ٦٠٠</strong> — عناصر ثانوية داكنة</p><p class="mono muted">#2E4A3C</p></div>
+<div class="sw"><div class="c" style="background:#1D9E75"></div><p><strong>نجاح</strong> — تم رصد الوصول</p><p class="mono muted">#1D9E75</p></div>
+<div class="sw"><div class="c" style="background:#EF9F27"></div><p><strong>تنبيه</strong> — انتظار وتجهيز</p><p class="mono muted">#EF9F27</p></div>
+<div class="sw"><div class="c" style="background:#E24B4A"></div><p><strong>خطأ</strong> — فشل GPS أو الدفع</p><p class="mono muted">#E24B4A</p></div>
+<div class="sw"><div class="c" style="background:#FFFFFF;border:1px solid var(--line)"></div><p><strong>أبيض</strong> — الخلفية الأساسية</p><p class="mono muted">#FFFFFF</p></div>
+<div class="sw"><div class="c" style="background:#F4F7F2;border:1px solid var(--line)"></div><p><strong>سحابي</strong> — أقسام ثانوية</p><p class="mono muted">#F4F7F2</p></div>
+</div>
+<p style="margin-top:16px"><strong>التوزيع ٦٠/٣٠/١٠:</strong> ٦٠٪ أبيض ومحايد، ٣٠٪ فحمي، ١٠٪ ليموني. الليموني إشارة «الآن» — لا يُستخدم زخرفةً أبدًا.</p>
+<p class="muted"><strong>إمكانية الوصول:</strong> النص فوق الليموني ٥٠٠ يكون فحمي ٩٠٠ (تباين ‎>12:1‎) أو ليموني ٩٠٠. لا نص ليموني ٥٠٠ على أبيض إطلاقًا (تباين فاشل ‎1.4:1‎). النص الثانوي على أبيض لا يفتح عن ‎#6E7A72‎.</p>
+</div>
+
+<div class="sec-h" id="s7"><span class="num">07</span><h2>الخطوط</h2><small>TYPOGRAPHY</small></div>
+<div class="card">
+<table>
+<tr><th>الدور</th><th>الخط</th><th>الأوزان</th><th>ملاحظات</th></tr>
+<tr><td>الشعار والعناوين الكبيرة</td><td>Baloo Bhaijaan 2</td><td>800 لاتيني / 700 عربي</td><td>صوت العلامة — ممتلئ مستدير ودود</td></tr>
+<tr><td>واجهات ونصوص</td><td>IBM Plex Sans Arabic</td><td>400 / 500 / 700</td><td>القراءة الطويلة والواجهات الكثيفة</td></tr>
+<tr><td>أكواد الاستلام واللوحات</td><td>IBM Plex Mono</td><td>500</td><td>P-4821 — يميّزه الموظف بلمحة</td></tr>
+</table>
+<h3 style="margin-top:20px">سلّم المقاسات</h3>
+<p class="disp" style="font-size:34px;font-weight:800;line-height:1.4">عرض كبير ٣٤ <span class="muted" style="font-size:12px;font-family:'IBM Plex Sans Arabic',sans-serif">Baloo 800 — هيرو وأغلفة</span></p>
+<p class="disp" style="font-size:24px;font-weight:800;line-height:1.5">عنوان قسم ٢٤ <span class="muted" style="font-size:12px;font-family:'IBM Plex Sans Arabic',sans-serif">Baloo 800</span></p>
+<p style="font-size:17px;font-weight:500">عنوان بطاقة/زر ١٧ <span class="muted" style="font-size:12px">Plex 500</span></p>
+<p style="font-size:15px">نص أساسي ١٥ <span class="muted" style="font-size:12px">Plex 400 · line-height 1.75</span></p>
+<p style="font-size:13px;color:var(--gray)">ثانوي وتسميات ١٣ <span class="muted" style="font-size:12px">Plex 400/500</span></p>
+<p class="muted" style="margin-top:10px">الأرقام في الواجهات عربية مشرقية (١٢٣) في النصوص، ولاتينية في الأكواد واللوحات (P-4821).</p>
+</div>
+
+<div class="sec-h" id="s8"><span class="num">08</span><h2>اللغة البصرية</h2><small>VISUAL LANGUAGE</small></div>
+<div class="grid g2">
+<div class="card"><h3>أسلوب الرسم</h3><ul class="cl">
+<li class="y">كل الرسوم التوضيحية مفرغة (outline) بسماكة موحّدة، أطراف مستديرة، بلا تعبئة.</li>
+<li class="y">زاوية الحركة الرسمية −٨° — تظهر في الرسوم والبطاقات المائلة والزخارف.</li>
+<li class="y">الخطوط الثلاثة المتلاشية هي «نمط العلامة»: تُستخدم فاصلًا، مؤشر تحميل، وزخرفة أكياس.</li>
+<li class="y">الصور الفوتوغرافية: سيارات وأشخاص حقيقيون بإضاءة نهارية، مع تظليل فحمي عند وضع نص.</li>
+</ul></div>
+<div class="card"><h3>نمط الخطوط الثلاثة</h3>
+<div style="background:var(--ink);border-radius:14px;padding:24px;display:flex;gap:26px;justify-content:center">
+<svg width="60" height="52" viewBox="0 0 50 44"><g transform="skewX(-8)"><rect x="10" y="6" width="36" height="7" rx="3.5" fill="#C9F339"/><rect x="20" y="19" width="26" height="7" rx="3.5" fill="#C9F339" opacity=".55"/><rect x="10" y="32" width="18" height="7" rx="3.5" fill="#C9F339" opacity=".3"/></g></svg>
+<svg width="60" height="52" viewBox="0 0 50 44"><g transform="skewX(-8)" stroke="#C9F339" fill="none" stroke-linecap="round"><path d="M12,10 H44" stroke-width="6"/><path d="M20,22 H44" stroke-width="6" opacity=".55"/><path d="M12,34 H30" stroke-width="6" opacity=".3"/></g></svg>
+</div>
+<p class="muted" style="margin-top:10px">النسخة المعبأة للزخارف الكبيرة، والمفرغة داخل الواجهات — الاتجاه دائمًا مع اتجاه القراءة (يسارًا في العربية).</p></div>
+</div>
+
+<div class="sec-h" id="s9"><span class="num">09</span><h2>الأيقونات</h2><small>ICONOGRAPHY</small></div>
+<div class="card">
+<div class="grid g4">
+<div><div class="tile" style="background:var(--cloud)"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" stroke="#10241B" stroke-width="7" stroke-linecap="round"><path d="M34,32 A22,22 0 0 1 66,32"/><path d="M24,19 A36,36 0 0 1 76,19" opacity=".5"/><circle cx="50" cy="57" r="12"/><path d="M50,69 V86"/></svg></div><p class="cap">الرصد</p></div>
+<div><div class="tile" style="background:var(--cloud)"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" stroke="#10241B" stroke-width="7" stroke-linecap="round"><path d="M30,56 Q35,40 50,40 Q65,40 70,56"/><rect x="18" y="54" width="64" height="18" rx="9"/><circle cx="34" cy="78" r="6" stroke-width="6"/><circle cx="66" cy="78" r="6" stroke-width="6"/></svg></div><p class="cap">السيارة</p></div>
+<div><div class="tile" style="background:var(--cloud)"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" stroke="#10241B" stroke-width="7" stroke-linejoin="round"><path d="M32,32 L68,32 L64,80 L36,80 Z"/><path d="M41,32 Q50,20 59,32" stroke-linecap="round"/></svg></div><p class="cap">الطلب</p></div>
+<div><div class="tile" style="background:var(--cloud)"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" stroke="#10241B" stroke-width="7" stroke-linejoin="round"><path d="M50,14 C36,14 26,24 26,38 C26,54 50,84 50,84 C50,84 74,54 74,38 C74,24 64,14 50,14 Z"/><circle cx="50" cy="37" r="6" fill="#10241B" stroke="none"/></svg></div><p class="cap">الموقع</p></div>
+</div>
+<ul class="cl" style="margin-top:14px">
+<li class="y">مفرغة دائمًا، سماكة ٧٪ من مقاس الرسم، أطراف وزوايا مستديرة — نفس لغة الشعار.</li>
+<li class="y">شبكة ٢٤ بكسل، والمقاس داخل الواجهات ٢٠–٢٤ بكسل.</li>
+<li class="n">لا أيقونات معبأة إلا للحالة النشطة في شريط التنقل.</li>
+</ul>
+</div>
+
+<div class="sec-h" id="s10"><span class="num">10</span><h2>الحركة</h2><small>MOTION</small></div>
+<div class="grid g2">
+<div class="card"><h3>المبادئ</h3><ul class="cl">
+<li class="y">سريعة وواثقة: ١٥٠–٢٥٠ms للعناصر، ٤٠٠ms كحد أقصى للشاشات.</li>
+<li class="y">منحنى <span class="mono">cubic-bezier(0.2, 0.8, 0.2, 1)</span> — انطلاقة قوية وهبوط ناعم.</li>
+<li class="y">اتجاه الدخول من اليمين إلى اليسار (اتجاه القراءة والحركة).</li>
+<li class="y">لحظة «تم رصد وصولك» هي الاحتفالية الوحيدة: نبضة ليمونية واحدة + اهتزاز خفيف.</li>
+</ul></div>
+<div class="card"><h3>مؤشر التحميل</h3><p style="font-size:14px">الخطوط الثلاثة تتلألأ تتابعيًا (١ ثم ٢ ثم ٣) كموجة — هو مؤشر التحميل الرسمي بدل الدوائر الدوارة.</p>
+<div style="background:var(--ink);border-radius:14px;padding:20px;display:flex;justify-content:center;margin-top:10px"><svg width="66" height="56" viewBox="0 0 50 44"><g transform="skewX(-8)"><rect x="10" y="6" width="36" height="7" rx="3.5" fill="#C9F339"><animate attributeName="opacity" values="1;.25;1" dur="1.2s" repeatCount="indefinite"/></rect><rect x="20" y="19" width="26" height="7" rx="3.5" fill="#C9F339"><animate attributeName="opacity" values=".25;1;.25" dur="1.2s" begin=".2s" repeatCount="indefinite"/></rect><rect x="10" y="32" width="18" height="7" rx="3.5" fill="#C9F339"><animate attributeName="opacity" values=".25;1;.25" dur="1.2s" begin=".4s" repeatCount="indefinite"/></rect></g></svg></div>
+</div>
+</div>
+<div class="sec-h" id="s11"><span class="num">11</span><h2>عناصر الواجهة</h2><small>UI COMPONENTS</small></div>
+<div class="grid g2">
+<div class="card"><h3>الأزرار والشرائح</h3>
+<div style="background:var(--lime);border-radius:12px;padding:12px;text-align:center;font-weight:500;margin-bottom:8px">انطلقت الآن</div>
+<div style="background:#fff;border:1.5px solid var(--ink);border-radius:12px;padding:12px;text-align:center;font-weight:500;margin-bottom:12px">تعديل الطلب</div>
+<div style="background:var(--lime1);color:var(--lime9);border-radius:10px;padding:8px 12px;font-size:14px;margin-bottom:12px">كامري · بيضاء · ٨٢٤١</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<span style="background:var(--ok);color:#fff;border-radius:99px;padding:4px 12px;font-size:12.5px">تم رصد الوصول</span>
+<span style="background:var(--warn);color:#412402;border-radius:99px;padding:4px 12px;font-size:12.5px">قيد التجهيز</span>
+<span style="background:var(--err);color:#fff;border-radius:99px;padding:4px 12px;font-size:12.5px">تعذّر تحديد الموقع</span>
+</div>
+<p class="muted" style="margin-top:12px">زر ليموني واحد لكل شاشة · زوايا ١٢ · بلا ظلال · ارتفاع اللمس ٤٨ بكسل كحد أدنى (استخدام داخل سيارة).</p>
+</div>
+<div class="card"><h3>الأوضاع</h3><ul class="cl">
+<li class="y"><strong>الوضع النهاري (الافتراضي):</strong> أبيض، بطاقات بحدود E3E8E0، نص فحمي.</li>
+<li class="y"><strong>وضع القيادة:</strong> فحمي ٩٠٠ إجباري، خط أكبر درجة، عناصر تفاعلية أقل — القرار الوحيد المتاح: «وصلت» اليدوي.</li>
+<li class="y"><strong>لوحة الموظف:</strong> كثافة أعلى، بطاقة السيارة أكبر عنصر، الترتيب حسب زمن الوصول.</li>
+</ul></div>
+</div>
+
+<div class="sec-h" id="s12"><span class="num">12</span><h2>التطبيقات</h2><small>APPLICATIONS</small></div>
+<div class="card">
+<div class="grid g3">
+<div><div class="tile" style="background:var(--cloud);border:1px solid var(--line)"><svg width="80" height="80"><use href="#badge"/></svg></div><p class="cap">أيقونة التطبيق</p></div>
+<div><div class="tile" style="background:#fff;border:1px solid var(--line);gap:6px"><svg width="40" height="40"><use href="#badge"/></svg><span class="disp" style="font-weight:700;font-size:15px">استلام بيكلي</span><span class="disp" style="font-weight:700;font-size:22px;color:var(--lime9);background:var(--lime1);border-radius:8px;padding:2px 16px">موقف ٣</span></div><p class="cap">لوحة مواقف الاستلام</p></div>
+<div><div class="tile" style="background:var(--ink);gap:6px" dir="ltr"><div style="display:flex;align-items:center;gap:10px"><div style="text-align:left"><span class="wm-en" style="font-size:18px;color:var(--cloud)">pickly</span><span class="wm-ar" style="font-size:14px;color:var(--cloud)">بيكلي</span></div><svg width="36" height="36"><use href="#badge"/></svg></div><span style="color:var(--lime);font-size:12.5px;font-weight:500">نوصّل طلبك لسيارتك</span></div><p class="cap">ملصق واجهة المتجر</p></div>
+<div><div class="tile" style="background:var(--cloud);border:1px solid var(--line);gap:8px"><div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 18px;display:flex;align-items:center;gap:10px"><svg width="28" height="28"><use href="#badge"/></svg><span class="disp" style="font-weight:700;font-size:14px">كيس الطلب — الخطوط على الوجهين</span></div></div><p class="cap">التغليف</p></div>
+<div><div class="tile" style="background:var(--ink);gap:6px"><div style="width:110px;height:34px;background:var(--lime);border-radius:8px;display:flex;align-items:center;justify-content:center"><span class="disp" style="font-weight:700;font-size:13px">بيكلي · راشد</span></div></div><p class="cap">بطاقة موظف الاستلام</p></div>
+<div><div class="tile" style="background:var(--cloud);border:1px solid var(--line)"><div style="background:var(--ink);border-radius:10px;padding:8px 14px;display:flex;gap:8px;align-items:center"><svg width="22" height="22"><use href="#badge"/></svg><span class="mono" style="font-size:12px;color:var(--lime)">pickly.sa</span></div></div><p class="cap">التوقيع الرقمي</p></div>
+</div>
+</div>
+
+<div class="sec-h" id="s13"><span class="num">13</span><h2>رموز التصميم</h2><small>DESIGN TOKENS</small></div>
+<div class="card">
+<table>
+<tr><th>الرمز</th><th>القيمة</th><th>الاستخدام</th></tr>
+<tr><td><code class="tok">--pk-lime-500</code></td><td class="mono">#C9F339</td><td>أساسي</td></tr>
+<tr><td><code class="tok">--pk-lime-300</code></td><td class="mono">#DDF87A</td><td>hover</td></tr>
+<tr><td><code class="tok">--pk-lime-100</code></td><td class="mono">#F2FCD1</td><td>خلفيات ناعمة</td></tr>
+<tr><td><code class="tok">--pk-lime-900</code></td><td class="mono">#5E7A12</td><td>نص فوق الليموني</td></tr>
+<tr><td><code class="tok">--pk-ink-900</code></td><td class="mono">#10241B</td><td>نص / وضع القيادة</td></tr>
+<tr><td><code class="tok">--pk-ink-700</code></td><td class="mono">#1C3329</td><td>بطاقات داكنة</td></tr>
+<tr><td><code class="tok">--pk-ink-600</code></td><td class="mono">#2E4A3C</td><td>ثانوي داكن</td></tr>
+<tr><td><code class="tok">--pk-success / warn / error</code></td><td class="mono">#1D9E75 · #EF9F27 · #E24B4A</td><td>حالات</td></tr>
+<tr><td><code class="tok">--pk-radius</code></td><td class="mono">12px (24% للشارة)</td><td>الزوايا</td></tr>
+<tr><td><code class="tok">--pk-skew</code></td><td class="mono">-8deg</td><td>زاوية الحركة</td></tr>
+<tr><td><code class="tok">--pk-fade</code></td><td class="mono">1 / .55 / .3</td><td>تلاشي الخطوط</td></tr>
+<tr><td><code class="tok">--pk-ease</code></td><td class="mono">cubic-bezier(.2,.8,.2,1)</td><td>الحركة</td></tr>
+<tr><td><code class="tok">--pk-dur</code></td><td class="mono">150–250ms</td><td>مدد الانتقال</td></tr>
+<tr><td><code class="tok">--pk-font-display / body / mono</code></td><td class="mono">Baloo Bhaijaan 2 · IBM Plex Sans Arabic · IBM Plex Mono</td><td>الخطوط</td></tr>
+</table>
+</div>
+
+<div class="sec-h" id="s14"><span class="num">14</span><h2>فهرس الأصول</h2><small>ASSETS</small></div>
+<div class="card" style="background:var(--ink);color:#8FA398;border:none">
+<p style="color:var(--cloud);font-weight:500;margin-bottom:8px">حزمة pickly-identity/</p>
+<p class="mono" style="font-size:13px;line-height:2">logos/logo-primary.svg — الشعار الكامل للفواتح<br>logos/logo-dark.svg — للخلفيات الداكنة<br>logos/logo-mono-black.svg · logo-mono-white.svg — أحادي<br>logos/app-icon.svg — الشارة/الأيقونة<br>pickly-brand-guidelines.html — الدليل المختصر<br>pickly-brand-book.html — هذا الكتاب<br>pickly-landing.html — صفحة الهبوط<br>pickly-persona.html — شخصيات المستخدمين</p>
+<p style="margin-top:14px;font-size:13px">قبل الطباعة: تحويل نصوص SVG إلى مسارات. قبل التطوير: اعتماد رموز القسم ١٣ كما هي.</p>
+<p style="margin-top:14px;color:var(--cloud)" class="disp">هوية بيكلي — مكتملة وموثّقة ✓</p>
+</div>
+<p style="text-align:center;color:var(--gray);font-size:13px;padding:10px 0 40px">بيكلي · كتاب الهوية الشامل ١٫٠ · يوليو ٢٠٢٦</p>
+</div>
+</body>
+</html>

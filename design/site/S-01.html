@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-01 · بيكلي — طلبك يوصلك لسيارتك</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="../tokens.css">
+<style>
+:root{--lime:var(--pk-lime-500);--lime3:var(--pk-lime-300);--lime1:var(--pk-lime-100);--lime9:var(--pk-lime-900);--ink:var(--pk-ink-900);--ink6:var(--pk-ink-600);--ink7:var(--pk-ink-700);--cloud:var(--pk-cloud);--line:var(--pk-line);--gray:var(--pk-gray);--ok:var(--pk-success);--warn:var(--pk-warn);--err:var(--pk-error)}
+.pkmeta{position:sticky;top:0;z-index:999;background:#10241B;color:#B9C7BE;display:flex;align-items:center;gap:12px;padding:8px 16px;font-size:12px;flex-wrap:wrap}.pkmeta .code{font-family:var(--pk-font-mono,monospace);background:#C9F339;color:#10241B;border-radius:6px;padding:1px 10px;font-weight:500;letter-spacing:1px}.pkmeta .ttl{color:#F4F7F2;font-weight:500;font-size:12.5px}.pkmeta a{color:#8FA398;text-decoration:none;font-size:11.5px}.pkmeta a:hover{color:#C9F339}.pkmeta .nav2{display:flex;gap:10px;align-items:center;border-inline-start:1px solid #2E4A3C;padding-inline-start:12px}
+*{box-sizing:border-box;margin:0}
+body{font-family:'IBM Plex Sans Arabic',sans-serif;color:var(--ink);background:#fff;line-height:1.75}
+.disp{font-family:'Baloo Bhaijaan 2','IBM Plex Sans Arabic',sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+nav{position:sticky;top:0;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);z-index:50}
+.nav-in{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+.nav-links{display:flex;gap:26px;font-size:14.5px;font-weight:500}
+.nav-links a{color:var(--ink6);text-decoration:none}
+.btn{display:inline-block;background:var(--lime);color:var(--ink);font-weight:700;font-size:15px;padding:11px 26px;border-radius:12px;text-decoration:none;font-family:'Baloo Bhaijaan 2',sans-serif}
+.btn-ghost{background:#fff;border:1.5px solid var(--ink);color:var(--ink)}
+.hero{padding:72px 0 48px;display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center}
+.pill{display:inline-block;background:var(--lime1);color:var(--lime9);font-size:13px;font-weight:500;border-radius:99px;padding:5px 16px;margin-bottom:18px}
+h1{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:52px;line-height:1.25;font-weight:800}
+h1 .lm{color:var(--lime9)}
+.hero p.sub{font-size:18px;color:var(--ink6);margin:18px 0 28px;max-width:34rem}
+.hero-ctas{display:flex;gap:12px;flex-wrap:wrap}
+.mini-feats{display:flex;gap:8px;flex-wrap:wrap;margin-top:26px}
+.mini-feats span{font-size:13px;background:var(--cloud);border:1px solid var(--line);border-radius:99px;padding:5px 14px;color:var(--ink6)}
+.phone{background:var(--ink);border-radius:34px;padding:10px;max-width:290px;margin:0 auto;box-shadow:0 24px 60px rgba(16,36,27,.18)}
+.screen{background:var(--ink);border-radius:26px;padding:18px;min-height:420px;color:var(--cloud)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;padding:34px 0;border-top:1px solid var(--line)}
+.stat b{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:32px;font-weight:800;display:block}
+.stat span{font-size:13px;color:var(--gray)}
+section{padding:64px 0}
+.kicker{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:2px;color:var(--lime9);display:block;margin-bottom:8px}
+h2.sec{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:34px;font-weight:800;line-height:1.35;margin-bottom:10px}
+p.lead{color:var(--ink6);max-width:44rem;margin-bottom:34px}
+.cards3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px}
+.card.dark{background:var(--ink);color:var(--cloud);border:none}
+.card h3{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:20px;font-weight:700;margin:14px 0 8px}
+.card p{font-size:14.5px;color:var(--gray)}
+.card.dark p{color:#8FA398}
+.ic{width:52px;height:52px;border-radius:14px;background:var(--lime1);display:flex;align-items:center;justify-content:center}
+.card.dark .ic{background:var(--ink7)}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.tags span{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--cloud);border-radius:6px;padding:3px 10px;color:var(--ink6)}
+.card.dark .tags span{background:var(--ink7);color:var(--lime3)}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+.step{background:var(--cloud);border-radius:18px;padding:26px;position:relative}
+.step .n{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:40px;font-weight:800;color:var(--lime);-webkit-text-stroke:1.5px var(--ink);line-height:1}
+.gray-band{background:var(--cloud)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center}
+.check{list-style:none;padding:0;margin:18px 0}
+.check li{padding-right:30px;position:relative;margin-bottom:12px;font-size:15px}
+.check li:before{content:"✓";position:absolute;right:0;color:var(--ok);font-weight:700}
+.sectors{display:flex;gap:10px;flex-wrap:wrap}
+.sectors span{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 20px;font-weight:500;font-size:14.5px}
+.price{border:1px solid var(--line);border-radius:20px;padding:30px;background:#fff}
+.price.hot{border:2px solid var(--lime);position:relative}
+.price .tagp{position:absolute;top:-13px;right:24px;background:var(--lime);border-radius:99px;font-size:12px;font-weight:700;padding:3px 14px}
+.price b.amount{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:34px;font-weight:800}
+.faq details{border-bottom:1px solid var(--line);padding:16px 0}
+.faq summary{font-weight:500;cursor:pointer;font-size:15.5px}
+.faq p{font-size:14.5px;color:var(--gray);margin-top:8px;max-width:44rem}
+.cta-final{background:var(--ink);border-radius:28px;padding:56px 32px;text-align:center;color:var(--cloud)}
+.cta-final h2{font-family:'Baloo Bhaijaan 2',sans-serif;font-size:36px;font-weight:800;line-height:1.4}
+.cta-final .lm{color:var(--lime)}
+footer{padding:36px 0;color:var(--gray);font-size:13.5px;border-top:1px solid var(--line);margin-top:24px}
+.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+@media(max-width:820px){.hero{grid-template-columns:1fr}.split{grid-template-columns:1fr}h1{font-size:38px}.nav-links{display:none}}
+.lock{display:flex;align-items:center;gap:10px}
+.lock .wm{font-family:'Baloo Bhaijaan 2',sans-serif;font-weight:800;font-size:22px;line-height:1}
+.lock .wm small{display:block;font-size:13px;font-weight:700}
+</style>
+</head>
+<body data-screen-label="S-01 الرئيسية">
+<div class="pkmeta"><span class="code">S-01</span><span class="ttl">الرئيسية — الموقع التعريفي</span><span class="nav2"><a href="index.html">فهرس الموقع</a><a href="../index.html">كل المنتجات</a><a href="S-02.html">S-02 &larr;</a></span></div>
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+<symbol id="badge" viewBox="0 0 100 100">
+<rect width="100" height="100" rx="24" fill="#C9F339"/>
+<g transform="skewX(-8) translate(4,0)" stroke="#10241B" fill="none">
+<path d="M36,34 L62,34 L59,72 L39,72 Z" stroke-width="4" stroke-linejoin="round"/>
+<path d="M43,34 Q49,24 55,34" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M70,40 H88" stroke-width="5" stroke-linecap="round"/>
+<path d="M74,52 H88" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+<path d="M70,64 H80" stroke-width="5" stroke-linecap="round" opacity="0.3"/>
+</g>
+</symbol>
+</svg>
+
+<nav><div class="wrap nav-in">
+<div class="lock" dir="ltr" style="direction:ltr">
+<svg width="42" height="42"><use href="#badge"/></svg>
+<div class="wm" style="text-align:left">pickly<small>بيكلي</small></div>
+</div>
+<div class="nav-links">
+<a href="S-02.html">كيف يعمل</a><a href="S-03.html">للمتاجر</a><a href="S-04.html">المدن</a><a href="S-05.html">الأسئلة</a><a href="S-06.html">الدعم</a>
+</div>
+<a class="btn" href="S-08.html">حمّل التطبيق</a>
+</div></nav>
+
+<header class="wrap hero">
+<div>
+<span class="pill">قريبًا في السعودية · استلام ذكي من السيارة</span>
+<h1>وصلت؟<br><span class="lm">إحنا عرفنا.</span></h1>
+<p class="sub">بيكلي يبلّغ المطعم تلقائيًا لحظة اقتراب سيارتك — فيطلع لك الموظف بطلبك وأنت في مقعدك. بلا اتصال، بلا «وين طلبي؟»، بلا نزول مع الأطفال.</p>
+<div class="hero-ctas">
+<a class="btn" href="#join">حمّل التطبيق قريبًا</a>
+<a class="btn btn-ghost" href="S-03.html">سجّل متجرك</a>
+</div>
+<div class="mini-feats">
+<span>رصد تلقائي ١٠٠–٣٠٠ م</span><span>سيارتك هي عنوانك</span><span>بلا عمولة على المتاجر</span><span>تكامل Foodics</span>
+</div>
+</div>
+<div class="phone"><div class="screen">
+<p style="font-size:11px;color:var(--lime);margin-bottom:14px">وضع القيادة</p>
+<p class="disp" style="font-size:30px;font-weight:800">١٢ دقيقة</p>
+<p style="font-size:11.5px;color:#8FA398;margin-bottom:16px">حتى وصولك لبيست برجر — العليا</p>
+<div style="background:var(--ink6);border-radius:99px;height:6px;margin-bottom:18px"><div style="background:var(--lime);border-radius:99px;height:6px;width:55%"></div></div>
+<div style="background:var(--ink7);border-radius:12px;padding:12px;margin-bottom:10px">
+<p style="font-size:11.5px;color:var(--lime3)">الإبلاغ تلقائي</p>
+<p style="font-size:11.5px;color:#8FA398">عند دخولك نطاق ٣٠٠ متر يعرف المطعم أنك وصلت</p>
+</div>
+<div style="background:var(--ink7);border-radius:12px;padding:12px;margin-bottom:14px">
+<p style="font-size:11.5px;color:var(--cloud)">سيارتك: كامري · بيضاء · ٨٢٤١</p>
+<p style="font-size:11px;color:#8FA398">الموظف يعرف شكل سيارتك مسبقًا</p>
+</div>
+<div style="background:var(--lime);border-radius:12px;padding:11px;text-align:center">
+<span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);font-weight:500" dir="ltr">P-4821</span>
+</div>
+</div></div>
+</header>
+
+<div class="wrap stats">
+<div class="stat"><b>٩٠ ث</b><span>متوسط التسليم بعد الرصد*</span></div>
+<div class="stat"><b>٠</b><span>مكالمات «وين طلبي؟»</span></div>
+<div class="stat"><b>٪٠</b><span>عمولة على قيمة الطلب</span></div>
+<div class="stat"><b>٣٠٠ م</b><span>نطاق الاستشعار الذكي</span></div>
+</div>
+<p class="wrap" style="font-size:11.5px;color:var(--gray)">* أرقام مستهدفة من تصميم التجربة — ليست بيانات إنتاج.</p>
+<section class="wrap" id="features">
+<span class="kicker">FEATURES</span>
+<h2 class="sec">ثلاث قدرات تلغي الانتظار.</h2>
+<p class="lead">بيكلي ليس تطبيق توصيل ولا منصة طلبات — هو طبقة تنسيق الاستلام الذكية بين سيارتك وباب المتجر.</p>
+<div class="cards3">
+<div class="card dark">
+<div class="ic"><svg width="30" height="30" viewBox="0 0 100 100" fill="none" stroke="#C9F339"><path d="M34,30 A22,22 0 0 1 66,30" stroke-width="7" stroke-linecap="round"/><path d="M24,17 A36,36 0 0 1 76,17" stroke-width="7" stroke-linecap="round" opacity=".5"/><circle cx="50" cy="55" r="12" stroke-width="7"/><path d="M50,67 V84" stroke-width="7" stroke-linecap="round"/></svg></div>
+<h3>رصد وصول تلقائي</h3>
+<p>نطاق ذكي حول الفرع (١٠٠–٣٠٠ متر) يستشعر اقترابك ويبلّغ الموظف تلقائيًا — بلا زر، بلا اتصال. ولو تعطّل GPS؟ زر «وصلت» اليدوي موجود دائمًا.</p>
+<div class="tags"><span>GEOFENCE</span><span>AUTO-DETECT</span><span>FALLBACK</span></div>
+</div>
+<div class="card">
+<div class="ic"><svg width="30" height="30" viewBox="0 0 100 100" fill="none" stroke="#5E7A12"><path d="M30,58 Q35,42 50,42 Q65,42 70,58" stroke-width="7" stroke-linecap="round"/><rect x="18" y="56" width="64" height="18" rx="9" stroke-width="7"/><circle cx="34" cy="80" r="6" stroke-width="6"/><circle cx="66" cy="80" r="6" stroke-width="6"/></svg></div>
+<h3>سيارتك هي عنوانك</h3>
+<p>سجّل سيارتك مرة واحدة — النوع واللون واللوحة — وتصبح «عنوان استلامك» الدائم. الموظف يعرف بالضبط أي سيارة يقصد، من أول مرة.</p>
+<div class="tags"><span>ملف السيارة</span><span>إعداد مرة واحدة</span></div>
+</div>
+<div class="card">
+<div class="ic"><svg width="30" height="30" viewBox="0 0 100 100" fill="none" stroke="#5E7A12"><rect x="26" y="12" width="48" height="76" rx="12" stroke-width="7"/><path d="M40,72 H60" stroke-width="7" stroke-linecap="round"/></svg></div>
+<h3>وضع قيادة آمن</h3>
+<p>بعد الدفع تتحول الشاشة لوضع داكن هادئ: الوقت المتبقي وحالة طلبك فقط، بأحرف كبيرة — كل شيء يحدث تلقائيًا وأنت تسوق.</p>
+<div class="tags"><span>DARK MODE</span><span>بلا تشتيت</span></div>
+</div>
+</div>
+</section>
+
+<section class="gray-band" id="how"><div class="wrap">
+<span class="kicker">HOW IT WORKS</span>
+<h2 class="sec">من الطلب إلى يدك في ٣ خطوات.</h2>
+<p class="lead">إعداد أول مرة أقل من دقيقتين: سيارتك + إذن الموقع. بعدها كل شيء تلقائي.</p>
+<div class="steps">
+<div class="step"><div class="n">١</div><h3 class="disp" style="font-size:19px;margin:10px 0 6px">اطلب وادفع</h3><p style="font-size:14.5px;color:var(--ink6)">اطلب من متجرك المفضل وادفع داخل التطبيق. تظهر شاشة الاستلام فورًا مع كود طلبك.</p></div>
+<div class="step"><div class="n">٢</div><h3 class="disp" style="font-size:19px;margin:10px 0 6px">انطلق وحنا نراقب</h3><p style="font-size:14.5px;color:var(--ink6)">اضغط «انطلقت» ويبدأ وضع القيادة. المتجر يجهّز طلبك على وقت وصولك المتوقع.</p></div>
+<div class="step"><div class="n">٣</div><h3 class="disp" style="font-size:19px;margin:10px 0 6px">وصلت؟ إحنا عرفنا</h3><p style="font-size:14.5px;color:var(--ink6)">لحظة دخولك النطاق يُبلَّغ الموظف تلقائيًا ويخرج إليك بطلبك. تطابق الكود، استلم، وامشِ.</p></div>
+</div>
+</div></section>
+
+<section class="wrap" id="merchants">
+<div class="split">
+<div>
+<span class="kicker">FOR MERCHANTS</span>
+<h2 class="sec">لمتجرك: كاونتر أهدأ،<br>وعملاء أوفى.</h2>
+<ul class="check">
+<li><strong>بلا عمولة على قيمة الطلب</strong> — رسوم بوابة الدفع القياسية فقط.</li>
+<li>لوحة موظف بسيطة: من قادم، متى يصل، وأي سيارة بالضبط.</li>
+<li>تكامل مع Foodics POS — طلباتك في نظامك الحالي، بلا شاشة إضافية.</li>
+<li>وداعًا لازدحام الاستلام ومكالمات «أنا واقف برا».</li>
+</ul>
+<a class="btn" href="S-03.html">سجّل متجرك مبكرًا</a>
+</div>
+<div class="card dark" style="padding:22px">
+<p style="font-size:12px;color:var(--lime);margin-bottom:12px">لوحة الفرع — بيست برجر العليا</p>
+<div style="background:var(--ink7);border-radius:12px;padding:14px;margin-bottom:10px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div><p style="font-size:13.5px;color:var(--cloud);font-weight:500">كامري بيضاء · ٨٢٤١</p><p style="font-size:11.5px;color:#8FA398">طلب <span dir="ltr" style="font-family:'IBM Plex Mono',monospace">P-4821</span> · موقف ٣</p></div>
+<span style="background:#1D9E75;color:#fff;border-radius:99px;font-size:11px;padding:4px 12px">وصل الآن</span>
+</div></div>
+<div style="background:var(--ink7);border-radius:12px;padding:14px;margin-bottom:10px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div><p style="font-size:13.5px;color:var(--cloud);font-weight:500">يوكن أسود · ٣٣١٩</p><p style="font-size:11.5px;color:#8FA398">طلب <span dir="ltr" style="font-family:'IBM Plex Mono',monospace">P-4822</span></p></div>
+<span style="background:#EF9F27;color:#412402;border-radius:99px;font-size:11px;padding:4px 12px">٤ دقائق</span>
+</div></div>
+<div style="background:var(--ink7);border-radius:12px;padding:14px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div><p style="font-size:13.5px;color:var(--cloud);font-weight:500">سوناتا رمادية · ٧٥٦٢</p><p style="font-size:11.5px;color:#8FA398">طلب <span dir="ltr" style="font-family:'IBM Plex Mono',monospace">P-4823</span></p></div>
+<span style="background:var(--ink6);color:#C9F339;border-radius:99px;font-size:11px;padding:4px 12px">١١ دقيقة</span>
+</div></div>
+</div>
+</div>
+</section>
+
+<section class="gray-band"><div class="wrap">
+<span class="kicker">SECTORS</span>
+<h2 class="sec">مبني للمطاعم. جاهز لكل استلام.</h2>
+<p class="lead">أي متجر يسلّم طلبات محضّرة مسبقًا يستفيد من بيكلي:</p>
+<div class="sectors"><span>مطاعم</span><span>مقاهي</span><span>مخابز وحلويات</span><span>صيدليات</span><span>بقالة وسوبرماركت</span><span>ورد وهدايا</span><span>تجزئة (اطلب واستلم)</span></div>
+</div></section>
+
+<section class="wrap" id="pricing">
+<span class="kicker">PRICING</span>
+<h2 class="sec">تسعير بلا مفاجآت.</h2>
+<p class="lead">نربح فقط عندما يكتمل استلام — لا اشتراكات إجبارية ولا عمولات مخفية.</p>
+<div class="cards3">
+<div class="price"><p class="disp" style="font-weight:700;font-size:18px">للعملاء</p><b class="amount">رسوم رمزية</b><p style="font-size:14px;color:var(--gray);margin:8px 0 0">لكل عملية استلام ناجحة — تُعرض بوضوح قبل الدفع. التطبيق مجاني.</p></div>
+<div class="price hot"><span class="tagp">للمتاجر</span><p class="disp" style="font-weight:700;font-size:18px">بلا عمولة</p><b class="amount">٪٠</b><p style="font-size:14px;color:var(--gray);margin:8px 0 0">على قيمة الطلب. رسوم بوابة الدفع القياسية فقط — أرباح طلبك تبقى لك بالكامل.</p></div>
+<div class="price"><p class="disp" style="font-weight:700;font-size:18px">التكاملات</p><b class="amount">Foodics</b><p style="font-size:14px;color:var(--gray);margin:8px 0 0">ربط مباشر مع نظام نقاط البيع — الطلبات والحالات في مكان واحد.</p></div>
+</div>
+</section>
+
+<section class="wrap faq" id="faq" style="padding-top:20px">
+<span class="kicker">FAQ</span>
+<h2 class="sec">أسئلة تدور في بالك.</h2>
+<details><summary>ماذا لو تعطّل الـ GPS أو رفضت إذن الموقع؟</summary><p>الرصد التلقائي هو الأساس، لكن زر «وصلت» اليدوي موجود دائمًا في شاشة الاستلام — التجربة لا تتوقف أبدًا على الاستشعار.</p></details>
+<details><summary>هل بيكلي تطبيق توصيل؟</summary><p>لا. بيكلي لا يوصّل ولا يتدخل في تجهيز الطلب — نحن ننسق لحظة الاستلام فقط: نخبر المتجر أنك وصلت، وأي سيارة أنت.</p></details>
+<details><summary>كيف يعرف الموظف سيارتي؟</summary><p>ملف سيارتك (النوع، اللون، اللوحة) يظهر للموظف مع طلبك، مع رقم الموقف إن وجد — يمشي إليك مباشرة دون بحث.</p></details>
+<details><summary>ماذا لو لم يجدني الموظف؟</summary><p>يتواصل معك عبر التطبيق برسالة جاهزة، ويظهر لكما كود التطابق نفسه — التسليم لا يتم إلا بتطابق الكود.</p></details>
+<details><summary>ماذا عن خصوصية موقعي؟</summary><p>نستخدم موقعك فقط أثناء رحلة استلام نشطة ولنطاق الفرع، ولا نتتبعك خارجها.</p></details>
+</section>
+
+<section class="wrap" id="join">
+<div class="cta-final">
+<svg width="72" height="72" style="margin-bottom:14px"><use href="#badge"/></svg>
+<h2>خلّك في سيارتك.<br><span class="lm">الباقي علينا.</span></h2>
+<p style="color:#8FA398;margin:14px 0 26px">انضم لقائمة الانتظار وكن أول من يجرب بيكلي في مدينتك.</p>
+<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+<a class="btn" href="#">سجّل اهتمامك — عميل</a>
+<a class="btn" style="background:transparent;border:1.5px solid var(--lime);color:var(--lime)" href="#">سجّل متجرك</a>
+</div>
+</div>
+</section>
+
+<footer><div class="wrap foot">
+<div class="lock" dir="ltr" style="direction:ltr">
+<svg width="34" height="34"><use href="#badge"/></svg>
+<div class="wm disp" style="font-weight:800;font-size:17px;text-align:left">pickly<small style="display:block;font-size:11px">بيكلي</small></div>
+</div>
+<p>© ٢٠٢٦ بيكلي · صُنع في السعودية · <a href="S-07.html" style="color:var(--gray)">الشروط والخصوصية</a> · <a href="S-08.html" style="color:var(--gray)">التحميل</a></p>
+</div></footer>
+</body>
+</html>

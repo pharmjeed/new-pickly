@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pickly v3.1 — المشروع كاملاً: 6 منتجات · 152 شاشة منطقية في 62 صفحة</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<style>*{box-sizing:border-box;margin:0}
+body{font-family:var(--pk-font-body);background:var(--pk-cloud);color:var(--pk-ink-900);line-height:1.8;font-size:15px}
+a{color:var(--pk-lime-900);text-decoration:none}a:hover{color:var(--pk-ink-900)}
+.mono{font-family:var(--pk-font-mono);direction:ltr;unicode-bidi:embed}
+.hero{background:var(--pk-ink-900);color:var(--pk-cloud);padding:44px 26px 36px;position:relative;overflow:hidden}
+.hero .in,.wrap{max-width:1100px;margin:0 auto}
+.hero h1{font-family:var(--pk-font-display);font-weight:800;font-size:38px;color:var(--pk-lime-500);line-height:1.35}
+.hero p{color:#B9C7BE;font-size:14px;max-width:760px;margin-top:8px}
+.hero .stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.hero .st{background:var(--pk-ink-700);border:1px solid var(--pk-ink-600);border-radius:12px;padding:9px 18px;font-size:12.5px;color:#B9C7BE}
+.hero .st b{color:var(--pk-lime-500);font-family:var(--pk-font-mono);font-weight:500;margin-inline-end:7px}
+.l3{position:absolute;inset-inline-end:-20px;bottom:-18px;opacity:.14;transform:scale(3.4)}
+.wrap{padding:30px 26px 90px}
+h2{font-family:var(--pk-font-display);font-weight:700;font-size:22px;margin:28px 0 14px}
+h2 .n{font-size:12px;color:var(--pk-gray);font-family:var(--pk-font-body);font-weight:400;margin-inline-start:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px}
+.prod{background:#fff;border:1px solid var(--pk-line);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:10px}
+.prod .hd{display:flex;align-items:center;gap:12px}
+.prod .ic{width:46px;height:46px;border-radius:14px;background:var(--pk-lime-100);display:flex;align-items:center;justify-content:center;color:var(--pk-lime-900);font-family:var(--pk-font-mono);font-weight:700;font-size:15px;flex-shrink:0}
+.prod .ic.dark{background:var(--pk-ink-900);color:var(--pk-lime-500)}
+.prod b.t{font-family:var(--pk-font-display);font-weight:700;font-size:18px}
+.prod .m{font-size:11.5px;color:var(--pk-gray)}
+.prod p{font-size:12.5px;color:var(--pk-gray)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:11px;border:1px solid var(--pk-line);background:var(--pk-cloud);border-radius:99px;padding:2px 10px;color:var(--pk-ink-600)}
+a.chip:hover{border-color:var(--pk-ink-900);color:var(--pk-ink-900)}
+.row-b{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
+.open{display:inline-flex;align-items:center;gap:6px;background:var(--pk-ink-900);color:var(--pk-lime-500);border-radius:10px;padding:8px 18px;font-size:13px;font-weight:500}
+.open:hover{background:var(--pk-ink-700);color:var(--pk-lime-500)}
+.open.sec{background:transparent;border:1.5px solid var(--pk-ink-900);color:var(--pk-ink-900)}
+.badge{display:inline-flex;align-items:center;border-radius:99px;padding:2px 11px;font-size:11px;font-weight:500}
+.b-warn{background:var(--pk-warn);color:#412402}.b-ok{background:var(--pk-success);color:#fff}
+.p2sec{background:#FCF0DB;border:1px dashed var(--pk-warn);border-radius:20px;padding:18px 20px}
+.p2sec .chips .chip{background:#fff;border-color:#EED9B4;color:#8A5A0E}
+.meth{background:#fff;border:1px solid var(--pk-line);border-radius:20px;padding:18px 20px;font-size:13px;color:var(--pk-ink-600)}
+.meth b{color:var(--pk-ink-900)}
+.meth ol{padding-inline-start:20px;display:flex;flex-direction:column;gap:4px;margin-top:6px}</style>
+</head>
+<body>
+<div class="hero"><svg class="l3" width="150" height="132" viewBox="0 0 50 44"><g transform="skewX(-8)" fill="#C9F339"><rect x="10" y="6" width="36" height="7" rx="3.5"/><rect x="20" y="19" width="26" height="7" rx="3.5" opacity=".55"/><rect x="10" y="32" width="18" height="7" rx="3.5" opacity=".3"/></g></svg><div class="in">
+<div style="display:flex;gap:16px;align-items:center"><svg width="52" height="52" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#C9F339"/><g transform="skewX(-8) translate(4,0)" stroke="#10241B" fill="none"><path d="M36,34 L62,34 L59,72 L39,72 Z" stroke-width="4" stroke-linejoin="round"/><path d="M43,34 Q49,24 55,34" stroke-width="3.5" stroke-linecap="round"/><path d="M70,40 H88" stroke-width="5" stroke-linecap="round"/><path d="M74,52 H88" stroke-width="5" stroke-linecap="round" opacity="0.55"/><path d="M70,64 H80" stroke-width="5" stroke-linecap="round" opacity="0.3"/></g></svg><div><h1>Pickly — واجهات التنفيذ v3.1</h1></div></div>
+<p>سوق طلبات واستلام من السيارة بلا مناديب: اطلب ← قُد ← استلم من نافذتك. البناء وفق خريطة الدمج <span class="mono">docs/21</span>: صفحات متطورة يقودها مبدّل الشاشات المنطقية — <b style="color:var(--pk-lime-500)">المشروع كامل</b>: نطاق الطيار + كل واجهات مرحلة 2 مبنية وموسومة (بطلب المؤسس 2026-07-09) ليبدأ التطوير على النطاق الكامل. أرقام <span class="mono">docs/04</span> باقية للتتبع، والهوية من كتاب الهوية حرفياً.</p>
+<div class="stats"><span class="st"><b>6</b>منتجات</span><span class="st"><b>62</b>صفحة مبنية</span><span class="st"><b>152/152</b>شاشة منطقية ممثلة — نطاق الطيار + مرحلة 2 مبنية وموسومة</span><span class="st"><b>S1–S8</b>اختصارات الخطوات مطبقة</span><span class="st"><b>tokens.css</b>هوية واحدة لكل شيء</span><span class="st"><a href="components.html" style="color:var(--pk-lime-500)">معرض المكونات</a></span><span class="st"><a href="COMPLIANCE.md" style="color:var(--pk-lime-500)">تقرير المطابقة</a></span></div>
+</div></div>
+<div class="wrap"><h2>المنتجات الستة <span class="n">وفق خريطة الدمج docs/21 §1 — نطاق الطيار المشذّب §3</span></h2><div class="grid"><div class="prod"><div class="hd"><span class="ic dark">C</span><div><b class="t">تطبيق العميل</b><div class="m">موبايل 390px · 69 شاشة ← 25 صفحة</div></div></div><p>8 صفحات متطورة (P1–P8) بمبدّل الشاشات المنطقية + 17 صفحة (منها 4 مرحلة 2 موسومة) · اختصارات S1–S5.</p><div class="chips"><a class="chip" href="customer/P1.html">P1 التهيئة</a><a class="chip" href="customer/P2.html">P2 المصادقة</a><a class="chip" href="customer/P3.html">P3 الاستكشاف</a><a class="chip" href="customer/P4.html">P4 المطعم</a><a class="chip" href="customer/P5.html">P5 السلة</a><a class="chip" href="customer/P6.html">P6 الإتمام</a><a class="chip" href="customer/P7.html">P7 الطلب الحي</a><a class="chip" href="customer/P8.html">P8 الاكتمال</a></div><div class="row-b"><a class="open" href="customer/index.html">الفهرس</a><a class="open sec" href="customer/P7.html">P7 الطلب الحي ⭐</a></div></div><div class="prod"><div class="hd"><span class="ic">B</span><div><b class="t">شاشة تشغيل الفرع</b><div class="m">تابلت 1280px أفقي · 16 شاشة ← 5 صفحات</div></div></div><p>لوحة التشغيل الجامعة (تبويبات = حالات + Drawer + Sheets) · KDS مستقلة · وردية بوضعين · ازدحام.</p><div class="chips"><a class="chip" href="branch/B-01.html">B-01 دخول</a><a class="chip" href="branch/B-02.html">B-02 وردية</a><a class="chip" href="branch/B-03.html">B-03 اللوحة</a><a class="chip" href="branch/B-07.html">B-07 KDS</a><a class="chip" href="branch/B-15.html">B-15 ازدحام</a></div><div class="row-b"><a class="open" href="branch/index.html">الفهرس</a><a class="open sec" href="branch/B-03.html">اللوحة الجامعة ⭐</a></div></div><div class="prod"><div class="hd"><span class="ic">M</span><div><b class="t">بوابة التاجر</b><div class="m">ديسكتوب 1440px · 20 شاشة ← 15 صفحة</div></div></div><p>فرع بتبويبات (إعدادات + استلام + معايرة) · منيو وتوفر موحدة · مالية بتبويبين · M-11 مرحلة 2 مبنية · فاتح/داكن.</p><div class="row-b"><a class="open" href="merchant/index.html">الفهرس</a><a class="open sec" href="merchant/M-05.html">إعدادات الفرع</a></div></div><div class="prod"><div class="hd"><span class="ic dark">A</span><div><b class="t">لوحة Super Admin</b><div class="m">ديسكتوب 1440px · Modular Panel واحدة</div></div></div><p>27 وحدة مبنية كاملة (22 طيار + 5 مرحلة 2 بشارة «م2») — التبديل من القائمة الجانبية.</p><div class="row-b"><a class="open" href="admin/index.html">الفهرس</a><a class="open sec" href="admin/panel.html">افتح اللوحة</a></div></div><div class="prod"><div class="hd"><span class="ic">W</span><div><b class="t">ويب العميل</b><div class="m">متصفح الجوال · 12 شاشة ← 8 صفحات</div></div></div><p>صفحة التتبع الموحدة (أولوية الطيار) + الويب الكامل W-01→W-11 مبني وموسوم مرحلة 2.</p><div class="row-b"><a class="open" href="customer-web/index.html">الفهرس</a><a class="open sec" href="customer-web/W-track.html">صفحة التتبع</a></div></div><div class="prod"><div class="hd"><span class="ic">S</span><div><b class="t">الموقع التعريفي</b><div class="m">ويب عام · S-01 → S-08</div></div></div><p>الرئيسية على أساس pickly-landing المرفقة + كيف يعمل، للتجار، المدن، FAQ، الدعم، الشروط، التحميل.</p><div class="row-b"><a class="open" href="site/index.html">الفهرس</a><a class="open sec" href="site/S-01.html">S-01 الرئيسية</a></div></div></div><h2 id="phase2">نطاق مرحلة 2 — مبني وموسوم <span class="n">بُني كاملاً بطلب المؤسس ليبدأ كلود كود على المشروع كاملاً · الوسم باقٍ = أولويات التنفيذ والإطلاق تبقى للطيار أولاً (docs/20)</span></h2><div class="p2sec"><div class="chips">
+<a class="chip" href="customer/P6.html#C-28">الطلب المجدول بفترات (BR-5)</a><a class="chip" href="customer-web/index.html#phase2">ويب العميل الكامل W-01–04 · W-09–11</a><a class="chip" href="customer/C-65.html">تذاكر الدعم C-65/66</a><a class="chip" href="admin/panel.html#A-15">A-15 الدعم</a><a class="chip" href="customer/P5.html#C-32">الكوبونات (BR-7)</a><a class="chip" href="customer/P8.html#C-53">البقشيش</a><a class="chip" href="customer/C-15.html">خريطة الاكتشاف C-15</a><a class="chip" href="customer/C-18.html">المفضلة C-18 · C-64</a><a class="chip" href="admin/panel.html#A-13">CMS الكامل A-13</a><a class="chip" href="admin/panel.html#A-23">Feature Flags UI A-23</a><a class="chip" href="admin/panel.html#A-16">محرك المخاطر A-16</a><a class="chip" href="admin/panel.html#A-12">العروض المشتركة A-12</a><a class="chip" href="merchant/M-11.html">M-11 عروض التاجر</a><span class="chip">S9 موقف بـ QR — تبقى v1.5 (تصميم لاحق)</span>
+</div><div class="note-row" style="font-size:12px;color:#8A5A0E;margin-top:8px">ترتيب البناء البرمجي يبقى وفق خطة الإصدار docs/20: الطيار (نطاق 21§3) أولاً، ثم تُفعَّل واجهات مرحلة 2 المبنية هنا بعد استقرار مقاييس الطيار.</div></div><h2>منهجية العرض</h2><div class="meth"><b>كيف تراجع النماذج؟</b><ol>
+<li>كل صفحة متطورة أعلاها شريط داكن فيه <b>مبدّل «الشاشات المنطقية»</b> — كل زر يعرض شاشة من شاشات docs/04 التي ابتلعتها الصفحة (وأرقام 04 باقية للتتبع).</li>
+<li>تحت المبدّل، للشاشات متعددة الحالات صف <b>«حالات الشاشة»</b> (فارغ/خطأ/تحميل… من قائمة الحالات الـ17 حيث نصت الوثيقة).</li>
+<li>الروابط عميقة: <span class="mono">P7.html#C-45</span> يفتح شاشة الرحلة مباشرة.</li>
+<li>لوحتا التاجر والأدمن فيهما تبديل <b>فاتح/داكن</b> من أيقونة القمر أعلى كل صفحة.</li>
+<li>المؤجل موسوم <span class="badge b-warn">مرحلة 2</span> في الفهارس وداخل الصفحات.</li></ol></div></div>
+</body>
+</html>
