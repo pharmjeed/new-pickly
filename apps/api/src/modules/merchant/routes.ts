@@ -122,6 +122,7 @@ export async function merchantRoutes(app: FastifyInstance): Promise<void> {
       display_code: order.display_code,
       order_status: order.order_status,
       items: order.items.map((i) => ({
+        id: i.id, // يتطلبه item-issue (BR-4) في KDS
         name_ar: i.name_ar_snapshot,
         quantity: i.quantity,
         modifiers: i.modifiers.map((m) => m.name_ar_snapshot),
