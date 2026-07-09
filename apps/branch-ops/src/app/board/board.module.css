@@ -285,3 +285,37 @@
 }
 .empty b { font-family: var(--pk-font-display); font-size: var(--pk-fs-17); font-weight: 700; }
 .empty p { font-size: var(--pk-fs-13); color: var(--pk-text-2); margin: 2px 0 0; max-width: 260px; }
+
+/* ===== استعراض محتوى الطلب قبل القبول ===== */
+.details {
+  margin: 10px 0 4px;
+  padding: 12px 14px;
+  background: var(--pk-cloud);
+  border: 1px solid var(--pk-line);
+  border-radius: var(--pk-radius);
+}
+.detailsLoading { font-size: var(--pk-fs-14); color: var(--pk-text-2); }
+.detailsHd {
+  font-family: var(--pk-font-display);
+  font-weight: 700;
+  font-size: var(--pk-fs-15);
+  margin-bottom: 8px;
+}
+.itemList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.itemRow { display: flex; gap: 8px; align-items: baseline; font-size: var(--pk-fs-16); }
+.itemQty {
+  font-family: var(--pk-font-mono);
+  font-weight: 700;
+  color: var(--pk-lime-900);
+  min-width: 34px;
+}
+.itemName { flex: 1; }
+.itemMods { color: var(--pk-text-2); font-size: var(--pk-fs-14); }
+.itemNote { color: var(--pk-warn); font-size: var(--pk-fs-14); }
+.custNote {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--pk-line);
+  font-size: var(--pk-fs-14);
+  color: var(--pk-ink-700);
+}

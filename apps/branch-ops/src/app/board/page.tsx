@@ -35,6 +35,16 @@ interface QueueEntry {
   service_target_exceeded: boolean;
 }
 
+interface OrderDetails {
+  id: string;
+  display_code: string;
+  order_status: string;
+  items: Array<{ id: string; name_ar: string; quantity: number; modifiers: string[]; notes: string | null }>;
+  customer_notes: string | null;
+  parking_spot: string | null;
+  vehicle_summary: string | null;
+}
+
 const TABS = [
   ["new", "جديدة"],
   ["preparing", "قيد التحضير"],
@@ -84,6 +94,10 @@ export default function BoardPage() {
   const [codeFor, setCodeFor] = useState<string | null>(null);
   const [codeVal, setCodeVal] = useState("");
   const [now, setNow] = useState<number | null>(null);
+  // استعراض تفاصيل الطلب قبل القبول
+  const [detailsFor, setDetailsFor] = useState<string | null>(null);
+  const [details, setDetails] = useState<OrderDetails | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const token = typeof window !== "undefined" ? localStorage.getItem("bo_token") : null;
 
@@ -159,6 +173,26 @@ export default function BoardPage() {
       await refresh();
     } catch (e) {
       setError((e as Error).message);
+    }
+  };
+
+  // استعراض/إخفاء تفاصيل الطلب قبل القبول
+  const toggleDetails = async (id: string) => {
+    if (detailsFor === id) {
+      setDetailsFor(null);
+      setDetails(null);
+      return;
+    }
+    setDetailsFor(id);
+    setDetails(null);
+    setDetailsLoading(true);
+    try {
+      setDetails(await call<OrderDetails>("GET", `/v1/merchant/orders/${id}/details`));
+    } catch (e) {
+      setError((e as Error).message);
+      setDetailsFor(null);
+    } finally {
+      setDetailsLoading(false);
     }
   };
 
@@ -308,9 +342,46 @@ export default function BoardPage() {
                   </div>
                 )}
 
+                {/* استعراض محتوى الطلب — يظهر لأي حالة عند الطلب، ومهم قبل القبول */}
+                {detailsFor === c.id && (
+                  <div className={s.details} data-testid="order-details">
+                    {detailsLoading || !details ? (
+                      <div className={s.detailsLoading}>…جارٍ استعراض الطلب</div>
+                    ) : (
+                      <>
+                        <div className={s.detailsHd}>محتوى الطلب</div>
+                        <ul className={s.itemList}>
+                          {details.items.map((it) => (
+                            <li key={it.id} className={s.itemRow}>
+                              <span className={s.itemQty}>{it.quantity}×</span>
+                              <span className={s.itemName}>
+                                {it.name_ar}
+                                {it.modifiers.length > 0 && (
+                                  <span className={s.itemMods}> — {it.modifiers.join(" · ")}</span>
+                                )}
+                                {it.notes && <span className={s.itemNote}> ✎ {it.notes}</span>}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                        {details.customer_notes && (
+                          <div className={s.custNote}>ملاحظة العميل: {details.customer_notes}</div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
                 <div className={s.actions}>
                   {c.order_status === "MERCHANT_PENDING" && (
                     <>
+                      <button
+                        className={`${s.bbtn} ${s.gray}`}
+                        data-testid="view-order"
+                        onClick={() => toggleDetails(c.id)}
+                      >
+                        {detailsFor === c.id ? "إخفاء" : "استعراض الطلب"}
+                      </button>
                       <button
                         className={s.bbtn}
                         data-testid="accept-order"
