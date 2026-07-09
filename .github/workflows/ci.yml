@@ -44,3 +44,50 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm --filter @pickly/database migrate:deploy
       - run: pnpm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: quality
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_USER: pickly
+          POSTGRES_PASSWORD: pickly_local
+          POSTGRES_DB: pickly
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pickly"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgresql://pickly:pickly_local@localhost:5433/pickly
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-secret
+      OTP_DEV_FIXED_CODE: "1234"
+      SMS_PROVIDER: mock
+      PAYMENT_PROVIDER: mock
+      GEO_PROVIDER: mock
+      PUSH_PROVIDER: mock
+      PAYMENT_WEBHOOK_SECRET: dev-webhook-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @pickly/database generate
+      - run: pnpm --filter @pickly/database migrate:deploy
+      - run: pnpm db:seed
+      - run: pnpm --filter @pickly/e2e exec playwright install chromium --with-deps
+      - run: pnpm --filter @pickly/e2e test
+        env:
+          CI: "true"
