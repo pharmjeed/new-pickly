@@ -15,6 +15,18 @@
   ```
 - **الناتج:** workflows الـCI تعمل تلقائياً عند أول push.
 
+### A2-بديل مؤقت (مجاني): سيرفر Oracle Always Free لبيئة التطوير/العرض
+> يغني عن GCP **أثناء التطوير فقط** — الإنتاج الحقيقي يبقى A2 أدناه.
+- **الرابط:** https://signup.oraclecloud.com — اختر Home Region: **Saudi Arabia West (Jeddah)** (لا يمكن تغييرها لاحقاً). البطاقة للتحقق فقط.
+- **أنشئ السيرفر:** Compute → Create Instance → Image: **Ubuntu 22.04** → Shape: **Ampere A1 Flex** بـ**4 OCPU / 24GB** (ضمن Always Free) → نزّل مفتاح SSH.
+  - لو ظهر «Out of capacity»: جرّب Availability Domain آخر أو أعد المحاولة لاحقاً — شائع في المجاني.
+- **افتح المنافذ:** Networking → VCN → Security List → Add Ingress Rules: TCP للمنافذ `3000-3004` و`4000` من `0.0.0.0/0`.
+- **شغّل كل شيء بأمر واحد** (من داخل السيرفر عبر SSH):
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/pharmjeed/new-pickly/main/infra/vm/setup-vm.sh | bash
+  ```
+- **الناتج:** الروابط الخمسة على IP السيرفر تعمل بالمحاكيات (OTP=1234، دفع تجريبي) — شاركها مع من تريد.
+
 ### A2. مشروع GCP وربط الفوترة
 - **الرابط:** https://console.cloud.google.com/projectcreate
 - **ماذا تفعل:** مشروعان `pickly-staging` و`pickly-production`، فعّل الفوترة، ثم أنشئ Service Account بدور `Editor` + `Secret Manager Admin` ونزّل مفتاح JSON.
