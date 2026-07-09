@@ -1,0 +1,1837 @@
+// Pickly — مخطط قاعدة البيانات
+// المصدر الحاكم: docs/10-database-erd.md — قائمة الجداول مغلقة، الأسماء حرفية.
+// قواعد صلبة: المبالغ بالهللة Int · الأوقات timestamptz UTC · لقطات في order_items ·
+// order_status_history / audit_logs / payment_webhook_events append-only (تُنفَّذ صلاحيةً في migration SQL).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+// ===================== Enums =====================
+
+/// حالات الطلب الـ24 — حرفياً من docs/05 (المرآة البرمجية في @pickly/contracts)
+enum OrderStatus {
+  DRAFT
+  CART_ACTIVE
+  CHECKOUT_PENDING
+  PAYMENT_PENDING
+  PAYMENT_AUTHORIZED
+  PAYMENT_FAILED
+  ORDER_SUBMITTED
+  MERCHANT_PENDING
+  MERCHANT_ACCEPTED
+  MERCHANT_REJECTED
+  PREPARING
+  READY
+  CUSTOMER_NOTIFIED
+  CUSTOMER_ON_THE_WAY
+  CUSTOMER_NEARBY
+  CUSTOMER_ARRIVED
+  HANDOFF_IN_PROGRESS
+  COMPLETED
+  CANCELLATION_REQUESTED
+  CANCELLED
+  NO_SHOW
+  EXPIRED
+  REFUND_PENDING
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum ActorType {
+  customer
+  merchant_staff
+  admin
+  system
+}
+
+enum UserStatus {
+  active
+  blocked
+  deleted
+}
+
+enum BranchStatus {
+  open
+  busy
+  paused
+  closed
+}
+
+enum CartStatus {
+  active
+  checked_out
+  expired
+  abandoned
+}
+
+enum PaymentIntentStatus {
+  requires_payment
+  processing
+  authorized
+  captured
+  failed
+  cancelled
+}
+
+enum TransactionType {
+  authorization
+  capture
+  refund
+  reversal
+  service_fee
+  payment_fee
+  tip
+  payout
+  adjustment
+}
+
+enum RefundStatus {
+  pending
+  processing
+  completed
+  failed
+  rejected
+}
+
+enum SettlementStatus {
+  draft
+  generated
+  paid
+  disputed
+}
+
+enum PayoutStatus {
+  pending
+  sent
+  confirmed
+  failed
+}
+
+enum InvoiceType {
+  customer_order
+  merchant_subscription
+  service_fees
+  credit_note
+}
+
+enum PickupSessionStatus {
+  active
+  arrived
+  completed
+  cancelled
+}
+
+enum ArrivalEventType {
+  trip_started
+  eta_threshold_10
+  eta_threshold_5
+  eta_threshold_3
+  geofence_alert_enter
+  geofence_arrival_enter
+  dwell_detected
+  manual_arrival_confirm
+  trip_stopped
+}
+
+enum HandoffMethod {
+  code
+  qr
+  customer_button
+  board
+}
+
+enum HandoffAttemptResult {
+  found
+  not_found
+  escalated
+}
+
+enum NotificationChannel {
+  push
+  sms
+  email
+  inapp
+}
+
+enum DeliveryStatus {
+  queued
+  sent
+  delivered
+  opened
+  failed
+}
+
+enum JobStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum TicketStatus {
+  open
+  pending_customer
+  pending_merchant
+  resolved
+  closed
+}
+
+enum ReviewStatus {
+  pending
+  published
+  rejected
+}
+
+enum CouponType {
+  amount
+  percent
+  free_product
+}
+
+enum StaffStatus {
+  active
+  suspended
+  removed
+}
+
+enum MerchantStatus {
+  pending_review
+  approved
+  suspended
+  churned
+}
+
+enum GeofenceKind {
+  alert
+  arrival
+}
+
+enum AdjustmentStatus {
+  awaiting_customer
+  accepted_substitute
+  item_removed
+  cancelled_order
+  merchant_forced
+}
+
+// ===================== الهوية والحسابات =====================
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  phone        String     @unique // E.164
+  full_name    String?
+  email        String?
+  actor_type   ActorType  @default(customer)
+  status       UserStatus @default(active)
+  mfa_enabled  Boolean    @default(false)
+  last_seen_at DateTime?  @db.Timestamptz(6)
+  created_at   DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime   @updatedAt @db.Timestamptz(6)
+
+  customer_profile          CustomerProfile?
+  sessions                  UserSession[]
+  devices                   Device[]
+  consents                  UserConsent[]
+  user_roles                UserRole[]
+  vehicles                  Vehicle[]
+  default_vehicle           CustomerDefaultVehicle?
+  carts                     Cart[]
+  orders                    Order[]
+  favorites                 Favorite[]
+  reviews                   Review[]
+  notifications             Notification[]
+  support_tickets           SupportTicket[]
+  wallet_entries            CustomerWalletEntry[]
+  loyalty_account           LoyaltyAccount?
+  merchant_staff_identities MerchantStaff[]
+
+  @@map("users")
+}
+
+model CustomerProfile {
+  user_id            String    @id @db.Uuid
+  user               User      @relation(fields: [user_id], references: [id])
+  preferred_language String    @default("ar")
+  marketing_opt_in   Boolean   @default(false)
+  default_city       String?
+  no_show_count_30d  Int       @default(0)
+  risk_flagged_at    DateTime? @db.Timestamptz(6)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@map("customer_profiles")
+}
+
+model UserSession {
+  id                 String    @id @default(uuid()) @db.Uuid
+  user_id            String    @db.Uuid
+  user               User      @relation(fields: [user_id], references: [id])
+  refresh_token_hash String    @unique
+  device_id          String?   @db.Uuid
+  device             Device?   @relation(fields: [device_id], references: [id])
+  ip                 String?
+  user_agent         String?
+  expires_at         DateTime  @db.Timestamptz(6)
+  revoked_at         DateTime? @db.Timestamptz(6)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([user_id])
+  @@map("user_sessions")
+}
+
+model Device {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String?  @db.Uuid
+  user       User?    @relation(fields: [user_id], references: [id])
+  platform   String // ios | android | web | branch_tablet
+  name       String?
+  push_token String?
+  branch_id  String?  @db.Uuid // أجهزة الفرع المسماة (docs/11§1)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  sessions UserSession[]
+
+  @@index([user_id])
+  @@map("devices")
+}
+
+model OtpRequest {
+  id          String    @id @default(uuid()) @db.Uuid
+  phone       String
+  code_hash   String
+  attempts    Int       @default(0)
+  max_attempts Int      @default(5)
+  expires_at  DateTime  @db.Timestamptz(6)
+  consumed_at DateTime? @db.Timestamptz(6)
+  request_ip  String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([phone, created_at])
+  @@map("otp_requests")
+}
+
+model UserConsent {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  user        User     @relation(fields: [user_id], references: [id])
+  consent_key String // location_tracking | marketing | terms
+  granted     Boolean
+  version     String
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([user_id, consent_key])
+  @@map("user_consents")
+}
+
+model Role {
+  id      String @id @default(uuid()) @db.Uuid
+  key     String @unique // docs/16 — merchant:* / admin:*
+  scope   String // merchant | admin
+  name_ar String
+  name_en String?
+
+  role_permissions RolePermission[]
+  user_roles       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique
+  description String?
+
+  role_permissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  role_id       String     @db.Uuid
+  permission_id String     @db.Uuid
+  role          Role       @relation(fields: [role_id], references: [id])
+  permission    Permission @relation(fields: [permission_id], references: [id])
+
+  @@id([role_id, permission_id])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id          String    @id @default(uuid()) @db.Uuid
+  user_id     String    @db.Uuid
+  role_id     String    @db.Uuid
+  merchant_id String?   @db.Uuid
+  branch_id   String?   @db.Uuid
+  user        User      @relation(fields: [user_id], references: [id])
+  role        Role      @relation(fields: [role_id], references: [id])
+  merchant    Merchant? @relation(fields: [merchant_id], references: [id])
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([user_id, role_id, merchant_id, branch_id])
+  @@index([user_id])
+  @@map("user_roles")
+}
+
+// ===================== السيارات =====================
+
+model Vehicle {
+  id              String   @id @default(uuid()) @db.Uuid
+  user_id         String   @db.Uuid
+  user            User     @relation(fields: [user_id], references: [id])
+  make_ar         String?
+  model_ar        String?
+  color_ar        String
+  /// اللوحة الكاملة مشفرة (AES-GCM) — docs/10§1
+  plate_encrypted String?
+  /// عمود مختصر للعرض: آخر 4 أرقام/أحرف
+  plate_short     String
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @updatedAt @db.Timestamptz(6)
+
+  photos          VehiclePhoto[]
+  default_for     CustomerDefaultVehicle?
+  orders          Order[]
+
+  @@index([user_id])
+  @@map("vehicles")
+}
+
+model VehiclePhoto {
+  id         String   @id @default(uuid()) @db.Uuid
+  vehicle_id String   @db.Uuid
+  vehicle    Vehicle  @relation(fields: [vehicle_id], references: [id])
+  file_url   String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("vehicle_photos")
+}
+
+model CustomerDefaultVehicle {
+  user_id    String   @id @db.Uuid
+  vehicle_id String   @unique @db.Uuid
+  user       User     @relation(fields: [user_id], references: [id])
+  vehicle    Vehicle  @relation(fields: [vehicle_id], references: [id])
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("customer_default_vehicles")
+}
+
+// ===================== التجار =====================
+
+model Merchant {
+  id          String         @id @default(uuid()) @db.Uuid
+  name_ar     String
+  name_en     String?
+  status      MerchantStatus @default(pending_review)
+  plan_key    String         @default("pilot_basic") // BR-14 — باقة واحدة في الطيار
+  trial_ends_at DateTime?    @db.Timestamptz(6)
+  settlement_cycle String    @default("weekly") // docs/13§6
+  created_at  DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime       @updatedAt @db.Timestamptz(6)
+
+  legal_profile   MerchantLegalProfile?
+  bank_accounts   MerchantBankAccount[]
+  documents       MerchantDocument[]
+  brands          Brand[]
+  branches        Branch[]
+  staff           MerchantStaff[]
+  user_roles      UserRole[]
+  settlements     MerchantSettlement[]
+  payouts         MerchantPayout[]
+  invoices        Invoice[]
+  integrations    Integration[]
+  api_keys        ApiKey[]
+  webhook_subs    WebhookSubscription[]
+  orders          Order[]
+  promotions      Promotion[]
+  coupons         Coupon[]
+
+  @@map("merchants")
+}
+
+model MerchantLegalProfile {
+  merchant_id  String   @id @db.Uuid
+  merchant     Merchant @relation(fields: [merchant_id], references: [id])
+  cr_number    String? // السجل التجاري
+  vat_number   String?
+  legal_name   String?
+  address      String?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("merchant_legal_profiles")
+}
+
+model MerchantBankAccount {
+  id             String   @id @default(uuid()) @db.Uuid
+  merchant_id    String   @db.Uuid
+  merchant       Merchant @relation(fields: [merchant_id], references: [id])
+  bank_name      String
+  /// IBAN مشفر — تغييره فعل حساس يدخل audit_logs (docs/16§4)
+  iban_encrypted String
+  iban_short     String // آخر 4
+  is_primary     Boolean  @default(false)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([merchant_id])
+  @@map("merchant_bank_accounts")
+}
+
+model MerchantDocument {
+  id          String   @id @default(uuid()) @db.Uuid
+  merchant_id String   @db.Uuid
+  merchant    Merchant @relation(fields: [merchant_id], references: [id])
+  doc_type    String // cr | vat_cert | contract | other
+  file_url    String
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([merchant_id])
+  @@map("merchant_documents")
+}
+
+model Brand {
+  id          String   @id @default(uuid()) @db.Uuid
+  merchant_id String   @db.Uuid
+  merchant    Merchant @relation(fields: [merchant_id], references: [id])
+  name_ar     String
+  name_en     String?
+  logo_url    String?
+  cover_url   String?
+  cuisine_ar  String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @updatedAt @db.Timestamptz(6)
+
+  branches Branch[]
+  menus    Menu[]
+
+  @@index([merchant_id])
+  @@map("brands")
+}
+
+model Branch {
+  id            String       @id @default(uuid()) @db.Uuid
+  merchant_id   String       @db.Uuid
+  brand_id      String       @db.Uuid
+  brand         Brand        @relation(fields: [brand_id], references: [id])
+  merchant      Merchant     @relation(fields: [merchant_id], references: [id])
+  name_ar       String
+  /// كود دخول فريق الفرع — docs/11§1
+  branch_code   String       @unique
+  status        BranchStatus @default(open)
+  busy_message  String?
+  city          String
+  address_short String
+  /// geography(Point,4326) — الاستعلامات المكانية عبر SQL خام مفهرس gist
+  location      Unsupported("geography(Point,4326)")?
+  lat           Float
+  lng           Float
+  phone         String?
+  min_order_halalas Int?
+  is_active     Boolean      @default(true)
+  created_at    DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime     @updatedAt @db.Timestamptz(6)
+
+  hours              BranchHour[]
+  closures           BranchClosure[]
+  contacts           BranchContact[]
+  pickup_settings    BranchPickupSettings?
+  parking_spots      ParkingSpot[]
+  geofences          Geofence[]
+  staff_assignments  StaffBranchAssignment[]
+  availability       BranchProductAvailability[]
+  capacity_slots     BranchCapacitySlot[]
+  orders             Order[]
+  arrival_queue      ArrivalQueueEntry[]
+  carts              Cart[]
+
+  @@index([merchant_id])
+  @@index([brand_id])
+  @@map("branches")
+}
+
+model BranchHour {
+  id          String  @id @default(uuid()) @db.Uuid
+  branch_id   String  @db.Uuid
+  branch      Branch  @relation(fields: [branch_id], references: [id])
+  day_of_week Int // 0=الأحد
+  opens_at    String // "08:00"
+  closes_at   String // "23:30"
+
+  @@unique([branch_id, day_of_week, opens_at])
+  @@map("branch_hours")
+}
+
+model BranchClosure {
+  id         String   @id @default(uuid()) @db.Uuid
+  branch_id  String   @db.Uuid
+  branch     Branch   @relation(fields: [branch_id], references: [id])
+  starts_at  DateTime @db.Timestamptz(6)
+  ends_at    DateTime @db.Timestamptz(6)
+  reason_ar  String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([branch_id])
+  @@map("branch_closures")
+}
+
+model BranchContact {
+  id        String @id @default(uuid()) @db.Uuid
+  branch_id String @db.Uuid
+  branch    Branch @relation(fields: [branch_id], references: [id])
+  kind      String // phone | whatsapp | manager
+  value     String
+
+  @@index([branch_id])
+  @@map("branch_contacts")
+}
+
+/// إعدادات الاستلام لكل فرع — docs/10§1 (نصف قطر تنبيه/وصول، زمن خدمة مستهدف، إلزام موقف، مجدول وسعات)
+model BranchPickupSettings {
+  branch_id               String  @id @db.Uuid
+  branch                  Branch  @relation(fields: [branch_id], references: [id])
+  alert_radius_m          Int     @default(300)
+  arrival_radius_m        Int     @default(100)
+  service_target_seconds  Int     @default(120)
+  require_parking_spot    Boolean @default(false)
+  accept_window_seconds   Int     @default(180) // BR-1: عداد 3 دقائق
+  auto_accept_enabled     Boolean @default(false) // S6 — يُفعَّل بشرط 4 أسابيع >98%
+  scheduled_enabled       Boolean @default(false) // مؤجل — BR-5
+  default_prep_minutes    Int     @default(15)
+  dwell_seconds           Int     @default(20) // مقاومة GPS Drift — docs/14§4
+  updated_at              DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("branch_pickup_settings")
+}
+
+model ParkingSpot {
+  id        String  @id @default(uuid()) @db.Uuid
+  branch_id String  @db.Uuid
+  branch    Branch  @relation(fields: [branch_id], references: [id])
+  label     String // "3" أو "أمام المدخل"
+  sort      Int     @default(0)
+  is_active Boolean @default(true)
+
+  @@unique([branch_id, label])
+  @@map("parking_spots")
+}
+
+model Geofence {
+  id        String       @id @default(uuid()) @db.Uuid
+  branch_id String       @db.Uuid
+  branch    Branch       @relation(fields: [branch_id], references: [id])
+  kind      GeofenceKind
+  radius_m  Int
+  /// مضلع اختياري لحالات المول/الأدوار — docs/14§9
+  polygon   Json?
+  is_active Boolean      @default(true)
+
+  @@index([branch_id])
+  @@map("geofences")
+}
+
+model MerchantStaff {
+  id          String      @id @default(uuid()) @db.Uuid
+  merchant_id String      @db.Uuid
+  merchant    Merchant    @relation(fields: [merchant_id], references: [id])
+  user_id     String?     @db.Uuid
+  user        User?       @relation(fields: [user_id], references: [id])
+  username    String
+  pin_hash    String
+  role_key    String // docs/16§1: owner..analyst
+  full_name   String
+  status      StaffStatus @default(active)
+  created_at  DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime    @updatedAt @db.Timestamptz(6)
+
+  branch_assignments StaffBranchAssignment[]
+  handoff_assignments HandoffAssignment[]
+
+  @@unique([merchant_id, username])
+  @@index([merchant_id])
+  @@map("merchant_staff")
+}
+
+model StaffBranchAssignment {
+  staff_id  String        @db.Uuid
+  branch_id String        @db.Uuid
+  staff     MerchantStaff @relation(fields: [staff_id], references: [id])
+  branch    Branch        @relation(fields: [branch_id], references: [id])
+  created_at DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@id([staff_id, branch_id])
+  @@map("staff_branch_assignments")
+}
+
+// ===================== القوائم =====================
+
+model Menu {
+  id        String  @id @default(uuid()) @db.Uuid
+  brand_id  String  @db.Uuid
+  brand     Brand   @relation(fields: [brand_id], references: [id])
+  name_ar   String
+  is_active Boolean @default(true)
+
+  schedules  MenuSchedule[]
+  categories Category[]
+
+  @@index([brand_id])
+  @@map("menus")
+}
+
+model MenuSchedule {
+  id          String @id @default(uuid()) @db.Uuid
+  menu_id     String @db.Uuid
+  menu        Menu   @relation(fields: [menu_id], references: [id])
+  day_of_week Int
+  starts_at   String
+  ends_at     String
+
+  @@map("menu_schedules")
+}
+
+model Category {
+  id         String @id @default(uuid()) @db.Uuid
+  menu_id    String @db.Uuid
+  menu       Menu   @relation(fields: [menu_id], references: [id])
+  name_ar    String
+  name_en    String?
+  sort_order Int    @default(0)
+
+  products Product[]
+
+  @@index([menu_id])
+  @@map("categories")
+}
+
+model Product {
+  id             String  @id @default(uuid()) @db.Uuid
+  category_id    String  @db.Uuid
+  category       Category @relation(fields: [category_id], references: [id])
+  name_ar        String
+  name_en        String?
+  description_ar String?
+  price_halalas  Int
+  calories       Int?
+  is_active      Boolean @default(true)
+  sort_order     Int     @default(0)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @updatedAt @db.Timestamptz(6)
+
+  images           ProductImage[]
+  variants         ProductVariant[]
+  modifier_groups  ProductModifierGroup[]
+  availability     BranchProductAvailability[]
+  cart_items       CartItem[]
+  order_items      OrderItem[]
+
+  @@index([category_id])
+  @@map("products")
+}
+
+model ProductImage {
+  id         String  @id @default(uuid()) @db.Uuid
+  product_id String  @db.Uuid
+  product    Product @relation(fields: [product_id], references: [id])
+  file_url   String
+  sort       Int     @default(0)
+
+  @@map("product_images")
+}
+
+model ProductVariant {
+  id            String  @id @default(uuid()) @db.Uuid
+  product_id    String  @db.Uuid
+  product       Product @relation(fields: [product_id], references: [id])
+  name_ar       String // حجم كبير...
+  price_halalas Int
+  is_active     Boolean @default(true)
+
+  @@map("product_variants")
+}
+
+model ModifierGroup {
+  id         String @id @default(uuid()) @db.Uuid
+  name_ar    String
+  name_en    String?
+  min_select Int    @default(0)
+  max_select Int    @default(1)
+
+  modifiers Modifier[]
+  products  ProductModifierGroup[]
+
+  @@map("modifier_groups")
+}
+
+model Modifier {
+  id            String        @id @default(uuid()) @db.Uuid
+  group_id      String        @db.Uuid
+  group         ModifierGroup @relation(fields: [group_id], references: [id])
+  name_ar       String
+  name_en       String?
+  price_halalas Int           @default(0)
+  is_active     Boolean       @default(true)
+
+  cart_item_modifiers CartItemModifier[]
+
+  @@index([group_id])
+  @@map("modifiers")
+}
+
+model ProductModifierGroup {
+  product_id String        @db.Uuid
+  group_id   String        @db.Uuid
+  product    Product       @relation(fields: [product_id], references: [id])
+  group      ModifierGroup @relation(fields: [group_id], references: [id])
+  sort       Int           @default(0)
+
+  @@id([product_id, group_id])
+  @@map("product_modifier_groups")
+}
+
+model BranchProductAvailability {
+  branch_id       String    @db.Uuid
+  product_id      String    @db.Uuid
+  branch          Branch    @relation(fields: [branch_id], references: [id])
+  product         Product   @relation(fields: [product_id], references: [id])
+  is_available    Boolean   @default(true)
+  unavailable_until DateTime? @db.Timestamptz(6)
+  updated_at      DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@id([branch_id, product_id])
+  @@map("branch_product_availability")
+}
+
+model TaxRule {
+  id      String @id @default(uuid()) @db.Uuid
+  key     String @unique // vat_standard
+  name_ar String
+  /// نقاط أساس: 1500 = 15%
+  rate_bp Int
+
+  @@map("tax_rules")
+}
+
+// ===================== السلة والتسعير =====================
+
+model Cart {
+  id         String     @id @default(uuid()) @db.Uuid
+  user_id    String?    @db.Uuid
+  user       User?      @relation(fields: [user_id], references: [id])
+  branch_id  String     @db.Uuid
+  branch     Branch     @relation(fields: [branch_id], references: [id])
+  status     CartStatus @default(active)
+  coupon_id  String?    @db.Uuid
+  coupon     Coupon?    @relation(fields: [coupon_id], references: [id])
+  expires_at DateTime?  @db.Timestamptz(6)
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at DateTime   @updatedAt @db.Timestamptz(6)
+
+  items  CartItem[]
+  quotes PricingQuote[]
+  orders Order[]
+
+  @@index([user_id])
+  @@map("carts")
+}
+
+model CartItem {
+  id                  String  @id @default(uuid()) @db.Uuid
+  cart_id             String  @db.Uuid
+  cart                Cart    @relation(fields: [cart_id], references: [id])
+  product_id          String  @db.Uuid
+  product             Product @relation(fields: [product_id], references: [id])
+  quantity            Int
+  unit_price_halalas  Int // لقطة وقت الإضافة — تُعاد للتحقق عند التسعير
+  notes               String?
+
+  modifiers CartItemModifier[]
+
+  @@index([cart_id])
+  @@map("cart_items")
+}
+
+model CartItemModifier {
+  cart_item_id  String   @db.Uuid
+  modifier_id   String   @db.Uuid
+  cart_item     CartItem @relation(fields: [cart_item_id], references: [id])
+  modifier      Modifier @relation(fields: [modifier_id], references: [id])
+  price_halalas Int
+
+  @@id([cart_item_id, modifier_id])
+  @@map("cart_item_modifiers")
+}
+
+/// التسعير خادمي حصراً — BR-6 · المصدر الوحيد للسعر النهائي
+model PricingQuote {
+  id                  String   @id @default(uuid()) @db.Uuid
+  cart_id             String   @db.Uuid
+  cart                Cart     @relation(fields: [cart_id], references: [id])
+  subtotal_halalas    Int
+  discount_halalas    Int      @default(0)
+  vat_halalas         Int
+  service_fee_halalas Int
+  total_halalas       Int
+  breakdown           Json // fees مسماة — BR-6
+  expires_at          DateTime @db.Timestamptz(6)
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  orders Order[]
+
+  @@index([cart_id])
+  @@map("pricing_quotes")
+}
+
+model Fee {
+  id        String  @id @default(uuid()) @db.Uuid
+  key       String  @unique // pickly_service_fee
+  name_ar   String
+  amount_halalas Int?
+  percent_bp Int?
+  applies_to String @default("order")
+  is_active Boolean @default(true)
+
+  @@map("fees")
+}
+
+model Coupon {
+  id                 String     @id @default(uuid()) @db.Uuid
+  code               String     @unique
+  type               CouponType
+  value              Int // هللات أو نقاط أساس حسب type
+  min_order_halalas  Int?
+  max_uses_total     Int?
+  max_uses_per_user  Int?
+  new_users_only     Boolean    @default(false)
+  starts_at          DateTime?  @db.Timestamptz(6)
+  ends_at            DateTime?  @db.Timestamptz(6)
+  merchant_id        String?    @db.Uuid
+  merchant           Merchant?  @relation(fields: [merchant_id], references: [id])
+  promotion_id       String?    @db.Uuid
+  promotion          Promotion? @relation(fields: [promotion_id], references: [id])
+  /// نسبة تحمل التاجر بالمئة ×100 — تكلفة العرض تُنسب لطرفها (BR-7)
+  merchant_share_bp  Int        @default(0)
+  is_active          Boolean    @default(true)
+  created_at         DateTime   @default(now()) @db.Timestamptz(6)
+
+  redemptions CouponRedemption[]
+  carts       Cart[]
+  orders      Order[]
+
+  @@map("coupons")
+}
+
+model Promotion {
+  id          String    @id @default(uuid()) @db.Uuid
+  merchant_id String?   @db.Uuid
+  merchant    Merchant? @relation(fields: [merchant_id], references: [id])
+  name_ar     String
+  starts_at   DateTime? @db.Timestamptz(6)
+  ends_at     DateTime? @db.Timestamptz(6)
+  is_active   Boolean   @default(true)
+
+  rules   PromotionRule[]
+  coupons Coupon[]
+
+  @@map("promotions")
+}
+
+model PromotionRule {
+  id           String    @id @default(uuid()) @db.Uuid
+  promotion_id String    @db.Uuid
+  promotion    Promotion @relation(fields: [promotion_id], references: [id])
+  rule_key     String // min_order | city | branch | user_segment
+  rule_value   Json
+
+  @@map("promotion_rules")
+}
+
+model CouponRedemption {
+  id         String   @id @default(uuid()) @db.Uuid
+  coupon_id  String   @db.Uuid
+  coupon     Coupon   @relation(fields: [coupon_id], references: [id])
+  user_id    String   @db.Uuid
+  order_id   String   @unique @db.Uuid
+  order      Order    @relation(fields: [order_id], references: [id])
+  amount_halalas Int
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([coupon_id, user_id])
+  @@map("coupon_redemptions")
+}
+
+// ===================== الطلبات =====================
+
+model Order {
+  id                String      @id @default(uuid()) @db.Uuid
+  /// كود العرض P-4821 — لاتيني، فريد
+  display_code      String      @unique
+  user_id           String      @db.Uuid
+  user              User        @relation(fields: [user_id], references: [id])
+  merchant_id       String      @db.Uuid
+  merchant          Merchant    @relation(fields: [merchant_id], references: [id])
+  branch_id         String      @db.Uuid
+  branch            Branch      @relation(fields: [branch_id], references: [id])
+  cart_id           String?     @db.Uuid
+  cart              Cart?       @relation(fields: [cart_id], references: [id])
+  quote_id          String?     @db.Uuid
+  quote             PricingQuote? @relation(fields: [quote_id], references: [id])
+  order_status      OrderStatus
+  /// لقطات مالية — المنيو يتغير والطلب لا (docs/10§4)
+  subtotal_halalas    Int
+  discount_halalas    Int       @default(0)
+  vat_halalas         Int
+  service_fee_halalas Int
+  tip_halalas         Int       @default(0)
+  total_halalas       Int
+  coupon_id         String?     @db.Uuid
+  coupon            Coupon?     @relation(fields: [coupon_id], references: [id])
+  vehicle_id        String?     @db.Uuid
+  vehicle           Vehicle?    @relation(fields: [vehicle_id], references: [id])
+  /// لقطة السيارة وقت الطلب — تظهر للفرع أثناء الطلب النشط فقط
+  vehicle_summary   String?
+  parking_spot_label String?
+  parking_note      String?
+  /// رمز التسليم 4 أرقام — hash للتحقق (BR-8)
+  handoff_code_hash String
+  /// يتطلب تأكيداً مزدوجاً (≥300 ر.س — BR-8)
+  requires_dual_confirmation Boolean @default(false)
+  prep_minutes      Int?
+  accept_deadline_at DateTime?  @db.Timestamptz(6) // عداد BR-1
+  accepted_at       DateTime?   @db.Timestamptz(6)
+  ready_at          DateTime?   @db.Timestamptz(6)
+  arrived_at        DateTime?   @db.Timestamptz(6)
+  completed_at      DateTime?   @db.Timestamptz(6)
+  cancelled_at      DateTime?   @db.Timestamptz(6)
+  customer_notes    String?
+  /// Idempotency — تحديث الصفحة لا ينشئ طلباً ثانياً (docs/05§4-6)
+  idempotency_key   String      @unique
+  created_at        DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime    @updatedAt @db.Timestamptz(6)
+
+  items               OrderItem[]
+  status_history      OrderStatusHistory[]
+  notes               OrderNote[]
+  adjustments         OrderAdjustment[]
+  cancellation        Cancellation?
+  pickup_session      PickupSession?
+  arrival_events      ArrivalEvent[]
+  arrival_queue_entry ArrivalQueueEntry?
+  handoff_assignments HandoffAssignment[]
+  handoff_attempts    HandoffAttempt[]
+  handoff_confirmations HandoffConfirmation[]
+  payment_intent      PaymentIntent?
+  refunds             Refund[]
+  invoices            Invoice[]
+  review              Review?
+  notifications       Notification[]
+  coupon_redemption   CouponRedemption?
+  scheduled_slot      ScheduledPickupSlot?
+  settlement_lines    SettlementLine[]
+
+  @@index([branch_id, order_status])
+  @@index([user_id, created_at(sort: Desc)])
+  @@index([merchant_id, created_at(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                          String  @id @default(uuid()) @db.Uuid
+  order_id                    String  @db.Uuid
+  order                       Order   @relation(fields: [order_id], references: [id])
+  product_id                  String? @db.Uuid
+  product                     Product? @relation(fields: [product_id], references: [id])
+  name_ar_snapshot            String
+  quantity                    Int
+  unit_price_halalas_snapshot Int
+  line_total_halalas          Int
+  notes                       String?
+
+  modifiers    OrderItemModifier[]
+  refund_items RefundItem[]
+
+  @@index([order_id])
+  @@map("order_items")
+}
+
+model OrderItemModifier {
+  id                     String    @id @default(uuid()) @db.Uuid
+  order_item_id          String    @db.Uuid
+  order_item             OrderItem @relation(fields: [order_item_id], references: [id])
+  name_ar_snapshot       String
+  price_halalas_snapshot Int
+
+  @@index([order_item_id])
+  @@map("order_item_modifiers")
+}
+
+/// append-only — من/متى/سبب/جهاز (docs/05§4-5) · صلاحيات UPDATE/DELETE تُسحب في migration
+model OrderStatusHistory {
+  id          String       @id @default(uuid()) @db.Uuid
+  order_id    String       @db.Uuid
+  order       Order        @relation(fields: [order_id], references: [id])
+  from_status OrderStatus?
+  to_status   OrderStatus
+  actor_type  ActorType
+  actor_id    String?      @db.Uuid
+  reason      String?
+  device_id   String?      @db.Uuid
+  created_at  DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@index([order_id, created_at])
+  @@map("order_status_history")
+}
+
+model OrderNote {
+  id         String    @id @default(uuid()) @db.Uuid
+  order_id   String    @db.Uuid
+  order      Order     @relation(fields: [order_id], references: [id])
+  author     ActorType
+  body       String
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([order_id])
+  @@map("order_notes")
+}
+
+/// تعديلات BR-4 — نقص منتج بموافقة العميل الصريحة
+model OrderAdjustment {
+  id                    String           @id @default(uuid()) @db.Uuid
+  order_id              String           @db.Uuid
+  order                 Order            @relation(fields: [order_id], references: [id])
+  order_item_id         String           @db.Uuid
+  issue                 String // out_of_stock | partial
+  substitute_product_id String?          @db.Uuid
+  status                AdjustmentStatus @default(awaiting_customer)
+  customer_deadline_at  DateTime         @db.Timestamptz(6) // مهلة 5 دقائق — BR-4
+  refund_halalas        Int              @default(0)
+  created_at            DateTime         @default(now()) @db.Timestamptz(6)
+  resolved_at           DateTime?        @db.Timestamptz(6)
+
+  @@index([order_id])
+  @@map("order_adjustments")
+}
+
+/// مؤجل (BR-5) — الجدول يُنشأ والواجهات تؤجل (docs/21§3)
+model ScheduledPickupSlot {
+  id            String   @id @default(uuid()) @db.Uuid
+  order_id      String   @unique @db.Uuid
+  order         Order    @relation(fields: [order_id], references: [id])
+  slot_start    DateTime @db.Timestamptz(6)
+  slot_end      DateTime @db.Timestamptz(6)
+  free_change_until DateTime @db.Timestamptz(6)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("scheduled_pickup_slots")
+}
+
+/// مؤجل (BR-5) — سعات الفترات لكل فرع
+model BranchCapacitySlot {
+  id         String   @id @default(uuid()) @db.Uuid
+  branch_id  String   @db.Uuid
+  branch     Branch   @relation(fields: [branch_id], references: [id])
+  slot_start DateTime @db.Timestamptz(6)
+  slot_end   DateTime @db.Timestamptz(6)
+  capacity   Int
+  booked     Int      @default(0)
+
+  @@unique([branch_id, slot_start])
+  @@map("branch_capacity_slots")
+}
+
+model Cancellation {
+  id          String    @id @default(uuid()) @db.Uuid
+  order_id    String    @unique @db.Uuid
+  order       Order     @relation(fields: [order_id], references: [id])
+  requested_by ActorType
+  reason      String
+  note        String?
+  /// على من يُحتسب — BR-2
+  charged_to  String // customer | merchant | pickly | none
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@map("cancellations")
+}
+
+// ===================== الاستلام =====================
+
+model PickupSession {
+  id         String              @id @default(uuid()) @db.Uuid
+  order_id   String              @unique @db.Uuid
+  order      Order               @relation(fields: [order_id], references: [id])
+  status     PickupSessionStatus @default(active)
+  /// auto (GPS) أو manual (البدائل اليدوية — docs/14§8)
+  mode       String              @default("auto")
+  manual_eta_minutes Int?
+  started_at DateTime            @default(now()) @db.Timestamptz(6)
+  ended_at   DateTime?           @db.Timestamptz(6)
+
+  location_events PickupLocationEvent[]
+  eta_snapshots   PickupEtaSnapshot[]
+  arrival_events  ArrivalEvent[]
+
+  @@map("pickup_sessions")
+}
+
+/// خام — يُحذف/يُلخص بعد 30 يوماً من الإكمال (docs/17§4 · docs/10§4)
+model PickupLocationEvent {
+  id         String        @id @default(uuid()) @db.Uuid
+  session_id String        @db.Uuid
+  session    PickupSession @relation(fields: [session_id], references: [id])
+  lat        Float
+  lng        Float
+  speed      Float?
+  heading    Float?
+  accuracy   Float
+  created_at DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@index([session_id, created_at])
+  @@map("pickup_location_events")
+}
+
+model PickupEtaSnapshot {
+  id          String        @id @default(uuid()) @db.Uuid
+  session_id  String        @db.Uuid
+  session     PickupSession @relation(fields: [session_id], references: [id])
+  eta_seconds Int
+  distance_m  Int
+  provider    String // mock | google
+  created_at  DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@index([session_id, created_at])
+  @@map("pickup_eta_snapshots")
+}
+
+model ArrivalEvent {
+  id         String           @id @default(uuid()) @db.Uuid
+  order_id   String           @db.Uuid
+  order      Order            @relation(fields: [order_id], references: [id])
+  session_id String?          @db.Uuid
+  session    PickupSession?   @relation(fields: [session_id], references: [id])
+  event_type ArrivalEventType
+  meta       Json?
+  created_at DateTime         @default(now()) @db.Timestamptz(6)
+
+  @@index([order_id, created_at])
+  @@map("arrival_events")
+}
+
+model ArrivalQueueEntry {
+  id                      String    @id @default(uuid()) @db.Uuid
+  branch_id               String    @db.Uuid
+  branch                  Branch    @relation(fields: [branch_id], references: [id])
+  order_id                String    @unique @db.Uuid
+  order                   Order     @relation(fields: [order_id], references: [id])
+  /// أولوية تشغيلية يضبطها مدير الفرع — BR-9
+  priority                Int       @default(0)
+  entered_at              DateTime  @default(now()) @db.Timestamptz(6)
+  served_at               DateTime? @db.Timestamptz(6)
+  service_target_exceeded Boolean   @default(false)
+
+  @@index([branch_id, priority])
+  @@map("arrival_queue_entries")
+}
+
+model HandoffAssignment {
+  id          String        @id @default(uuid()) @db.Uuid
+  order_id    String        @db.Uuid
+  order       Order         @relation(fields: [order_id], references: [id])
+  staff_id    String        @db.Uuid
+  staff       MerchantStaff @relation(fields: [staff_id], references: [id])
+  assigned_at DateTime      @default(now()) @db.Timestamptz(6)
+  started_at  DateTime?     @db.Timestamptz(6) // «خرج الموظف»
+
+  @@index([order_id])
+  @@map("handoff_assignments")
+}
+
+model HandoffAttempt {
+  id         String               @id @default(uuid()) @db.Uuid
+  order_id   String               @db.Uuid
+  order      Order                @relation(fields: [order_id], references: [id])
+  staff_id   String?              @db.Uuid
+  result     HandoffAttemptResult
+  note       String?
+  created_at DateTime             @default(now()) @db.Timestamptz(6)
+
+  @@index([order_id])
+  @@map("handoff_attempts")
+}
+
+model HandoffConfirmation {
+  id           String        @id @default(uuid()) @db.Uuid
+  order_id     String        @db.Uuid
+  order        Order         @relation(fields: [order_id], references: [id])
+  method       HandoffMethod
+  confirmed_by ActorType
+  actor_id     String?       @db.Uuid
+  created_at   DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@index([order_id])
+  @@map("handoff_confirmations")
+}
+
+// ===================== الدفع =====================
+
+model PaymentIntent {
+  id              String              @id @default(uuid()) @db.Uuid
+  order_id        String              @unique @db.Uuid
+  order           Order               @relation(fields: [order_id], references: [id])
+  provider        String // mock | hyperpay | moyasar | tap
+  provider_ref    String?
+  amount_halalas  Int
+  currency        String              @default("SAR")
+  status          PaymentIntentStatus @default(requires_payment)
+  /// Auth/Capture أم تحصيل فقط — docs/13§3
+  supports_capture Boolean            @default(true)
+  client_secret   String?
+  idempotency_key String              @unique
+  created_at      DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime            @updatedAt @db.Timestamptz(6)
+
+  transactions PaymentTransaction[]
+  refunds      Refund[]
+
+  @@map("payment_intents")
+}
+
+/// Ledger مستقل — كل حركة قيد مزدوج (docs/13§4-6)
+model PaymentTransaction {
+  id             String          @id @default(uuid()) @db.Uuid
+  intent_id      String?         @db.Uuid
+  intent         PaymentIntent?  @relation(fields: [intent_id], references: [id])
+  type           TransactionType
+  debit_account  String // customer_receivable | gateway | merchant_payable | pickly_revenue | tips_payable...
+  credit_account String
+  amount_halalas Int
+  currency       String          @default("SAR")
+  provider_ref   String?
+  idempotency_key String?        @unique
+  meta           Json?
+  created_at     DateTime        @default(now()) @db.Timestamptz(6)
+
+  @@index([intent_id])
+  @@index([type, created_at])
+  @@map("payment_transactions")
+}
+
+/// خام موقّع append-only — docs/13§4-3
+model PaymentWebhookEvent {
+  id           String    @id @default(uuid()) @db.Uuid
+  provider     String
+  event_ref    String
+  signature    String?
+  payload      Json
+  received_at  DateTime  @default(now()) @db.Timestamptz(6)
+  processed_at DateTime? @db.Timestamptz(6)
+  process_error String?
+
+  @@unique([provider, event_ref])
+  @@map("payment_webhook_events")
+}
+
+model Refund {
+  id             String        @id @default(uuid()) @db.Uuid
+  order_id       String        @db.Uuid
+  order          Order         @relation(fields: [order_id], references: [id])
+  intent_id      String?       @db.Uuid
+  intent         PaymentIntent? @relation(fields: [intent_id], references: [id])
+  amount_halalas Int
+  /// يشمل رسم الخدمة؟ — مصفوفة BR-2
+  includes_service_fee Boolean @default(false)
+  reason         String
+  reference      String? // تذكرة/قرار — docs/13§5
+  status         RefundStatus  @default(pending)
+  requested_by   ActorType
+  requester_id   String?       @db.Uuid
+  approved_by_id String?       @db.Uuid
+  provider_ref   String?
+  idempotency_key String       @unique
+  created_at     DateTime      @default(now()) @db.Timestamptz(6)
+  completed_at   DateTime?     @db.Timestamptz(6)
+
+  items RefundItem[]
+
+  @@index([order_id])
+  @@map("refunds")
+}
+
+/// منع الاسترجاع المكرر على نفس العناصر — docs/13§4-7
+model RefundItem {
+  id             String    @id @default(uuid()) @db.Uuid
+  refund_id      String    @db.Uuid
+  refund         Refund    @relation(fields: [refund_id], references: [id])
+  order_item_id  String    @db.Uuid
+  order_item     OrderItem @relation(fields: [order_item_id], references: [id])
+  quantity       Int
+  amount_halalas Int
+
+  @@unique([refund_id, order_item_id])
+  @@index([order_item_id])
+  @@map("refund_items")
+}
+
+model MerchantSettlement {
+  id                    String           @id @default(uuid()) @db.Uuid
+  merchant_id           String           @db.Uuid
+  merchant              Merchant         @relation(fields: [merchant_id], references: [id])
+  period_start          DateTime         @db.Timestamptz(6)
+  period_end            DateTime         @db.Timestamptz(6)
+  gross_halalas         Int
+  refunds_halalas       Int
+  promo_share_halalas   Int
+  pickly_fees_halalas   Int
+  payment_fees_halalas  Int
+  tips_halalas          Int
+  net_halalas           Int
+  status                SettlementStatus @default(draft)
+  created_at            DateTime         @default(now()) @db.Timestamptz(6)
+
+  lines   SettlementLine[]
+  payouts MerchantPayout[]
+
+  @@index([merchant_id, period_start])
+  @@map("merchant_settlements")
+}
+
+model SettlementLine {
+  id             String             @id @default(uuid()) @db.Uuid
+  settlement_id  String             @db.Uuid
+  settlement     MerchantSettlement @relation(fields: [settlement_id], references: [id])
+  order_id       String?            @db.Uuid
+  order          Order?             @relation(fields: [order_id], references: [id])
+  line_type      String // sale | refund | promo_share | pickly_fee | payment_fee | tip
+  amount_halalas Int
+  meta           Json?
+
+  @@index([settlement_id])
+  @@map("settlement_lines")
+}
+
+model MerchantPayout {
+  id             String       @id @default(uuid()) @db.Uuid
+  merchant_id    String       @db.Uuid
+  merchant       Merchant     @relation(fields: [merchant_id], references: [id])
+  settlement_id  String?      @db.Uuid
+  settlement     MerchantSettlement? @relation(fields: [settlement_id], references: [id])
+  amount_halalas Int
+  bank_ref       String?
+  status         PayoutStatus @default(pending)
+  created_at     DateTime     @default(now()) @db.Timestamptz(6)
+  confirmed_at   DateTime?    @db.Timestamptz(6)
+
+  @@index([merchant_id])
+  @@map("merchant_payouts")
+}
+
+model Invoice {
+  id           String      @id @default(uuid()) @db.Uuid
+  invoice_type InvoiceType
+  number       String      @unique
+  order_id     String?     @db.Uuid
+  order        Order?      @relation(fields: [order_id], references: [id])
+  merchant_id  String?     @db.Uuid
+  merchant     Merchant?   @relation(fields: [merchant_id], references: [id])
+  total_halalas Int
+  vat_halalas  Int
+  /// حقول ZATCA — تُستكمل مع حسم المُصدر النظامي (docs/13§7)
+  zatca_uuid   String?
+  zatca_qr     String?
+  pdf_url      String?
+  issued_at    DateTime    @default(now()) @db.Timestamptz(6)
+
+  lines InvoiceLine[]
+
+  @@index([merchant_id])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id             String  @id @default(uuid()) @db.Uuid
+  invoice_id     String  @db.Uuid
+  invoice        Invoice @relation(fields: [invoice_id], references: [id])
+  description_ar String
+  quantity       Int     @default(1)
+  amount_halalas Int
+  vat_halalas    Int     @default(0)
+
+  @@index([invoice_id])
+  @@map("invoice_lines")
+}
+
+// ===================== التواصل والدعم =====================
+
+model Notification {
+  id           String              @id @default(uuid()) @db.Uuid
+  user_id      String?             @db.Uuid
+  user         User?               @relation(fields: [user_id], references: [id])
+  order_id     String?             @db.Uuid
+  order        Order?              @relation(fields: [order_id], references: [id])
+  template_key String
+  channel      NotificationChannel
+  title_ar     String
+  body_ar      String
+  payload      Json?
+  created_at   DateTime            @default(now()) @db.Timestamptz(6)
+
+  deliveries NotificationDelivery[]
+
+  @@index([user_id, created_at])
+  @@map("notifications")
+}
+
+/// وصل؟ فُتح؟ — docs/10§1
+model NotificationDelivery {
+  id              String         @id @default(uuid()) @db.Uuid
+  notification_id String         @db.Uuid
+  notification    Notification   @relation(fields: [notification_id], references: [id])
+  channel         NotificationChannel
+  status          DeliveryStatus @default(queued)
+  provider_ref    String?
+  error           String?
+  sent_at         DateTime?      @db.Timestamptz(6)
+  delivered_at    DateTime?      @db.Timestamptz(6)
+  opened_at       DateTime?      @db.Timestamptz(6)
+
+  @@index([notification_id])
+  @@map("notification_deliveries")
+}
+
+model NotificationTemplate {
+  id        String              @id @default(uuid()) @db.Uuid
+  key       String              @unique
+  channel   NotificationChannel
+  title_ar  String
+  body_ar   String
+  title_en  String?
+  body_en   String?
+  variables Json? // أسماء المتغيرات المتوقعة
+  is_active Boolean             @default(true)
+
+  @@map("notification_templates")
+}
+
+model SupportTicket {
+  id          String       @id @default(uuid()) @db.Uuid
+  user_id     String?      @db.Uuid
+  user        User?        @relation(fields: [user_id], references: [id])
+  order_id    String?      @db.Uuid
+  merchant_id String?      @db.Uuid
+  subject     String
+  status      TicketStatus @default(open)
+  priority    String       @default("normal")
+  created_at  DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime     @updatedAt @db.Timestamptz(6)
+
+  messages SupportMessage[]
+
+  @@index([status, created_at])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id         String        @id @default(uuid()) @db.Uuid
+  ticket_id  String        @db.Uuid
+  ticket     SupportTicket @relation(fields: [ticket_id], references: [id])
+  author     ActorType
+  author_id  String?       @db.Uuid
+  body       String
+  created_at DateTime      @default(now()) @db.Timestamptz(6)
+
+  attachments SupportAttachment[]
+
+  @@index([ticket_id])
+  @@map("support_messages")
+}
+
+model SupportAttachment {
+  id         String         @id @default(uuid()) @db.Uuid
+  message_id String         @db.Uuid
+  message    SupportMessage @relation(fields: [message_id], references: [id])
+  file_url   String
+  mime_type  String?
+
+  @@map("support_attachments")
+}
+
+model DisputeCase {
+  id             String    @id @default(uuid()) @db.Uuid
+  order_id       String?   @db.Uuid
+  merchant_id    String?   @db.Uuid
+  settlement_id  String?   @db.Uuid
+  kind           String // financial | service
+  status         String    @default("open")
+  amount_halalas Int?
+  resolution     String?
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  resolved_at    DateTime? @db.Timestamptz(6)
+
+  @@map("dispute_cases")
+}
+
+// ===================== تجربة العميل =====================
+
+model Favorite {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  user       User     @relation(fields: [user_id], references: [id])
+  brand_id   String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([user_id, brand_id])
+  @@map("favorites")
+}
+
+/// 5 أبعاد + بقشيش مرجعياً — docs/10§1 · BR-11
+model Review {
+  id              String       @id @default(uuid()) @db.Uuid
+  order_id        String       @unique @db.Uuid
+  order           Order        @relation(fields: [order_id], references: [id])
+  user_id         String       @db.Uuid
+  user            User         @relation(fields: [user_id], references: [id])
+  branch_id       String       @db.Uuid
+  rating_overall  Int // 1..5
+  rating_speed    Int?
+  rating_accuracy Int?
+  rating_staff    Int?
+  rating_experience Int?
+  comment         String?
+  tip_halalas     Int          @default(0)
+  status          ReviewStatus @default(pending)
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@index([branch_id, status])
+  @@map("reviews")
+}
+
+model ReviewCategory {
+  id      String @id @default(uuid()) @db.Uuid
+  key     String @unique // speed | accuracy | staff | experience | overall
+  name_ar String
+  sort    Int    @default(0)
+
+  @@map("review_categories")
+}
+
+/// v2 — الجدول يُنشأ والواجهات تؤجل (docs/10§1 · docs/21§3)
+model CustomerWalletEntry {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String   @db.Uuid
+  user           User     @relation(fields: [user_id], references: [id])
+  amount_halalas Int // موجب إيداع، سالب خصم
+  entry_type     String // credit | debit | expiry
+  reference      String?
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([user_id])
+  @@map("customer_wallet_entries")
+}
+
+/// v2
+model LoyaltyAccount {
+  user_id    String   @id @db.Uuid
+  user       User     @relation(fields: [user_id], references: [id])
+  points     Int      @default(0)
+  tier       String   @default("base")
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  transactions LoyaltyTransaction[]
+
+  @@map("loyalty_accounts")
+}
+
+/// v2
+model LoyaltyTransaction {
+  id         String         @id @default(uuid()) @db.Uuid
+  account_id String         @db.Uuid
+  account    LoyaltyAccount @relation(fields: [account_id], references: [user_id])
+  points     Int
+  reason     String
+  order_id   String?        @db.Uuid
+  created_at DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@index([account_id])
+  @@map("loyalty_transactions")
+}
+
+// ===================== النظام =====================
+
+model Integration {
+  id          String   @id @default(uuid()) @db.Uuid
+  merchant_id String   @db.Uuid
+  merchant    Merchant @relation(fields: [merchant_id], references: [id])
+  provider    String // foodics | salla | zid
+  status      String   @default("disconnected")
+  config      Json?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @updatedAt @db.Timestamptz(6)
+
+  credentials IntegrationCredential[]
+
+  @@unique([merchant_id, provider])
+  @@map("integrations")
+}
+
+/// مشفرة — docs/10§1
+model IntegrationCredential {
+  id              String      @id @default(uuid()) @db.Uuid
+  integration_id  String      @db.Uuid
+  integration     Integration @relation(fields: [integration_id], references: [id])
+  key             String
+  value_encrypted String
+  updated_at      DateTime    @updatedAt @db.Timestamptz(6)
+
+  @@unique([integration_id, key])
+  @@map("integration_credentials")
+}
+
+model ApiKey {
+  id           String    @id @default(uuid()) @db.Uuid
+  merchant_id  String?   @db.Uuid
+  merchant     Merchant? @relation(fields: [merchant_id], references: [id])
+  name         String
+  key_hash     String    @unique
+  scopes       String[]
+  last_used_at DateTime? @db.Timestamptz(6)
+  revoked_at   DateTime? @db.Timestamptz(6)
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@map("api_keys")
+}
+
+model WebhookSubscription {
+  id          String   @id @default(uuid()) @db.Uuid
+  merchant_id String?  @db.Uuid
+  merchant    Merchant? @relation(fields: [merchant_id], references: [id])
+  url         String
+  secret      String
+  events      String[] // من قائمة docs/12
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  deliveries WebhookDelivery[]
+
+  @@map("webhook_subscriptions")
+}
+
+model WebhookDelivery {
+  id              String              @id @default(uuid()) @db.Uuid
+  subscription_id String              @db.Uuid
+  subscription    WebhookSubscription @relation(fields: [subscription_id], references: [id])
+  event_id        String              @db.Uuid
+  status          DeliveryStatus      @default(queued)
+  attempts        Int                 @default(0)
+  response_code   Int?
+  last_error      String?
+  created_at      DateTime            @default(now()) @db.Timestamptz(6)
+  delivered_at    DateTime?           @db.Timestamptz(6)
+
+  @@index([subscription_id, status])
+  @@map("webhook_deliveries")
+}
+
+/// يشمل Outbox: أحداث النطاق تُكتب هنا (job_type='domain_event') في نفس معاملة التغيير — docs/12§3 (قرار D5 في BUILD-STATE)
+model BackgroundJob {
+  id           String    @id @default(uuid()) @db.Uuid
+  job_type     String // domain_event | settlement_run | retention_cleanup | ...
+  payload      Json
+  status       JobStatus @default(pending)
+  run_at       DateTime  @default(now()) @db.Timestamptz(6)
+  attempts     Int       @default(0)
+  max_attempts Int       @default(5)
+  locked_at    DateTime? @db.Timestamptz(6)
+  locked_by    String?
+  last_error   String?
+  /// idempotency للمستهلكين — event_id للأحداث
+  dedupe_key   String?   @unique
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  completed_at DateTime? @db.Timestamptz(6)
+
+  @@index([status, run_at])
+  @@map("background_jobs")
+}
+
+model DeadLetterJob {
+  id           String   @id @default(uuid()) @db.Uuid
+  original_job_id String @db.Uuid
+  job_type     String
+  payload      Json
+  error        String
+  attempts     Int
+  moved_at     DateTime @default(now()) @db.Timestamptz(6)
+  resolved_at  DateTime? @db.Timestamptz(6)
+
+  @@index([job_type, moved_at])
+  @@map("dead_letter_jobs")
+}
+
+/// قبل/بعد، لا حذف — append-only (docs/10§1)
+model AuditLog {
+  id          String    @id @default(uuid()) @db.Uuid
+  actor_type  ActorType
+  actor_id    String?   @db.Uuid
+  action      String
+  entity_type String
+  entity_id   String?
+  merchant_id String?   @db.Uuid
+  branch_id   String?   @db.Uuid
+  before      Json?
+  after       Json?
+  /// إلزامي عند تجاوز العزل — BR-15
+  reason      String?
+  ip          String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([entity_type, entity_id])
+  @@index([actor_id, created_at])
+  @@map("audit_logs")
+}
+
+model FeatureFlag {
+  id         String   @id @default(uuid()) @db.Uuid
+  key        String   @unique
+  enabled    Boolean  @default(false)
+  /// استهداف اختياري: نسبة، مدن، تجار
+  audience   Json?
+  updated_by String?
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("feature_flags")
+}
+
+/// القيم الافتراضية القابلة للضبط مع تاريخ سريان — docs/06 رأس الوثيقة
+model SystemSetting {
+  id           String   @id @default(uuid()) @db.Uuid
+  key          String
+  value        Json
+  effective_at DateTime @default(now()) @db.Timestamptz(6)
+  created_by   String?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([key, effective_at])
+  @@map("system_settings")
+}
+
+model AnalyticsEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  user_id     String?  @db.Uuid
+  merchant_id String?  @db.Uuid
+  branch_id   String?  @db.Uuid
+  order_id    String?  @db.Uuid
+  props       Json?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([name, created_at])
+  @@map("analytics_events")
+}

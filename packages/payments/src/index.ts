@@ -1,0 +1,151 @@
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createLogger } from "@pickly/observability";
+
+/**
+ * بوابة الدفع خلف Adapter — docs/13 + قاعدة الاستقلالية.
+ * النموذج المالي: (ب) Marketplace/Split (docs/13§1 — قرار D2).
+ * mock: بوابة sandbox داخلية تدعم Auth/Capture/Refund وتبث Webhooks موقعة
+ * إلى /v1/webhooks/payments/mock — نفس مسار الإنتاج تماماً.
+ */
+
+export type ProviderIntentStatus =
+  | "requires_payment"
+  | "processing"
+  | "authorized"
+  | "captured"
+  | "failed"
+  | "cancelled";
+
+export interface CreateIntentInput {
+  amount_halalas: number;
+  currency: "SAR";
+  order_ref: string;
+  idempotency_key: string;
+}
+
+export interface ProviderIntent {
+  provider_ref: string;
+  client_secret: string;
+  status: ProviderIntentStatus;
+  supports_capture: boolean;
+}
+
+export interface WebhookVerification {
+  valid: boolean;
+  event_ref: string;
+  event_type: string; // payment.authorized | payment.captured | payment.failed | refund.completed
+  provider_ref: string;
+  amount_halalas: number;
+  currency: string;
+}
+
+export interface PaymentAdapter {
+  readonly provider: string;
+  createIntent(input: CreateIntentInput): Promise<ProviderIntent>;
+  capture(provider_ref: string, amount_halalas: number): Promise<{ ok: boolean }>;
+  cancelOrRelease(provider_ref: string): Promise<{ ok: boolean }>;
+  refund(provider_ref: string, amount_halalas: number, idempotency_key: string): Promise<{ ok: boolean; refund_ref: string }>;
+  /** التحقق من توقيع webhook — إلزامي (docs/13§4-3) */
+  verifyWebhook(rawBody: string, signature: string | undefined): WebhookVerification | null;
+}
+
+const logger = createLogger("payments");
+
+/**
+ * MockPaymentAdapter — sandbox داخلي:
+ * - client_secret يقبله "متصفح" الدفع الوهمي في الواجهات
+ * - confirmPayment() تحاكي نتيجة 3DS: النجاح افتراضي، وفشل حتمي للمبالغ
+ *   المنتهية بـ99 هللة (لاختبار مسار PAYMENT_FAILED دون عشوائية)
+ */
+export class MockPaymentAdapter implements PaymentAdapter {
+  readonly provider = "mock";
+  private secret = process.env.PAYMENT_WEBHOOK_SECRET ?? "dev-webhook-secret";
+  /** حالة الـintents داخل الذاكرة — كافية للـsandbox المحلي */
+  private intents = new Map<string, { amount: number; status: ProviderIntentStatus }>();
+  private byIdempotency = new Map<string, ProviderIntent>();
+
+  async createIntent(input: CreateIntentInput): Promise<ProviderIntent> {
+    const existing = this.byIdempotency.get(input.idempotency_key);
+    if (existing) return existing; // idempotent — docs/13§4-2
+
+    const provider_ref = `mock_pi_${randomUUID()}`;
+    this.intents.set(provider_ref, { amount: input.amount_halalas, status: "requires_payment" });
+    const intent: ProviderIntent = {
+      provider_ref,
+      client_secret: `mock_secret_${randomUUID()}`,
+      status: "requires_payment",
+      supports_capture: true
+    };
+    this.byIdempotency.set(input.idempotency_key, intent);
+    return intent;
+  }
+
+  /** يحاكي إتمام العميل للدفع (3DS) — تستدعيه أداة sandbox/الاختبارات */
+  async confirmPayment(provider_ref: string): Promise<"authorized" | "failed"> {
+    const intent = this.intents.get(provider_ref);
+    if (!intent) throw new Error(`mock intent غير موجود: ${provider_ref}`);
+    const fails = intent.amount % 100 === 99;
+    intent.status = fails ? "failed" : "authorized";
+    return intent.status === "authorized" ? "authorized" : "failed";
+  }
+
+  async capture(provider_ref: string, _amount_halalas: number): Promise<{ ok: boolean }> {
+    const intent = this.intents.get(provider_ref);
+    if (!intent || intent.status !== "authorized") return { ok: false };
+    intent.status = "captured";
+    return { ok: true };
+  }
+
+  async cancelOrRelease(provider_ref: string): Promise<{ ok: boolean }> {
+    const intent = this.intents.get(provider_ref);
+    if (!intent) return { ok: false };
+    intent.status = "cancelled";
+    return { ok: true };
+  }
+
+  async refund(provider_ref: string, amount_halalas: number, idempotency_key: string): Promise<{ ok: boolean; refund_ref: string }> {
+    logger.info({ provider_ref, amount_halalas, idempotency_key }, "[MOCK] refund");
+    return { ok: true, refund_ref: `mock_re_${randomUUID()}` };
+  }
+
+  /** يبني حمولة webhook موقعة — تُرسل لمسار /v1/webhooks/payments/mock */
+  buildWebhookPayload(event_type: string, provider_ref: string, amount_halalas: number): { body: string; signature: string } {
+    const body = JSON.stringify({
+      event_ref: `mock_evt_${randomUUID()}`,
+      event_type,
+      provider_ref,
+      amount_halalas,
+      currency: "SAR",
+      created_at: new Date().toISOString()
+    });
+    const signature = createHmac("sha256", this.secret).update(body).digest("hex");
+    return { body, signature };
+  }
+
+  verifyWebhook(rawBody: string, signature: string | undefined): WebhookVerification | null {
+    if (!signature) return null;
+    const expected = createHmac("sha256", this.secret).update(rawBody).digest("hex");
+    const a = Buffer.from(expected);
+    const b = Buffer.from(signature);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    const parsed = JSON.parse(rawBody) as {
+      event_ref: string;
+      event_type: string;
+      provider_ref: string;
+      amount_halalas: number;
+      currency: string;
+    };
+    return { valid: true, ...parsed };
+  }
+}
+
+export function createPaymentAdapter(): PaymentAdapter {
+  const provider = process.env.PAYMENT_PROVIDER ?? "mock";
+  switch (provider) {
+    case "mock":
+      return new MockPaymentAdapter();
+    // hyperpay | moyasar | tap — تُضاف تنفيذاتها عند توقيع العقد (HUMAN-ACTIONS B1)
+    default:
+      throw new Error(`مزود دفع غير مدعوم بعد: ${provider} — راجع HUMAN-ACTIONS.md B1`);
+  }
+}

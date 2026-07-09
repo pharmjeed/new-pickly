@@ -1,0 +1,32 @@
+{
+  "name": "@pickly/payments",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@pickly/contracts": "workspace:*",
+    "@pickly/observability": "workspace:*"
+  },
+  "devDependencies": {
+    "@pickly/tsconfig": "workspace:*",
+    "@pickly/eslint-config": "workspace:*",
+    "typescript": "^5.6.3",
+    "eslint": "^9.14.0",
+    "vitest": "^2.1.4",
+    "@types/node": "^22.9.0"
+  }
+}

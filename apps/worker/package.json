@@ -1,0 +1,32 @@
+{
+  "name": "@pickly/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@pickly/contracts": "workspace:*",
+    "@pickly/database": "workspace:*",
+    "@pickly/notifications": "workspace:*",
+    "@pickly/observability": "workspace:*",
+    "bullmq": "^5.28.1",
+    "ioredis": "^5.4.1",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@pickly/tsconfig": "workspace:*",
+    "@pickly/eslint-config": "workspace:*",
+    "typescript": "^5.6.3",
+    "eslint": "^9.14.0",
+    "vitest": "^2.1.4",
+    "tsx": "^4.19.2",
+    "@types/node": "^22.9.0"
+  }
+}

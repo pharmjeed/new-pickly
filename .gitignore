@@ -1,0 +1,40 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+.next/
+.expo/
+*.tsbuildinfo
+coverage/
+
+# env — الأسرار لا تدخل المستودع أبداً (docs/09§6)
+.env
+.env.*
+!.env.example
+
+# prisma
+packages/database/generated/
+
+# os / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# logs
+*.log
+logs/
+
+# terraform
+infra/terraform/**/.terraform/
+infra/terraform/**/*.tfstate*
+infra/terraform/**/*.tfvars
+!infra/terraform/**/example.tfvars
+
+# playwright / test artifacts
+test-results/
+playwright-report/

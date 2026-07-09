@@ -1,0 +1,40 @@
+{
+  "name": "pickly",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pickly — سوق طلبات واستلام من السيارة متكامل",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "argon2",
+      "esbuild",
+      "msgpackr-extract"
+    ]
+  },
+  "scripts": {
+    "dev": "docker compose up -d && pnpm run --parallel --filter @pickly/api --filter @pickly/worker dev",
+    "dev:api": "pnpm --filter @pickly/api dev",
+    "dev:worker": "pnpm --filter @pickly/worker dev",
+    "dev:customer": "pnpm --filter @pickly/customer-mobile start",
+    "dev:web": "pnpm --filter @pickly/merchant-web dev",
+    "db:migrate": "pnpm --filter @pickly/database migrate:dev",
+    "db:deploy": "pnpm --filter @pickly/database migrate:deploy",
+    "db:seed": "pnpm --filter @pickly/database seed",
+    "db:reset": "pnpm --filter @pickly/database migrate:reset",
+    "openapi:gen": "pnpm --filter @pickly/contracts openapi:gen",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:isolation": "pnpm --filter @pickly/api test:isolation",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "deploy:staging": "bash infra/scripts/deploy.sh staging",
+    "deploy:production": "bash infra/scripts/deploy.sh production"
+  }
+}
