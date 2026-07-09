@@ -8,13 +8,17 @@ import { check, sleep } from "k6";
  */
 const BASE = __ENV.BASE_URL || "http://localhost:4000";
 
+// الهدف الرسمي: RATE=200 لمدة 5m على staging (docs/20) — محلياً يُخفض عبر env
+const RATE = Number(__ENV.RATE || 200);
+const DURATION = __ENV.DURATION || "5m";
+
 export const options = {
   scenarios: {
     orders: {
       executor: "constant-arrival-rate",
-      rate: 200,
+      rate: RATE,
       timeUnit: "1m",
-      duration: "5m",
+      duration: DURATION,
       preAllocatedVUs: 50,
       maxVUs: 200
     }
@@ -70,7 +74,9 @@ export default function () {
     JSON.stringify({ product_id: product.id, quantity: 1, modifier_ids: [] }),
     { headers: auth }
   );
-  const quoted = http.post(`${BASE}/v1/carts/${cartId}/quote`, null, { headers: auth });
+  // POST بلا body ← بلا Content-Type (Fastify يرفض JSON فارغاً)
+  const authNoBody = { Authorization: auth.Authorization };
+  const quoted = http.post(`${BASE}/v1/carts/${cartId}/quote`, null, { headers: authNoBody });
   const quote = json(quoted).quote;
 
   // الطلب + الدفع
@@ -89,7 +95,7 @@ export default function () {
   if (!ok) return;
 
   http.post(`${BASE}/v1/orders/${orderId}/payment-intent`, null, {
-    headers: { ...auth, "Idempotency-Key": `pi-${phone}-${Date.now()}` }
+    headers: { Authorization: auth.Authorization, "Idempotency-Key": `pi-${phone}-${Date.now()}` }
   });
   const pay = http.post(`${BASE}/v1/dev/mock-gateway/by-order/${orderId}/pay`, "{}", {
     headers: h
