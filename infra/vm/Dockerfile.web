@@ -5,13 +5,15 @@ WORKDIR /repo
 
 ARG APP
 ARG PORT=3000
+# Next.js يثبّت rewrites وقت البناء في routes-manifest — لذا العنوان لازم وقت البناء
+ARG API_INTERNAL_URL=http://api:4000
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages ./packages
 COPY apps/${APP} ./apps/${APP}
 RUN pnpm install --frozen-lockfile --filter @pickly/${APP}...
 
-# البروكسي الداخلي /api/* يقرأ API_INTERNAL_URL وقت التشغيل (next.config.mjs)
+ENV API_INTERNAL_URL=${API_INTERNAL_URL}
 RUN pnpm --filter @pickly/${APP} build
 
 ENV NODE_ENV=production

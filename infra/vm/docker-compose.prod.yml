@@ -70,7 +70,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/vm/Dockerfile.web
-      args: { APP: customer-web, PORT: 3000 }
+      args: { APP: customer-web, PORT: 3000, API_INTERNAL_URL: "http://api:4000" }
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://api:4000
@@ -82,7 +82,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/vm/Dockerfile.web
-      args: { APP: merchant-web, PORT: 3001 }
+      args: { APP: merchant-web, PORT: 3001, API_INTERNAL_URL: "http://api:4000" }
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://api:4000
@@ -94,7 +94,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/vm/Dockerfile.web
-      args: { APP: branch-ops, PORT: 3002 }
+      args: { APP: branch-ops, PORT: 3002, API_INTERNAL_URL: "http://api:4000" }
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://api:4000
@@ -106,7 +106,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/vm/Dockerfile.web
-      args: { APP: admin-web, PORT: 3003 }
+      args: { APP: admin-web, PORT: 3003, API_INTERNAL_URL: "http://api:4000" }
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://api:4000
