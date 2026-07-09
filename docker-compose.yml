@@ -7,7 +7,8 @@ services:
       POSTGRES_PASSWORD: pickly_local
       POSTGRES_DB: pickly
     ports:
-      - "5432:5432"
+      # 5433 على المضيف — 5432 محجوز بخدمة PostgreSQL أصلية على أجهزة بعض المطورين
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

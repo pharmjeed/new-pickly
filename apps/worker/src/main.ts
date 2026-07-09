@@ -1,6 +1,9 @@
-import "dotenv/config";
-import { createLogger } from "@pickly/observability";
-import { startOutboxPublisher } from "./outbox-publisher.js";
+import { config } from "dotenv";
+// محلياً يُحمَّل .env من جذر الـmonorepo؛ في السحابة البيئة تأتي من Secret Manager
+config({ path: [".env", "../../.env"] });
+
+const { createLogger } = await import("@pickly/observability");
+const { startOutboxPublisher } = await import("./outbox-publisher.js");
 
 /**
  * Worker — Background Workers (docs/09§3):

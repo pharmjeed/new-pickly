@@ -1,5 +1,8 @@
-import "dotenv/config";
-import { buildApp } from "./app.js";
+import { config } from "dotenv";
+// محلياً يُحمَّل .env من جذر الـmonorepo؛ في السحابة البيئة تأتي من Secret Manager
+config({ path: [".env", "../../.env"] });
+
+const { buildApp } = await import("./app.js");
 
 const app = await buildApp();
 

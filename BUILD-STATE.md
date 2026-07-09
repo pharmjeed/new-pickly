@@ -7,7 +7,7 @@
 
 | المرحلة | الحالة |
 |---------|--------|
-| 1. التأسيس (Monorepo، Docker، CI، contracts، database، Auth، Seed) | 🔨 جارية |
+| 1. التأسيس (Monorepo، Docker، CI، contracts، database، Auth، Seed) | ✅ بوابة خضراء |
 | 2. Vertical Slice (رحلة J1 كاملة E2E) | ⬜ |
 | 3. توسيع العميل (Expo P1–P8 + تتبع الويب) | ⬜ |
 | 4. الفرع والتاجر | ⬜ |
@@ -23,15 +23,23 @@
 - [x] فك حزمة الواجهات في `design/` (62 صفحة HTML + tokens.css + COMPLIANCE.md + `_frag/` بكل الشاشات المنطقية).
 - [x] ملفات الهوية الأربعة في `design/identity/`.
 - [x] `git init` + فحص الأدوات: Node v25.9.0، pnpm 10.0.0، Docker 25.0.3.
+- [x] **المرحلة 1 كاملة — بوابتها خضراء (تحقق فعلي):**
+  - Monorepo pnpm بهيكل docs/09§5 + docker-compose (postgres+postgis على 5433، redis، mailhog) — الحاويات تعمل.
+  - `packages/contracts`: حالات الطلب الـ25 + جدول الانتقالات + إسقاط العرض السبع + أكواد أخطاء ar/en + أحداث النطاق + Zod DTOs + `openapi.json` (34 مساراً).
+  - `packages/database`: Prisma schema كامل (~98 جدولاً حرفياً من docs/10، شاملاً جداول المؤجل) + هجرتان مطبقتان (init + append_only_guards بـtriggers) + seed سعودي (3 تجار، 6 فروع، 33 منتجاً، 12 مستخدماً، أدوار كاملة، قوالب إشعارات، أعلام).
+  - Adapters بوضعي mock/production: SMS (Mock+Unifonic)، Payment (sandbox داخلي بAuth/Capture/Refund وWebhooks موقعة HMAC)، Geo (MockRoutes+GoogleRoutes+محاكي رحلة)، Push (Mock+هيكل FCM).
+  - `apps/api` Fastify: غلاف الخطأ الموحد، auth OTP كامل (rate limit، حد محاولات، جلسات قابلة للإلغاء بتدوير refresh)، health/ready، feature-flags. **مُختبر فعلياً:** OTP request→verify→JWT على قاعدة حقيقية.
+  - `apps/worker`: Outbox publisher (التقاط بقفل، retry أسّي، dead letter) — يعمل.
+  - CI GitHub Actions (يُفعَّل عند إنشاء remote — HUMAN-ACTIONS A1) + Dockerfiles إنتاج + deploy.sh.
+  - lint ✅ typecheck ✅ tests ✅ (14 اختباراً: آلة الحالات + AuthService).
 
 ## ما يجري الآن
 
-- المرحلة 1: كتابة أساس الـMonorepo (root configs → tsconfig/eslint → contracts → database/Prisma → observability → adapters → apps/api auth+health → worker → CI → seed).
+- بدء المرحلة 2 (Vertical Slice): وحدات الـbackend للرحلة J1 (catalog → carts+quote → orders+state machine → payments mock → merchant accept/ready → pickup/arrival → handoff) ثم Playwright.
 
 ## التالي
 
-- إنهاء بوابة المرحلة 1: `pnpm i && pnpm dev` يعمل، lint/typecheck/tests خضراء.
-- ثم المرحلة 2 (Vertical Slice): P2 ← P4 ← P5 ← P6 ← P7 ← B-03 مع Playwright.
+- إكمال Vertical Slice E2E ببوابة Playwright آلية قبل أي توسع (ترتيب الصفحات: P2 ← P4 ← P5 ← P6 ← P7 ← B-03).
 
 ## قرارات محسومة (سجل تراكمي)
 
@@ -43,6 +51,8 @@
 | D4 | جداول المؤجل (wallet، loyalty، مجدول...) تُنشأ في Prisma دون واجهات | docs/21§3 |
 | D5 | Outbox يُنفَّذ عبر جدول background_jobs (job_type='domain_event') — قائمة جداول docs/10 مغلقة ولا تتضمن جدول outbox مستقلاً | docs/12§3 + docs/10 |
 | D6 | عنوان docs/05 يقول «24 حالة» لكن التعداد الحرفي 25 (يشمل PARTIALLY_REFUNDED). القائمة الحرفية هي الحاكمة — اعتُمدت 25 حالة في contracts وPrisma enum | docs/05§1 |
+| D7 | منفذ Postgres المحلي 5433 (لا 5432) — جهاز التطوير عليه PostgreSQL أصلي يحتل 5432 | بيئة محلية |
+| D8 | أُوقفت عملية node قديمة (خادم pickly من محاولة سابقة كان يحتل 4000). يوجد أيضاً Supabase stack قديم على منافذ 54321-54324 لم نمسّه — يمكن إيقافه يدوياً لتحرير موارد | بيئة محلية |
 
 ## ملاحظات تشغيلية
 
