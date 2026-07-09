@@ -16,17 +16,26 @@ const BATCH = 20;
 type EventHandler = (envelope: unknown) => Promise<void>;
 const handlers: EventHandler[] = [];
 
-/** تسجيل مستهلك — كل مستهلك idempotent (يفحص event_id) */
+/** تسجيل مستهلك أحداث — كل مستهلك idempotent (يفحص event_id) */
 export function registerEventHandler(h: EventHandler): void {
   handlers.push(h);
 }
 
+type JobHandler = (payload: unknown) => Promise<void>;
+const jobHandlers = new Map<string, JobHandler>();
+
+/** تسجيل معالج نوع Job (عدادات، تسويات، retention...) — idempotent إلزاماً */
+export function registerJobHandler(job_type: string, h: JobHandler): void {
+  jobHandlers.set(job_type, h);
+}
+
 async function processBatch(workerId: string): Promise<number> {
+  const types = ["domain_event", ...jobHandlers.keys()];
   // التقاط دفعة بقفل تفاؤلي — آمن مع أكثر من worker
   const jobs = await prisma.$transaction(async (tx) => {
     const candidates = await tx.backgroundJob.findMany({
       where: {
-        job_type: "domain_event",
+        job_type: { in: types },
         status: "pending",
         run_at: { lte: new Date() }
       },
@@ -44,13 +53,19 @@ async function processBatch(workerId: string): Promise<number> {
 
   for (const job of jobs) {
     try {
-      const envelope = EventEnvelopeSchema.parse(job.payload);
-      for (const h of handlers) await h(envelope);
+      if (job.job_type === "domain_event") {
+        const envelope = EventEnvelopeSchema.parse(job.payload);
+        for (const h of handlers) await h(envelope);
+        logger.debug({ event: envelope.name, id: envelope.event_id }, "event published");
+      } else {
+        const handler = jobHandlers.get(job.job_type);
+        if (!handler) throw new Error(`لا معالج للنوع ${job.job_type}`);
+        await handler(job.payload);
+      }
       await prisma.backgroundJob.update({
         where: { id: job.id },
         data: { status: "completed", completed_at: new Date() }
       });
-      logger.debug({ event: envelope.name, id: envelope.event_id }, "event published");
     } catch (err) {
       const attempts = job.attempts + 1;
       if (attempts >= job.max_attempts) {

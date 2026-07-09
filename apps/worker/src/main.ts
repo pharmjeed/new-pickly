@@ -3,7 +3,10 @@ import { config } from "dotenv";
 config({ path: [".env", "../../.env"] });
 
 const { createLogger } = await import("@pickly/observability");
-const { startOutboxPublisher } = await import("./outbox-publisher.js");
+const { registerJobHandler, startOutboxPublisher } = await import("./outbox-publisher.js");
+const { handleAcceptTimeout } = await import("./handlers/accept-timeout.js");
+
+registerJobHandler("accept_timeout", handleAcceptTimeout);
 
 /**
  * Worker — Background Workers (docs/09§3):

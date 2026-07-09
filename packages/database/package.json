@@ -27,7 +27,8 @@
     "schema": "prisma/schema.prisma"
   },
   "dependencies": {
-    "@prisma/client": "^6.0.1"
+    "@prisma/client": "^6.0.1",
+    "argon2": "^0.41.1"
   },
   "devDependencies": {
     "@pickly/tsconfig": "workspace:*",

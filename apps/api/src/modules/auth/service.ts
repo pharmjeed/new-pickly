@@ -121,4 +121,49 @@ export class AuthService {
   async logout(session_id: string): Promise<void> {
     await this.repo.revokeSession(session_id);
   }
+
+  /** دخول فريق الفرع: كود فرع + حساب/PIN، أجهزة مسماة — docs/11§1 */
+  async branchLogin(input: {
+    branch_code: string;
+    username: string;
+    pin: string;
+    device_name: string;
+  }): Promise<TokenPair> {
+    const branch = await this.repo.findBranchByCode(input.branch_code);
+    if (!branch) throw new AppError("AUTH-1008");
+
+    const staff = await this.repo.findStaff(branch.merchant_id, input.username);
+    if (!staff || staff.status !== "active") throw new AppError("AUTH-1008");
+
+    const assignedHere = staff.branch_assignments.some((a) => a.branch_id === branch.id);
+    if (!assignedHere) throw new AppError("MERCHANT-7003");
+
+    const { verifyPin } = await import("@pickly/auth");
+    if (!(await verifyPin(input.pin, staff.pin_hash))) throw new AppError("AUTH-1008");
+
+    const user = await this.repo.ensureStaffUser(staff);
+    const device = await this.repo.registerBranchDevice({
+      user_id: user.id,
+      name: input.device_name,
+      branch_id: branch.id
+    });
+    void device;
+
+    const refresh_token = generateRefreshToken();
+    const session = await this.repo.createSession({
+      user_id: user.id,
+      refresh_token_hash: hashRefreshToken(refresh_token),
+      expires_at: new Date(Date.now() + REFRESH_TTL_MS)
+    });
+
+    const access_token = signAccessToken({
+      sub: user.id,
+      actor_type: "merchant_staff",
+      session_id: session.id,
+      merchant_id: staff.merchant_id,
+      branch_ids: staff.branch_assignments.map((a) => a.branch_id),
+      roles: [staff.role_key]
+    });
+    return { access_token, refresh_token, is_new_user: false };
+  }
 }

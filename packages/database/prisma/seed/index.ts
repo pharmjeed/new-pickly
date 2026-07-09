@@ -4,12 +4,12 @@
  * آمن لإعادة التشغيل (upsert بالأسماء/الأكواد الثابتة).
  */
 import { PrismaClient } from "@prisma/client";
-import { createHash } from "node:crypto";
+import argon2 from "argon2";
 
 const prisma = new PrismaClient();
 
-// hash بسيط للـPIN/الرموز في بيئة التطوير — الإنتاج يستخدم argon2 في طبقة auth
-const devHash = (v: string) => createHash("sha256").update(v).digest("hex");
+// نفس تجزئة طبقة auth (argon2) — التحقق في /v1/auth/branch/login
+const devHash = (v: string) => argon2.hash(v);
 
 async function seedRolesAndPermissions() {
   const merchantRoles: Array<[string, string]> = [
@@ -280,11 +280,12 @@ async function seedMerchant(spec: {
         create: {
           merchant_id: merchant.id,
           username,
-          pin_hash: devHash("1234"),
+          pin_hash: await devHash("1234"),
           role_key: `merchant:${role_key}`,
           full_name
         },
-        update: {}
+        // إعادة ضبط PIN التطوير عند كل seed — يضمن تطابق التجزئة مع طبقة auth
+        update: { pin_hash: await devHash("1234") }
       });
       await prisma.staffBranchAssignment.upsert({
         where: { staff_id_branch_id: { staff_id: staff.id, branch_id: branch.id } },

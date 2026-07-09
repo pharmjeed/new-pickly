@@ -88,6 +88,51 @@ export const authRepository = {
       where: { id },
       data: { revoked_at: new Date() }
     });
+  },
+
+  /** دخول فريق الفرع — docs/11§1 */
+  findBranchByCode(branch_code: string) {
+    return prisma.branch.findUnique({ where: { branch_code } });
+  },
+
+  findStaff(merchant_id: string, username: string) {
+    return prisma.merchantStaff.findUnique({
+      where: { merchant_id_username: { merchant_id, username } },
+      include: { branch_assignments: true }
+    });
+  },
+
+  /** حساب مستخدم مرتبط بالموظف (للجلسات) — يُنشأ عند أول دخول */
+  async ensureStaffUser(staff: { id: string; user_id: string | null; full_name: string }) {
+    if (staff.user_id) {
+      const existing = await prisma.user.findUnique({ where: { id: staff.user_id } });
+      if (existing) return existing;
+    }
+    const user = await prisma.user.upsert({
+      where: { phone: `staff:${staff.id}` },
+      create: {
+        phone: `staff:${staff.id}`,
+        full_name: staff.full_name,
+        actor_type: "merchant_staff"
+      },
+      update: {}
+    });
+    await prisma.merchantStaff.update({
+      where: { id: staff.id },
+      data: { user_id: user.id }
+    });
+    return user;
+  },
+
+  registerBranchDevice(data: { user_id: string; name: string; branch_id: string }) {
+    return prisma.device.create({
+      data: {
+        user_id: data.user_id,
+        platform: "branch_tablet",
+        name: data.name,
+        branch_id: data.branch_id
+      }
+    });
   }
 };
 

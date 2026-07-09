@@ -31,6 +31,20 @@ export function hashRefreshToken(token: string): string {
   return createHash("sha256").update(`pickly-refresh:${token}`).digest("hex");
 }
 
+import argon2 from "argon2";
+
+/** PIN فريق الفرع — تجزئة قوية (docs/17) */
+export function hashPin(pin: string): Promise<string> {
+  return argon2.hash(pin);
+}
+export async function verifyPin(pin: string, hash: string): Promise<boolean> {
+  try {
+    return await argon2.verify(hash, pin);
+  } catch {
+    return false;
+  }
+}
+
 /** رمز التسليم 4 أرقام — BR-8 */
 export function generateHandoffCode(): string {
   return String(randomInt(1000, 10000));

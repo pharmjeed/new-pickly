@@ -35,11 +35,18 @@
 
 ## ما يجري الآن
 
-- بدء المرحلة 2 (Vertical Slice): وحدات الـbackend للرحلة J1 (catalog → carts+quote → orders+state machine → payments mock → merchant accept/ready → pickup/arrival → handoff) ثم Playwright.
+- **backend الـVertical Slice مكتمل وأخضر**: اختبار تكاملي J1 (11 اختباراً) يغطي:
+  تسجيل OTP ← nearby (PostGIS) ← منيو ← سلة+تسعير خادمي ← طلب idempotent ←
+  intent ← بوابة sandbox ← webhook موقع (توقيع/مبلغ/تكرار) ← قبول+Capture+ledger ←
+  تجهيز ← جاهز ← رحلة بمحاكي GPS ← NEARBY بجيوفنس ← «وصلت» يدوي ← موقف ← طابور ←
+  خرج الموظف ← تسليم برمز HMAC ← COMPLETED. سجل الحالات = 14 انتقالاً حرفياً.
+  + عزل الفروع (403) + معالج accept_timeout في الـworker.
+  الملف: `apps/api/src/slice-j1.integration.test.ts` (يتخطى نفسه بلا DATABASE_URL).
 
-## التالي
+## التالي (لإغلاق بوابة المرحلة 2 بالكامل)
 
-- إكمال Vertical Slice E2E ببوابة Playwright آلية قبل أي توسع (ترتيب الصفحات: P2 ← P4 ← P5 ← P6 ← P7 ← B-03).
+- واجهة الشريحة: `apps/customer-web` (Next.js) بصفحات P2/P4/P5/P6/P7 المصغرة من design/ بنفس tokens.css + لوحة فرع مبسطة B-03، ثم Playwright يقود الرحلة في المتصفح (بوابة docs/20 مرحلة 6).
+- ملاحظة قرار: mock gateway في الذاكرة داخل عملية الـAPI — رفض الفرع يحرّر/يسترجع فوراً، أما timeout في الـworker فيكتفي بإنشاء refund pending (يعالجه processor المرحلة 5).
 
 ## قرارات محسومة (سجل تراكمي)
 

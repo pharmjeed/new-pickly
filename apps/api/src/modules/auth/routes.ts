@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import {
+  BranchLoginBodySchema,
   OtpRequestBodySchema,
   OtpVerifyBodySchema,
   RefreshBodySchema
@@ -23,6 +24,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
       ...(req.headers["user-agent"] ? { user_agent: req.headers["user-agent"] } : {})
     });
+  });
+
+  app.post("/branch/login", async (req) => {
+    const body = BranchLoginBodySchema.parse(req.body);
+    return service.branchLogin(body);
   });
 
   app.post("/refresh", async (req) => {
