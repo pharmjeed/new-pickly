@@ -18,7 +18,8 @@ x-env: &app-env
 
 services:
   postgres:
-    image: postgis/postgis:16-3.4
+    # صورة PostGIS متعددة المعمارية (تدعم arm64 لسيرفرات Ampere) — postgis/postgis رسمية x86 فقط
+    image: imresamu/postgis:16-3.4
     restart: unless-stopped
     environment:
       POSTGRES_USER: pickly
