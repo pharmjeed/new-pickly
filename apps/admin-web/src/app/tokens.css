@@ -1,0 +1,90 @@
+/* ============================================================
+   Pickly — tokens.css
+   المصدر: pickly-brand-book.html §6 §7 §13 (المصدر البصري الأعلى)
+   + docs/08 (المقاييس، أهداف اللمس، ألوان أولوية الفرع مُعادة
+   الصياغة بدرجات الهوية — موثق في COMPLIANCE.md)
+   قاعدة: لا لون ولا خط ولا مقاس خارج هذا الملف.
+   ============================================================ */
+:root{
+  /* ---- الألوان الأساسية ---- */
+  --pk-lime-500:#C9F339;   /* الشارة والأزرار والحالات الحية */
+  --pk-lime-300:#DDF87A;   /* hover وتمييز */
+  --pk-lime-100:#F2FCD1;   /* خلفيات ناعمة وشرائح */
+  --pk-lime-900:#5E7A12;   /* نص فوق الليموني */
+  --pk-ink-900:#10241B;    /* النصوص / وضع القيادة / الداكن */
+  --pk-ink-700:#1C3329;    /* بطاقات فوق الداكن */
+  --pk-ink-600:#2E4A3C;    /* عناصر ثانوية داكنة */
+  --pk-success:#1D9E75;    /* نجاح — تم رصد الوصول */
+  --pk-warn:#EF9F27;       /* تنبيه — انتظار وتجهيز */
+  --pk-error:#E24B4A;      /* خطأ — فشل GPS أو الدفع */
+  --pk-white:#FFFFFF;      /* الخلفية الأساسية */
+  --pk-cloud:#F4F7F2;      /* أقسام ثانوية */
+  --pk-line:#E3E8E0;       /* حدود */
+  --pk-gray:#6E7A72;       /* نص ثانوي على أبيض (الحد الأدنى) */
+  --pk-gray-2:#8FA398;     /* نص ثانوي على داكن */
+
+  /* ---- ألوان أولوية بطاقات شاشة الفرع (08§2 بدرجات الهوية) ---- */
+  --pk-st-new:#6E7A72;        /* جديد — رمادي */
+  --pk-st-new-bg:#F4F7F2;
+  --pk-st-prep:#2E4A3C;       /* قيد التحضير — فحمي ٦٠٠ */
+  --pk-st-prep-bg:#E9EFEA;
+  --pk-st-near:#C9F339;       /* العميل قريب — ليموني (إشارة «الآن») */
+  --pk-st-near-bg:#F2FCD1;
+  --pk-st-arrived:#EF9F27;    /* وصل — برتقالي */
+  --pk-st-arrived-bg:#FCF0DB;
+  --pk-st-overdue:#E24B4A;    /* متجاوز — أحمر */
+  --pk-st-overdue-bg:#FBE5E4;
+  --pk-st-done:#1D9E75;       /* تم التسليم — أخضر */
+  --pk-st-done-bg:#E2F3ED;
+
+  /* ---- الخطوط ---- */
+  --pk-font-display:'Baloo Bhaijaan 2','IBM Plex Sans Arabic',sans-serif;
+  --pk-font-body:'IBM Plex Sans Arabic',sans-serif;
+  --pk-font-mono:'IBM Plex Mono',monospace;
+
+  /* ---- سلم المقاسات (عميل 12/14/16/20/24/32 · فرع 18/28/40/48) ---- */
+  --pk-fs-12:12px; --pk-fs-13:13px; --pk-fs-14:14px; --pk-fs-15:15px;
+  --pk-fs-16:16px; --pk-fs-17:17px; --pk-fs-20:20px; --pk-fs-24:24px;
+  --pk-fs-32:32px; --pk-fs-34:34px;
+  --pk-fs-b-min:18px;      /* شاشة الفرع: الأدنى */
+  --pk-fs-b-card:28px;     /* بطاقات الوصول 28–40 */
+  --pk-fs-b-card-lg:40px;
+  --pk-fs-b-plate:48px;    /* اللوحة المختصرة 48 عريض Mono */
+
+  /* ---- الشبكة والأشكال ---- */
+  --pk-space:4px;                 /* الوحدة */
+  --pk-radius:12px;               /* البطاقات والأزرار */
+  --pk-radius-lg:20px;
+  --pk-radius-pill:999px;         /* الشارات */
+  --pk-touch:44px;                /* هدف لمس العميل */
+  --pk-touch-branch:56px;         /* هدف لمس شاشة الفرع */
+
+  /* ---- الحركة ---- */
+  --pk-skew:-8deg;                          /* زاوية الحركة */
+  --pk-ease:cubic-bezier(.2,.8,.2,1);
+  --pk-dur:200ms;                           /* 150–250ms */
+  --pk-fade-1:1; --pk-fade-2:.55; --pk-fade-3:.3;  /* تلاشي الخطوط الثلاثة */
+
+  /* ---- ظلال (خفيفة — الأزرار بلا ظلال) ---- */
+  --pk-shadow-1:0 1px 2px rgba(16,36,27,.06);
+  --pk-shadow-2:0 10px 30px rgba(16,36,27,.12);
+
+  /* ---- رموز دلالية (الوضع الفاتح — افتراضي) ---- */
+  --pk-bg:var(--pk-cloud);
+  --pk-surface:var(--pk-white);
+  --pk-text:var(--pk-ink-900);
+  --pk-text-2:var(--pk-gray);
+  --pk-border:var(--pk-line);
+}
+
+/* ---- الوضع الداكن (لوحتا التاجر وSuper Admin فقط — 08§7) ---- */
+[data-theme="dark"]{
+  --pk-bg:var(--pk-ink-900);
+  --pk-surface:var(--pk-ink-700);
+  --pk-text:var(--pk-cloud);
+  --pk-text-2:var(--pk-gray-2);
+  --pk-border:var(--pk-ink-600);
+  --pk-st-new-bg:#243830; --pk-st-prep-bg:#263B31; --pk-st-near-bg:#31402A;
+  --pk-st-arrived-bg:#3E3322; --pk-st-overdue-bg:#3E2726; --pk-st-done-bg:#1F3D33;
+  --pk-shadow-1:none; --pk-shadow-2:0 10px 30px rgba(0,0,0,.35);
+}

@@ -149,6 +149,22 @@ export default function TrackPage() {
     setSheetOpen(true);
   };
 
+  // P8: تقييم بضغطة (BR-11)
+  const [reviewDone, setReviewDone] = useState(false);
+  const [savingReview, setSavingReview] = useState(false);
+  const [hoverStar, setHoverStar] = useState(0);
+  const submitReview = async (stars: number) => {
+    setSavingReview(true);
+    try {
+      await api("POST", `/v1/orders/${id}/review`, { rating_overall: stars });
+      setReviewDone(true);
+    } catch {
+      /* التقييم اختياري — لا نزعج */
+    } finally {
+      setSavingReview(false);
+    }
+  };
+
   const submitParking = async () => {
     const text = spotSel !== null ? `الموقف ${spotSel}` : freeText.trim();
     if (!text) return;
@@ -269,6 +285,40 @@ export default function TrackPage() {
         {completed && (
           <div className="pk-card" data-testid="completed-box" style={{ textAlign: "center" }}>
             <span className="pk-badge ok">تم التسليم ✓</span>
+            {/* P8: التقييم بضغطة — BR-11 (نافذة 7 أيام) */}
+            {!reviewDone ? (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "center", gap: 8 }} dir="ltr">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      data-testid={`rate-${n}`}
+                      aria-label={`${n} من 5`}
+                      onClick={() => submitReview(n)}
+                      disabled={savingReview}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: 30,
+                        lineHeight: 1,
+                        color: n <= hoverStar ? "var(--pk-warn)" : "var(--pk-line)"
+                      }}
+                      onMouseEnter={() => setHoverStar(n)}
+                      onMouseLeave={() => setHoverStar(0)}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <p className="pk-muted" style={{ marginTop: 4 }}>قيّم استلامك بضغطة</p>
+              </div>
+            ) : (
+              <p className="pk-muted" style={{ marginTop: 8 }} data-testid="review-thanks">
+                شكراً لك — تقييمك يطوّر التجربة 🌟
+              </p>
+            )}
           </div>
         )}
       </main>

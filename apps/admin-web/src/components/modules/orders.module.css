@@ -1,0 +1,26 @@
+/* A-08 — جدول الطلبات + drawer الخط الزمني */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 16px;
+  align-items: start;
+}
+
+.row { cursor: pointer; }
+
+.rowOn td {
+  background: var(--pk-lime-100) !important;
+}
+[data-theme="dark"] .rowOn td {
+  background: var(--pk-ink-700) !important;
+}
+
+.drawer {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

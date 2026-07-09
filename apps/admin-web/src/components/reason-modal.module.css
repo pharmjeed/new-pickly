@@ -1,0 +1,37 @@
+/* نافذة السبب الإلزامي — طبقة فوق اللوحة */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 36, 27, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modal {
+  width: 100%;
+  max-width: 440px;
+  background: var(--pk-surface);
+  border: 1px solid var(--pk-border);
+  border-radius: var(--pk-radius-lg);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--pk-shadow-2);
+}
+
+.title {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-17);
+  font-weight: 700;
+  color: var(--pk-text);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+}

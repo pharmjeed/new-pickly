@@ -1,0 +1,24 @@
+{
+  "name": "@pickly/site",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3004",
+    "build": "next build",
+    "start": "next start -p 3004",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "next lint || echo lint-skip",
+    "test": "echo \"site: موقع تعريفي ثابت — لا اختبارات وحدات\""
+  },
+  "dependencies": {
+    "next": "^15.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.3"
+  }
+}
