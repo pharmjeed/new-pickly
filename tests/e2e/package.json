@@ -1,0 +1,18 @@
+{
+  "name": "@pickly/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "lint": "echo e2e: no lint",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "echo e2e: no build"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "typescript": "^5.6.3",
+    "@types/node": "^22.9.0"
+  }
+}

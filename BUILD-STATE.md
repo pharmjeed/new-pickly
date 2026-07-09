@@ -8,7 +8,7 @@
 | المرحلة | الحالة |
 |---------|--------|
 | 1. التأسيس (Monorepo، Docker، CI، contracts، database، Auth، Seed) | ✅ بوابة خضراء |
-| 2. Vertical Slice (رحلة J1 كاملة E2E) | ⬜ |
+| 2. Vertical Slice (رحلة J1 كاملة E2E) | ✅ بوابة خضراء |
 | 3. توسيع العميل (Expo P1–P8 + تتبع الويب) | ⬜ |
 | 4. الفرع والتاجر | ⬜ |
 | 5. المالية | ⬜ |
@@ -33,20 +33,27 @@
   - CI GitHub Actions (يُفعَّل عند إنشاء remote — HUMAN-ACTIONS A1) + Dockerfiles إنتاج + deploy.sh.
   - lint ✅ typecheck ✅ tests ✅ (14 اختباراً: آلة الحالات + AuthService).
 
-## ما يجري الآن
+## ما أُنجز في المرحلة 2 (بوابتها خضراء — تحقق مزدوج)
 
-- **backend الـVertical Slice مكتمل وأخضر**: اختبار تكاملي J1 (11 اختباراً) يغطي:
-  تسجيل OTP ← nearby (PostGIS) ← منيو ← سلة+تسعير خادمي ← طلب idempotent ←
-  intent ← بوابة sandbox ← webhook موقع (توقيع/مبلغ/تكرار) ← قبول+Capture+ledger ←
-  تجهيز ← جاهز ← رحلة بمحاكي GPS ← NEARBY بجيوفنس ← «وصلت» يدوي ← موقف ← طابور ←
-  خرج الموظف ← تسليم برمز HMAC ← COMPLETED. سجل الحالات = 14 انتقالاً حرفياً.
-  + عزل الفروع (403) + معالج accept_timeout في الـworker.
-  الملف: `apps/api/src/slice-j1.integration.test.ts` (يتخطى نفسه بلا DATABASE_URL).
+1. **Backend كامل للرحلة J1** — اختبار تكاملي (11 اختباراً، `apps/api/src/slice-j1.integration.test.ts`):
+   تسجيل OTP ← nearby (PostGIS) ← منيو ← سلة+تسعير خادمي ← طلب idempotent ←
+   intent ← بوابة sandbox ← webhook موقع (توقيع/مبلغ/تكرار) ← قبول+Capture+ledger ←
+   رحلة بمحاكي GPS ← NEARBY بجيوفنس ← «وصلت» يدوي ← طابور ← تسليم برمز HMAC ← COMPLETED.
+   سجل الحالات = 14 انتقالاً حرفياً + عزل الفروع + accept_timeout في الـworker.
+2. **واجهات الشريحة**: `apps/customer-web` (Next.js — P2/P3/P4/P5/P6/P7 مصغرة بـtokens.css حرفياً،
+   وضع قيادة داكن، مؤشر الخطوط الثلاثة، بنك النصوص) + `apps/branch-ops` (B-01 دخول + B-03 لوحة
+   بألوان أولوية البطاقات وبطاقة السيارة الكبيرة).
+3. **بوابة Playwright** (`tests/e2e/j1-happy-path.spec.ts`): الرحلة كاملة في المتصفح بسياقين
+   (عميل + فرع) — خضراء مرتين: بخوادم مُعادة الاستخدام (33s) وبتشغيل بارد كامل (36s).
 
-## التالي (لإغلاق بوابة المرحلة 2 بالكامل)
+## ما يجري الآن / التالي
 
-- واجهة الشريحة: `apps/customer-web` (Next.js) بصفحات P2/P4/P5/P6/P7 المصغرة من design/ بنفس tokens.css + لوحة فرع مبسطة B-03، ثم Playwright يقود الرحلة في المتصفح (بوابة docs/20 مرحلة 6).
-- ملاحظة قرار: mock gateway في الذاكرة داخل عملية الـAPI — رفض الفرع يحرّر/يسترجع فوراً، أما timeout في الـworker فيكتفي بإنشاء refund pending (يعالجه processor المرحلة 5).
+- المرحلة 3: توسيع العميل — تحويل صفحات design/customer (P1–P8 الكاملة + البسيطة ضمن الطيار)
+  حرفياً إلى Expo/RN + صفحة التتبع الموحدة W-track في customer-web، بنفس tokens.
+- صفحات الشريحة الحالية في customer-web هي الأساس الوظيفي — تُستبدل تدريجياً بالنسخ
+  الحرفية من design/ في مرحلتي 3–4 (COMPLIANCE.md هو مرجع المطابقة).
+- ملاحظات: mock gateway في ذاكرة عملية الـAPI (رفض الفرع يحرّر فوراً؛ timeout ينشئ refund pending
+  يعالجه processor المرحلة 5) · Playwright يُضاف لاحقاً لركن CI مستقل (مرحلة 8).
 
 ## قرارات محسومة (سجل تراكمي)
 

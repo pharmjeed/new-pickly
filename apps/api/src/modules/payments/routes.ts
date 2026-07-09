@@ -70,16 +70,13 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
   // نفس مسار الإنتاج تماماً: النتيجة تصل عبر webhook موقع.
   if (process.env.NODE_ENV !== "production" && payments instanceof MockPaymentAdapter) {
     const mock: MockPaymentAdapter = payments;
-    app.post("/dev/mock-gateway/:providerRef/pay", async (req) => {
-      const provider_ref = (req.params as { providerRef: string }).providerRef;
-      const intent = await prisma.paymentIntent.findFirst({ where: { provider_ref } });
-      if (!intent) throw new AppError("ORDER-4001");
 
+    const confirmAndWebhook = async (provider_ref: string, amount_halalas: number) => {
       const result = await mock.confirmPayment(provider_ref);
       const { body, signature } = mock.buildWebhookPayload(
         result === "authorized" ? "payment.authorized" : "payment.failed",
         provider_ref,
-        intent.amount_halalas
+        amount_halalas
       );
       const res = await app.inject({
         method: "POST",
@@ -88,6 +85,21 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
         payload: body
       });
       return { gateway_result: result, webhook_status: res.statusCode };
+    };
+
+    app.post("/dev/mock-gateway/:providerRef/pay", async (req) => {
+      const provider_ref = (req.params as { providerRef: string }).providerRef;
+      const intent = await prisma.paymentIntent.findFirst({ where: { provider_ref } });
+      if (!intent) throw new AppError("ORDER-4001");
+      return confirmAndWebhook(provider_ref, intent.amount_halalas);
+    });
+
+    /** صيغة الواجهات: الدفع بمعرف الطلب — لا تكشف provider_ref للعميل */
+    app.post("/dev/mock-gateway/by-order/:orderId/pay", async (req) => {
+      const order_id = (req.params as { orderId: string }).orderId;
+      const intent = await prisma.paymentIntent.findUnique({ where: { order_id } });
+      if (!intent?.provider_ref) throw new AppError("ORDER-4001");
+      return confirmAndWebhook(intent.provider_ref, intent.amount_halalas);
     });
   }
 }

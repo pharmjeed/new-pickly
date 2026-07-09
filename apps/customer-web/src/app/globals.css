@@ -1,0 +1,105 @@
+/* الأساس المشترك — كل القيم من tokens.css حصراً */
+@import "./tokens.css";
+
+* { box-sizing: border-box; margin: 0; }
+
+html, body {
+  font-family: var(--pk-font-body);
+  background: var(--pk-bg);
+  color: var(--pk-text);
+  line-height: 1.75;
+  font-size: var(--pk-fs-15);
+}
+
+.pk-wrap { max-width: 480px; margin: 0 auto; padding: 16px; min-height: 100dvh; }
+
+.pk-card {
+  background: var(--pk-surface);
+  border: 1px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.pk-display { font-family: var(--pk-font-display); font-weight: 800; }
+.pk-mono { font-family: var(--pk-font-mono); direction: ltr; }
+.pk-muted { color: var(--pk-text-2); font-size: var(--pk-fs-13); }
+
+/* زر ليموني واحد لكل شاشة · زوايا 12 · بلا ظلال · لمس ≥44px */
+.pk-btn {
+  display: block; width: 100%;
+  min-height: var(--pk-touch);
+  background: var(--pk-lime-500);
+  color: var(--pk-ink-900);
+  font-family: var(--pk-font-display);
+  font-weight: 700; font-size: var(--pk-fs-16);
+  border: none; border-radius: var(--pk-radius);
+  cursor: pointer;
+  transition: background var(--pk-dur) var(--pk-ease);
+}
+.pk-btn:hover { background: var(--pk-lime-300); }
+.pk-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.pk-btn-ghost {
+  display: block; width: 100%;
+  min-height: var(--pk-touch);
+  background: var(--pk-surface);
+  color: var(--pk-text);
+  border: 1.5px solid var(--pk-ink-900);
+  border-radius: var(--pk-radius);
+  font-family: var(--pk-font-body); font-weight: 500; font-size: var(--pk-fs-15);
+  cursor: pointer;
+}
+
+.pk-input {
+  width: 100%;
+  min-height: var(--pk-touch);
+  border: 1px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  padding: 10px 14px;
+  font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-16);
+  background: var(--pk-surface);
+  color: var(--pk-text);
+}
+.pk-input:focus { outline: 2px solid var(--pk-lime-500); border-color: transparent; }
+
+.pk-chip {
+  display: inline-block;
+  background: var(--pk-lime-100);
+  color: var(--pk-lime-900);
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: var(--pk-fs-14);
+}
+
+.pk-badge {
+  display: inline-block;
+  border-radius: var(--pk-radius-pill);
+  padding: 4px 12px;
+  font-size: var(--pk-fs-13);
+}
+.pk-badge.ok { background: var(--pk-success); color: #fff; }
+.pk-badge.warn { background: var(--pk-warn); color: #412402; }
+.pk-badge.err { background: var(--pk-error); color: #fff; }
+
+/* وضع القيادة — فحمي 900 إجباري، خط أكبر (كتاب الهوية §11) */
+.pk-drive {
+  background: var(--pk-ink-900);
+  color: var(--pk-cloud);
+  min-height: 100dvh;
+}
+.pk-drive .pk-card { background: var(--pk-ink-700); border-color: var(--pk-ink-600); }
+.pk-drive .pk-muted { color: var(--pk-gray-2); }
+
+/* مؤشر التحميل الرسمي: الخطوط الثلاثة تتلألأ تتابعياً */
+@keyframes pk-line-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+.pk-loader { display: flex; flex-direction: column; gap: 6px; width: 44px; transform: skewX(var(--pk-skew)); }
+.pk-loader span { height: 6px; border-radius: 3px; background: var(--pk-lime-500); animation: pk-line-pulse 1.2s infinite; }
+.pk-loader span:nth-child(2) { width: 72%; animation-delay: 0.2s; }
+.pk-loader span:nth-child(3) { width: 50%; animation-delay: 0.4s; }
+
+/* شريط حالات الطلب السبع */
+.pk-steps { display: flex; gap: 4px; margin: 12px 0; }
+.pk-steps i { flex: 1; height: 5px; border-radius: 3px; background: var(--pk-line); }
+.pk-steps i.on { background: var(--pk-lime-500); }

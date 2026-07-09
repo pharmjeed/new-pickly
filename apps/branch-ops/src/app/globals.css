@@ -1,0 +1,78 @@
+/* شاشة الفرع — كثافة أعلى، لمس ≥56px، بطاقة السيارة أكبر عنصر (كتاب الهوية §11) */
+@import "./tokens.css";
+
+* { box-sizing: border-box; margin: 0; }
+
+html, body {
+  font-family: var(--pk-font-body);
+  background: var(--pk-bg);
+  color: var(--pk-text);
+  line-height: 1.6;
+  font-size: var(--pk-fs-b-min);
+}
+
+.bo-wrap { max-width: 1280px; margin: 0 auto; padding: 16px; }
+
+.bo-card {
+  background: var(--pk-surface);
+  border: 1px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  padding: 16px;
+}
+
+.bo-btn {
+  min-height: var(--pk-touch-branch);
+  padding: 0 24px;
+  background: var(--pk-lime-500);
+  color: var(--pk-ink-900);
+  font-family: var(--pk-font-display);
+  font-weight: 700; font-size: var(--pk-fs-b-min);
+  border: none; border-radius: var(--pk-radius);
+  cursor: pointer;
+}
+.bo-btn:hover { background: var(--pk-lime-300); }
+.bo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.bo-btn.ghost { background: var(--pk-surface); border: 1.5px solid var(--pk-ink-900); color: var(--pk-text); font-family: var(--pk-font-body); font-weight: 500; }
+.bo-btn.danger { background: var(--pk-error); color: #fff; }
+
+.bo-input {
+  min-height: var(--pk-touch-branch);
+  width: 100%;
+  border: 1px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  padding: 10px 16px;
+  font-size: var(--pk-fs-b-min);
+  font-family: var(--pk-font-body);
+}
+
+.bo-tabs { display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
+.bo-tab {
+  min-height: var(--pk-touch-branch);
+  padding: 0 20px;
+  border-radius: var(--pk-radius);
+  border: 1px solid var(--pk-border);
+  background: var(--pk-surface);
+  font-size: var(--pk-fs-b-min);
+  font-family: var(--pk-font-body);
+  cursor: pointer;
+}
+.bo-tab.active { background: var(--pk-ink-900); color: var(--pk-cloud); border-color: var(--pk-ink-900); }
+
+.bo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+
+/* ألوان أولوية البطاقات — tokens (08§2) */
+.bo-order { border-inline-start: 6px solid var(--pk-st-new); }
+.bo-order[data-state="new"] { border-color: var(--pk-st-new); background: var(--pk-st-new-bg); }
+.bo-order[data-state="prep"] { border-inline-start-color: var(--pk-st-prep); }
+.bo-order[data-state="near"] { border-inline-start-color: var(--pk-st-near); background: var(--pk-st-near-bg); }
+.bo-order[data-state="arrived"] { border-inline-start-color: var(--pk-st-arrived); background: var(--pk-st-arrived-bg); }
+.bo-order[data-state="done"] { border-inline-start-color: var(--pk-st-done); }
+
+.bo-vehicle {
+  font-size: var(--pk-fs-b-card);
+  font-weight: 700;
+  font-family: var(--pk-font-display);
+}
+.bo-plate { font-family: var(--pk-font-mono); font-size: var(--pk-fs-b-card); font-weight: 500; direction: ltr; }
+.bo-code { font-family: var(--pk-font-mono); direction: ltr; color: var(--pk-text-2); }
+.bo-muted { color: var(--pk-text-2); font-size: var(--pk-fs-15); }

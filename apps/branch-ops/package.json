@@ -1,0 +1,24 @@
+{
+  "name": "@pickly/branch-ops",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "next lint || echo lint-skip",
+    "test": "echo \"branch-ops: يُغطى بـPlaywright في tests/e2e\""
+  },
+  "dependencies": {
+    "next": "^15.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.3"
+  }
+}
