@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "playwright test",
+    "test": "echo \"e2e: يشغَّل صراحة بـ pnpm e2e (ركن CI مخصص)\"",
+    "e2e": "playwright test",
     "test:headed": "playwright test --headed",
     "lint": "echo e2e: no lint",
     "typecheck": "tsc --noEmit -p tsconfig.json",

@@ -9,13 +9,16 @@
 |---------|--------|
 | 1. التأسيس (Monorepo، Docker، CI، contracts، database، Auth، Seed) | ✅ بوابة خضراء |
 | 2. Vertical Slice (رحلة J1 كاملة E2E) | ✅ بوابة خضراء |
-| 3. توسيع العميل (الويب مكتمل حرفياً · Expo متبقٍ) | 🔶 جزئية |
-| 4. الفرع والتاجر (board+KDS+وردية+ازدحام ✅ · merchant-web قيد وكيل) | 🔶 جارية |
+| 3. توسيع العميل (الويب حرفي ✅ + Expo مبني وموصول typecheck✅ — التشغيل على جهاز يتبقى) | ✅ |
+| 4. الفرع والتاجر (board+KDS+وردية+ازدحام+merchant-web) | ✅ |
 | 5. المالية (intent/ledger/refunds processor/settlements/reconciliation) | ✅ |
-| 6. الموقع (rحلة/ETA/geofence/dwell/طابور/بدائل يدوية/retention — الميداني بالطيار) | ✅ |
-| 7. Super Admin API ✅ · واجهة الأدمن والموقع قيد وكيلين | 🔶 جارية |
-| 8. الجودة (suites إلزامية ✅ · Playwright ✅ بالـCI · k6 كتب ولم يُشغَّل) | 🔶 جزئية |
+| 6. الموقع (رحلة/ETA/geofence/dwell/طابور/بدائل يدوية/retention — الميداني بالطيار) | ✅ |
+| 7. Super Admin (API + admin-web) + الموقع التعريفي | ✅ |
+| 8. الجودة (suites 8/8 · Playwright بالـCI · k6 عند الهدف 200/د: 0 فشل، p95=89ms) | ✅ |
 | 9. البنية للنشر (Terraform + Dockerfiles + deploy.sh + RUNBOOK) | ✅ كود جاهز — التفعيل بعد A2 |
+
+> **Realtime WS**: بوابة /v1/realtime بقنواتها الأربع تعمل (سلوك مُتحقق: 4401 لتوكن فاسد) —
+> الواجهات على polling وربطها بالقناة تحسين تدريجي لاحق.
 
 ## ما أُنجز
 

@@ -31,6 +31,7 @@
     "openapi:gen": "pnpm --filter @pickly/contracts openapi:gen",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "e2e": "pnpm --filter @pickly/e2e e2e",
     "test:isolation": "pnpm --filter @pickly/api test:isolation",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",

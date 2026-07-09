@@ -1,0 +1,278 @@
+/* B-07/B-08 — KDS المطبخ (design/branch/B-07.html) — تابلت 1280 أفقي · كثافة شاشة مطبخ
+   لمس ≥56px (--pk-touch-branch) · خط ≥ --pk-fs-b-min · كل الألوان من tokens (--pk-*) */
+
+.kds {
+  min-height: 100vh;
+  max-width: 1280px;
+  margin: 0 auto;
+  background: var(--pk-cloud);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== ترويسة KDS ===== */
+.bhdr {
+  background: var(--pk-ink-900);
+  color: var(--pk-cloud);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 22px;
+  flex-shrink: 0;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand b { font-family: var(--pk-font-display); font-size: var(--pk-fs-20); font-weight: 700; }
+.sub { font-size: var(--pk-fs-13); color: var(--pk-gray-2); }
+.sp { margin-inline-start: auto; display: flex; gap: 12px; align-items: center; }
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--pk-ink-700);
+  border-radius: var(--pk-radius-pill);
+  padding: 6px 16px;
+  font-size: var(--pk-fs-14);
+}
+.dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--pk-success); display: inline-block;
+}
+.clock {
+  font-family: var(--pk-font-mono);
+  font-size: 22px;
+  color: var(--pk-lime-500);
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* ===== منطقة العمل ===== */
+.bmain {
+  flex: 1;
+  background: var(--pk-white);
+  margin: 16px 20px 20px;
+  border-radius: 18px;
+  padding: 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.noteErr {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-radius: var(--pk-radius);
+  padding: 11px 14px;
+  font-size: var(--pk-fs-b-min);
+  line-height: 1.7;
+  background: var(--pk-st-overdue-bg);
+  color: var(--pk-error);
+  font-weight: 500;
+}
+
+/* ===== شريط الملخص (شارات B-07) ===== */
+.sumline { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--pk-radius-pill);
+  padding: 6px 16px;
+  font-size: var(--pk-fs-b-min);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.bPrep { background: var(--pk-st-prep-bg); color: var(--pk-st-prep); border: 1.5px solid var(--pk-st-prep); }
+.bOver { background: var(--pk-st-overdue-bg); color: var(--pk-st-overdue); border: 1.5px solid var(--pk-st-overdue); }
+
+/* ===== أعمدة KDS الثلاثة ===== */
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; flex: 1; align-items: stretch; }
+@media (max-width: 1000px) { .grid3 { grid-template-columns: 1fr; } }
+
+.kcol {
+  background: var(--pk-cloud);
+  border: 1px solid var(--pk-line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.kh {
+  padding: 10px 16px;
+  font-size: var(--pk-fs-b-min);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--pk-white);
+}
+.khCount {
+  font-family: var(--pk-font-mono);
+  margin-inline-start: auto;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+.khWait { background: var(--pk-st-new); }
+.khPrep { background: var(--pk-st-prep); }
+.khDone { background: var(--pk-st-done); }
+.kb { padding: 12px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+
+/* ===== تذكرة KDS ===== */
+.kt {
+  background: var(--pk-white);
+  border: 1.5px solid var(--pk-line);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.r1 { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.oid {
+  font-family: var(--pk-font-mono);
+  font-size: var(--pk-fs-b-min);
+  font-weight: 700;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+/* مؤقت منذ القبول — أرقام لاتينية Mono */
+.ktime {
+  font-family: var(--pk-font-mono);
+  font-size: var(--pk-fs-b-min);
+  font-weight: 700;
+  background: var(--pk-ink-900);
+  color: var(--pk-lime-500);
+  border-radius: 8px;
+  padding: 2px 10px;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+/* الأحمر = تجاوز زمن التجهيز المعلن */
+.ktimeLate { background: var(--pk-st-overdue); color: var(--pk-white); }
+
+.items { list-style: none; padding: 0; margin: 0; font-size: var(--pk-fs-b-min); line-height: 1.9; }
+.mod { color: var(--pk-gray); }
+/* ملاحظات الصنف/العميل (حساسية…) — بارزة بالأحمر كما في B-07 */
+.alrg { color: var(--pk-error); font-weight: 700; }
+.mono {
+  font-family: var(--pk-font-mono);
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* ===== أزرار ضخمة للمطبخ (لمس ≥56px) ===== */
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.bbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: var(--pk-touch-branch);
+  padding: 0 22px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-b-min);
+  font-weight: 700;
+  background: var(--pk-lime-500);
+  color: var(--pk-ink-900);
+  flex: 1;
+}
+.bbtn:hover { background: var(--pk-lime-300); }
+.bbtn:disabled { background: var(--pk-line); color: var(--pk-gray); cursor: not-allowed; }
+.gray { background: var(--pk-cloud); border: 2px solid var(--pk-ink-900); color: var(--pk-ink-900); }
+.gray:hover { background: var(--pk-line); }
+.green { background: var(--pk-success); color: var(--pk-white); }
+.green:hover { background: var(--pk-st-done); }
+.red { background: var(--pk-error); color: var(--pk-white); }
+.red:hover { background: var(--pk-st-overdue); }
+
+.kempty { text-align: center; color: var(--pk-text-2); font-size: var(--pk-fs-b-min); padding: 18px 8px; }
+.foot { color: var(--pk-gray); font-size: var(--pk-fs-b-min); }
+
+/* ===== Sheet نقص المنتج (BR-4) ===== */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 36, 27, 0.55); /* --pk-ink-900 بشفافية */
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+}
+.sheet {
+  background: var(--pk-white);
+  border-radius: 20px 20px 0 0;
+  width: min(720px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sheetTitle {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-24);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sheetLbl { font-size: var(--pk-fs-b-min); font-weight: 700; color: var(--pk-text); }
+.itemList { display: flex; flex-direction: column; gap: 8px; }
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--pk-touch-branch);
+  padding: 8px 14px;
+  border: 1.5px solid var(--pk-line);
+  border-radius: 12px;
+  background: var(--pk-white);
+  cursor: pointer;
+  font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-b-min);
+  color: var(--pk-text);
+  text-align: start;
+  width: 100%;
+}
+.itemRowOn { border-color: var(--pk-ink-900); background: var(--pk-lime-100); }
+.rdot {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--pk-line);
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--pk-white);
+}
+.rdotOn { border-color: var(--pk-ink-900); }
+.rdotOn::after {
+  content: "";
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--pk-ink-900);
+}
+.segRow { display: flex; gap: 10px; flex-wrap: wrap; }
+.segBtn { flex: 1; width: auto; justify-content: flex-start; }
+.ta {
+  min-height: 88px;
+  border: 1.5px solid var(--pk-line);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-b-min);
+  color: var(--pk-text);
+  background: var(--pk-white);
+  width: 100%;
+  outline: none;
+  resize: vertical;
+  line-height: 1.7;
+}
+.ta:focus { border-color: var(--pk-ink-900); }
+.hint { color: var(--pk-error); font-size: var(--pk-fs-b-min); }

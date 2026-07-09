@@ -1,0 +1,219 @@
+/* B-02/B-16 — الوردية بوضعين: فتح/إغلاق (design/branch/B-02.html) — تابلت 1280 أفقي
+   لمس ≥56px · كل الألوان من tokens (--pk-*) */
+
+.page {
+  min-height: 100vh;
+  max-width: 1280px;
+  margin: 0 auto;
+  background: var(--pk-cloud);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== ترويسة اللوحة ===== */
+.bhdr {
+  background: var(--pk-ink-900);
+  color: var(--pk-cloud);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 22px;
+  flex-shrink: 0;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand b { font-family: var(--pk-font-display); font-size: 20px; font-weight: 700; }
+.sub { font-size: 12.5px; color: var(--pk-gray-2); }
+.sp { margin-inline-start: auto; display: flex; gap: 12px; align-items: center; }
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--pk-ink-700);
+  border-radius: var(--pk-radius-pill);
+  padding: 6px 16px;
+  font-size: 14px;
+}
+.dotOk {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--pk-success); display: inline-block;
+}
+.dotOff {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--pk-gray-2); display: inline-block;
+}
+.clock {
+  font-family: var(--pk-font-mono);
+  font-size: 22px;
+  color: var(--pk-lime-500);
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* ===== منطقة العمل ===== */
+.bmain {
+  flex: 1;
+  background: var(--pk-white);
+  margin: 20px;
+  border-radius: 18px;
+  padding: 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.h1 { font-family: var(--pk-font-display); font-size: 26px; font-weight: 700; }
+.loading { font-size: var(--pk-fs-b-min); color: var(--pk-gray); padding: 20px 0; }
+
+/* ===== التنبيهات ===== */
+.noteErr,
+.noteOk,
+.noteWarn,
+.noteInfo {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-radius: var(--pk-radius);
+  padding: 11px 14px;
+  font-size: 16px;
+  line-height: 1.7;
+}
+.noteErr { background: var(--pk-st-overdue-bg); color: var(--pk-error); font-weight: 500; }
+.noteOk { background: var(--pk-st-done-bg); color: var(--pk-success); font-weight: 500; }
+.noteWarn {
+  background: var(--pk-st-arrived-bg);
+  color: var(--pk-st-arrived);
+  border: 2px solid var(--pk-st-arrived);
+}
+.noteInfo { background: var(--pk-lime-100); color: var(--pk-lime-900); font-size: 14px; }
+
+/* ===== البطاقات ===== */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+.card {
+  background: var(--pk-surface);
+  border: 1px solid var(--pk-border);
+  border-radius: var(--pk-radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cardTitle { font-size: 18px; font-weight: 700; }
+.setRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 17px;
+}
+.hint { font-size: 14px; color: var(--pk-text-2); margin: 0; }
+
+/* شارة حالة الاستقبال (متوقف قبل الفتح) */
+.badgeOff {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--pk-radius-pill);
+  padding: 6px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--pk-cloud);
+  color: var(--pk-gray);
+  border: 1px solid var(--pk-line);
+}
+
+/* عدّاد زمن التجهيز (لمس ≥56px) */
+.qty {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid var(--pk-border);
+  border-radius: var(--pk-radius-pill);
+  overflow: hidden;
+  background: var(--pk-surface);
+}
+.qty button {
+  width: 56px;
+  height: 56px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--pk-text);
+  font-family: var(--pk-font-body);
+}
+.qty button:hover { background: var(--pk-cloud); }
+.qtyVal {
+  min-width: 48px;
+  text-align: center;
+  font-family: var(--pk-font-mono);
+  font-weight: 700;
+  font-size: 22px;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* ملاحظات الوردية */
+.textarea {
+  font-family: var(--pk-font-body);
+  font-size: 16px;
+  color: var(--pk-text);
+  background: var(--pk-surface);
+  border: 1.5px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  min-height: 88px;
+  padding: 10px 14px;
+  outline: none;
+  width: 100%;
+  line-height: 1.7;
+  resize: vertical;
+}
+.textarea:focus { border-color: var(--pk-ink-900); }
+
+/* ===== ملخص اليوم (B-16) ===== */
+.sumline { display: flex; gap: 12px; flex-wrap: wrap; }
+.sum {
+  flex: 1;
+  min-width: 150px;
+  background: var(--pk-cloud);
+  border: 1px solid var(--pk-line);
+  border-radius: 14px;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.sumK { font-size: 13px; color: var(--pk-gray); font-weight: 500; }
+.sumV {
+  font-family: var(--pk-font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.4;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+.sumWarn { color: var(--pk-st-arrived); }
+
+/* ===== أزرار ضخمة للفرع (لمس ≥56px) ===== */
+.footRow { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: auto; }
+.bbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: var(--pk-touch-branch);
+  min-width: 340px;
+  padding: 0 26px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  font-family: var(--pk-font-body);
+  font-size: 19px;
+  font-weight: 700;
+  background: var(--pk-lime-500);
+  color: var(--pk-ink-900);
+}
+.bbtn:hover { background: var(--pk-lime-300); }
+.bbtn:disabled { background: var(--pk-line); color: var(--pk-gray); cursor: not-allowed; }
+.red { background: var(--pk-error); color: var(--pk-white); }
+.red:hover { background: var(--pk-st-overdue); }
+@media (max-width: 600px) { .bbtn { min-width: 100%; } }

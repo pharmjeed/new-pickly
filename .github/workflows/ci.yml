@@ -88,6 +88,6 @@ jobs:
       - run: pnpm --filter @pickly/database migrate:deploy
       - run: pnpm db:seed
       - run: pnpm --filter @pickly/e2e exec playwright install chromium --with-deps
-      - run: pnpm --filter @pickly/e2e test
+      - run: pnpm --filter @pickly/e2e e2e
         env:
           CI: "true"

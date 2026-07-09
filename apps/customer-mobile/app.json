@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "بيكلي",
+    "slug": "pickly",
+    "version": "0.1.0",
+    "scheme": "pickly",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "locales": {
+      "ar": "./assets/locales/ar.json"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "sa.pickly.customer"
+    },
+    "android": {
+      "package": "sa.pickly.customer",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#C9F339"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "نستخدم موقعك أثناء رحلة استلام نشطة فقط"
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": ""
+    }
+  }
+}

@@ -1,0 +1,124 @@
+/**
+ * P1: التهيئة — 3 شرائح تعريف (C-03 · J2):
+ * اطلب مسبقاً / توجه إلى الفرع / استلم داخل سيارتك — ثم «ابدأ».
+ * تُتخطى إن سبق العرض (علم في SecureStore).
+ */
+import { useEffect, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import { LimeButton, GhostButton } from "../src/ui";
+import { colors, fs, light, radius, radiusPill } from "../src/theme";
+import { markOnboarded, wasOnboarded } from "../src/session";
+
+const SLIDES = [
+  {
+    title: "اطلب مسبقاً",
+    sub: "اختر مطعمك وجهّز طلبك من جوالك — قبل ما تتحرك"
+  },
+  {
+    title: "توجه إلى الفرع",
+    sub: "انطلق وقت ما يناسبك — المطعم يجهّز طلبك على وقت وصولك"
+  },
+  {
+    title: "استلم داخل سيارتك",
+    sub: "خلّك في سيارتك، الباقي علينا — طلبك يوصلك لباب السيارة"
+  }
+] as const;
+
+export default function Onboarding() {
+  const [ready, setReady] = useState(false);
+  const [slide, setSlide] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    void wasOnboarded().then((seen) => {
+      if (!alive) return;
+      if (seen) router.replace("/(tabs)/home");
+      else setReady(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!ready) return <View style={st.blank} />;
+
+  const last = slide === SLIDES.length - 1;
+  const s = SLIDES[slide]!;
+
+  const start = async () => {
+    await markOnboarded();
+    router.replace("/(tabs)/home");
+  };
+
+  return (
+    <SafeAreaView style={st.screen}>
+      <View style={st.body}>
+        {/* شارة الهوية */}
+        <View style={st.badge}>
+          <Text style={st.badgeTxt}>بيكلي</Text>
+        </View>
+
+        <Text style={st.step}>{slide + 1} / 3</Text>
+        <Text style={st.title}>{s.title}</Text>
+        <Text style={st.sub}>{s.sub}</Text>
+
+        <View style={st.dots}>
+          {SLIDES.map((_, i) => (
+            <View key={i} style={[st.dot, i === slide ? st.dotOn : null]} />
+          ))}
+        </View>
+      </View>
+
+      <View style={st.foot}>
+        {last ? (
+          <LimeButton title="ابدأ" onPress={() => void start()} />
+        ) : (
+          <>
+            <LimeButton title="التالي" onPress={() => setSlide((v) => v + 1)} />
+            <GhostButton title="تخطي" onPress={() => void start()} style={{ marginTop: 8 }} />
+          </>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const st = StyleSheet.create({
+  blank: { flex: 1, backgroundColor: light.bg },
+  screen: { flex: 1, backgroundColor: light.bg },
+  body: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
+  badge: {
+    backgroundColor: colors.lime500,
+    borderRadius: radius,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    transform: [{ skewX: "-8deg" }],
+    marginBottom: 32
+  },
+  badgeTxt: {
+    color: colors.ink900,
+    fontSize: fs.fs24,
+    fontWeight: "900",
+    transform: [{ skewX: "8deg" }]
+  },
+  step: { color: light.text2, fontSize: fs.fs13, marginBottom: 8 },
+  title: {
+    color: light.text,
+    fontSize: fs.fs32,
+    fontWeight: "900",
+    textAlign: "center",
+    marginBottom: 10
+  },
+  sub: { color: light.text2, fontSize: fs.fs16, textAlign: "center", lineHeight: 26 },
+  dots: { flexDirection: "row", gap: 6, marginTop: 28 },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: radiusPill,
+    backgroundColor: light.border
+  },
+  dotOn: { backgroundColor: colors.lime500, width: 22 },
+  foot: { padding: 20, paddingBottom: 28 }
+});
