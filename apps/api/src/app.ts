@@ -16,6 +16,7 @@ import { paymentRoutes } from "./modules/payments/routes.js";
 import { customerRoutes } from "./modules/customers/routes.js";
 import { reviewRoutes } from "./modules/reviews/routes.js";
 import { adminRoutes } from "./modules/admin/routes.js";
+import { realtimeRoutes } from "./modules/realtime/routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const isDev = process.env.NODE_ENV !== "production";
@@ -75,6 +76,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(merchantPortalRoutes, { prefix: "/v1/merchant" });
   await app.register(paymentRoutes, { prefix: "/v1" });
   await app.register(adminRoutes, { prefix: "/v1/admin" });
+  await app.register(realtimeRoutes, { prefix: "/v1" });
 
   return app;
 }

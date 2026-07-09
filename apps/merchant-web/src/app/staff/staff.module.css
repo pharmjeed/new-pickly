@@ -1,0 +1,10 @@
+/* M-10 الطاقم — جدول قراءة فقط بلغة M-12 (الموظفون والصلاحيات) */
+.name { font-weight: 700; color: var(--pk-text); }
+.username {
+  font-family: var(--pk-font-mono);
+  direction: ltr;
+  unicode-bidi: embed;
+  font-size: 11px;
+  color: var(--pk-text-2);
+}
+.branches { font-size: var(--pk-fs-12); color: var(--pk-text-2); }

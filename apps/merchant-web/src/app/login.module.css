@@ -1,0 +1,90 @@
+/* دخول التاجر — بطاقة مركزية بلغة البوابة (تكوين مستمد من M-01/B-01) */
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--pk-bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--pk-surface);
+  border: 1px solid var(--pk-border);
+  border-radius: var(--pk-radius-lg);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--pk-shadow-2);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand b {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-20);
+  font-weight: 700;
+  color: var(--pk-text);
+}
+.brand .sub {
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+}
+
+.title {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-24);
+  font-weight: 700;
+  color: var(--pk-text);
+}
+
+.mono {
+  font-family: var(--pk-font-mono);
+  direction: ltr;
+  unicode-bidi: embed;
+  text-align: left;
+}
+
+.otpInput {
+  font-family: var(--pk-font-mono);
+  font-size: var(--pk-fs-24);
+  letter-spacing: 12px;
+  text-align: center;
+  direction: ltr;
+  min-height: 56px;
+  border: 1.5px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  background: var(--pk-surface);
+  color: var(--pk-text);
+  outline: none;
+  width: 100%;
+}
+.otpInput:focus {
+  border-color: var(--pk-ink-900);
+  background: var(--pk-lime-100);
+}
+
+.err {
+  background: var(--pk-st-overdue-bg);
+  color: var(--pk-error);
+  border-radius: var(--pk-radius);
+  padding: 10px 14px;
+  font-size: var(--pk-fs-13);
+}
+
+.back {
+  border: none;
+  background: transparent;
+  color: var(--pk-lime-900);
+  font-size: var(--pk-fs-13);
+  cursor: pointer;
+  align-self: flex-start;
+  padding: 0;
+}
+.back:hover { color: var(--pk-ink-900); }

@@ -1,0 +1,41 @@
+/* M-08 المنيو والتوفر — فلاتر + جدول منتجات بمفاتيح توفر (design/merchant/M-08) */
+.filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filters select {
+  min-height: 38px;
+  font-size: 12.5px;
+  width: auto;
+  min-width: 180px;
+  padding: 6px 12px;
+  background: var(--pk-surface);
+  color: var(--pk-text);
+  border: 1.5px solid var(--pk-border);
+  border-radius: 10px;
+  font-family: var(--pk-font-body);
+}
+
+.catTitle {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-16);
+  font-weight: 700;
+  color: var(--pk-text);
+  margin: 4px 0 8px;
+}
+
+.prodName { font-weight: 700; color: var(--pk-text); }
+.offRow { opacity: 0.6; }
+
+.availCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.availLabel {
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+  min-width: 52px;
+}

@@ -1,0 +1,24 @@
+/* M-15 المالية والتسويات — جدول التسويات + كشف البنود (design/merchant/M-15) */
+.row { cursor: pointer; }
+.rowOn td { background: var(--pk-lime-100) !important; }
+
+.net { font-weight: 700; }
+.neg { color: var(--pk-error); }
+.pos { color: var(--pk-success); }
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 980px) {
+  .grid2 { grid-template-columns: 1fr; }
+}
+
+.orderCode {
+  font-family: var(--pk-font-mono);
+  direction: ltr;
+  unicode-bidi: embed;
+  font-size: 11px;
+  color: var(--pk-text-2);
+}

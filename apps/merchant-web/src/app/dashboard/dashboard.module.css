@@ -1,0 +1,21 @@
+/* M-01 لوحة اليوم — شبكة KPI وبطاقة الفروع (design/merchant/M-02) */
+.grid2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 980px) {
+  .grid2 { grid-template-columns: 1fr; }
+}
+
+.branchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--pk-border);
+  font-size: var(--pk-fs-13);
+}
+.branchRow:last-child { border-bottom: none; }
+.branchName { font-weight: 500; color: var(--pk-text); }

@@ -1,0 +1,22 @@
+/* M-12 التقييمات — قائمة تقييمات الفروع (design/merchant/M-12) */
+.stars {
+  font-family: var(--pk-font-mono);
+  direction: ltr;
+  unicode-bidi: embed;
+  color: var(--pk-warn);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+.starsOff { color: var(--pk-line); }
+
+.comment {
+  font-size: var(--pk-fs-13);
+  color: var(--pk-text);
+  line-height: 1.7;
+}
+.noComment { color: var(--pk-text-2); font-style: italic; }
+
+.meta {
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+}
