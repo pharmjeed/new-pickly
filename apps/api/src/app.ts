@@ -13,6 +13,7 @@ import { pickupRoutes } from "./modules/pickup/routes.js";
 import { merchantRoutes } from "./modules/merchant/routes.js";
 import { paymentRoutes } from "./modules/payments/routes.js";
 import { customerRoutes } from "./modules/customers/routes.js";
+import { reviewRoutes } from "./modules/reviews/routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const isDev = process.env.NODE_ENV !== "production";
@@ -67,6 +68,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(cartRoutes, { prefix: "/v1/carts" });
   await app.register(orderRoutes, { prefix: "/v1/orders" });
   await app.register(pickupRoutes, { prefix: "/v1/orders" });
+  await app.register(reviewRoutes, { prefix: "/v1" });
   await app.register(merchantRoutes, { prefix: "/v1/merchant" });
   await app.register(paymentRoutes, { prefix: "/v1" });
 

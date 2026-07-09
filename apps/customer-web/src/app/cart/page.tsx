@@ -1,12 +1,18 @@
 "use client";
 
-/** P5 (مصغرة): السلة + التسعير الخادمي — السعر النهائي من الخادم حصراً */
-import { useEffect, useState } from "react";
+/**
+ * P5 (C-26): السلة + التسعير الخادمي — السعر النهائي من الخادم حصراً (BR-6)
+ * حذف عنصر → إبطال التسعيرة وإعادة التسعير فوراً.
+ * الكوبون مؤجل في الطيار (docs/21§3) — لا مدخل كوبون هنا.
+ */
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, fmtSar } from "@/lib/api";
+import { api, ApiError, fmtSar } from "@/lib/api";
+import styles from "./cart.module.css";
 
 interface Cart {
   id: string;
+  branch_id: string;
   items: Array<{
     id: string;
     name_ar: string;
@@ -17,6 +23,7 @@ interface Cart {
   quote: {
     quote_id: string;
     subtotal_halalas: number;
+    discount_halalas: number;
     vat_halalas: number;
     service_fee_halalas: number;
     total_halalas: number;
@@ -26,71 +33,171 @@ interface Cart {
 export default function CartPage() {
   const router = useRouter();
   const [cart, setCart] = useState<Cart | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busyItem, setBusyItem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cartId = typeof window !== "undefined" ? sessionStorage.getItem("pk_cart") : null;
 
+  const applyQuoted = useCallback((c: Cart) => {
+    setCart(c);
+    if (c.quote) sessionStorage.setItem("pk_quote", c.quote.quote_id);
+  }, []);
+
   useEffect(() => {
-    if (!cartId) return;
+    if (!cartId) {
+      setLoading(false);
+      return;
+    }
     // تسعير خادمي فور فتح السلة — BR-6
     api<Cart>("POST", `/v1/carts/${cartId}/quote`)
-      .then((c) => {
-        setCart(c);
-        if (c.quote) sessionStorage.setItem("pk_quote", c.quote.quote_id);
+      .then(applyQuoted)
+      .catch(async (e: Error) => {
+        // سلة بلا عناصر: التسعير يرفض — نعرض الحالة الفارغة بدل الخطأ
+        if (e instanceof ApiError) {
+          try {
+            const c = await api<Cart>("GET", `/v1/carts/${cartId}`);
+            if (c.items.length === 0) {
+              setCart(c);
+              return;
+            }
+          } catch {
+            /* نُبقي رسالة الخطأ الأصلية */
+          }
+        }
+        setError(e.message);
       })
-      .catch((e: Error) => setError(e.message));
-  }, [cartId]);
+      .finally(() => setLoading(false));
+  }, [cartId, applyQuoted]);
 
-  if (!cartId) {
-    return (
-      <main className="pk-wrap">
-        <div className="pk-card">لا طلبات حالية — اطلب من متجرك المفضل وخلّنا على السيارة</div>
-      </main>
-    );
-  }
+  const removeItem = async (itemId: string) => {
+    if (!cartId) return;
+    setError(null);
+    setBusyItem(itemId);
+    try {
+      // DELETE يُبطل التسعيرة السارية — ثم إعادة التسعير فوراً
+      const afterDelete = await api<Cart>("DELETE", `/v1/carts/${cartId}/items/${itemId}`);
+      if (afterDelete.items.length === 0) {
+        sessionStorage.removeItem("pk_quote");
+        setCart(afterDelete);
+        return;
+      }
+      applyQuoted(await api<Cart>("POST", `/v1/carts/${cartId}/quote`));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyItem(null);
+    }
+  };
+
+  const isEmpty = !cartId || (cart !== null && cart.items.length === 0);
 
   return (
-    <main className="pk-wrap">
-      <h1 className="pk-display" style={{ fontSize: "var(--pk-fs-24)", marginBottom: 12 }}>سلتك</h1>
-      {error && <div className="pk-card" style={{ color: "var(--pk-error)" }}>{error}</div>}
-      {!cart && !error && <div className="pk-loader"><span /><span /><span /></div>}
+    <main className="pk-wrap" style={{ paddingBottom: 90 }}>
+      <header className={styles.head}>
+        <button className={styles.back} onClick={() => router.back()} aria-label="رجوع">
+          ‹
+        </button>
+        <h1 className={styles.title}>السلة</h1>
+      </header>
 
-      {cart?.items.map((i) => (
-        <div key={i.id} className="pk-card" data-testid="cart-item" style={{ display: "flex", justifyContent: "space-between" }}>
-          <div>
-            <strong style={{ fontWeight: 500 }}>{i.name_ar} × {i.quantity}</strong>
-            {i.modifiers.length > 0 && (
-              <p className="pk-muted">{i.modifiers.map((m) => m.name_ar).join(" · ")}</p>
-            )}
+      {error && <div className={styles.error}>{error}</div>}
+      {loading && <div className="pk-loader"><span /><span /><span /></div>}
+
+      {!loading && isEmpty && !error && (
+        <div className={styles.empty}>
+          <div className={styles.emptyIcon}>
+            <svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true">
+              <g fill="none" stroke="currentColor" strokeWidth="7" strokeLinejoin="round">
+                <path d="M32,32 L68,32 L64,80 L36,80 Z" />
+                <path d="M41,32 Q50,20 59,32" strokeLinecap="round" />
+              </g>
+            </svg>
           </div>
-          <span className="pk-mono">{fmtSar(i.line_total_halalas)}</span>
-        </div>
-      ))}
-
-      {cart?.quote && (
-        <div className="pk-card" data-testid="quote-box">
-          <Row label="المجموع" value={fmtSar(cart.quote.subtotal_halalas)} />
-          {/* رسم الخدمة مفصول وواضح دائماً — BR-6 */}
-          <Row label="رسم خدمة بيكلي" value={fmtSar(cart.quote.service_fee_halalas)} />
-          <Row label="الضريبة (15%)" value={fmtSar(cart.quote.vat_halalas)} />
-          <hr style={{ border: "none", borderTop: "1px solid var(--pk-border)", margin: "8px 0" }} />
-          <Row label="الإجمالي" value={fmtSar(cart.quote.total_halalas)} bold />
+          <b className={styles.emptyTitle}>سلتك فاضية</b>
+          <p className={styles.emptyText}>لا طلبات حالية — اطلب من متجرك المفضل وخلّنا على السيارة</p>
+          <button className={styles.browse} onClick={() => router.push("/")}>
+            تصفح المطاعم
+          </button>
         </div>
       )}
 
-      {cart?.quote && (
-        <button className="pk-btn" data-testid="go-checkout" onClick={() => router.push("/checkout")}>
-          متابعة الإتمام
-        </button>
+      {!isEmpty && cart && (
+        <div className={styles.list}>
+          {cart.items.map((i) => (
+            <div key={i.id} className={styles.item} data-testid="cart-item">
+              <div className={styles.thumb}>img</div>
+              <div className={styles.grow}>
+                <div className={styles.name}>{i.name_ar}</div>
+                {i.modifiers.length > 0 && (
+                  <div className={styles.mods}>{i.modifiers.map((m) => m.name_ar).join(" · ")}</div>
+                )}
+                <div className={styles.itemRow}>
+                  <span className={styles.qty}>× {i.quantity}</span>
+                  <span className={styles.price}>{fmtSar(i.line_total_halalas)}</span>
+                </div>
+                <div className={styles.itemActions}>
+                  <button
+                    className={styles.del}
+                    onClick={() => removeItem(i.id)}
+                    disabled={busyItem !== null}
+                  >
+                    حذف
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button className={styles.more} onClick={() => router.push(`/r/${cart.branch_id}`)}>
+            + إضافة منتجات أخرى
+          </button>
+
+          {cart.quote && (
+            <div className={styles.summary} data-testid="quote-box">
+              <b className={styles.summaryTitle}>ملخص الفاتورة</b>
+              <div className={styles.rows}>
+                <div className={styles.srow}>
+                  <span>المجموع الفرعي</span>
+                  <span className={styles.val}>{fmtSar(cart.quote.subtotal_halalas)}</span>
+                </div>
+                {cart.quote.discount_halalas > 0 && (
+                  <div className={`${styles.srow} ${styles.discount}`}>
+                    <span>الخصم</span>
+                    <span className={styles.val}>−{fmtSar(cart.quote.discount_halalas)}</span>
+                  </div>
+                )}
+                {/* رسم الخدمة مفصول وواضح دائماً — BR-6 */}
+                <div className={styles.srow}>
+                  <span>رسم خدمة بيكلي</span>
+                  <span className={styles.val}>{fmtSar(cart.quote.service_fee_halalas)}</span>
+                </div>
+                <div className={styles.srow}>
+                  <span>الضريبة (15٪)</span>
+                  <span className={styles.val}>{fmtSar(cart.quote.vat_halalas)}</span>
+                </div>
+                <div className={`${styles.srow} ${styles.tot}`}>
+                  <span>الإجمالي</span>
+                  <span className={styles.val}>{fmtSar(cart.quote.total_halalas)}</span>
+                </div>
+              </div>
+              <p className={styles.brNote}>رسوم الخدمة تظهر مفصولة دائماً · التسعير خادمي (BR-6)</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isEmpty && cart?.quote && (
+        <div className={styles.footbar}>
+          <button
+            className={styles.checkout}
+            data-testid="go-checkout"
+            onClick={() => router.push("/checkout")}
+          >
+            <span>متابعة الإتمام</span>
+            <span className={styles.checkoutTotal}>{fmtSar(cart.quote.total_halalas)}</span>
+          </button>
+        </div>
       )}
     </main>
-  );
-}
-
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: bold ? 700 : 400 }}>
-      <span>{label}</span>
-      <span className="pk-mono">{value}</span>
-    </div>
   );
 }

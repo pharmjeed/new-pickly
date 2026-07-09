@@ -1,0 +1,306 @@
+/* P7 ⭐ الطلب الحي — أنماط الصفحة (كل الألوان من tokens.css حصراً) */
+
+/* ===== شريط الحالات السبع (steps7) ===== */
+.steps {
+  display: flex;
+  width: 100%;
+  margin: 12px 0 16px;
+  padding: 4px 0;
+}
+.step {
+  flex: 1;
+  text-align: center;
+  position: relative;
+}
+.dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--pk-line);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pk-white);
+  font-size: 10px;
+  position: relative;
+  z-index: 1;
+}
+.step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  inset-inline-start: calc(50% + 10px);
+  width: calc(100% - 20px);
+  height: 3px;
+  background: var(--pk-line);
+}
+.stepDone .dot,
+.stepDone:not(:last-child)::after {
+  background: var(--pk-success);
+}
+.stepCur .dot {
+  background: var(--pk-lime-500);
+  outline: 4px solid var(--pk-lime-100);
+  color: var(--pk-ink-900);
+}
+.lbl {
+  font-size: 9.5px;
+  margin-top: 6px;
+  color: var(--pk-text-2);
+  line-height: 1.45;
+}
+.stepCur .lbl {
+  color: var(--pk-text);
+  font-weight: 700;
+}
+.stepDone .lbl {
+  color: var(--pk-success);
+}
+/* وضع القيادة الداكن */
+:global(.pk-drive) .dot {
+  background: var(--pk-ink-600);
+}
+:global(.pk-drive) .step:not(:last-child)::after {
+  background: var(--pk-ink-600);
+}
+:global(.pk-drive) .stepDone .dot,
+:global(.pk-drive) .stepDone:not(:last-child)::after {
+  background: var(--pk-success);
+}
+:global(.pk-drive) .stepCur .dot {
+  background: var(--pk-lime-500);
+  outline-color: var(--pk-ink-600);
+}
+:global(.pk-drive) .lbl {
+  color: var(--pk-gray-2);
+}
+:global(.pk-drive) .stepCur .lbl {
+  color: var(--pk-cloud);
+}
+
+/* ===== بطاقة ETA الكبيرة (وضع القيادة) ===== */
+.etaCard {
+  text-align: center;
+  padding: 20px 16px;
+}
+.etaValue {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-34);
+  font-weight: 800;
+  line-height: 1.3;
+  display: block;
+}
+:global(.pk-drive) .etaValue {
+  color: var(--pk-lime-500);
+}
+
+/* ===== بطاقة السيارة ===== */
+.vehicleCard {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.vehicleIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--pk-cloud);
+  color: var(--pk-ink-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+:global(.pk-drive) .vehicleIcon {
+  background: var(--pk-ink-600);
+  color: var(--pk-gray-2);
+}
+.vehicleName {
+  font-weight: 700;
+  font-size: var(--pk-fs-14);
+  display: block;
+}
+
+/* ===== بطاقة الرمز الليمونية ===== */
+.codeCard {
+  background: var(--pk-lime-500);
+  border: none;
+  border-radius: var(--pk-radius-lg);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.codeLabel {
+  color: var(--pk-ink-900);
+  font-size: var(--pk-fs-14);
+  margin-bottom: 6px;
+}
+.codeDigits {
+  font-family: var(--pk-font-mono);
+  direction: ltr;
+  unicode-bidi: embed;
+  font-size: 40px;
+  font-weight: 500;
+  color: var(--pk-ink-900);
+  letter-spacing: 14px;
+  padding-inline-start: 14px;
+  line-height: 1.3;
+  display: inline-block;
+}
+
+/* ===== نبضة «تم رصد وصولك» — الاحتفالية الوحيدة ===== */
+@keyframes pk-arrive-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pk-lime-500) 50%, transparent); }
+  50% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--pk-lime-500) 0%, transparent); }
+}
+.pulseWrap {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 14px;
+}
+.pulseIcon {
+  width: 96px;
+  height: 96px;
+  border-radius: 30px;
+  background: var(--pk-lime-500);
+  color: var(--pk-ink-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pk-arrive-pulse 1.6s var(--pk-ease) infinite;
+}
+
+/* ===== صف الموقف ===== */
+.parkingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.parkingGrow {
+  flex: 1;
+  min-width: 0;
+}
+.spotBadge {
+  display: inline-block;
+  background: var(--pk-lime-100);
+  color: var(--pk-lime-900);
+  border-radius: var(--pk-radius-pill);
+  padding: 3px 12px;
+  font-size: var(--pk-fs-12);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.parkingBtn {
+  display: block;
+  width: 100%;
+  min-height: var(--pk-touch);
+  background: var(--pk-surface);
+  color: var(--pk-text);
+  border: 1.5px solid var(--pk-ink-900);
+  border-radius: var(--pk-radius);
+  font-family: var(--pk-font-body);
+  font-weight: 500;
+  font-size: var(--pk-fs-15);
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+:global(.pk-drive) .parkingBtn {
+  background: var(--pk-ink-700);
+  color: var(--pk-cloud);
+  border-color: var(--pk-cloud);
+}
+
+/* ===== Sheet الموقف ===== */
+.dim {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--pk-ink-900) 45%, transparent);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.sheet {
+  background: var(--pk-surface);
+  color: var(--pk-text);
+  border: 1px solid var(--pk-border);
+  border-bottom: none;
+  border-radius: 24px 24px 0 0;
+  padding: 10px 18px 18px;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  box-shadow: var(--pk-shadow-2);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.grab {
+  width: 44px;
+  height: 5px;
+  border-radius: var(--pk-radius-pill);
+  background: var(--pk-line);
+  margin: 2px auto 6px;
+  flex-shrink: 0;
+}
+.sheetTitle {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-20);
+  font-weight: 700;
+}
+.sheetHint {
+  color: var(--pk-text-2);
+  font-size: var(--pk-fs-13);
+  margin-top: -6px;
+}
+.spotGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+.spotBtn {
+  min-height: 64px;
+  border: 1.5px solid var(--pk-border);
+  background: var(--pk-surface);
+  color: var(--pk-text);
+  border-radius: 16px;
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-24);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.spotBtnOn {
+  background: var(--pk-ink-900);
+  color: var(--pk-lime-500);
+  border-color: var(--pk-ink-900);
+}
+.spotGridHint {
+  color: var(--pk-text-2);
+  font-size: var(--pk-fs-12);
+  text-align: center;
+}
+.fldLabel {
+  font-size: var(--pk-fs-13);
+  font-weight: 500;
+  display: block;
+  margin-bottom: 6px;
+}
+.sheetErr {
+  color: var(--pk-error);
+  font-size: var(--pk-fs-13);
+}
+
+/* ===== ملاحظات صغيرة ===== */
+.footNote {
+  color: var(--pk-text-2);
+  font-size: var(--pk-fs-12);
+  text-align: center;
+  margin-top: 8px;
+}
+:global(.pk-drive) .footNote {
+  color: var(--pk-gray-2);
+}

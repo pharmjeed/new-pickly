@@ -5,8 +5,15 @@ config({ path: [".env", "../../.env"] });
 const { createLogger } = await import("@pickly/observability");
 const { registerJobHandler, startOutboxPublisher } = await import("./outbox-publisher.js");
 const { handleAcceptTimeout } = await import("./handlers/accept-timeout.js");
+const { startRefundProcessor } = await import("./handlers/refund-processor.js");
+const { handleNoShowCheck, handleNoShowReminder } = await import("./handlers/no-show.js");
+const { startSettlementScheduler } = await import("./handlers/settlements.js");
 
 registerJobHandler("accept_timeout", handleAcceptTimeout);
+registerJobHandler("no_show_reminder", handleNoShowReminder);
+registerJobHandler("no_show_check", handleNoShowCheck);
+const stopRefunds = startRefundProcessor();
+const stopSettlements = startSettlementScheduler();
 
 /**
  * Worker — Background Workers (docs/09§3):
@@ -24,6 +31,8 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, () => {
     logger.info({ sig }, "إيقاف worker");
     stop();
+    stopRefunds();
+    stopSettlements();
     process.exit(0);
   });
 }

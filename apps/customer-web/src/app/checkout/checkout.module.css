@@ -1,0 +1,193 @@
+/* P6 — الإتمام: صفحة تمرير واحدة (وقت + سيارة + دفع + مراجعة)
+   المصدر البصري: design/customer/P6.html — الألوان من tokens (--pk-*) حصراً */
+
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+/* ===== رأس رجوع ===== */
+.bhead { display: flex; align-items: center; gap: 10px; padding: 4px 0 0; }
+.bk {
+  width: 38px; height: 38px; border-radius: 12px;
+  border: 1px solid var(--pk-border); background: var(--pk-surface);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--pk-text); flex-shrink: 0;
+}
+.title { font-family: var(--pk-font-display); font-size: var(--pk-fs-20); font-weight: 700; flex: 1; }
+
+/* ===== الشارات ===== */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: var(--pk-radius-pill); padding: 3px 12px;
+  font-size: var(--pk-fs-12); font-weight: 500; white-space: nowrap; flex-shrink: 0;
+}
+.badgeLime { background: var(--pk-lime-100); color: var(--pk-lime-900); }
+.badgeSoft { background: var(--pk-cloud); color: var(--pk-gray); border: 1px solid var(--pk-line); }
+
+/* ===== عناوين الأقسام ===== */
+.sech { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: -4px; }
+.sech h2 { font-family: var(--pk-font-display); font-size: var(--pk-fs-17); font-weight: 700; }
+.sechLink {
+  border: none; background: transparent; padding: 0; cursor: pointer;
+  font-family: var(--pk-font-body); font-size: var(--pk-fs-12); color: var(--pk-lime-900);
+}
+
+/* ===== البطاقات ===== */
+.card { background: var(--pk-surface); border: 1px solid var(--pk-border); border-radius: var(--pk-radius-lg); padding: 16px; }
+
+/* بطاقة خيار (وقت / دفع) */
+.optCard {
+  background: var(--pk-surface); border: 1px solid var(--pk-border);
+  border-radius: var(--pk-radius-lg); padding: 13px 14px;
+  display: flex; gap: 12px; align-items: center;
+}
+.optCardSel { border: 2px solid var(--pk-ink-900); }
+.optCardDis { opacity: 0.55; }
+.optBody { flex: 1; min-width: 0; }
+.optTitle { font-weight: 700; }
+.optTitleR { font-weight: 500; }
+.optDesc { font-size: var(--pk-fs-12); color: var(--pk-text-2); }
+
+/* radio تجميلي (خيارات غير تفاعلية في هذه الشريحة) */
+.rdot {
+  width: 22px; height: 22px; border: 2px solid var(--pk-border); border-radius: 50%;
+  flex-shrink: 0; background: var(--pk-surface);
+}
+.rdotOn {
+  border-color: var(--pk-ink-900);
+  background: radial-gradient(circle, var(--pk-ink-900) 0 5.5px, transparent 6px);
+}
+
+/* ===== شرائح السيارات ===== */
+.vcard {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--pk-surface); border: 1.5px solid var(--pk-border);
+  border-radius: 16px; padding: 12px 14px; cursor: pointer;
+}
+.vcardSel { border-color: var(--pk-ink-900); background: var(--pk-lime-100); }
+.radio {
+  appearance: none; -webkit-appearance: none;
+  width: 22px; height: 22px; margin: 0; flex-shrink: 0; cursor: pointer;
+  border: 2px solid var(--pk-border); border-radius: 50%; background: var(--pk-surface);
+}
+.radio:checked {
+  border-color: var(--pk-ink-900);
+  background: radial-gradient(circle, var(--pk-ink-900) 0 5.5px, transparent 6px);
+}
+.vic {
+  width: 44px; height: 44px; border-radius: 12px; background: var(--pk-cloud);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--pk-ink-600);
+}
+.vcardSel .vic { background: var(--pk-white); }
+.vbody { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.vt { font-weight: 500; font-size: var(--pk-fs-14); }
+.vsub { font-size: var(--pk-fs-12); color: var(--pk-text-2); }
+.plate {
+  font-family: var(--pk-font-mono); font-weight: 500; direction: ltr;
+  display: inline-flex; align-items: stretch; overflow: hidden; flex-shrink: 0;
+  border: 2px solid var(--pk-ink-900); border-radius: 8px;
+  background: var(--pk-white); color: var(--pk-ink-900);
+}
+.plateNo { padding: 1px 10px; font-size: var(--pk-fs-15); letter-spacing: 2px; display: flex; align-items: center; }
+.privacy { font-size: var(--pk-fs-12); color: var(--pk-text-2); margin-top: -4px; }
+
+/* ===== الملاحظات ===== */
+.note {
+  display: flex; gap: 10px; align-items: flex-start;
+  border-radius: var(--pk-radius); padding: 11px 14px;
+  font-size: var(--pk-fs-13); line-height: 1.7;
+}
+.note svg { flex-shrink: 0; margin-top: 3px; }
+.noteSoft { background: var(--pk-cloud); color: var(--pk-text-2); border: 1px solid var(--pk-border); }
+.noteErr { background: var(--pk-st-overdue-bg); color: var(--pk-error); }
+.noteInfo { background: var(--pk-lime-100); color: var(--pk-lime-900); }
+
+/* ===== المراجعة: صفوف المنتجات والمجاميع ===== */
+.itemsTitle { font-weight: 700; font-size: var(--pk-fs-13); display: block; margin-bottom: 6px; }
+.kv {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: var(--pk-fs-13); padding: 6px 0;
+  border-bottom: 1px dashed var(--pk-border);
+}
+.kv:last-child { border-bottom: none; }
+.k { color: var(--pk-text-2); }
+.kvv { font-family: var(--pk-font-mono); direction: ltr; text-align: left; white-space: nowrap; }
+.srow { display: flex; justify-content: space-between; font-size: var(--pk-fs-14); padding: 3px 0; }
+.sv { font-family: var(--pk-font-mono); direction: ltr; }
+.srowOk { color: var(--pk-success); }
+.srowTot {
+  font-weight: 700; font-size: var(--pk-fs-16);
+  border-top: 1px dashed var(--pk-border); margin-top: 8px; padding-top: 10px;
+}
+
+/* ===== الشريط السفلي الثابت (CTA) ===== */
+.footbar {
+  position: sticky; bottom: 0; z-index: 10;
+  margin: auto -16px 0; padding: 12px 18px;
+  border-top: 1px solid var(--pk-border); background: var(--pk-surface);
+}
+.payBtn {
+  display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 48px; padding: 0 22px;
+  border: none; border-radius: var(--pk-radius); cursor: pointer;
+  background: var(--pk-lime-500); color: var(--pk-ink-900);
+  font-family: var(--pk-font-body); font-size: var(--pk-fs-15); font-weight: 700;
+  transition: background var(--pk-dur) var(--pk-ease);
+}
+.payBtn:hover { background: var(--pk-lime-300); }
+.payBtn:disabled { background: var(--pk-line); color: var(--pk-gray); cursor: not-allowed; }
+.payBtnCenter { justify-content: center; }
+.payAmt { font-family: var(--pk-font-mono); direction: ltr; }
+.sandNote { text-align: center; font-size: var(--pk-fs-12); color: var(--pk-text-2); }
+
+/* ===== ورقة إضافة السيارة (Sheet · S3) ===== */
+.dim {
+  position: fixed; inset: 0; z-index: 30;
+  background: color-mix(in srgb, var(--pk-ink-900) 45%, transparent);
+  display: flex; flex-direction: column; justify-content: flex-end;
+}
+.sheet {
+  width: 100%; max-width: 480px; margin: 0 auto;
+  background: var(--pk-surface); border: 1px solid var(--pk-border);
+  border-radius: 24px 24px 0 0; padding: 10px 18px 18px;
+  box-shadow: var(--pk-shadow-2);
+  display: flex; flex-direction: column; gap: 13px;
+}
+.grab { width: 44px; height: 5px; border-radius: var(--pk-radius-pill); background: var(--pk-line); margin: 2px auto 0; }
+.sheetHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sheetHead h2 { font-family: var(--pk-font-display); font-size: var(--pk-fs-20); font-weight: 700; }
+.fld { display: flex; flex-direction: column; gap: 6px; }
+.fld label { font-size: var(--pk-fs-13); font-weight: 500; color: var(--pk-text); }
+.inp {
+  font-family: var(--pk-font-body); font-size: var(--pk-fs-15); color: var(--pk-text);
+  background: var(--pk-surface); border: 1.5px solid var(--pk-border);
+  border-radius: var(--pk-radius); min-height: 48px; padding: 10px 14px;
+  outline: none; width: 100%;
+}
+.inp:focus { border-color: var(--pk-ink-900); }
+.inpPlate { font-family: var(--pk-font-mono); direction: ltr; text-align: center; letter-spacing: 6px; }
+
+/* ===== حالة النجاح الختامية (C-37) ===== */
+.success {
+  flex: 1; display: flex; flex-direction: column; justify-content: center;
+  gap: 14px; text-align: center;
+}
+.bigic {
+  width: 96px; height: 96px; border-radius: 30px;
+  background: var(--pk-lime-500); color: var(--pk-ink-900);
+  display: flex; align-items: center; justify-content: center; margin: 0 auto;
+}
+.bigTitle { font-family: var(--pk-font-display); font-size: var(--pk-fs-24); font-weight: 700; line-height: 1.5; }
+.successCard { text-align: right; }
+.ghostBtn {
+  border: none; background: transparent; width: 100%; min-height: var(--pk-touch);
+  color: var(--pk-lime-900); font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-15); font-weight: 500; cursor: pointer;
+}

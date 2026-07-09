@@ -64,7 +64,7 @@
 
 | البند | الحالة |
 |-------|--------|
-| A1 GitHub | ⬜ |
+| A1 GitHub | ✅ https://github.com/pharmjeed/new-pickly (رُفع 2026-07-09) |
 | A2 GCP | ⬜ |
 | A3 الدومين | ⬜ |
 | B1 بوابة الدفع | ⬜ (يعمل mock) |

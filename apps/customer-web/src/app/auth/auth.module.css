@@ -1,0 +1,212 @@
+/* P2 — المصادقة: جوال ← OTP ← الاسم (design/customer/P2.html · C-05→C-07)
+   كل الألوان والخطوط والمقاسات من tokens.css حصراً */
+
+.screen {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background: var(--pk-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 18px 18px;
+}
+.center { justify-content: center; }
+
+/* الشعار (C-05) */
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.logoTxt { text-align: left; font-family: var(--pk-font-display); }
+.logoLatin { font-size: var(--pk-fs-34); font-weight: 800; display: block; line-height: 1; }
+.logoAr { font-size: var(--pk-fs-24); font-weight: 700; display: block; line-height: 1.4; }
+
+.hero {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-24);
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* الحقول */
+.fld { display: flex; flex-direction: column; gap: 6px; }
+.fld label { font-size: var(--pk-fs-13); font-weight: 500; color: var(--pk-text); }
+.hint { font-size: var(--pk-fs-12); color: var(--pk-text-2); }
+.row { display: flex; gap: 10px; align-items: center; }
+
+.inp {
+  font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-15);
+  color: var(--pk-text);
+  background: var(--pk-surface);
+  border: 1.5px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  min-height: 48px;
+  padding: 10px 14px;
+  outline: none;
+  width: 100%;
+}
+.inp:focus { border-color: var(--pk-ink-900); }
+.inpErr, .inpErr:focus { border-color: var(--pk-error); }
+
+.mono { font-family: var(--pk-font-mono); direction: ltr; unicode-bidi: embed; }
+.strong { color: var(--pk-text); font-weight: 700; }
+
+.prefix {
+  width: 88px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1.5px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  background: var(--pk-surface);
+  font-family: var(--pk-font-mono);
+  font-size: var(--pk-fs-15);
+  direction: ltr;
+  color: var(--pk-text);
+}
+
+.errMsg { color: var(--pk-error); font-size: var(--pk-fs-12); }
+
+/* الأزرار */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-15);
+  font-weight: 500;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: var(--pk-radius);
+  border: none;
+  cursor: pointer;
+  background: var(--pk-lime-500);
+  color: var(--pk-ink-900);
+  transition: background var(--pk-dur) var(--pk-ease);
+}
+.btn:hover { background: var(--pk-lime-300); }
+.btn:disabled { background: var(--pk-line); color: var(--pk-gray); cursor: not-allowed; }
+
+.btnSec {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-15);
+  font-weight: 500;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: var(--pk-radius);
+  background: transparent;
+  border: 1.5px solid var(--pk-ink-900);
+  color: var(--pk-text);
+  cursor: pointer;
+}
+
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-15);
+  font-weight: 500;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: var(--pk-radius);
+  border: none;
+  background: transparent;
+  color: var(--pk-lime-900);
+  cursor: pointer;
+}
+.btnGhost:disabled { color: var(--pk-gray); cursor: default; }
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--pk-font-body);
+  font-size: inherit;
+  color: var(--pk-lime-900);
+}
+.link:hover { color: var(--pk-ink-900); }
+
+.divider { display: flex; align-items: center; gap: 12px; }
+.divider i { flex: 1; height: 1px; background: var(--pk-border); }
+.divider span { color: var(--pk-text-2); font-size: var(--pk-fs-12); }
+
+.foot {
+  color: var(--pk-text-2);
+  font-size: var(--pk-fs-12);
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* رأس رجوع (C-06 / C-07) */
+.bhead { display: flex; align-items: center; gap: 10px; padding: 16px 18px 0; }
+.bhead h1 { font-family: var(--pk-font-display); font-size: var(--pk-fs-20); font-weight: 700; flex: 1; }
+.bk {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--pk-radius);
+  border: 1px solid var(--pk-border);
+  background: var(--pk-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--pk-text);
+  flex-shrink: 0;
+}
+
+.muted { color: var(--pk-text-2); font-size: var(--pk-fs-13); }
+.tc { text-align: center; }
+
+/* خانات OTP (C-06) — إدخال حقيقي واحد فوق الخانات */
+.otpWrap { position: relative; cursor: text; }
+.otp { display: flex; gap: 8px; direction: ltr; justify-content: center; }
+.cell {
+  width: 44px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--pk-font-mono);
+  font-size: var(--pk-fs-24);
+  border: 1.5px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  background: var(--pk-surface);
+  color: var(--pk-text);
+}
+.cellOn { border-color: var(--pk-ink-900); background: var(--pk-lime-100); }
+.cellErr { border-color: var(--pk-error); }
+.otpInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--pk-font-mono);
+  font-size: var(--pk-fs-24);
+  direction: ltr;
+  text-align: center;
+}

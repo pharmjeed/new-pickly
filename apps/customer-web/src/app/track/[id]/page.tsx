@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * P7 ⭐ الطلب الحي (مصغرة): صفحة واحدة تقودها آلة الحالات —
- * الهيكل ثابت والمحتوى يتبدل (docs/21§1). وضع القيادة داكن أثناء الطريق.
+ * P7 ⭐ الطلب الحي: صفحة واحدة تقودها آلة الحالات —
+ * الهيكل ثابت والمحتوى يتبدل (docs/21§1، design/customer/P7.html C-38→C-51).
+ * وضع القيادة داكن إجباري أثناء الطريق. النبضة عند رصد الوصول هي الاحتفالية الوحيدة.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
+import s from "./track.module.css";
 
 interface Order {
   id: string;
@@ -19,6 +21,16 @@ interface Order {
 }
 
 const STEPS = ["SUBMITTED", "ACCEPTED", "PREPARING", "READY", "ON_THE_WAY", "ARRIVED", "COMPLETED"];
+/* عناوين شريط الحالات السبع — حرفياً من P7.html (steps7) */
+const STEP_LABELS = [
+  "تم استلام الطلب",
+  "تم قبول الطلب",
+  "قيد التجهيز",
+  "جاهز للاستلام",
+  "في طريقك",
+  "وصلت",
+  "تم التسليم"
+];
 const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   CHECKOUT_PENDING: { step: "SUBMITTED", title: "لحظات…", sub: "نجهّز طلبك للدفع" },
   PAYMENT_PENDING: { step: "SUBMITTED", title: "جارٍ الدفع…", sub: "لا تغلق الصفحة" },
@@ -39,6 +51,30 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
 };
 
 const DRIVE_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
+const ARRIVED_STATES = ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"];
+const PARKING_SPOTS = [1, 2, 3, 4, 5];
+
+/* أيقونات خطية من رموز P7.html — currentColor فقط */
+const IconCar = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
+    <g fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round">
+      <path d="M30,56 Q35,40 50,40 Q65,40 70,56" />
+      <rect x="18" y="54" width="64" height="18" rx="9" />
+      <circle cx="34" cy="78" r="6" strokeWidth="6" />
+      <circle cx="66" cy="78" r="6" strokeWidth="6" />
+    </g>
+  </svg>
+);
+const IconRadar = ({ size = 44 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
+    <g fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round">
+      <path d="M34,32 A22,22 0 0 1 66,32" />
+      <path d="M24,19 A36,36 0 0 1 76,19" opacity=".5" />
+      <circle cx="50" cy="57" r="12" />
+      <path d="M50,69 V86" />
+    </g>
+  </svg>
+);
 
 export default function TrackPage() {
   const { id } = useParams<{ id: string }>();
@@ -46,6 +82,14 @@ export default function TrackPage() {
   const [error, setError] = useState<string | null>(null);
   const [eta, setEta] = useState<number | null>(null);
   const tripTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Sheet الموقف (C-48): موقف مرقم أو وصف حر — POST /v1/orders/{id}/parking-spot
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [spotSel, setSpotSel] = useState<number | null>(null);
+  const [freeText, setFreeText] = useState("");
+  const [parkingLabel, setParkingLabel] = useState<string | null>(null);
+  const [savingSpot, setSavingSpot] = useState(false);
+  const [spotErr, setSpotErr] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -61,6 +105,13 @@ export default function TrackPage() {
     const t = setInterval(refresh, 2500);
     return () => clearInterval(t);
   }, [refresh]);
+
+  useEffect(
+    () => () => {
+      if (tripTimer.current) clearInterval(tripTimer.current);
+    },
+    []
+  );
 
   const startTrip = async () => {
     await api("POST", `/v1/orders/${id}/trip/start`);
@@ -94,14 +145,44 @@ export default function TrackPage() {
     if (tripTimer.current) clearInterval(tripTimer.current);
     await api("POST", `/v1/orders/${id}/arrival`);
     await refresh();
+    // بعد تأكيد الوصول → «وين وقفت؟» (C-47 → C-48)
+    setSheetOpen(true);
   };
 
-  if (error) return <main className="pk-wrap"><div className="pk-card" style={{ color: "var(--pk-error)" }}>{error}</div></main>;
-  if (!order) return <main className="pk-wrap"><div className="pk-loader"><span /><span /><span /></div></main>;
+  const submitParking = async () => {
+    const text = spotSel !== null ? `الموقف ${spotSel}` : freeText.trim();
+    if (!text) return;
+    setSavingSpot(true);
+    setSpotErr(null);
+    try {
+      await api("POST", `/v1/orders/${id}/parking-spot`, { free_text: text });
+      setParkingLabel(text);
+      setSheetOpen(false);
+    } catch (e) {
+      setSpotErr((e as Error).message);
+    } finally {
+      setSavingSpot(false);
+    }
+  };
+
+  if (error)
+    return (
+      <main className="pk-wrap">
+        <div className="pk-card" style={{ color: "var(--pk-error)" }}>{error}</div>
+      </main>
+    );
+  if (!order)
+    return (
+      <main className="pk-wrap">
+        <div className="pk-loader"><span /><span /><span /></div>
+      </main>
+    );
 
   const view = DISPLAY[order.order_status] ?? DISPLAY.MERCHANT_PENDING!;
   const stepIdx = STEPS.indexOf(view.step);
+  const completed = order.order_status === "COMPLETED";
   const driveMode = DRIVE_STATES.includes(order.order_status);
+  const arrived = ARRIVED_STATES.includes(order.order_status);
   const canStart = ["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(order.order_status);
   const canArrive = DRIVE_STATES.includes(order.order_status);
 
@@ -109,55 +190,130 @@ export default function TrackPage() {
     <div className={driveMode ? "pk-drive" : ""}>
       <main className="pk-wrap">
         <p className="pk-mono pk-muted" data-testid="order-code" style={{ marginBottom: 4 }}>{order.display_code}</p>
-        <div className="pk-steps" aria-label="حالة الطلب">
-          {STEPS.map((s, i) => <i key={s} className={i <= stepIdx ? "on" : ""} />)}
+
+        {/* شريط الحالات السبع (steps7 — P7.html) */}
+        <div className={s.steps} aria-label="حالة الطلب">
+          {STEP_LABELS.map((lb, i) => {
+            const done = completed || i < stepIdx;
+            const cur = !completed && i === stepIdx;
+            return (
+              <div key={lb} className={`${s.step} ${done ? s.stepDone : ""} ${cur ? s.stepCur : ""}`}>
+                <div className={s.dot}>{done ? "✓" : cur ? "●" : ""}</div>
+                <div className={s.lbl}>{lb}</div>
+              </div>
+            );
+          })}
         </div>
+
+        {/* نبضة «تم رصد وصولك» — الاحتفالية الوحيدة (C-46/C-47) */}
+        {order.order_status === "CUSTOMER_ARRIVED" && (
+          <div className={s.pulseWrap}>
+            <div className={s.pulseIcon}><IconRadar /></div>
+          </div>
+        )}
 
         <h1 className="pk-display" data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)" }}>
           {view.title}
         </h1>
         <p className="pk-muted" style={{ marginBottom: 16 }}>{view.sub}</p>
 
+        {/* بطاقة ETA الكبيرة — وضع القيادة (C-45) */}
         {driveMode && eta !== null && (
-          <div className="pk-card" style={{ textAlign: "center" }}>
-            <span className="pk-display" style={{ fontSize: "var(--pk-fs-34)" }}>{eta} دقيقة</span>
+          <div className={`pk-card ${s.etaCard}`}>
+            <span className={s.etaValue}>{eta} دقيقة</span>
             <p className="pk-muted">حتى وصولك — {order.brand_name_ar}</p>
           </div>
         )}
 
+        {/* بطاقة السيارة (C-42/C-49) */}
         {order.vehicle && (
-          <div className="pk-card">
-            <span className="pk-chip">
-              {[order.vehicle.model_ar, order.vehicle.color_ar, order.vehicle.plate_short].filter(Boolean).join(" · ")}
+          <div className={`pk-card ${s.vehicleCard}`}>
+            <span className={s.vehicleIcon}><IconCar /></span>
+            <span className={s.parkingGrow}>
+              <span className={s.vehicleName}>
+                {[order.vehicle.model_ar, order.vehicle.color_ar, order.vehicle.plate_short].filter(Boolean).join(" · ")}
+              </span>
+              <span className="pk-muted">الموظف يعرف سيارتك مسبقًا</span>
             </span>
-            <p className="pk-muted" style={{ marginTop: 4 }}>الموظف يعرف سيارتك مسبقًا</p>
+            {parkingLabel && <span className={s.spotBadge}>{parkingLabel}</span>}
           </div>
         )}
 
-        {order.handoff_code && ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"].includes(order.order_status) && (
-          <div className="pk-card" style={{ textAlign: "center", background: "var(--pk-lime-500)", border: "none" }}>
-            <p style={{ color: "var(--pk-ink-900)", fontSize: "var(--pk-fs-14)" }}>رمز الاستلام</p>
-            <span className="pk-mono pk-display" data-testid="handoff-code" style={{ fontSize: 40, color: "var(--pk-ink-900)", letterSpacing: 8 }}>
-              {order.handoff_code}
-            </span>
+        {/* بطاقة الرمز الليمونية (C-50/C-51) */}
+        {order.handoff_code && arrived && (
+          <div className={s.codeCard}>
+            <p className={s.codeLabel}>رمز الاستلام</p>
+            <span className={s.codeDigits} data-testid="handoff-code">{order.handoff_code}</span>
           </div>
+        )}
+
+        {/* الموقف — يفتح Sheet «وين وقفت؟» (C-48) */}
+        {arrived && !parkingLabel && (
+          <button type="button" className={s.parkingBtn} onClick={() => { setSpotErr(null); setSheetOpen(true); }}>
+            وين وقفت؟
+          </button>
         )}
 
         {canStart && (
           <button className="pk-btn" data-testid="start-trip" onClick={startTrip}>انطلقت الآن</button>
         )}
         {canArrive && (
-          <button className="pk-btn" data-testid="confirm-arrival" onClick={confirmArrival} style={{ marginTop: 8 }}>
-            وصلت
-          </button>
+          <>
+            <button className="pk-btn" data-testid="confirm-arrival" onClick={confirmArrival} style={{ marginTop: 8 }}>
+              وصلت
+            </button>
+            <p className={s.footNote}>«وصلت» بيدك دائماً — ما نحوّل حالتك بالـGPS وحده أبداً</p>
+          </>
         )}
 
-        {order.order_status === "COMPLETED" && (
+        {completed && (
           <div className="pk-card" data-testid="completed-box" style={{ textAlign: "center" }}>
             <span className="pk-badge ok">تم التسليم ✓</span>
           </div>
         )}
       </main>
+
+      {/* Sheet الموقف (C-48): موقف مرقم 1–5 أو وصف حر */}
+      {sheetOpen && (
+        <div className={s.dim} role="dialog" aria-modal="true" aria-label="وين وقفت؟" onClick={() => setSheetOpen(false)}>
+          <div className={s.sheet} onClick={(e) => e.stopPropagation()}>
+            <div className={s.grab} />
+            <b className={s.sheetTitle}>وين وقفت؟</b>
+            <p className={s.sheetHint}>تحديد موقفك يوصل راشد لسيارتك مباشرة — بلا لف ولا اتصال.</p>
+            <div className={s.spotGrid}>
+              {PARKING_SPOTS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`${s.spotBtn} ${spotSel === n ? s.spotBtnOn : ""}`}
+                  onClick={() => { setSpotSel(spotSel === n ? null : n); setFreeText(""); }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <p className={s.spotGridHint}>مواقف «استلام بيكلي» المرقمة — خلف الواجهة</p>
+            <div>
+              <label className={s.fldLabel} htmlFor="parking-free-text">صف مكان سيارتك للموظف</label>
+              <input
+                id="parking-free-text"
+                className="pk-input"
+                value={freeText}
+                placeholder="على يمين البوابة الخلفية، جنب شاحنة التوريد"
+                onChange={(e) => { setFreeText(e.target.value); setSpotSel(null); }}
+              />
+            </div>
+            {spotErr && <p className={s.sheetErr}>{spotErr}</p>}
+            <button
+              className="pk-btn"
+              onClick={submitParking}
+              disabled={savingSpot || (spotSel === null && freeText.trim() === "")}
+            >
+              تأكيد الموقف
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { prisma, type Prisma } from "@pickly/database";
 import type { BranchOrderCard, OrderState } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
-import { emitEvent } from "../../lib/events.js";
+import { emitEvent, scheduleJob } from "../../lib/events.js";
 import { transitionOrder } from "../../lib/state-machine.js";
 import { handoffCodeFor } from "../../lib/codes.js";
 import { completeHandoff } from "../pickup/service.js";
@@ -226,13 +226,26 @@ export class MerchantOrderService {
         { data: { ready_at: new Date() } }
       );
       // الإشعار يُبث حدثاً — worker يرسل push «طلبك جاهز»
-      const wasOnTheWay = false;
-      void wasOnTheWay;
       await transitionOrder(
         tx,
         { ...order, order_status: "READY" },
         "CUSTOMER_NOTIFIED",
         { actor_type: "system" }
+      );
+      // BR-3: تذكير عند 15 دقيقة ثم فحص No-show عند 45 دقيقة
+      await scheduleJob(
+        tx,
+        "no_show_reminder",
+        { order_id: order.id },
+        new Date(Date.now() + 15 * 60_000),
+        `no_show_reminder:${order.id}`
+      );
+      await scheduleJob(
+        tx,
+        "no_show_check",
+        { order_id: order.id },
+        new Date(Date.now() + 45 * 60_000),
+        `no_show_check:${order.id}`
       );
     });
     return this.card(order_id);

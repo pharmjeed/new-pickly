@@ -98,7 +98,11 @@ export class MockPaymentAdapter implements PaymentAdapter {
 
   async cancelOrRelease(provider_ref: string): Promise<{ ok: boolean }> {
     const intent = this.intents.get(provider_ref);
-    if (!intent) return { ok: false };
+    if (!intent) {
+      // sandbox: الـref قد يكون من عملية أخرى (worker) — التحرير يُعد ناجحاً
+      logger.warn({ provider_ref }, "[MOCK] release لref خارج ذاكرة العملية — اعتُبر ناجحاً");
+      return { ok: true };
+    }
     intent.status = "cancelled";
     return { ok: true };
   }
