@@ -82,11 +82,21 @@ export class AuthService {
     const merchantRole = roles.find((r) => r.role_key.startsWith("merchant:"));
     const isAdmin = roles.some((r) => r.role_key.startsWith("admin:"));
 
+    // المالك/المدير العام: نطاقهما كل فروع التاجر (docs/16§1 ✅ كامل)
+    let branch_ids: string[] | undefined;
+    if (
+      merchantRole?.merchant_id &&
+      ["merchant:owner", "merchant:general_manager"].includes(merchantRole.role_key)
+    ) {
+      branch_ids = await this.repo.merchantBranchIds(merchantRole.merchant_id);
+    }
+
     const access_token = signAccessToken({
       sub: user_id,
       actor_type: isAdmin ? "admin" : merchantRole ? "merchant_staff" : "customer",
       session_id: session.id,
       ...(merchantRole?.merchant_id ? { merchant_id: merchantRole.merchant_id } : {}),
+      ...(branch_ids ? { branch_ids } : {}),
       roles: roles.map((r) => r.role_key)
     });
 

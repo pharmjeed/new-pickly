@@ -145,9 +145,45 @@ export class PickupService {
         }
         await transitionOrder(tx, order, "CUSTOMER_NEARBY", { actor_type: "system" });
       }
+
+      // Dwell — docs/14§4: قراءة واحدة لا تساوي وصولاً. البقاء داخل نطاق الوصول
+      // بسرعة شبه صفرية طوال dwell_seconds ← حدث dwell_detected (يغذي «يبدو أنك
+      // وصلت — هل وصلت؟» في الواجهة؛ التحول ARRIVED يبقى يدوياً حصراً).
+      const arrivalRadius = settings?.arrival_radius_m ?? 100;
+      if (route.distance_m <= arrivalRadius) {
+        const dwellSec = settings?.dwell_seconds ?? 20;
+        const dwellAlready = await tx.arrivalEvent.findFirst({
+          where: { order_id: order.id, event_type: "dwell_detected" }
+        });
+        if (!dwellAlready) {
+          const windowStart = new Date(Date.now() - dwellSec * 1000);
+          const recent = await tx.pickupLocationEvent.findMany({
+            where: { session_id: session.id, created_at: { gte: windowStart } },
+            orderBy: { created_at: "asc" }
+          });
+          const stationary =
+            recent.length >= 2 &&
+            recent.every((e) => (e.speed ?? 0) < 2) && // < 2 م/ث ≈ توقف
+            recent[0]!.created_at <= new Date(Date.now() - (dwellSec - 2) * 1000);
+          if (stationary) {
+            await tx.arrivalEvent.create({
+              data: { order_id: order.id, session_id: session.id, event_type: "dwell_detected" }
+            });
+          }
+        }
+      }
     });
 
-    return { recorded: true, eta_minutes: etaMin, distance_m: route.distance_m };
+    const dwell = await prisma.arrivalEvent.findFirst({
+      where: { order_id: order.id, event_type: "dwell_detected" }
+    });
+    return {
+      recorded: true,
+      eta_minutes: etaMin,
+      distance_m: route.distance_m,
+      // الواجهة تعرض «يبدو أنك وصلت — هل وصلت؟» — الزر اليدوي هو المرجع
+      looks_arrived: Boolean(dwell) && order.order_status !== "CUSTOMER_ARRIVED"
+    };
   }
 
   /** POST arrival — تأكيد «وصلت» اليدوي: الحصري للتحول ARRIVED */

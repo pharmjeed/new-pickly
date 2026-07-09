@@ -1,7 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import {
   AcceptOrderBodySchema,
+  BusyModeBodySchema,
   HandoffCompleteBodySchema,
+  ItemIssueBodySchema,
   MerchantOrdersQuerySchema,
   RejectOrderBodySchema,
   UuidSchema
@@ -80,6 +82,22 @@ export async function merchantRoutes(app: FastifyInstance): Promise<void> {
     const claims = requireStaff(req, HANDOFF_ROLES);
     const body = HandoffCompleteBodySchema.parse(req.body);
     return service.handoffComplete(orderId(req), branchIdsOf(req), claims.sub, body.verification);
+  });
+
+  /** وضع الازدحام — مدير الفرع فما فوق (docs/16§1) */
+  app.post("/branches/:id/busy-mode", async (req) => {
+    const claims = requireStaff(req, ["owner", "general_manager", "operations_manager", "branch_manager"]);
+    const branch_id = orderId(req); // نفس محلل الـUUID
+    assertBranchScope(claims, branch_id);
+    const body = BusyModeBodySchema.parse(req.body);
+    return service.setBusyMode(branch_id, claims.sub, body);
+  });
+
+  /** نقص منتج — BR-4 */
+  app.post("/orders/:id/item-issue", async (req) => {
+    const claims = requireStaff(req, KDS_ROLES);
+    const body = ItemIssueBodySchema.parse(req.body);
+    return service.reportItemIssue(orderId(req), branchIdsOf(req), claims.sub, body);
   });
 
   app.get("/arrival-queue", async (req) => {

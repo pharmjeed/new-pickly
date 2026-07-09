@@ -90,6 +90,13 @@ export const authRepository = {
     });
   },
 
+  /** كل فروع التاجر — لنطاق المالك/المدير العام في التوكن */
+  merchantBranchIds(merchant_id: string): Promise<string[]> {
+    return prisma.branch
+      .findMany({ where: { merchant_id }, select: { id: true } })
+      .then((rows) => rows.map((r) => r.id));
+  },
+
   /** دخول فريق الفرع — docs/11§1 */
   findBranchByCode(branch_code: string) {
     return prisma.branch.findUnique({ where: { branch_code } });

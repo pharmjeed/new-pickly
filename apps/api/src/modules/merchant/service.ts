@@ -341,6 +341,112 @@ export class MerchantOrderService {
     });
   }
 
+  /** وضع الازدحام — BR-10: ينعكس فوراً على الاكتشاف والسلة */
+  async setBusyMode(
+    branch_id: string,
+    staff_user_id: string,
+    input: {
+      prep_delta_minutes?: 10 | 20 | 30 | undefined;
+      pause?: boolean | undefined;
+      order_cap?: number | undefined;
+      close_pickup_only?: boolean | undefined;
+      customer_message?: string | undefined;
+    }
+  ) {
+    const branch = await prisma.branch.findUnique({ where: { id: branch_id } });
+    if (!branch) throw new AppError("CATALOG-2001");
+
+    const newStatus = input.pause
+      ? ("paused" as const)
+      : input.prep_delta_minutes || input.order_cap || input.close_pickup_only
+        ? ("busy" as const)
+        : ("open" as const);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.branch.update({
+        where: { id: branch_id },
+        data: {
+          status: newStatus,
+          busy_message: input.customer_message ?? null
+        }
+      });
+      if (input.prep_delta_minutes) {
+        const settings = await tx.branchPickupSettings.findUnique({ where: { branch_id } });
+        await tx.branchPickupSettings.update({
+          where: { branch_id },
+          data: {
+            default_prep_minutes: (settings?.default_prep_minutes ?? 15) + input.prep_delta_minutes
+          }
+        });
+      }
+      // فعل إداري حساس — audit (docs/16§4)
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: staff_user_id,
+          action: "busy_mode_set",
+          entity_type: "branch",
+          entity_id: branch_id,
+          merchant_id: branch.merchant_id,
+          branch_id,
+          after: input as never
+        }
+      });
+    });
+    return { status: newStatus, busy_message: input.customer_message ?? null };
+  }
+
+  /** نقص منتج بعد القبول — BR-4: موافقة العميل الصريحة، مهلة 5 دقائق */
+  async reportItemIssue(
+    order_id: string,
+    branch_ids: string[],
+    staff_user_id: string,
+    input: { order_item_id: string; issue: "out_of_stock" | "partial"; substitute_product_id?: string | undefined; note?: string | undefined }
+  ) {
+    const order = await this.loadBranchOrder(order_id, branch_ids);
+    if (!["MERCHANT_ACCEPTED", "PREPARING"].includes(order.order_status)) {
+      throw new AppError("MERCHANT-7004", { hint: "التعديل بعد القبول وقبل الجاهزية" });
+    }
+    const item = await prisma.orderItem.findUnique({ where: { id: input.order_item_id } });
+    if (!item || item.order_id !== order_id) throw new AppError("ORDER-4001");
+
+    const deadlineMinutes = 5; // BR-4
+    const adjustment = await prisma.$transaction(async (tx) => {
+      const adj = await tx.orderAdjustment.create({
+        data: {
+          order_id,
+          order_item_id: input.order_item_id,
+          issue: input.issue,
+          substitute_product_id: input.substitute_product_id ?? null,
+          customer_deadline_at: new Date(Date.now() + deadlineMinutes * 60_000),
+          refund_halalas: item.line_total_halalas
+        }
+      });
+      await emitEvent(tx, {
+        name: "order.change_requested",
+        aggregate_type: "order",
+        aggregate_id: order_id,
+        merchant_id: order.merchant_id,
+        branch_id: order.branch_id,
+        payload: { adjustment_id: adj.id, item_name: item.name_ar_snapshot, issue: input.issue }
+      });
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: staff_user_id,
+          action: "item_issue_reported",
+          entity_type: "order",
+          entity_id: order_id,
+          merchant_id: order.merchant_id,
+          branch_id: order.branch_id,
+          after: { adjustment_id: adj.id, ...input } as never
+        }
+      });
+      return adj;
+    });
+    return { adjustment_id: adjustment.id, customer_deadline_at: adjustment.customer_deadline_at };
+  }
+
   private async card(order_id: string): Promise<BranchOrderCard> {
     const o = await prisma.order.findUniqueOrThrow({
       where: { id: order_id },

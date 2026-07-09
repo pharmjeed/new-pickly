@@ -1,5 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import { CancelOrderBodySchema, CreateOrderBodySchema, UuidSchema } from "@pickly/contracts";
+import {
+  CancelOrderBodySchema,
+  ChangeResponseBodySchema,
+  CreateOrderBodySchema,
+  UuidSchema
+} from "@pickly/contracts";
 import { idempotencyKeyOf, requireAuth, requireCustomer } from "../../lib/auth-plugin.js";
 import { OrderService } from "./service.js";
 
@@ -26,6 +31,14 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     const key = idempotencyKeyOf(req);
     const id = UuidSchema.parse((req.params as { id: string }).id);
     return service.createPaymentIntent(id, claims.sub, key);
+  });
+
+  /** رد العميل على تعديل الفرع — BR-4 */
+  app.post("/:id/change-response", async (req) => {
+    const claims = requireCustomer(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = ChangeResponseBodySchema.parse(req.body);
+    return service.respondToChange(id, claims.sub, body);
   });
 
   app.post("/:id/cancel", async (req) => {

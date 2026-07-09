@@ -8,12 +8,14 @@ const { handleAcceptTimeout } = await import("./handlers/accept-timeout.js");
 const { startRefundProcessor } = await import("./handlers/refund-processor.js");
 const { handleNoShowCheck, handleNoShowReminder } = await import("./handlers/no-show.js");
 const { startSettlementScheduler } = await import("./handlers/settlements.js");
+const { startMaintenanceLoop } = await import("./handlers/maintenance.js");
 
 registerJobHandler("accept_timeout", handleAcceptTimeout);
 registerJobHandler("no_show_reminder", handleNoShowReminder);
 registerJobHandler("no_show_check", handleNoShowCheck);
 const stopRefunds = startRefundProcessor();
 const stopSettlements = startSettlementScheduler();
+const stopMaintenance = startMaintenanceLoop();
 
 /**
  * Worker — Background Workers (docs/09§3):
@@ -33,6 +35,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     stop();
     stopRefunds();
     stopSettlements();
+    stopMaintenance();
     process.exit(0);
   });
 }

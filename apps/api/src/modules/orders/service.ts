@@ -4,6 +4,7 @@ import { CUSTOMER_DISPLAY_MAP } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
 import { createPaymentAdapter } from "@pickly/payments";
 import { generateDisplayCode, handoffCodeFor } from "../../lib/codes.js";
+import { emitEvent } from "../../lib/events.js";
 import { transitionOrder } from "../../lib/state-machine.js";
 
 /** وحدة Orders — رحلة J1 (docs/03) على آلة docs/05 وقواعد docs/06 */
@@ -241,6 +242,105 @@ export class OrderService {
     const order = await prisma.order.findUnique({ where: { id: order_id }, include: orderInclude });
     if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
     return toOrderDto(order);
+  }
+
+  /** رد العميل على تعديل الفرع — BR-4: بديل / حذف مع استرجاع جزئي / إلغاء */
+  async respondToChange(
+    order_id: string,
+    user_id: string,
+    input: { change_request_id: string; decision: "accept_substitute" | "remove_item" | "cancel" }
+  ): Promise<OrderDto> {
+    const order = await prisma.order.findUnique({ where: { id: order_id } });
+    if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
+
+    const adj = await prisma.orderAdjustment.findUnique({ where: { id: input.change_request_id } });
+    if (!adj || adj.order_id !== order_id) throw new AppError("ORDER-4001");
+    if (adj.status !== "awaiting_customer") throw new AppError("ORDER-4005", { status: adj.status });
+
+    const intent = await prisma.paymentIntent.findUnique({ where: { order_id } });
+
+    await prisma.$transaction(async (tx) => {
+      if (input.decision === "accept_substitute") {
+        if (!adj.substitute_product_id) throw new AppError("SYS-9004", { hint: "لا بديل مقترحاً" });
+        // لا تعديل سعر أحادي الجانب — البديل بنفس القيمة أو أقل في الطيار
+        await tx.orderAdjustment.update({
+          where: { id: adj.id },
+          data: { status: "accepted_substitute", resolved_at: new Date() }
+        });
+      } else if (input.decision === "remove_item") {
+        await tx.orderAdjustment.update({
+          where: { id: adj.id },
+          data: { status: "item_removed", resolved_at: new Date() }
+        });
+        // استرجاع جزئي لقيمة العنصر — refund_items يمنع التكرار
+        const refund = await tx.refund.create({
+          data: {
+            order_id,
+            intent_id: intent?.id ?? null,
+            amount_halalas: adj.refund_halalas,
+            includes_service_fee: false,
+            reason: "item_removed_br4",
+            status: "pending",
+            requested_by: "customer",
+            requester_id: user_id,
+            idempotency_key: `br4:${adj.id}`
+          }
+        });
+        const item = await tx.orderItem.findUniqueOrThrow({ where: { id: adj.order_item_id } });
+        await tx.refundItem.create({
+          data: {
+            refund_id: refund.id,
+            order_item_id: item.id,
+            quantity: item.quantity,
+            amount_halalas: adj.refund_halalas
+          }
+        });
+      } else {
+        // إلغاء الطلب كاملاً — يُحتسب على الفرع (نقصه سبب الإلغاء)
+        await tx.orderAdjustment.update({
+          where: { id: adj.id },
+          data: { status: "cancelled_order", resolved_at: new Date() }
+        });
+        await transitionOrder(tx, order, "CANCELLATION_REQUESTED", { actor_type: "customer", actor_id: user_id }, { reason: "br4_item_unavailable" });
+        await transitionOrder(
+          tx,
+          { ...order, order_status: "CANCELLATION_REQUESTED" as const },
+          "CANCELLED",
+          { actor_type: "system" },
+          { reason: "br4_item_unavailable", data: { cancelled_at: new Date() } }
+        );
+        await tx.cancellation.create({
+          data: { order_id, requested_by: "customer", reason: "br4_item_unavailable", charged_to: "merchant" }
+        });
+        await tx.refund.create({
+          data: {
+            order_id,
+            intent_id: intent?.id ?? null,
+            amount_halalas: order.total_halalas,
+            includes_service_fee: true,
+            reason: "br4_cancel_full",
+            status: "pending",
+            requested_by: "customer",
+            requester_id: user_id,
+            idempotency_key: `br4cancel:${adj.id}`
+          }
+        });
+        const cancelled = await tx.order.findUniqueOrThrow({ where: { id: order_id } });
+        await transitionOrder(tx, cancelled, "REFUND_PENDING", { actor_type: "system" }, { reason: "br4_cancel_full" });
+      }
+
+      await emitEvent(tx, {
+        name: "order.change_resolved",
+        aggregate_type: "order",
+        aggregate_id: order_id,
+        merchant_id: order.merchant_id,
+        branch_id: order.branch_id,
+        payload: { adjustment_id: adj.id, decision: input.decision }
+      });
+    });
+
+    const full = await prisma.order.findUniqueOrThrow({ where: { id: order_id }, include: orderInclude });
+    return toOrderDto(full);
   }
 
   /** إلغاء العميل — مصفوفة BR-2 */
