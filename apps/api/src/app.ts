@@ -21,6 +21,8 @@ import { realtimeRoutes } from "./modules/realtime/routes.js";
 export async function buildApp(): Promise<FastifyInstance> {
   const isDev = process.env.NODE_ENV !== "production";
   const app = Fastify({
+    // صور الأصناف تُرسل data URL — نرفع الحد من 1MB الافتراضي (الإنتاج: رفع مباشر لObject Storage)
+    bodyLimit: 3 * 1024 * 1024,
     logger: {
       level: process.env.LOG_LEVEL ?? (isDev ? "debug" : "info"),
       ...(isDev

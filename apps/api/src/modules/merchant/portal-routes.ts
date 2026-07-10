@@ -6,6 +6,35 @@ import { HalalaSchema, UuidSchema } from "@pickly/contracts";
 import { assertBranchScope, requireAuth, requireStaff } from "../../lib/auth-plugin.js";
 
 /**
+ * صورة الصنف كـdata URL (نطاق الطيار — التخزين المحلي/العرض).
+ * الإنتاج يبدّلها بObject Storage (docs/09§2) — يكفي تغيير طبقة الحفظ.
+ * سقف ~1MB بعد التصغير في المتصفح؛ صيغ صور فقط.
+ */
+const ImageDataUrlSchema = z
+  .string()
+  .regex(/^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/, "صيغة صورة غير صالحة")
+  .max(1_400_000, "الصورة كبيرة — صغّرها قبل الرفع");
+
+const ModifierGroupsSchema = z
+  .array(
+    z.object({
+      name_ar: z.string().min(1).max(60),
+      min_select: z.number().int().min(0).max(10),
+      max_select: z.number().int().min(1).max(20),
+      modifiers: z
+        .array(
+          z.object({
+            name_ar: z.string().min(1).max(60),
+            price_halalas: HalalaSchema.default(0)
+          })
+        )
+        .min(1)
+        .max(30)
+    })
+  )
+  .max(6);
+
+/**
  * بوابة التاجر (نطاق الطيار) — يدعم صفحات M-01/M-02/M-03/M-08/M-10/M-12/M-15
  * وشاشتي الوردية B-02/B-16. الأدوار وفق docs/16§1.
  */
@@ -113,7 +142,14 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
           include: {
             products: {
               orderBy: { sort_order: "asc" },
-              include: { availability: { where: { branch_id: q.branch_id } } }
+              include: {
+                availability: { where: { branch_id: q.branch_id } },
+                images: { orderBy: { sort: "asc" }, take: 1 },
+                modifier_groups: {
+                  orderBy: { sort: "asc" },
+                  include: { group: { include: { modifiers: true } } }
+                }
+              }
             }
           }
         }
@@ -127,9 +163,21 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
         products: c.products.map((p) => ({
           id: p.id,
           name_ar: p.name_ar,
+          description_ar: p.description_ar,
           price_halalas: p.price_halalas,
+          calories: p.calories,
+          image_url: p.images[0]?.file_url ?? null,
           is_active: p.is_active,
-          is_available: p.availability[0]?.is_available ?? true
+          is_available: p.availability[0]?.is_available ?? true,
+          modifier_groups: p.modifier_groups.map((pg) => ({
+            name_ar: pg.group.name_ar,
+            min_select: pg.group.min_select,
+            max_select: pg.group.max_select,
+            modifiers: pg.group.modifiers.map((m) => ({
+              name_ar: m.name_ar,
+              price_halalas: m.price_halalas
+            }))
+          }))
         }))
       }))
     };
@@ -198,25 +246,8 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
         description_ar: z.string().max(280).optional(),
         price_halalas: HalalaSchema,
         calories: z.number().int().min(0).max(9999).optional(),
-        modifier_groups: z
-          .array(
-            z.object({
-              name_ar: z.string().min(1).max(60),
-              min_select: z.number().int().min(0).max(10),
-              max_select: z.number().int().min(1).max(20),
-              modifiers: z
-                .array(
-                  z.object({
-                    name_ar: z.string().min(1).max(60),
-                    price_halalas: HalalaSchema.default(0)
-                  })
-                )
-                .min(1)
-                .max(30)
-            })
-          )
-          .max(6)
-          .default([])
+        image_data_url: ImageDataUrlSchema.optional(),
+        modifier_groups: ModifierGroupsSchema.default([])
       })
       .parse(req.body);
 
@@ -255,6 +286,12 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
             data: { group_id: group.id, name_ar: m.name_ar, price_halalas: m.price_halalas }
           });
         }
+      }
+      // صورة الصنف (اختيارية)
+      if (body.image_data_url) {
+        await tx.productImage.create({
+          data: { product_id: p.id, file_url: body.image_data_url, sort: 0 }
+        });
       }
       // متاح في كل فروع العلامة فور الإنشاء
       const branches = await tx.branch.findMany({
@@ -304,6 +341,149 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
     if (!brand) throw new AppError("MERCHANT-7003");
     await prisma.product.update({ where: { id }, data: { is_active: body.is_active } });
     return { id, is_active: body.is_active };
+  });
+
+  /**
+   * M-08 CRUD: تعديل صنف موجود — الحقول + الصورة + مجموعات المُعدِّلات.
+   * تمرير أي حقل = تحديثه؛ modifier_groups إن مُرّرت تستبدل المجموعات كاملة.
+   */
+  app.patch("/products/:id", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const merchant_id = merchantIdOf(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = z
+      .object({
+        name_ar: z.string().min(2).max(80).optional(),
+        description_ar: z.string().max(280).nullable().optional(),
+        price_halalas: HalalaSchema.optional(),
+        calories: z.number().int().min(0).max(9999).nullable().optional(),
+        // "" لإزالة الصورة، data URL لتبديلها، غياب المفتاح = إبقاؤها
+        image_data_url: z.union([ImageDataUrlSchema, z.literal("")]).optional(),
+        modifier_groups: ModifierGroupsSchema.optional()
+      })
+      .parse(req.body);
+
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: { category: { include: { menu: true } }, modifier_groups: true }
+    });
+    if (!product) throw new AppError("ORDER-4001");
+    const brand = await prisma.brand.findFirst({
+      where: { id: product.category.menu.brand_id, merchant_id }
+    });
+    if (!brand) throw new AppError("MERCHANT-7003");
+
+    await prisma.$transaction(async (tx) => {
+      const data: Record<string, unknown> = {};
+      if (body.name_ar !== undefined) data.name_ar = body.name_ar;
+      if (body.description_ar !== undefined) data.description_ar = body.description_ar;
+      if (body.price_halalas !== undefined) data.price_halalas = body.price_halalas;
+      if (body.calories !== undefined) data.calories = body.calories;
+      if (Object.keys(data).length > 0) {
+        await tx.product.update({ where: { id }, data });
+      }
+
+      // الصورة: "" حذف · data URL تبديل
+      if (body.image_data_url !== undefined) {
+        await tx.productImage.deleteMany({ where: { product_id: id } });
+        if (body.image_data_url !== "") {
+          await tx.productImage.create({
+            data: { product_id: id, file_url: body.image_data_url, sort: 0 }
+          });
+        }
+      }
+
+      // استبدال مجموعات المُعدِّلات بالكامل إن مُرّرت
+      if (body.modifier_groups !== undefined) {
+        const links = await tx.productModifierGroup.findMany({ where: { product_id: id } });
+        const groupIds = links.map((l) => l.group_id);
+        await tx.productModifierGroup.deleteMany({ where: { product_id: id } });
+        if (groupIds.length > 0) {
+          await tx.modifier.deleteMany({ where: { group_id: { in: groupIds } } });
+          await tx.modifierGroup.deleteMany({ where: { id: { in: groupIds } } });
+        }
+        for (const g of body.modifier_groups) {
+          const group = await tx.modifierGroup.create({
+            data: { name_ar: g.name_ar, min_select: g.min_select, max_select: g.max_select }
+          });
+          await tx.productModifierGroup.create({ data: { product_id: id, group_id: group.id } });
+          for (const m of g.modifiers) {
+            await tx.modifier.create({
+              data: { group_id: group.id, name_ar: m.name_ar, price_halalas: m.price_halalas }
+            });
+          }
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "product_updated",
+          entity_type: "product",
+          entity_id: id,
+          merchant_id,
+          before: { name_ar: product.name_ar, price_halalas: product.price_halalas } as never,
+          after: body as never
+        }
+      });
+    });
+
+    return { id, ok: true };
+  });
+
+  /**
+   * M-08 CRUD: حذف صنف. إن كان مرتبطاً بطلبات/سلال سابقة (لقطات) يُوقَف بدل الحذف
+   * الصلب حفاظاً على سلامة السجلّات؛ وإلا يُحذف نهائياً.
+   */
+  app.delete("/products/:id", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const merchant_id = merchantIdOf(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: { category: { include: { menu: true } } }
+    });
+    if (!product) throw new AppError("ORDER-4001");
+    const brand = await prisma.brand.findFirst({
+      where: { id: product.category.menu.brand_id, merchant_id }
+    });
+    if (!brand) throw new AppError("MERCHANT-7003");
+
+    const referenced =
+      (await prisma.orderItem.count({ where: { product_id: id } })) > 0 ||
+      (await prisma.cartItem.count({ where: { product_id: id } })) > 0;
+
+    await prisma.$transaction(async (tx) => {
+      if (referenced) {
+        // مرتبط بلقطات — إيقاف soft فقط
+        await tx.product.update({ where: { id }, data: { is_active: false } });
+      } else {
+        const links = await tx.productModifierGroup.findMany({ where: { product_id: id } });
+        const groupIds = links.map((l) => l.group_id);
+        await tx.productModifierGroup.deleteMany({ where: { product_id: id } });
+        if (groupIds.length > 0) {
+          await tx.modifier.deleteMany({ where: { group_id: { in: groupIds } } });
+          await tx.modifierGroup.deleteMany({ where: { id: { in: groupIds } } });
+        }
+        await tx.productImage.deleteMany({ where: { product_id: id } });
+        await tx.branchProductAvailability.deleteMany({ where: { product_id: id } });
+        await tx.product.delete({ where: { id } });
+      }
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: referenced ? "product_deactivated" : "product_deleted",
+          entity_type: "product",
+          entity_id: id,
+          merchant_id,
+          before: { name_ar: product.name_ar } as never
+        }
+      });
+    });
+
+    return { id, deleted: !referenced, deactivated: referenced };
   });
 
   /** M-10: الطاقم */

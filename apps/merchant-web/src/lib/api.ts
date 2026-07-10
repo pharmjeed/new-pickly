@@ -54,6 +54,30 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** PATCH مع body — لتعديل الأصناف */
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${getToken() ?? ""}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) return parseError(res);
+  return (await res.json()) as T;
+}
+
+/** DELETE — لحذف الأصناف */
+export async function apiDelete<T>(path: string): Promise<T> {
+  const res = await fetch(path, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${getToken() ?? ""}` }
+  });
+  if (!res.ok) return parseError(res);
+  return (await res.json()) as T;
+}
+
 /** هللات → ريال بمنزلتين وأرقام لاتينية */
 export function sar(halalas: number): string {
   return (halalas / 100).toFixed(2);
