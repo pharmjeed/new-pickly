@@ -297,6 +297,32 @@ export default function MenuPage() {
     }
   };
 
+  // رفع/تغيير صورة صنف مباشرةً من الجدول (بلا فتح نموذج التعديل)
+  const rowFileRef = useRef<HTMLInputElement>(null);
+  const [imgUploadFor, setImgUploadFor] = useState<string | null>(null);
+  const triggerRowImage = (productId: string) => {
+    setImgUploadFor(productId);
+    setError(null);
+    rowFileRef.current?.click();
+  };
+  const onRowFileChosen = async (file: File | undefined) => {
+    const productId = imgUploadFor;
+    if (rowFileRef.current) rowFileRef.current.value = "";
+    if (!file || !productId) return;
+    setPending(productId);
+    try {
+      if (file.size > 12 * 1024 * 1024) throw new Error("الصورة أكبر من 12MB");
+      const dataUrl = await resizeImage(file);
+      await apiPatch(`/api/v1/merchant/products/${productId}`, { image_data_url: dataUrl });
+      loadMenu(branchId);
+    } catch (e) {
+      onApiError(e);
+    } finally {
+      setPending(null);
+      setImgUploadFor(null);
+    }
+  };
+
   const totalProducts = menu?.categories.reduce((n, c) => n + c.products.length, 0) ?? 0;
 
   return (
@@ -535,14 +561,28 @@ export default function MenuPage() {
                   {cat.products.map((p) => (
                     <tr key={p.id} className={p.is_available ? undefined : s.offRow} data-testid="menu-product-row">
                       <td>
-                        <div className={s.thumb}>
-                          {p.image_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.image_url} alt={p.name_ar} />
+                        {/* خانة الصورة نفسها زر رفع — اضغط لإضافة/تغيير صورة الصنف مباشرة */}
+                        <button
+                          type="button"
+                          className={s.thumb}
+                          data-testid="row-image-upload"
+                          disabled={pending === p.id}
+                          title={p.image_url ? "تغيير الصورة" : "إضافة صورة"}
+                          aria-label={`صورة ${p.name_ar}`}
+                          onClick={() => triggerRowImage(p.id)}
+                        >
+                          {pending === p.id ? (
+                            <span className={s.thumbEmpty}>…</span>
+                          ) : p.image_url ? (
+                            <>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={p.image_url} alt={p.name_ar} />
+                              <span className={s.thumbEdit}>تغيير</span>
+                            </>
                           ) : (
-                            <span className={s.thumbEmpty}>—</span>
+                            <span className={s.thumbAdd}>+ صورة</span>
                           )}
-                        </div>
+                        </button>
                       </td>
                       <td>
                         <span className={s.prodName}>{p.name_ar}</span>
@@ -587,6 +627,16 @@ export default function MenuPage() {
             </div>
           </div>
         ))}
+
+      {/* عنصر ملف مشترك لرفع صور الصفوف مباشرة */}
+      <input
+        ref={rowFileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        data-testid="row-image-file"
+        onChange={(e) => onRowFileChosen(e.target.files?.[0])}
+      />
     </Shell>
   );
 }

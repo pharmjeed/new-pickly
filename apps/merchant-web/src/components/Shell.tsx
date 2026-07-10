@@ -30,6 +30,7 @@ const NAV = [
   { gp: "التشغيل" },
   { href: "/dashboard", label: "الرئيسية" },
   { href: "/menu", label: "المنيو والتوفر" },
+  { href: "/scheduled", label: "الاستلام المجدول" },
   { gp: "الإدارة" },
   { href: "/staff", label: "الطاقم" },
   { gp: "الأعمال" },
