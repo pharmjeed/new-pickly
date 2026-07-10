@@ -8,6 +8,11 @@ export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+/** يحذف توكن الجلسة — يُستدعى عند 401 لكسر حلقة إعادة التوجيه مع صفحة الدخول */
+export function clearToken(): void {
+  if (typeof window !== "undefined") localStorage.removeItem(TOKEN_KEY);
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -17,6 +22,8 @@ export class ApiError extends Error {
 }
 
 async function parseError(res: Response): Promise<never> {
+  // جلسة منتهية: حذف التوكن فوراً حتى لا تعيد صفحة الدخول التوجيه للوحة (حلقة تحديث)
+  if (res.status === 401) clearToken();
   let message = "تعذر تنفيذ الطلب";
   try {
     const data = (await res.json()) as { error?: { message_ar?: string; message?: string } };
