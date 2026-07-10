@@ -15,6 +15,35 @@ const ImageDataUrlSchema = z
   .regex(/^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/, "صيغة صورة غير صالحة")
   .max(1_400_000, "الصورة كبيرة — صغّرها قبل الرفع");
 
+/**
+ * يفكّ ربط مجموعات المُعدِّلات عن المنتج ويحذفها بأمان:
+ * المُعدِّلات المرجعية في سلال سابقة (cart_item_modifiers) تُترك (لقطات لا تُكسر) —
+ * فقط غير المرجعية تُحذف، والمجموعة تُحذف إن خلَت تماماً.
+ */
+async function pruneProductGroups(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  product_id: string
+): Promise<void> {
+  const links = await tx.productModifierGroup.findMany({ where: { product_id } });
+  const groupIds = links.map((l) => l.group_id);
+  await tx.productModifierGroup.deleteMany({ where: { product_id } });
+  if (groupIds.length === 0) return;
+
+  const mods = await tx.modifier.findMany({ where: { group_id: { in: groupIds } }, select: { id: true } });
+  const refs = await tx.cartItemModifier.findMany({
+    where: { modifier_id: { in: mods.map((m) => m.id) } },
+    select: { modifier_id: true }
+  });
+  const referenced = new Set(refs.map((r) => r.modifier_id));
+  const deletable = mods.filter((m) => !referenced.has(m.id)).map((m) => m.id);
+  if (deletable.length > 0) await tx.modifier.deleteMany({ where: { id: { in: deletable } } });
+  // احذف المجموعات التي لم يبقَ فيها أي مُعدِّل (المرجعية تبقى معلّقة بلا ضرر — غير مرتبطة بأي منتج)
+  for (const gid of groupIds) {
+    const remaining = await tx.modifier.count({ where: { group_id: gid } });
+    if (remaining === 0) await tx.modifierGroup.delete({ where: { id: gid } });
+  }
+}
+
 const ModifierGroupsSchema = z
   .array(
     z.object({
@@ -395,13 +424,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
 
       // استبدال مجموعات المُعدِّلات بالكامل إن مُرّرت
       if (body.modifier_groups !== undefined) {
-        const links = await tx.productModifierGroup.findMany({ where: { product_id: id } });
-        const groupIds = links.map((l) => l.group_id);
-        await tx.productModifierGroup.deleteMany({ where: { product_id: id } });
-        if (groupIds.length > 0) {
-          await tx.modifier.deleteMany({ where: { group_id: { in: groupIds } } });
-          await tx.modifierGroup.deleteMany({ where: { id: { in: groupIds } } });
-        }
+        await pruneProductGroups(tx, id);
         for (const g of body.modifier_groups) {
           const group = await tx.modifierGroup.create({
             data: { name_ar: g.name_ar, min_select: g.min_select, max_select: g.max_select }
@@ -459,13 +482,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
         // مرتبط بلقطات — إيقاف soft فقط
         await tx.product.update({ where: { id }, data: { is_active: false } });
       } else {
-        const links = await tx.productModifierGroup.findMany({ where: { product_id: id } });
-        const groupIds = links.map((l) => l.group_id);
-        await tx.productModifierGroup.deleteMany({ where: { product_id: id } });
-        if (groupIds.length > 0) {
-          await tx.modifier.deleteMany({ where: { group_id: { in: groupIds } } });
-          await tx.modifierGroup.deleteMany({ where: { id: { in: groupIds } } });
-        }
+        await pruneProductGroups(tx, id);
         await tx.productImage.deleteMany({ where: { product_id: id } });
         await tx.branchProductAvailability.deleteMany({ where: { product_id: id } });
         await tx.product.delete({ where: { id } });
