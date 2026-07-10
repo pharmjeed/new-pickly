@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
-import { UuidSchema } from "@pickly/contracts";
+import { HalalaSchema, UuidSchema } from "@pickly/contracts";
 import { assertBranchScope, requireAuth, requireStaff } from "../../lib/auth-plugin.js";
 
 /**
@@ -157,6 +157,153 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
       update: { is_available: body.is_available }
     });
     return { ok: true, is_available: body.is_available };
+  });
+
+  /**
+   * M-08 CRUD (docs/11§6): إضافة تصنيف للقائمة.
+   * التصنيف على مستوى العلامة (menu) فيظهر في كل الفروع؛ الأدوار الإدارية فقط.
+   */
+  app.post("/categories", async (req) => {
+    requireStaff(req, MANAGER_ROLES);
+    const merchant_id = merchantIdOf(req);
+    const body = z
+      .object({ branch_id: UuidSchema, name_ar: z.string().min(2).max(60) })
+      .parse(req.body);
+
+    const branch = await prisma.branch.findFirst({ where: { id: body.branch_id, merchant_id } });
+    if (!branch) throw new AppError("MERCHANT-7003");
+
+    let menu = await prisma.menu.findFirst({ where: { brand_id: branch.brand_id, is_active: true } });
+    menu ??= await prisma.menu.create({ data: { brand_id: branch.brand_id, name_ar: "المنيو الرئيسي" } });
+
+    const count = await prisma.category.count({ where: { menu_id: menu.id } });
+    const cat = await prisma.category.create({
+      data: { menu_id: menu.id, name_ar: body.name_ar, sort_order: count }
+    });
+    return { id: cat.id, name_ar: cat.name_ar };
+  });
+
+  /**
+   * M-08 CRUD (docs/11§6): إضافة صنف بكل تفاصيله + مجموعات مُعدِّلات اختيارية.
+   * الأسعار تُدخل بالريال وتُخزَّن هللات (BR-6 التسعير خادمي). يتوفر تلقائياً في الفرع.
+   */
+  app.post("/products", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const merchant_id = merchantIdOf(req);
+    const body = z
+      .object({
+        branch_id: UuidSchema,
+        category_id: UuidSchema,
+        name_ar: z.string().min(2).max(80),
+        description_ar: z.string().max(280).optional(),
+        price_halalas: HalalaSchema,
+        calories: z.number().int().min(0).max(9999).optional(),
+        modifier_groups: z
+          .array(
+            z.object({
+              name_ar: z.string().min(1).max(60),
+              min_select: z.number().int().min(0).max(10),
+              max_select: z.number().int().min(1).max(20),
+              modifiers: z
+                .array(
+                  z.object({
+                    name_ar: z.string().min(1).max(60),
+                    price_halalas: HalalaSchema.default(0)
+                  })
+                )
+                .min(1)
+                .max(30)
+            })
+          )
+          .max(6)
+          .default([])
+      })
+      .parse(req.body);
+
+    const branch = await prisma.branch.findFirst({ where: { id: body.branch_id, merchant_id } });
+    if (!branch) throw new AppError("MERCHANT-7003");
+
+    // التصنيف لا بد أن يخص قائمة علامة هذا التاجر (عزل — BR-15)
+    const category = await prisma.category.findUnique({
+      where: { id: body.category_id },
+      include: { menu: true }
+    });
+    if (!category || category.menu.brand_id !== branch.brand_id) throw new AppError("MERCHANT-7003");
+
+    const product = await prisma.$transaction(async (tx) => {
+      const sort = await tx.product.count({ where: { category_id: category.id } });
+      const p = await tx.product.create({
+        data: {
+          category_id: category.id,
+          name_ar: body.name_ar,
+          description_ar: body.description_ar ?? null,
+          price_halalas: body.price_halalas,
+          calories: body.calories ?? null,
+          sort_order: sort,
+          is_active: true
+        }
+      });
+      for (const g of body.modifier_groups) {
+        const group = await tx.modifierGroup.create({
+          data: { name_ar: g.name_ar, min_select: g.min_select, max_select: g.max_select }
+        });
+        await tx.productModifierGroup.create({
+          data: { product_id: p.id, group_id: group.id }
+        });
+        for (const m of g.modifiers) {
+          await tx.modifier.create({
+            data: { group_id: group.id, name_ar: m.name_ar, price_halalas: m.price_halalas }
+          });
+        }
+      }
+      // متاح في كل فروع العلامة فور الإنشاء
+      const branches = await tx.branch.findMany({
+        where: { brand_id: branch.brand_id },
+        select: { id: true }
+      });
+      for (const b of branches) {
+        await tx.branchProductAvailability.upsert({
+          where: { branch_id_product_id: { branch_id: b.id, product_id: p.id } },
+          create: { branch_id: b.id, product_id: p.id, is_available: true },
+          update: {}
+        });
+      }
+      // فعل إداري — audit (docs/16§4)
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "product_created",
+          entity_type: "product",
+          entity_id: p.id,
+          merchant_id,
+          branch_id: body.branch_id,
+          after: { name_ar: body.name_ar, price_halalas: body.price_halalas } as never
+        }
+      });
+      return p;
+    });
+
+    return { id: product.id, name_ar: product.name_ar, price_halalas: product.price_halalas };
+  });
+
+  /** M-08 CRUD: إيقاف/نشر صنف (soft) عبر is_active */
+  app.post("/products/:id/toggle-active", async (req) => {
+    requireStaff(req, MANAGER_ROLES);
+    const merchant_id = merchantIdOf(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = z.object({ is_active: z.boolean() }).parse(req.body);
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: { category: { include: { menu: true } } }
+    });
+    if (!product) throw new AppError("ORDER-4001");
+    const brand = await prisma.brand.findFirst({
+      where: { id: product.category.menu.brand_id, merchant_id }
+    });
+    if (!brand) throw new AppError("MERCHANT-7003");
+    await prisma.product.update({ where: { id }, data: { is_active: body.is_active } });
+    return { id, is_active: body.is_active };
   });
 
   /** M-10: الطاقم */
