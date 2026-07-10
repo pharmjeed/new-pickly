@@ -16,6 +16,16 @@ export function setTokens(access: string, refresh: string): void {
   localStorage.setItem("pk_refresh", refresh);
 }
 
+/** crypto.randomUUID غير متوفرة خارج السياقات الآمنة (نشر HTTP) — بديل RFC4122 v4 عبر getRandomValues */
+function uuid(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = ((b[6] ?? 0) & 0x0f) | 0x40;
+  b[8] = ((b[8] ?? 0) & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 export class ApiError extends Error {
   constructor(
     public code: string,
@@ -37,7 +47,7 @@ export async function api<T>(
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (opts.idempotent) headers["Idempotency-Key"] = crypto.randomUUID();
+  if (opts.idempotent) headers["Idempotency-Key"] = uuid();
 
   const res = await fetch(`${BASE}${path}`, {
     method,

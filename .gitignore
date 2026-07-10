@@ -15,6 +15,11 @@ coverage/
 .env.*
 !.env.example
 
+# مفاتيح خاصة — لا تُرفع أبداً
+*.pem
+*.key
+.oci/
+
 # prisma
 packages/database/generated/
 

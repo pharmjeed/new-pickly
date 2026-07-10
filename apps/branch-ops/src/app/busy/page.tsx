@@ -80,7 +80,9 @@ export default function BusyPage() {
       return;
     }
     try {
-      const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as { branch_ids?: string[] };
+      // حمولة JWT بترميز base64url — تطبيعها قبل atob وإلا رُميت InvalidCharacterError وطُردت الجلسة
+      const b64 = (token.split(".")[1] ?? "").replace(/-/g, "+").replace(/_/g, "/");
+      const payload = JSON.parse(atob(b64)) as { branch_ids?: string[] };
       setBranchId(payload.branch_ids?.[0] ?? null);
     } catch {
       router.push("/");

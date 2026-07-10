@@ -62,6 +62,16 @@ function cardState(status: string): string {
   return "prep";
 }
 
+/** crypto.randomUUID غير متوفرة خارج السياقات الآمنة (نشر HTTP) — بديل RFC4122 v4 عبر getRandomValues */
+function uuid(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = ((b[6] ?? 0) & 0x0f) | 0x40;
+  b[8] = ((b[8] ?? 0) & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 const pad2 = (n: number): string => String(n).padStart(2, "0");
 /** أرقام لاتينية بصيغة MM:SS (Mono) */
 const mmss = (totalSeconds: number): string =>
@@ -105,7 +115,7 @@ export default function BoardPage() {
     async <T,>(method: string, path: string, body?: unknown, idem = false): Promise<T> => {
       const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
       if (body !== undefined) headers["Content-Type"] = "application/json";
-      if (idem) headers["Idempotency-Key"] = crypto.randomUUID();
+      if (idem) headers["Idempotency-Key"] = uuid();
       const res = await fetch(`/api${path}`, {
         method,
         headers,
@@ -127,7 +137,9 @@ export default function BoardPage() {
       return;
     }
     try {
-      const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as { branch_ids?: string[] };
+      // حمولة JWT بترميز base64url — تطبيعها قبل atob وإلا رُميت InvalidCharacterError وطُردت الجلسة
+      const b64 = (token.split(".")[1] ?? "").replace(/-/g, "+").replace(/_/g, "/");
+      const payload = JSON.parse(atob(b64)) as { branch_ids?: string[] };
       setBranchId(payload.branch_ids?.[0] ?? null);
     } catch {
       router.push("/");
