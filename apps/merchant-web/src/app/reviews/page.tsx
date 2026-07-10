@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
-import { ApiError, apiGet } from "@/lib/api";
+import {clearToken,  ApiError, apiGet } from "@/lib/api";
 import s from "./reviews.module.css";
 
 type Review = {
@@ -44,6 +44,7 @@ export default function ReviewsPage() {
       .then(setReviews)
       .catch((e: unknown) => {
         if (e instanceof ApiError && e.status === 401) {
+          clearToken();
           router.replace("/");
           return;
         }

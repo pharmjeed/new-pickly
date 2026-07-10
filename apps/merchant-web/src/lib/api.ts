@@ -7,6 +7,11 @@ export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+/** يحذف توكن الجلسة — يُستدعى عند 401 لكسر حلقة إعادة التوجيه مع صفحة الدخول */
+export function clearToken(): void {
+  if (typeof window !== "undefined") localStorage.removeItem(TOKEN_KEY);
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {

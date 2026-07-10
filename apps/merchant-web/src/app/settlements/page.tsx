@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
-import { ApiError, apiGet, sar } from "@/lib/api";
+import {clearToken,  ApiError, apiGet, sar } from "@/lib/api";
 import s from "./settlements.module.css";
 
 type Settlement = {
@@ -64,6 +64,7 @@ export default function SettlementsPage() {
       .then(setSettlements)
       .catch((e: unknown) => {
         if (e instanceof ApiError && e.status === 401) {
+          clearToken();
           router.replace("/");
           return;
         }

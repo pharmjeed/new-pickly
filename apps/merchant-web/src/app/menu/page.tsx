@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
-import { ApiError, apiGet, apiPost, sar } from "@/lib/api";
+import {clearToken,  ApiError, apiGet, apiPost, sar } from "@/lib/api";
 import s from "./menu.module.css";
 
 type Branch = { id: string; name_ar: string; branch_code: string; status: string };
@@ -28,7 +28,8 @@ export default function MenuPage() {
   const onApiError = useCallback(
     (e: unknown) => {
       if (e instanceof ApiError && e.status === 401) {
-        router.replace("/");
+        clearToken();
+          router.replace("/");
         return;
       }
       setError((e as Error).message);

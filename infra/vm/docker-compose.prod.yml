@@ -7,6 +7,8 @@ x-env: &app-env
   DATABASE_URL: postgresql://pickly:${DB_PASSWORD:-pickly_demo_2026}@postgres:5432/pickly
   REDIS_URL: redis://redis:6379
   JWT_SECRET: ${JWT_SECRET:-demo-secret-change-me-please}
+  # مهلة طويلة للعرض حتى لا تنتهي الجلسة أثناء الاستخدام (الإنتاج يقصّرها ويضيف refresh)
+  JWT_ACCESS_TTL: 12h
   SMS_PROVIDER: mock
   PAYMENT_PROVIDER: mock
   PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-demo-webhook-secret}

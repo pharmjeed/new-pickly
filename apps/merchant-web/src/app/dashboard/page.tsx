@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
-import { ApiError, apiGet, minSec, sar } from "@/lib/api";
+import {clearToken,  ApiError, apiGet, minSec, sar } from "@/lib/api";
 import s from "./dashboard.module.css";
 
 type Dashboard = {
@@ -43,6 +43,7 @@ export default function DashboardPage() {
       } catch (e) {
         if (!alive) return;
         if (e instanceof ApiError && e.status === 401) {
+          clearToken();
           router.replace("/");
           return;
         }

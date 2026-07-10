@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
-import { ApiError, apiGet } from "@/lib/api";
+import {clearToken,  ApiError, apiGet } from "@/lib/api";
 import s from "./staff.module.css";
 
 type Staff = {
@@ -47,6 +47,7 @@ export default function StaffPage() {
       .then(setStaff)
       .catch((e: unknown) => {
         if (e instanceof ApiError && e.status === 401) {
+          clearToken();
           router.replace("/");
           return;
         }
