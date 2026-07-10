@@ -10,12 +10,20 @@ const { handleNoShowCheck, handleNoShowReminder } = await import("./handlers/no-
 const { startSettlementScheduler } = await import("./handlers/settlements.js");
 const { startMaintenanceLoop } = await import("./handlers/maintenance.js");
 const { publishToRealtime } = await import("./handlers/realtime-publisher.js");
+const { writeCustomerNotifications } = await import("./handlers/notifications.js");
+const { handleScheduledSlotEntry, handleScheduledReminder, handleScheduledExpire } = await import(
+  "./handlers/scheduled.js"
+);
 const { registerEventHandler } = await import("./outbox-publisher.js");
 
 registerEventHandler(publishToRealtime);
+registerEventHandler(writeCustomerNotifications);
 registerJobHandler("accept_timeout", handleAcceptTimeout);
 registerJobHandler("no_show_reminder", handleNoShowReminder);
 registerJobHandler("no_show_check", handleNoShowCheck);
+registerJobHandler("scheduled_slot_entry", handleScheduledSlotEntry);
+registerJobHandler("scheduled_reminder", handleScheduledReminder);
+registerJobHandler("scheduled_expire", handleScheduledExpire);
 const stopRefunds = startRefundProcessor();
 const stopSettlements = startSettlementScheduler();
 const stopMaintenance = startMaintenanceLoop();

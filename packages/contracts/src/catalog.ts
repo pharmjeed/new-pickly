@@ -73,3 +73,45 @@ export const NearbyQuerySchema = z.object({
   lng: z.coerce.number(),
   radius: z.coerce.number().int().min(100).max(50_000).default(10_000)
 });
+
+/** GET /v1/search — بحث C-11/C-12 (FR-C02، docs/11§2) */
+export const SearchQuerySchema = z.object({
+  q: z.string().trim().min(1).max(80),
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional()
+});
+
+export const SearchProductHitSchema = z.object({
+  id: UuidSchema,
+  branch_id: UuidSchema,
+  brand_name_ar: z.string(),
+  name_ar: z.string(),
+  price_halalas: HalalaSchema,
+  image_url: z.string().nullable()
+});
+
+export const SearchResponseSchema = z.object({
+  branches: z.array(BranchCardSchema),
+  products: z.array(SearchProductHitSchema)
+});
+export type SearchResponse = z.infer<typeof SearchResponseSchema>;
+
+/** GET /v1/branches/:id/slots — فترات BR-5 المتاحة بسعتها */
+export const CapacitySlotSchema = z.object({
+  id: UuidSchema,
+  slot_start: z.string().datetime(),
+  slot_end: z.string().datetime(),
+  capacity: z.number().int(),
+  booked: z.number().int(),
+  remaining: z.number().int()
+});
+export type CapacitySlot = z.infer<typeof CapacitySlotSchema>;
+
+/** GET /v1/content/banners — بانرات CMS (A-13) */
+export const ContentBannerSchema = z.object({
+  title_ar: z.string(),
+  body_ar: z.string().nullable(),
+  image_url: z.string().nullable(),
+  link: z.string().nullable()
+});
+export type ContentBanner = z.infer<typeof ContentBannerSchema>;

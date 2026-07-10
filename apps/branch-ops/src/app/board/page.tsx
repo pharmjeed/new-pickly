@@ -22,6 +22,9 @@ interface Card {
   eta_minutes: number | null;
   accept_deadline_at: string | null;
   arrived_at: string | null;
+  /** FR-C06: asap | later | scheduled — «لاحقاً» يعني تجهيزاً غير موقوت بالوصول */
+  pickup_time: "asap" | "later" | "scheduled";
+  scheduled_slot_start: string | null;
   created_at: string;
 }
 
@@ -312,6 +315,17 @@ export default function BoardPage() {
                     {/* بطاقة السيارة أكبر عنصر — كتاب الهوية §11 */}
                     {c.vehicle_summary && <div className={s.vehicle}>{c.vehicle_summary}</div>}
                     <div className={s.meta}>
+                      {/* وسم وقت الاستلام — BR-5 و«سأتحرك لاحقاً» (FR-C06) */}
+                      {c.pickup_time === "scheduled" && (
+                        <b style={{ color: "var(--pk-warn, #B7791F)" }} data-testid="pickup-tag">
+                          مجدول{c.scheduled_slot_start ? ` ${new Date(c.scheduled_slot_start).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : ""} ·{" "}
+                        </b>
+                      )}
+                      {c.pickup_time === "later" && (
+                        <b style={{ color: "var(--pk-lime-900, #4C7A1C)" }} data-testid="pickup-tag">
+                          سيتحرك لاحقاً — جهّزوا براحتكم ·{" "}
+                        </b>
+                      )}
                       {c.customer_first_name} · <span className={s.mono}>{c.customer_phone_masked}</span> ·{" "}
                       {c.items_count} أصناف · <span className={s.mono}>{sar(c.total_halalas)} SAR</span>
                       {c.eta_minutes !== null && (

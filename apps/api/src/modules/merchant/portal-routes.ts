@@ -656,4 +656,121 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
     ]);
     return { total_today: total, completed_today: completed, rejected_or_noshow: rejected, open_now: open };
   });
+
+  // ===== M-06: إعداد الاستلام المجدول والسعات — BR-5 («فترات بسعة يحددها الفرع») =====
+
+  app.get("/scheduled/settings", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const q = z.object({ branch_id: UuidSchema }).parse(req.query);
+    assertBranchScope(claims, q.branch_id);
+    const settings = await prisma.branchPickupSettings.findUnique({ where: { branch_id: q.branch_id } });
+    return { branch_id: q.branch_id, scheduled_enabled: settings?.scheduled_enabled ?? false };
+  });
+
+  app.post("/scheduled/settings", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const body = z.object({ branch_id: UuidSchema, scheduled_enabled: z.boolean() }).parse(req.body);
+    assertBranchScope(claims, body.branch_id);
+    const merchant_id = merchantIdOf(req);
+    const branch = await prisma.branch.findFirst({ where: { id: body.branch_id, merchant_id } });
+    if (!branch) throw new AppError("MERCHANT-7003");
+
+    await prisma.$transaction(async (tx) => {
+      await tx.branchPickupSettings.upsert({
+        where: { branch_id: body.branch_id },
+        create: { branch_id: body.branch_id, scheduled_enabled: body.scheduled_enabled },
+        update: { scheduled_enabled: body.scheduled_enabled }
+      });
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "scheduled_toggle",
+          entity_type: "branch",
+          entity_id: body.branch_id,
+          merchant_id,
+          branch_id: body.branch_id,
+          after: { scheduled_enabled: body.scheduled_enabled } as never
+        }
+      });
+    });
+    return { ok: true, scheduled_enabled: body.scheduled_enabled };
+  });
+
+  /** فترات السعة القادمة للفرع — تشمل المحجوز لعرض الإشغال */
+  app.get("/scheduled/slots", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const q = z.object({ branch_id: UuidSchema }).parse(req.query);
+    assertBranchScope(claims, q.branch_id);
+    const slots = await prisma.branchCapacitySlot.findMany({
+      where: { branch_id: q.branch_id, slot_start: { gte: new Date() } },
+      orderBy: { slot_start: "asc" },
+      take: 100
+    });
+    return slots.map((s) => ({
+      id: s.id,
+      slot_start: s.slot_start,
+      slot_end: s.slot_end,
+      capacity: s.capacity,
+      booked: s.booked
+    }));
+  });
+
+  /** إنشاء فترات يوم كامل دفعة واحدة — فترات متساوية بسعة موحدة */
+  app.post("/scheduled/slots", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const body = z
+      .object({
+        branch_id: UuidSchema,
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        from_hour: z.number().int().min(0).max(23),
+        to_hour: z.number().int().min(1).max(24),
+        slot_minutes: z.union([z.literal(30), z.literal(60)]).default(30),
+        capacity: z.number().int().min(1).max(200)
+      })
+      .refine((b) => b.to_hour > b.from_hour, { message: "نطاق ساعات غير صالح" })
+      .parse(req.body);
+    assertBranchScope(claims, body.branch_id);
+    const merchant_id = merchantIdOf(req);
+    const branch = await prisma.branch.findFirst({ where: { id: body.branch_id, merchant_id } });
+    if (!branch) throw new AppError("MERCHANT-7003");
+
+    const day = new Date(`${body.date}T00:00:00`);
+    const starts: Date[] = [];
+    for (let h = body.from_hour; h < body.to_hour; h++) {
+      for (let m = 0; m < 60; m += body.slot_minutes) {
+        const start = new Date(day);
+        start.setHours(h, m, 0, 0);
+        if (start > new Date()) starts.push(start);
+      }
+    }
+    // upsert لكل فترة — (branch_id, slot_start) فريد؛ سعة الفترات القائمة تُحدَّث دون مساس بالمحجوز
+    let created = 0;
+    for (const start of starts) {
+      const end = new Date(start.getTime() + body.slot_minutes * 60_000);
+      await prisma.branchCapacitySlot.upsert({
+        where: { branch_id_slot_start: { branch_id: body.branch_id, slot_start: start } },
+        create: { branch_id: body.branch_id, slot_start: start, slot_end: end, capacity: body.capacity },
+        update: { slot_end: end, capacity: body.capacity }
+      });
+      created++;
+    }
+    return { ok: true, slots: created };
+  });
+
+  /** حذف فترة — فقط إن لم يكن عليها حجوزات */
+  app.delete("/scheduled/slots/:id", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const merchant_id = merchantIdOf(req);
+    const slot = await prisma.branchCapacitySlot.findUnique({
+      where: { id },
+      include: { branch: { select: { merchant_id: true } } }
+    });
+    if (!slot || slot.branch.merchant_id !== merchant_id) throw new AppError("MERCHANT-7003");
+    assertBranchScope(claims, slot.branch_id);
+    if (slot.booked > 0) throw new AppError("SYS-9004", { hint: "الفترة عليها حجوزات — لا يمكن حذفها" });
+    await prisma.branchCapacitySlot.delete({ where: { id } });
+    return { ok: true };
+  });
 }

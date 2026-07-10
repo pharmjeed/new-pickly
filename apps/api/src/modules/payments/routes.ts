@@ -112,7 +112,7 @@ async function handlePaymentEvent(
 ): Promise<void> {
   const intent = await prisma.paymentIntent.findFirst({
     where: { provider_ref },
-    include: { order: true }
+    include: { order: { include: { scheduled_slot: true } } }
   });
   if (!intent) throw new AppError("ORDER-4001", { provider_ref });
   if (intent.amount_halalas !== amount_halalas) throw new AppError("PAY-5004");
@@ -153,6 +153,30 @@ async function handlePaymentEvent(
         branch_id: order.branch_id,
         payload: { amount_halalas }
       });
+
+      // BR-5: المجدول المدفوع ينتظر عند ORDER_SUBMITTED — دخول الفترة يحوّله لمسار ASAP
+      const slot = order.scheduled_slot;
+      if (order.pickup_time === "scheduled" && slot && slot.slot_start > new Date()) {
+        await scheduleJob(
+          tx,
+          "scheduled_slot_entry",
+          { order_id: order.id },
+          slot.slot_start,
+          `slot_entry:${order.id}:${slot.slot_start.getTime()}`
+        );
+        // تذكير «حان وقت التوجه» قبل الفترة (J3 — docs/03)
+        const remindAt = new Date(slot.slot_start.getTime() - 15 * 60_000);
+        if (remindAt > new Date()) {
+          await scheduleJob(
+            tx,
+            "scheduled_reminder",
+            { order_id: order.id },
+            remindAt,
+            `scheduled_reminder:${order.id}:${slot.slot_start.getTime()}`
+          );
+        }
+        return;
+      }
 
       // عداد قبول الفرع — BR-1
       const settings = await tx.branchPickupSettings.findUnique({

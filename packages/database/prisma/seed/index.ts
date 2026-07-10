@@ -81,10 +81,14 @@ async function seedSystemDefaults() {
     });
   }
 
-  // أعلام الطيار — المؤجل مطفأ (docs/21§3)
+  // أعلام الخصائص — كل خاصية جديدة قابلة للإيقاف دون نشر (docs/09§76)
+  // مُفعّلة بعد بناء مرحلة 2؛ الإطفاء من لوحة الأدمن (A-23)
   const flags: Array<[string, boolean]> = [
-    ["scheduled_orders", false],
-    ["coupons_full", false],
+    ["scheduled_orders", true], // BR-5 — بُنيت في مرحلة 2
+    ["coupons_full", true], // BR-7 — بُنيت في مرحلة 2
+    ["wallet_payments", true], // Apple Pay/STC Pay عبر البوابة — sandbox حتى B1
+    ["search", true], // C-11/C-12
+    ["support_tickets", true], // C-65/66 + A-15
     ["tips", false],
     ["discovery_map", false],
     ["favorites", false],
@@ -110,7 +114,13 @@ async function seedSystemDefaults() {
     ["handoff_started", "{{staff_name}} في طريقه إليك", "{{staff_name}} في طريقه إليك · يحمل طلبك"],
     ["order_completed", "بالعافية!", "قيّم استلامك بضغطة"],
     ["no_show_reminder", "طلبك بانتظارك", "طلبك جاهز من فترة — إذا تأخرت أكثر قد يُلغى وفق السياسة"],
-    ["gps_failed", "ما قدرنا نحدد موقعك", "اضغط «وصلت» ونكمل عادي"]
+    ["gps_failed", "ما قدرنا نحدد موقعك", "اضغط «وصلت» ونكمل عادي"],
+    ["order_scheduled", "تم حجز موعدك", "طلبك {{display_code}} محجوز لفترة {{slot_start}} — آخر تعديل مجاني قبل ساعة"],
+    ["scheduled_reminder", "حان وقت التوجه", "اقتربت فترة استلام طلبك {{display_code}} — انطلق الآن"],
+    ["scheduled_expired", "انتهت صلاحية الحجز", "ما اكتمل دفع طلبك المجدول {{display_code}} — احجز فترة جديدة متى شئت"],
+    ["later_ready", "طلبك جاهز — تحرك وقت ما يناسبك", "طلبك محفوظ لك، واضغط «أنا في الطريق» وقت ما تتحرك"],
+    ["refund_completed", "تم استرجاع مبلغك", "أعدنا {{amount}} لوسيلة دفعك — قد يستغرق الظهور أياماً قليلة"],
+    ["support_reply", "رد جديد من الدعم", "لديك رد جديد على تذكرتك: {{subject}}"]
   ];
   for (const [key, title_ar, body_ar] of templates) {
     await prisma.notificationTemplate.upsert({
@@ -129,7 +139,10 @@ async function seedSystemDefaults() {
     ["br4.customer_response_minutes", 5],
     ["br8.dual_confirmation_threshold_halalas", 30000],
     ["pickup.eta_thresholds_minutes", [10, 5, 3]],
-    ["retention.location_events_days", 30]
+    ["retention.location_events_days", 30],
+    ["br5.free_change_minutes", 60], // آخر تعديل/إلغاء مجاني قبل الفترة — BR-5
+    ["br5.unpaid_expire_minutes", 30], // مجدول لم يُدفع → EXPIRED (docs/05)
+    ["cms.banners", []] // بانرات CMS (A-13) — تُدار من لوحة الأدمن
   ];
   for (const [key, value] of settings) {
     const existing = await prisma.systemSetting.findFirst({ where: { key } });

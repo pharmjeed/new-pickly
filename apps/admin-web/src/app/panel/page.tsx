@@ -3,8 +3,8 @@
 /**
  * لوحة Super Admin — Modular Panel واحدة (design/admin/panel.html):
  * Sidebar واحد + مساحة محتوى، كل وحدة مكوّن يُبدّل بالتبويب الجانبي.
- * وحدات الطيار: نظرة عامة، التجار، الطلبات، الاسترجاعات، العملاء، التسويات، الصحة، سجل العمليات.
- * المؤجل (مرحلة 2) يظهر معطلاً في الـSidebar.
+ * الوحدات كاملة: نظرة عامة، التجار، الطلبات، الاسترجاعات، العملاء، التسويات،
+ * الصحة، سجل العمليات + مرحلة 2: CMS، العروض، الدعم، المخاطر، Feature Flags.
  */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -17,6 +17,11 @@ import Customers from "@/components/modules/Customers";
 import Settlements from "@/components/modules/Settlements";
 import HealthOps from "@/components/modules/HealthOps";
 import AuditLogs from "@/components/modules/AuditLogs";
+import Cms from "@/components/modules/Cms";
+import Promos from "@/components/modules/Promos";
+import Support from "@/components/modules/Support";
+import Risk from "@/components/modules/Risk";
+import FeatureFlags from "@/components/modules/FeatureFlags";
 import s from "./panel.module.css";
 
 /** شارة بيكلي — كتاب الهوية */
@@ -42,13 +47,15 @@ type ModuleKey =
   | "settlements"
   | "merchants"
   | "customers"
+  | "cms"
+  | "promos"
+  | "support"
   | "audit"
-  | "health";
+  | "risk"
+  | "health"
+  | "flags";
 
-type NavItem =
-  | { gp: string }
-  | { key: ModuleKey; label: string }
-  | { deferred: string; label: string };
+type NavItem = { gp: string } | { key: ModuleKey; label: string };
 
 const NAV: readonly NavItem[] = [
   { gp: "العمليات" },
@@ -60,15 +67,15 @@ const NAV: readonly NavItem[] = [
   { key: "merchants", label: "التجار" },
   { gp: "العملاء والمحتوى" },
   { key: "customers", label: "العملاء" },
-  { deferred: "cms", label: "CMS" },
-  { deferred: "promos", label: "العروض" },
-  { deferred: "support", label: "الدعم" },
+  { key: "cms", label: "CMS" },
+  { key: "promos", label: "العروض" },
+  { key: "support", label: "الدعم" },
   { gp: "الحوكمة" },
   { key: "audit", label: "سجل العمليات" },
-  { deferred: "risk", label: "المخاطر الآلي" },
+  { key: "risk", label: "المخاطر الآلي" },
   { gp: "التقنية" },
   { key: "health", label: "صحة النظام" },
-  { deferred: "flags", label: "Feature Flags" }
+  { key: "flags", label: "Feature Flags" }
 ];
 
 const MODULES: Record<ModuleKey, { title: string; crumb: string; render: () => React.ReactNode }> = {
@@ -111,6 +118,31 @@ const MODULES: Record<ModuleKey, { title: string; crumb: string; render: () => R
     title: "سجل العمليات",
     crumb: "قابل للإلحاق فقط — لا حذف من الواجهة (FR-A12)",
     render: () => <AuditLogs />
+  },
+  cms: {
+    title: "CMS",
+    crumb: "بانرات التطبيق وقوالب الإشعارات (A-13) — التعديل بسبب يدخل التدقيق",
+    render: () => <Cms />
+  },
+  promos: {
+    title: "العروض والكوبونات",
+    crumb: "تكلفة العرض تُنسب لطرفها (BR-7) — التحقق والخصم خادميان",
+    render: () => <Promos />
+  },
+  support: {
+    title: "الدعم",
+    crumb: "تذاكر ببيانات الطلب مدمجة (A-15) — الرد يصل صندوق العميل",
+    render: () => <Support />
+  },
+  risk: {
+    title: "المخاطر",
+    crumb: "إشارات docs/17§6 بدرجة وسبب — القرار اليدوي يبث risk.alert_raised",
+    render: () => <Risk />
+  },
+  flags: {
+    title: "Feature Flags",
+    crumb: "كل خاصية قابلة للإيقاف دون نشر (A-23) — التبديل بسبب يدخل التدقيق",
+    render: () => <FeatureFlags />
   }
 };
 
@@ -169,14 +201,6 @@ export default function AdminPanelPage() {
                   <div key={`gp-${i}`} className={s.gp}>
                     {item.gp}
                   </div>
-                );
-              }
-              if ("deferred" in item) {
-                return (
-                  <span key={item.deferred} className={s.navOff} data-testid={`nav-deferred-${item.deferred}`}>
-                    {item.label}
-                    <span className={s.phase2}>مرحلة 2</span>
-                  </span>
                 );
               }
               return (

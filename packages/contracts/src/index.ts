@@ -12,3 +12,5 @@ export * from "./carts.js";
 export * from "./orders.js";
 export * from "./pickup.js";
 export * from "./merchant.js";
+export * from "./notifications.js";
+export * from "./support.js";

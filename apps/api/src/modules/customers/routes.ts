@@ -1,9 +1,19 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import {
+  CreateTicketBodySchema,
+  CreateTicketMessageBodySchema,
+  UuidSchema,
+  type NotificationListResponse,
+  type SupportTicket as SupportTicketDto,
+  type TicketStatus
+} from "@pickly/contracts";
 import { prisma } from "@pickly/database";
+import { AppError } from "@pickly/observability";
 import { requireAuth, requireCustomer } from "../../lib/auth-plugin.js";
+import { requireFlag } from "../../lib/flags.js";
 
-/** وحدة Customers/Vehicles (نطاق الشريحة): الملف + سيارات العميل */
+/** وحدة Customers: الملف + السيارات + صندوق الإشعارات (C-62) + تذاكر الدعم (C-65/66) */
 export async function customerRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", requireAuth);
 
@@ -76,5 +86,138 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
       plate_short: vehicle.plate_short,
       is_default: body.set_default
     };
+  });
+
+  // ===== صندوق الإشعارات C-62 — docs/15 =====
+
+  app.get("/me/notifications", async (req) => {
+    const claims = requireCustomer(req);
+    const rows = await prisma.notification.findMany({
+      where: { user_id: claims.sub, channel: "inapp" },
+      orderBy: { created_at: "desc" },
+      take: 50,
+      include: { deliveries: { where: { channel: "inapp" } } }
+    });
+    const result: NotificationListResponse = {
+      notifications: rows.map((n) => ({
+        id: n.id,
+        order_id: n.order_id,
+        template_key: n.template_key,
+        title_ar: n.title_ar,
+        body_ar: n.body_ar,
+        read: n.deliveries.some((d) => d.opened_at != null),
+        created_at: n.created_at.toISOString()
+      })),
+      unread_count: rows.filter((n) => !n.deliveries.some((d) => d.opened_at != null)).length
+    };
+    return result;
+  });
+
+  /** تعليم الكل مقروءاً — فتح الصندوق (opened في notification_deliveries) */
+  app.post("/me/notifications/read", async (req) => {
+    const claims = requireCustomer(req);
+    await prisma.notificationDelivery.updateMany({
+      where: {
+        channel: "inapp",
+        opened_at: null,
+        notification: { user_id: claims.sub }
+      },
+      data: { status: "opened", opened_at: new Date() }
+    });
+    return { ok: true };
+  });
+
+  // ===== تذاكر الدعم C-65/C-66 — عزل بمالك التذكرة (user_id) =====
+
+  const ticketDto = (
+    t: { id: string; subject: string; status: string; order_id: string | null; created_at: Date; updated_at: Date },
+    messages?: Array<{ id: string; author: string; body: string; created_at: Date }>
+  ): SupportTicketDto => ({
+    id: t.id,
+    subject: t.subject,
+    status: t.status as TicketStatus,
+    order_id: t.order_id,
+    created_at: t.created_at.toISOString(),
+    updated_at: t.updated_at.toISOString(),
+    ...(messages
+      ? {
+          messages: messages.map((m) => ({
+            id: m.id,
+            author: m.author,
+            body: m.body,
+            created_at: m.created_at.toISOString()
+          }))
+        }
+      : {})
+  });
+
+  app.get("/me/support-tickets", async (req) => {
+    const claims = requireCustomer(req);
+    const tickets = await prisma.supportTicket.findMany({
+      where: { user_id: claims.sub },
+      orderBy: { updated_at: "desc" },
+      take: 50
+    });
+    return tickets.map((t) => ticketDto(t));
+  });
+
+  app.get("/me/support-tickets/:id", async (req) => {
+    const claims = requireCustomer(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id },
+      include: { messages: { orderBy: { created_at: "asc" } } }
+    });
+    if (!ticket || ticket.user_id !== claims.sub) throw new AppError("SYS-9004", { hint: "التذكرة غير موجودة" });
+    return ticketDto(ticket, ticket.messages);
+  });
+
+  app.post("/me/support-tickets", async (req) => {
+    await requireFlag("support_tickets");
+    const claims = requireCustomer(req);
+    const body = CreateTicketBodySchema.parse(req.body);
+
+    // التذكرة ببيانات الطلب مدمجة (A-15) — الطلب المرجعي يجب أن يكون للعميل نفسه
+    let merchant_id: string | null = null;
+    if (body.order_id) {
+      const order = await prisma.order.findUnique({ where: { id: body.order_id } });
+      if (!order || order.user_id !== claims.sub) throw new AppError("ORDER-4001");
+      merchant_id = order.merchant_id;
+    }
+
+    const ticket = await prisma.supportTicket.create({
+      data: {
+        user_id: claims.sub,
+        order_id: body.order_id ?? null,
+        merchant_id,
+        subject: body.subject,
+        messages: { create: { author: "customer", author_id: claims.sub, body: body.body } }
+      },
+      include: { messages: true }
+    });
+    return ticketDto(ticket, ticket.messages);
+  });
+
+  app.post("/me/support-tickets/:id/messages", async (req) => {
+    const claims = requireCustomer(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = CreateTicketMessageBodySchema.parse(req.body);
+
+    const ticket = await prisma.supportTicket.findUnique({ where: { id } });
+    if (!ticket || ticket.user_id !== claims.sub) throw new AppError("SYS-9004", { hint: "التذكرة غير موجودة" });
+    if (ticket.status === "closed") throw new AppError("SYS-9004", { hint: "التذكرة مغلقة" });
+
+    await prisma.$transaction([
+      prisma.supportMessage.create({
+        data: { ticket_id: id, author: "customer", author_id: claims.sub, body: body.body }
+      }),
+      prisma.supportTicket.update({ where: { id }, data: { status: "open" } })
+    ]);
+
+    const fresh = await prisma.supportTicket.findUniqueOrThrow({
+      where: { id },
+      include: { messages: { orderBy: { created_at: "asc" } } }
+    });
+    return ticketDto(fresh, fresh.messages);
   });
 }

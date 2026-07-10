@@ -52,16 +52,21 @@ const routes: RouteDef[] = [
   // §2 الاكتشاف
   { method: "get", path: "/v1/branches/nearby", summary: "الفروع القريبة", tags: ["discovery"], query: c.NearbyQuerySchema, response: z.array(c.BranchCardSchema) },
   { method: "get", path: "/v1/branches/{id}/menu", summary: "منيو الفرع", tags: ["discovery"], response: c.MenuSchema },
+  { method: "get", path: "/v1/search", summary: "بحث C-11 — مطاعم ومنتجات", tags: ["discovery"], query: c.SearchQuerySchema, response: c.SearchResponseSchema },
+  { method: "get", path: "/v1/branches/{id}/slots", summary: "فترات BR-5 المتاحة بسعتها", tags: ["discovery"], response: z.array(c.CapacitySlotSchema) },
+  { method: "get", path: "/v1/content/banners", summary: "بانرات CMS (A-13)", tags: ["discovery"], response: z.array(c.ContentBannerSchema) },
   // §3 السلة
   { method: "post", path: "/v1/carts", summary: "إنشاء سلة", tags: ["carts"], auth: true, body: c.CreateCartBodySchema, response: c.CartSchema },
   { method: "get", path: "/v1/carts/{id}", summary: "قراءة السلة", tags: ["carts"], auth: true, response: c.CartSchema },
   { method: "post", path: "/v1/carts/{id}/items", summary: "إضافة عنصر", tags: ["carts"], auth: true, body: c.CartItemInputSchema, response: c.CartSchema },
-  { method: "post", path: "/v1/carts/{id}/coupon", summary: "تطبيق كوبون", tags: ["carts"], auth: true, body: c.ApplyCouponBodySchema, response: c.CartSchema },
+  { method: "post", path: "/v1/carts/{id}/coupon", summary: "تطبيق كوبون (BR-7 — التحقق والخصم خادميان)", tags: ["carts"], auth: true, body: c.ApplyCouponBodySchema, response: c.CartSchema },
+  { method: "delete", path: "/v1/carts/{id}/coupon", summary: "إزالة الكوبون", tags: ["carts"], auth: true, response: c.CartSchema },
   { method: "post", path: "/v1/carts/{id}/quote", summary: "تسعير خادمي (المصدر الوحيد للسعر)", tags: ["carts"], auth: true, response: c.CartSchema },
   // §4 الطلب والدفع
-  { method: "post", path: "/v1/orders", summary: "إنشاء طلب", tags: ["orders"], auth: true, idempotent: true, body: c.CreateOrderBodySchema, response: c.OrderSchema },
+  { method: "post", path: "/v1/orders", summary: "إنشاء طلب — pickup_time: asap|later|scheduled (+slot_id للمجدول)", tags: ["orders"], auth: true, idempotent: true, body: c.CreateOrderBodySchema, response: c.OrderSchema },
   { method: "get", path: "/v1/orders/{id}", summary: "قراءة طلب", tags: ["orders"], auth: true, response: c.OrderSchema },
-  { method: "post", path: "/v1/orders/{id}/payment-intent", summary: "إنشاء Payment Intent", tags: ["orders"], auth: true, idempotent: true, response: c.PaymentIntentResponseSchema },
+  { method: "post", path: "/v1/orders/{id}/payment-intent", summary: "إنشاء Payment Intent (method: card|wallet)", tags: ["orders"], auth: true, idempotent: true, body: c.CreatePaymentIntentBodySchema, response: c.PaymentIntentResponseSchema },
+  { method: "post", path: "/v1/orders/{id}/reschedule", summary: "تعديل فترة المجدول قبل مهلة التعديل المجاني (BR-5)", tags: ["orders"], auth: true, idempotent: true, body: c.RescheduleOrderBodySchema, response: c.OrderSchema },
   { method: "post", path: "/v1/orders/{id}/cancel", summary: "طلب إلغاء", tags: ["orders"], auth: true, idempotent: true, body: c.CancelOrderBodySchema, response: c.OrderSchema },
   { method: "post", path: "/v1/orders/{id}/change-response", summary: "رد العميل على تعديل الفرع (BR-4)", tags: ["orders"], auth: true, body: c.ChangeResponseBodySchema, response: c.OrderSchema },
   // §5 الاستلام
@@ -82,6 +87,13 @@ const routes: RouteDef[] = [
   { method: "post", path: "/v1/merchant/orders/{id}/item-issue", summary: "نقص منتج (BR-4)", tags: ["merchant"], auth: true, body: c.ItemIssueBodySchema },
   { method: "get", path: "/v1/merchant/arrival-queue", summary: "طابور الوصول", tags: ["merchant"], auth: true, response: z.array(c.ArrivalQueueEntrySchema) },
   { method: "post", path: "/v1/merchant/branches/{id}/busy-mode", summary: "وضع الازدحام (BR-10)", tags: ["merchant"], auth: true, body: c.BusyModeBodySchema },
+  // §7 العميل — الإشعارات والدعم (مرحلة 2)
+  { method: "get", path: "/v1/customers/me/notifications", summary: "صندوق الإشعارات C-62", tags: ["customers"], auth: true, response: c.NotificationListResponseSchema },
+  { method: "post", path: "/v1/customers/me/notifications/read", summary: "تعليم الكل مقروءاً", tags: ["customers"], auth: true },
+  { method: "get", path: "/v1/customers/me/support-tickets", summary: "تذاكري", tags: ["support"], auth: true, response: z.array(c.SupportTicketSchema) },
+  { method: "post", path: "/v1/customers/me/support-tickets", summary: "فتح تذكرة دعم C-65", tags: ["support"], auth: true, body: c.CreateTicketBodySchema, response: c.SupportTicketSchema },
+  { method: "get", path: "/v1/customers/me/support-tickets/{id}", summary: "تذكرة برسائلها", tags: ["support"], auth: true, response: c.SupportTicketSchema },
+  { method: "post", path: "/v1/customers/me/support-tickets/{id}/messages", summary: "رسالة على التذكرة", tags: ["support"], auth: true, body: c.CreateTicketMessageBodySchema, response: c.SupportTicketSchema },
   // §8 Webhooks
   { method: "post", path: "/v1/webhooks/payments/{provider}", summary: "Webhook دفع — توقيع إلزامي + تخزين خام + idempotent", tags: ["webhooks"] }
 ];

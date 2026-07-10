@@ -311,10 +311,11 @@ export default function HomePage() {
             <br />
             <span className="lm">الباقي علينا.</span>
           </h2>
-          <p className="ctasub">انضم لقائمة الانتظار وكن أول من يجرب بيكلي في مدينتك.</p>
+          <p className="ctasub">اطلب من متصفحك الآن — وتطبيق الجوال في طريقه للمتاجر.</p>
           <div className="cta-btns">
-            <a className="btn" href="#join" title="التطبيق قريباً — لا متاجر بعد">
-              سجّل اهتمامك — عميل
+            {/* تطبيق الويب يعمل الآن — متاجر التطبيقات تُضاف عند نشر تطبيق Expo */}
+            <a className="btn" href={process.env.NEXT_PUBLIC_CUSTOMER_APP_URL ?? "https://app.pickly.sa"}>
+              اطلب الآن — عميل
             </a>
             <Link className="btn btn-lime-line" href="/merchants">
               سجّل متجرك

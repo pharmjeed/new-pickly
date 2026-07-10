@@ -50,6 +50,9 @@ export const ERROR_CODES = {
   "ORDER-4003": { ar: "لا يمكن إلغاء الطلب في حالته الحالية", en: "Order cannot be cancelled in its current state", status: 409 },
   "ORDER-4004": { ar: "مهلة رد الفرع انتهت", en: "Merchant response window elapsed", status: 409 },
   "ORDER-4005": { ar: "الطلب بانتظار ردك على تعديل الفرع", en: "Order awaits your response to a merchant change", status: 409 },
+  "ORDER-4006": { ar: "الفترة المختارة ممتلئة أو غير متاحة — اختر فترة أخرى", en: "Selected slot is full or unavailable — pick another", status: 409 },
+  "ORDER-4007": { ar: "الجدولة غير متاحة لهذا الفرع حالياً", en: "Scheduling is not available for this branch", status: 409 },
+  "ORDER-4008": { ar: "انتهت مهلة التعديل المجاني لهذا الطلب المجدول", en: "Free-change window for this scheduled order has passed", status: 409 },
 
   // PAY-5xxx
   "PAY-5001": { ar: "ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ", en: "Payment failed. Try another card — your order is saved", status: 402 },

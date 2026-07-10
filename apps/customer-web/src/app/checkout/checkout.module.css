@@ -41,12 +41,26 @@
 /* ===== البطاقات ===== */
 .card { background: var(--pk-surface); border: 1px solid var(--pk-border); border-radius: var(--pk-radius-lg); padding: 16px; }
 
-/* بطاقة خيار (وقت / دفع) */
+/* بطاقة خيار (وقت / دفع) — تعمل زراً قابلاً للاختيار (FR-C06) */
 .optCard {
   background: var(--pk-surface); border: 1px solid var(--pk-border);
   border-radius: var(--pk-radius-lg); padding: 13px 14px;
   display: flex; gap: 12px; align-items: center;
+  width: 100%; text-align: start; cursor: pointer;
+  font-family: var(--pk-font-body); font-size: inherit; color: inherit;
 }
+
+/* فترات BR-5 */
+.slotsWrap { display: flex; flex-direction: column; gap: 8px; }
+.slotsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; }
+.slotChip {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--pk-surface); border: 1.5px solid var(--pk-border);
+  border-radius: 12px; padding: 9px 8px; cursor: pointer;
+  font-family: var(--pk-font-body); font-size: var(--pk-fs-13); color: var(--pk-text);
+}
+.slotChip small { color: var(--pk-text-2); font-size: var(--pk-fs-12); }
+.slotChipSel { border-color: var(--pk-lime-900); background: var(--pk-lime-100); font-weight: 700; }
 .optCardSel { border: 2px solid var(--pk-ink-900); }
 .optCardDis { opacity: 0.55; }
 .optBody { flex: 1; min-width: 0; }

@@ -4,12 +4,17 @@ import { OrderStateSchema } from "./order-states.js";
 
 /** docs/11§4 — الطلب والدفع */
 
+/** FR-C06: أقرب وقت / «سأتحرك لاحقاً» / مجدول بفترات وسعة (BR-5) */
+export const PickupTimeSchema = z.enum(["asap", "later", "scheduled"]);
+export type PickupTime = z.infer<typeof PickupTimeSchema>;
+
 export const CreateOrderBodySchema = z.object({
   cart_id: UuidSchema,
   quote_id: UuidSchema,
   vehicle_id: UuidSchema,
-  /** الطيار ASAP فقط — المجدول مرحلة 2 (docs/21§3) */
-  pickup_time: z.literal("asap").default("asap"),
+  pickup_time: PickupTimeSchema.default("asap"),
+  /** إلزامي عند pickup_time=scheduled — فترة من GET /v1/branches/:id/slots */
+  slot_id: UuidSchema.optional(),
   parking_pref: z.enum(["numbered_spot", "front_of_entrance", "unknown"]).default("unknown"),
   notes: z.string().max(280).optional()
 });
@@ -53,6 +58,15 @@ export const OrderSchema = z.object({
   /** رمز التسليم — يظهر للعميل فقط بعد ARRIVED أو عند الجاهزية حسب الحالة */
   handoff_code: z.string().nullable(),
   prep_minutes: z.number().int().nullable(),
+  pickup_time: PickupTimeSchema,
+  /** فترة BR-5 المحجوزة — null لغير المجدول */
+  scheduled_slot: z
+    .object({
+      slot_start: z.string().datetime(),
+      slot_end: z.string().datetime(),
+      free_change_until: z.string().datetime()
+    })
+    .nullable(),
   created_at: z.string().datetime()
 });
 export type Order = z.infer<typeof OrderSchema>;
@@ -67,6 +81,17 @@ export const ChangeResponseBodySchema = z.object({
   change_request_id: UuidSchema,
   decision: z.enum(["accept_substitute", "remove_item", "cancel"])
 });
+
+/** تعديل فترة المجدول قبل free_change_until — BR-5 */
+export const RescheduleOrderBodySchema = z.object({
+  slot_id: UuidSchema
+});
+
+/** وسيلة الدفع C-33 — بطاقة أو محفظة (Apple Pay/STC Pay عبر البوابة، docs/13§2) */
+export const CreatePaymentIntentBodySchema = z.object({
+  method: z.enum(["card", "wallet"]).default("card")
+});
+export type CreatePaymentIntentBody = z.infer<typeof CreatePaymentIntentBodySchema>;
 
 export const PaymentIntentResponseSchema = z.object({
   intent_id: UuidSchema,

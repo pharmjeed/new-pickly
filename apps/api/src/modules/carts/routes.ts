@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { CartItemInputSchema, CreateCartBodySchema, UuidSchema } from "@pickly/contracts";
+import { ApplyCouponBodySchema, CartItemInputSchema, CreateCartBodySchema, UuidSchema } from "@pickly/contracts";
 import { requireAuth, requireCustomer } from "../../lib/auth-plugin.js";
 import { CartService } from "./service.js";
 
@@ -37,5 +37,19 @@ export async function cartRoutes(app: FastifyInstance): Promise<void> {
     const claims = requireCustomer(req);
     const id = UuidSchema.parse((req.params as { id: string }).id);
     return service.quote(id, claims.sub);
+  });
+
+  /** BR-7: تطبيق كوبون — التحقق والخصم خادميان حصراً */
+  app.post("/:id/coupon", async (req) => {
+    const claims = requireCustomer(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = ApplyCouponBodySchema.parse(req.body);
+    return service.applyCoupon(id, claims.sub, body.code);
+  });
+
+  app.delete("/:id/coupon", async (req) => {
+    const claims = requireCustomer(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    return service.removeCoupon(id, claims.sub);
   });
 }

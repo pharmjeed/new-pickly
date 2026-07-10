@@ -3,6 +3,8 @@ import {
   CancelOrderBodySchema,
   ChangeResponseBodySchema,
   CreateOrderBodySchema,
+  CreatePaymentIntentBodySchema,
+  RescheduleOrderBodySchema,
   UuidSchema
 } from "@pickly/contracts";
 import { idempotencyKeyOf, requireAuth, requireCustomer } from "../../lib/auth-plugin.js";
@@ -30,7 +32,17 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     const claims = requireCustomer(req);
     const key = idempotencyKeyOf(req);
     const id = UuidSchema.parse((req.params as { id: string }).id);
-    return service.createPaymentIntent(id, claims.sub, key);
+    const body = CreatePaymentIntentBodySchema.parse(req.body ?? {});
+    return service.createPaymentIntent(id, claims.sub, key, body.method);
+  });
+
+  /** تعديل فترة المجدول قبل مهلة التعديل المجاني — BR-5 */
+  app.post("/:id/reschedule", async (req) => {
+    const claims = requireCustomer(req);
+    idempotencyKeyOf(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = RescheduleOrderBodySchema.parse(req.body);
+    return service.reschedule(id, claims.sub, body.slot_id);
   });
 
   /** رد العميل على تعديل الفرع — BR-4 */

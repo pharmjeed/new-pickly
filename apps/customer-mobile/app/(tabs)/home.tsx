@@ -1,13 +1,14 @@
 /**
- * P3 · C-09: الرئيسية — الفروع القريبة عبر GET /v1/branches/nearby.
+ * P3 · C-09: الرئيسية — الفروع القريبة عبر GET /v1/branches/nearby
+ * + بحث C-11/C-12 عبر GET /v1/search (مطاعم ومنتجات).
  * الموقع عبر expo-location مع سقوط للرياض 24.7/46.68 (الموقع تحسين لا شرط — docs/14§8).
  */
-import { useEffect, useState } from "react";
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Location from "expo-location";
-import { api } from "../../src/api";
+import { api, fmtSar } from "../../src/api";
 import { Badge, ErrorNote, Loader, type BadgeTone } from "../../src/ui";
 import { colors, fs, light, radius, shadow1 } from "../../src/theme";
 
@@ -19,6 +20,17 @@ interface BranchCard {
   eta_minutes: number | null;
   address_short: string;
   busy_message: string | null;
+}
+
+interface SearchResults {
+  branches: BranchCard[];
+  products: Array<{
+    id: string;
+    branch_id: string;
+    brand_name_ar: string;
+    name_ar: string;
+    price_halalas: number;
+  }>;
 }
 
 const RIYADH = { lat: 24.7, lng: 46.68 };
@@ -47,12 +59,17 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [locLabel, setLocLabel] = useState("الرياض");
   const [refreshing, setRefreshing] = useState(false);
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<SearchResults | null>(null);
+  const coordsRef = useRef(RIYADH);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = async () => {
     setError(null);
     try {
       const c = await currentCoords();
       setLocLabel(c.label);
+      coordsRef.current = { lat: c.lat, lng: c.lng };
       const list = await api<BranchCard[]>(
         "GET",
         `/v1/branches/nearby?lat=${c.lat}&lng=${c.lng}&radius=30000`
@@ -68,6 +85,25 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // بحث C-11 بتهدئة 300ms — النتائج من الخادم حصراً
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const term = q.trim();
+    if (term.length < 2) {
+      setResults(null);
+      return;
+    }
+    searchTimer.current = setTimeout(() => {
+      const { lat, lng } = coordsRef.current;
+      api<SearchResults>("GET", `/v1/search?q=${encodeURIComponent(term)}&lat=${lat}&lng=${lng}`)
+        .then(setResults)
+        .catch(() => setResults(null));
+    }, 300);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [q]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await load();
@@ -76,25 +112,87 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={st.screen} edges={["top"]}>
-      {/* رأس الرئيسية: موقع الاستلام */}
+      {/* رأس الرئيسية: موقع الاستلام + بحث C-11 */}
       <View style={st.head}>
         <Text style={st.locLb}>الاستلام قرب</Text>
         <Text style={st.locVal}>{locLabel}</Text>
-        {/* البحث مؤجل عن نطاق الطيار (docs/21§3) — شكلياً معطل */}
         <View style={st.search}>
-          <Text style={st.searchTxt}>ابحث عن مطعم، منتج، تصنيف…</Text>
-          <Badge label="قريباً" tone="soft" />
+          <TextInput
+            style={st.searchInp}
+            placeholder="ابحث عن مطعم، منتج، تصنيف…"
+            placeholderTextColor={light.text2}
+            value={q}
+            onChangeText={setQ}
+            returnKeyType="search"
+          />
+          {q.length > 0 && (
+            <Pressable onPress={() => setQ("")} accessibilityRole="button" style={{ padding: 6 }}>
+              <Text style={{ color: light.text2, fontSize: fs.fs14 }}>✕</Text>
+            </Pressable>
+          )}
         </View>
       </View>
 
-      {error && (
+      {/* نتائج البحث C-12 — تحل محل القائمة أثناء البحث */}
+      {results && (
+        <FlatList
+          data={[
+            ...results.branches.map((b) => ({ kind: "branch" as const, b })),
+            ...results.products.map((p) => ({ kind: "product" as const, p }))
+          ]}
+          keyExtractor={(item) => (item.kind === "branch" ? `b-${item.b.id}` : `p-${item.p.id}`)}
+          contentContainerStyle={st.list}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <View style={st.empty}>
+              <Text style={st.emptyTitle}>لا نتائج لـ«{q.trim()}»</Text>
+              <Text style={st.emptyTxt}>جرّب كلمة أخرى</Text>
+            </View>
+          }
+          renderItem={({ item }) =>
+            item.kind === "branch" ? (
+              <Pressable
+                style={st.card}
+                onPress={() => router.push(`/restaurant/${item.b.id}` as never)}
+                accessibilityRole="button"
+              >
+                <View style={st.cardTop}>
+                  <Text style={st.cardName} numberOfLines={1}>
+                    {item.b.brand_name_ar}
+                    {item.b.address_short ? ` — ${item.b.address_short}` : ""}
+                  </Text>
+                  <Badge label="مطعم" tone="lime" />
+                </View>
+                {item.b.distance_meters !== null && (
+                  <Text style={st.meta}>{(item.b.distance_meters / 1000).toFixed(1)} كم</Text>
+                )}
+              </Pressable>
+            ) : (
+              <Pressable
+                style={st.card}
+                onPress={() => router.push(`/restaurant/${item.p.branch_id}` as never)}
+                accessibilityRole="button"
+              >
+                <View style={st.cardTop}>
+                  <Text style={st.cardName} numberOfLines={1}>
+                    {item.p.name_ar} · {item.p.brand_name_ar}
+                  </Text>
+                  <Text style={st.meta}>{fmtSar(item.p.price_halalas)}</Text>
+                </View>
+              </Pressable>
+            )
+          }
+        />
+      )}
+
+      {error && !results && (
         <View style={{ paddingHorizontal: 16 }}>
           <ErrorNote text={error} />
         </View>
       )}
-      {!branches && !error && <Loader />}
+      {!branches && !error && !results && <Loader />}
 
-      {branches && (
+      {branches && !results && (
         <FlatList
           data={branches}
           keyExtractor={(b) => b.id}
@@ -162,10 +260,9 @@ const st = StyleSheet.create({
     paddingHorizontal: 12,
     flexDirection: "row-reverse",
     alignItems: "center",
-    justifyContent: "space-between",
-    opacity: 0.7
+    justifyContent: "space-between"
   },
-  searchTxt: { color: light.text2, fontSize: fs.fs14 },
+  searchInp: { flex: 1, color: light.text, fontSize: fs.fs14, textAlign: "right", paddingVertical: 8 },
   list: { padding: 16, gap: 10, paddingBottom: 24 },
   section: { color: light.text, fontSize: fs.fs20, fontWeight: "900", textAlign: "right", marginBottom: 4 },
   empty: { alignItems: "center", paddingVertical: 48, gap: 6 },

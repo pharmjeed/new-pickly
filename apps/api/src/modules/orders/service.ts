@@ -1,27 +1,46 @@
 import { prisma, type Prisma } from "@pickly/database";
-import type { CreateOrderBody, Order as OrderDto, OrderState } from "@pickly/contracts";
+import type { CreateOrderBody, Order as OrderDto, OrderState, PickupTime } from "@pickly/contracts";
 import { CUSTOMER_DISPLAY_MAP } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
 import { createPaymentAdapter } from "@pickly/payments";
 import { generateDisplayCode, handoffCodeFor } from "../../lib/codes.js";
-import { emitEvent } from "../../lib/events.js";
+import { emitEvent, scheduleJob } from "../../lib/events.js";
+import { requireFlag } from "../../lib/flags.js";
 import { transitionOrder } from "../../lib/state-machine.js";
 
-/** وحدة Orders — رحلة J1 (docs/03) على آلة docs/05 وقواعد docs/06 */
+/** وحدة Orders — رحلة J1 (docs/03) على آلة docs/05 وقواعد docs/06 + J3 المجدول (BR-5) */
 
 const DUAL_CONFIRMATION_THRESHOLD_HALALAS = 30_000; // BR-8: ≥300 ر.س
+const FREE_CHANGE_MINUTES_DEFAULT = 60; // BR-5 — قابل للضبط br5.free_change_minutes
+const UNPAID_EXPIRE_MINUTES_DEFAULT = 30; // مجدول لم يُدفع → EXPIRED
 
 export const payments = createPaymentAdapter();
 
 type OrderWithItems = Prisma.OrderGetPayload<{
-  include: { items: { include: { modifiers: true } }; vehicle: true; branch: { include: { brand: true } } };
+  include: {
+    items: { include: { modifiers: true } };
+    vehicle: true;
+    branch: { include: { brand: true } };
+    scheduled_slot: true;
+  };
 }>;
 
 const orderInclude = {
   items: { include: { modifiers: true } },
   vehicle: true,
-  branch: { include: { brand: true } }
+  branch: { include: { brand: true } },
+  scheduled_slot: true
 } as const;
+
+/** قيمة إعداد رقمي من system_settings — أحدث قيمة سارية */
+async function numericSetting(key: string, fallback: number): Promise<number> {
+  const row = await prisma.systemSetting.findFirst({
+    where: { key, effective_at: { lte: new Date() } },
+    orderBy: { effective_at: "desc" }
+  });
+  const v = Number(row?.value);
+  return Number.isFinite(v) ? v : fallback;
+}
 
 /** رمز التسليم يظهر للعميل من الجاهزية حتى الاكتمال */
 const CODE_VISIBLE_STATES: OrderState[] = [
@@ -69,6 +88,14 @@ export function toOrderDto(o: OrderWithItems): OrderDto {
       : null,
     handoff_code: CODE_VISIBLE_STATES.includes(status) ? handoffCodeFor(o.id) : null,
     prep_minutes: o.prep_minutes,
+    pickup_time: o.pickup_time as PickupTime,
+    scheduled_slot: o.scheduled_slot
+      ? {
+          slot_start: o.scheduled_slot.slot_start.toISOString(),
+          slot_end: o.scheduled_slot.slot_end.toISOString(),
+          free_change_until: o.scheduled_slot.free_change_until.toISOString()
+        }
+      : null,
     created_at: o.created_at.toISOString()
   };
 }
@@ -102,6 +129,22 @@ export class OrderService {
     if (cart.branch.status === "closed") throw new AppError("CATALOG-2002");
     if (cart.branch.status === "paused") throw new AppError("CATALOG-2004");
 
+    // ===== BR-5: التحقق من الجدولة قبل فتح المعاملة =====
+    let freeChangeMinutes = FREE_CHANGE_MINUTES_DEFAULT;
+    if (body.pickup_time === "scheduled") {
+      await requireFlag("scheduled_orders");
+      if (!body.slot_id) throw new AppError("SYS-9004", { field: "slot_id", hint: "الفترة مطلوبة للطلب المجدول" });
+      const settings = await prisma.branchPickupSettings.findUnique({
+        where: { branch_id: cart.branch_id }
+      });
+      if (!settings?.scheduled_enabled) throw new AppError("ORDER-4007");
+      freeChangeMinutes = await numericSetting("br5.free_change_minutes", FREE_CHANGE_MINUTES_DEFAULT);
+    }
+    const unpaidExpireMinutes = await numericSetting(
+      "br5.unpaid_expire_minutes",
+      UNPAID_EXPIRE_MINUTES_DEFAULT
+    );
+
     const vehicle_summary = [vehicle.model_ar ?? vehicle.make_ar, vehicle.color_ar, vehicle.plate_short]
       .filter(Boolean)
       .join(" · ");
@@ -131,10 +174,54 @@ export class OrderService {
           vehicle_summary,
           handoff_code_hash: "hmac-derived", // الرمز مشتق HMAC من order_id — lib/codes.ts
           requires_dual_confirmation: quote.total_halalas >= DUAL_CONFIRMATION_THRESHOLD_HALALAS,
+          pickup_time: body.pickup_time,
+          ...(cart.coupon_id && quote.discount_halalas > 0 ? { coupon_id: cart.coupon_id } : {}),
           ...(body.notes ? { customer_notes: body.notes } : {}),
           idempotency_key
         }
       });
+
+      // BR-5: حجز السعة ذرّياً — booked < capacity شرط في نفس UPDATE (لا سباق)
+      if (body.pickup_time === "scheduled" && body.slot_id) {
+        const bookedCount = await tx.$executeRaw`
+          UPDATE branch_capacity_slots
+          SET booked = booked + 1
+          WHERE id = ${body.slot_id}::uuid
+            AND branch_id = ${cart.branch_id}::uuid
+            AND booked < capacity
+            AND slot_start > now()`;
+        if (bookedCount !== 1) throw new AppError("ORDER-4006");
+
+        const slot = await tx.branchCapacitySlot.findUniqueOrThrow({ where: { id: body.slot_id } });
+        await tx.scheduledPickupSlot.create({
+          data: {
+            order_id: created.id,
+            slot_start: slot.slot_start,
+            slot_end: slot.slot_end,
+            free_change_until: new Date(slot.slot_start.getTime() - freeChangeMinutes * 60_000)
+          }
+        });
+        // مجدول لم يُدفع خلال المهلة → EXPIRED ويُحرَّر الحجز (docs/05)
+        await scheduleJob(
+          tx,
+          "scheduled_expire",
+          { order_id: created.id, slot_id: body.slot_id },
+          new Date(Date.now() + unpaidExpireMinutes * 60_000),
+          `scheduled_expire:${created.id}`
+        );
+      }
+
+      // BR-7: تسجيل استخدام الكوبون — order_id فريد يمنع التكرار
+      if (cart.coupon_id && quote.discount_halalas > 0) {
+        await tx.couponRedemption.create({
+          data: {
+            coupon_id: cart.coupon_id,
+            user_id,
+            order_id: created.id,
+            amount_halalas: quote.discount_halalas
+          }
+        });
+      }
 
       // لقطات العناصر — المنيو يتغير والطلب لا (docs/10§4)
       for (const item of cart.items) {
@@ -182,10 +269,16 @@ export class OrderService {
     return toOrderDto(full);
   }
 
-  /** POST /v1/orders/:id/payment-intent — docs/13§3 */
-  async createPaymentIntent(order_id: string, user_id: string, idempotency_key: string) {
+  /** POST /v1/orders/:id/payment-intent — docs/13§3 (method: بطاقة أو محفظة C-33) */
+  async createPaymentIntent(
+    order_id: string,
+    user_id: string,
+    idempotency_key: string,
+    method: "card" | "wallet" = "card"
+  ) {
     const order = await prisma.order.findUnique({ where: { id: order_id } });
     if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
+    if (method === "wallet") await requireFlag("wallet_payments");
 
     const existingIntent = await prisma.paymentIntent.findUnique({ where: { order_id } });
     if (existingIntent && existingIntent.idempotency_key === idempotency_key) {
@@ -204,7 +297,8 @@ export class OrderService {
       amount_halalas: order.total_halalas,
       currency: "SAR",
       order_ref: order.display_code,
-      idempotency_key
+      idempotency_key,
+      method
     });
 
     const intent = await prisma.$transaction(async (tx) => {
@@ -212,6 +306,7 @@ export class OrderService {
         data: {
           order_id,
           provider: payments.provider,
+          method,
           provider_ref: providerIntent.provider_ref,
           amount_halalas: order.total_halalas,
           status: "requires_payment",
@@ -242,6 +337,67 @@ export class OrderService {
     const order = await prisma.order.findUnique({ where: { id: order_id }, include: orderInclude });
     if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
     return toOrderDto(order);
+  }
+
+  /** تعديل فترة المجدول — مجاني قبل free_change_until (BR-5) */
+  async reschedule(order_id: string, user_id: string, slot_id: string): Promise<OrderDto> {
+    const order = await prisma.order.findUnique({
+      where: { id: order_id },
+      include: { scheduled_slot: true }
+    });
+    if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
+    if (order.pickup_time !== "scheduled" || !order.scheduled_slot) {
+      throw new AppError("SYS-9004", { hint: "الطلب ليس مجدولاً" });
+    }
+    if (new Date() >= order.scheduled_slot.free_change_until) throw new AppError("ORDER-4008");
+    // بعد دخول مسار ASAP لا تعديل
+    if (!["CHECKOUT_PENDING", "PAYMENT_PENDING", "PAYMENT_AUTHORIZED", "ORDER_SUBMITTED"].includes(order.order_status)) {
+      throw new AppError("ORDER-4008");
+    }
+
+    const freeChangeMinutes = await numericSetting("br5.free_change_minutes", FREE_CHANGE_MINUTES_DEFAULT);
+    const oldStart = order.scheduled_slot.slot_start;
+
+    await prisma.$transaction(async (tx) => {
+      const bookedCount = await tx.$executeRaw`
+        UPDATE branch_capacity_slots
+        SET booked = booked + 1
+        WHERE id = ${slot_id}::uuid
+          AND branch_id = ${order.branch_id}::uuid
+          AND booked < capacity
+          AND slot_start > now()`;
+      if (bookedCount !== 1) throw new AppError("ORDER-4006");
+
+      // تحرير الفترة السابقة
+      await tx.$executeRaw`
+        UPDATE branch_capacity_slots
+        SET booked = GREATEST(booked - 1, 0)
+        WHERE branch_id = ${order.branch_id}::uuid AND slot_start = ${oldStart}`;
+
+      const slot = await tx.branchCapacitySlot.findUniqueOrThrow({ where: { id: slot_id } });
+      await tx.scheduledPickupSlot.update({
+        where: { order_id },
+        data: {
+          slot_start: slot.slot_start,
+          slot_end: slot.slot_end,
+          free_change_until: new Date(slot.slot_start.getTime() - freeChangeMinutes * 60_000)
+        }
+      });
+
+      // الطلب المدفوع ينتظر دخول الفترة — جدولة الدخول للموعد الجديد
+      if (order.order_status === "ORDER_SUBMITTED") {
+        await scheduleJob(
+          tx,
+          "scheduled_slot_entry",
+          { order_id },
+          slot.slot_start,
+          `slot_entry:${order_id}:${slot.slot_start.getTime()}`
+        );
+      }
+    });
+
+    const full = await prisma.order.findUniqueOrThrow({ where: { id: order_id }, include: orderInclude });
+    return toOrderDto(full);
   }
 
   /** رد العميل على تعديل الفرع — BR-4: بديل / حذف مع استرجاع جزئي / إلغاء */
@@ -372,6 +528,16 @@ export class OrderService {
           charged_to: "none" // قبل القبول: تحرير كامل — BR-2
         }
       });
+      // BR-5: إلغاء مجدول قبل فترته يحرّر السعة المحجوزة
+      if (order.pickup_time === "scheduled") {
+        const slot = await tx.scheduledPickupSlot.findUnique({ where: { order_id: order.id } });
+        if (slot && slot.slot_start > new Date()) {
+          await tx.$executeRaw`
+            UPDATE branch_capacity_slots
+            SET booked = GREATEST(booked - 1, 0)
+            WHERE branch_id = ${order.branch_id}::uuid AND slot_start = ${slot.slot_start}`;
+        }
+      }
     });
 
     const full = await prisma.order.findUniqueOrThrow({ where: { id: order_id }, include: orderInclude });

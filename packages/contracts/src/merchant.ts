@@ -27,6 +27,9 @@ export const BranchOrderCardSchema = z.object({
   eta_minutes: z.number().int().nullable(),
   accept_deadline_at: z.string().datetime().nullable(), // عداد BR-1
   arrived_at: z.string().datetime().nullable(),
+  /** FR-C06: asap | later | scheduled — «سأتحرك لاحقاً» يعني تجهيزاً غير موقوت بالوصول */
+  pickup_time: z.enum(["asap", "later", "scheduled"]).default("asap"),
+  scheduled_slot_start: z.string().datetime().nullable().default(null),
   created_at: z.string().datetime()
 });
 export type BranchOrderCard = z.infer<typeof BranchOrderCardSchema>;

@@ -1,10 +1,12 @@
 import { prisma, type Prisma } from "@pickly/database";
 import type { Cart as CartDto, CartItemInput } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
+import { requireFlag } from "../../lib/flags.js";
 
 /**
  * وحدة Carts + Pricing — BR-6: التسعير خادمي حصراً (pricing_quotes)،
  * رسم الخدمة مفصول دائماً، الحد الأدنى للطلب من الفرع.
+ * BR-7: الكوبون يُتحقق ويُخصم خادمياً — amount | percent.
  */
 
 const QUOTE_TTL_MS = 10 * 60 * 1000;
@@ -13,6 +15,7 @@ type CartWithRelations = Prisma.CartGetPayload<{
   include: {
     items: { include: { modifiers: { include: { modifier: true } }; product: { include: { availability: true } } } };
     quotes: true;
+    coupon: true;
   };
 }>;
 
@@ -24,7 +27,8 @@ function cartInclude(branch_id: string) {
         product: { include: { availability: { where: { branch_id } } } }
       }
     },
-    quotes: { orderBy: { created_at: "desc" as const }, take: 1 }
+    quotes: { orderBy: { created_at: "desc" as const }, take: 1 },
+    coupon: true
   };
 }
 
@@ -34,7 +38,7 @@ function toDto(cart: CartWithRelations): CartDto {
   return {
     id: cart.id,
     branch_id: cart.branch_id,
-    coupon_code: null, // كوبونات الطيار تُفعَّل لاحقاً (docs/21§3)
+    coupon_code: cart.coupon?.code ?? null,
     items: cart.items.map((i) => {
       const modifiersTotal = i.modifiers.reduce((s, m) => s + m.price_halalas, 0);
       return {
@@ -176,7 +180,16 @@ export class CartService {
     const vatRule = await prisma.taxRule.findUniqueOrThrow({ where: { key: "vat_standard" } });
     const serviceFee = await prisma.fee.findUniqueOrThrow({ where: { key: "pickly_service_fee" } });
 
-    const discount = 0; // كوبون الطيار البسيط يُضاف لاحقاً بعلم feature flag
+    // BR-7: خصم الكوبون على المنتجات فقط — لا يمس رسم الخدمة
+    let discount = 0;
+    let couponBreakdown: Record<string, unknown> | null = null;
+    if (cart.coupon_id) {
+      const coupon = await this.validateCoupon(cart.coupon_id, user_id, cart.branch_id, subtotal);
+      discount = coupon.type === "percent"
+        ? Math.min(subtotal, Math.round((subtotal * coupon.value) / 100))
+        : Math.min(subtotal, coupon.value);
+      couponBreakdown = { code: coupon.code, type: coupon.type, amount_halalas: discount };
+    }
     const service_fee = serviceFee.amount_halalas ?? 0;
     // الضريبة على (المنتجات − الخصم) + رسم الخدمة خاضع للضريبة ضمن فاتورة Pickly
     const vat = Math.round(((subtotal - discount + service_fee) * vatRule.rate_bp) / 10000);
@@ -192,12 +205,78 @@ export class CartService {
         total_halalas: total,
         breakdown: {
           fees: [{ key: serviceFee.key, name_ar: serviceFee.name_ar, amount_halalas: service_fee }],
-          vat_rate_bp: vatRule.rate_bp
-        },
+          vat_rate_bp: vatRule.rate_bp,
+          ...(couponBreakdown ? { coupon: couponBreakdown } : {})
+        } as never,
         expires_at: new Date(Date.now() + QUOTE_TTL_MS)
       }
     });
     void quote;
+    return this.get(cart_id, user_id);
+  }
+
+  /** التحقق الكامل من صلاحية الكوبون — BR-7 (يُعاد عند كل تسعيرة) */
+  private async validateCoupon(coupon_id: string, user_id: string, branch_id: string, subtotal: number) {
+    const coupon = await prisma.coupon.findUnique({ where: { id: coupon_id } });
+    if (!coupon || !coupon.is_active) throw new AppError("CART-3003");
+    if (coupon.type === "free_product") throw new AppError("CART-3003", { hint: "نوع الكوبون غير مدعوم" });
+
+    const now = new Date();
+    if (coupon.starts_at && coupon.starts_at > now) throw new AppError("CART-3003", { hint: "لم يبدأ بعد" });
+    if (coupon.ends_at && coupon.ends_at < now) throw new AppError("CART-3003", { hint: "انتهت صلاحيته" });
+    if (coupon.min_order_halalas && subtotal < coupon.min_order_halalas) {
+      throw new AppError("CART-3003", { hint: "أقل من الحد الأدنى للكوبون", min_order_halalas: coupon.min_order_halalas });
+    }
+
+    // كوبون تاجر محدد — يسري على فروعه فقط (Tenant Scope)
+    if (coupon.merchant_id) {
+      const branch = await prisma.branch.findUniqueOrThrow({ where: { id: branch_id } });
+      if (branch.merchant_id !== coupon.merchant_id) throw new AppError("CART-3003", { hint: "لا يسري على هذا المطعم" });
+    }
+
+    if (coupon.max_uses_total) {
+      const used = await prisma.couponRedemption.count({ where: { coupon_id } });
+      if (used >= coupon.max_uses_total) throw new AppError("CART-3003", { hint: "استُنفدت استخداماته" });
+    }
+    if (coupon.max_uses_per_user) {
+      const usedByUser = await prisma.couponRedemption.count({ where: { coupon_id, user_id } });
+      if (usedByUser >= coupon.max_uses_per_user) throw new AppError("CART-3003", { hint: "استخدمته من قبل" });
+    }
+    if (coupon.new_users_only) {
+      const orders = await prisma.order.count({ where: { user_id, order_status: "COMPLETED" } });
+      if (orders > 0) throw new AppError("CART-3003", { hint: "للعملاء الجدد فقط" });
+    }
+    return coupon;
+  }
+
+  /** تطبيق كوبون على السلة — يبطل التسعيرة السارية ويعيد التسعير */
+  async applyCoupon(cart_id: string, user_id: string, code: string): Promise<CartDto> {
+    await requireFlag("coupons_full");
+    const cart = await this.loadOwned(cart_id, user_id);
+
+    const coupon = await prisma.coupon.findUnique({ where: { code: code.trim().toUpperCase() } });
+    const fallback = coupon ?? (await prisma.coupon.findUnique({ where: { code: code.trim() } }));
+    if (!fallback) throw new AppError("CART-3003");
+
+    const subtotal = cart.items.reduce((s, i) => {
+      const mods = i.modifiers.reduce((ms, m) => ms + m.price_halalas, 0);
+      return s + (i.unit_price_halalas + mods) * i.quantity;
+    }, 0);
+    await this.validateCoupon(fallback.id, user_id, cart.branch_id, subtotal);
+
+    await prisma.$transaction([
+      prisma.cart.update({ where: { id: cart_id }, data: { coupon_id: fallback.id } }),
+      prisma.pricingQuote.updateMany({ where: { cart_id }, data: { expires_at: new Date() } })
+    ]);
+    return this.quote(cart_id, user_id);
+  }
+
+  async removeCoupon(cart_id: string, user_id: string): Promise<CartDto> {
+    await this.loadOwned(cart_id, user_id);
+    await prisma.$transaction([
+      prisma.cart.update({ where: { id: cart_id }, data: { coupon_id: null } }),
+      prisma.pricingQuote.updateMany({ where: { cart_id }, data: { expires_at: new Date() } })
+    ]);
     return this.get(cart_id, user_id);
   }
 }

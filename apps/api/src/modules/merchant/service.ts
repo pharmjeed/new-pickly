@@ -39,7 +39,7 @@ function maskPhone(phone: string): string {
   return `${local.slice(0, 3)} *** ${local.slice(-4, -2)}${local.slice(-2)}`;
 }
 
-type OrderForCard = Prisma.OrderGetPayload<{ include: { user: true } }>;
+type OrderForCard = Prisma.OrderGetPayload<{ include: { user: true; scheduled_slot: true } }>;
 
 function toCard(o: OrderForCard, etaMinutes: number | null): BranchOrderCard {
   const status = o.order_status as OrderState;
@@ -57,6 +57,8 @@ function toCard(o: OrderForCard, etaMinutes: number | null): BranchOrderCard {
     eta_minutes: etaMinutes,
     accept_deadline_at: o.accept_deadline_at?.toISOString() ?? null,
     arrived_at: o.arrived_at?.toISOString() ?? null,
+    pickup_time: (o.pickup_time as "asap" | "later" | "scheduled") ?? "asap",
+    scheduled_slot_start: o.scheduled_slot?.slot_start.toISOString() ?? null,
     created_at: o.created_at.toISOString()
   };
 }
@@ -71,7 +73,7 @@ export class MerchantOrderService {
           ? { order_status: { in: states } }
           : { order_status: { in: [...ACTIVE_STATES, "COMPLETED"] } })
       },
-      include: { user: true, _count: { select: { items: true } } },
+      include: { user: true, scheduled_slot: true, _count: { select: { items: true } } },
       orderBy: { created_at: "desc" },
       take: 100
     });
@@ -450,7 +452,7 @@ export class MerchantOrderService {
   private async card(order_id: string): Promise<BranchOrderCard> {
     const o = await prisma.order.findUniqueOrThrow({
       where: { id: order_id },
-      include: { user: true, _count: { select: { items: true } } }
+      include: { user: true, scheduled_slot: true, _count: { select: { items: true } } }
     });
     return { ...toCard(o, null), items_count: o._count.items };
   }

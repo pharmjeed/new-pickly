@@ -1,7 +1,40 @@
 # BUILD-STATE.md — حالة بناء Pickly
 
 > نقطة الاستئناف لأي جلسة جديدة. حدِّث هذا الملف قبل كل commit.
-> آخر تحديث: 2026-07-09
+> آخر تحديث: 2026-07-10
+
+## مرحلة 2 (المؤجلات) — بُنيت كاملة 2026-07-10
+
+كل ما كان موسوماً «قريباً»/«مرحلة 2» فُعّل end-to-end:
+
+- **BR-5 الطلب المجدول**: عقد `pickup_time: asap|later|scheduled` + `slot_id` ·
+  `GET /v1/branches/:id/slots` · حجز سعة ذرّي (`UPDATE ... WHERE booked < capacity`) ·
+  `scheduled_pickup_slots` + `free_change_until` (br5.free_change_minutes=60) ·
+  المدفوع ينتظر عند ORDER_SUBMITTED وworker (`scheduled_slot_entry`) يدخله MERCHANT_PENDING
+  عند الفترة · تذكير قبلها بـ15د · غير المدفوع → EXPIRED بتحرير السعة (br5.unpaid_expire_minutes=30) ·
+  الإلغاء/التعديل (`POST /orders/:id/reschedule`) يحرّر/ينقل الحجز · إدارة الفترات من
+  merchant-web `/scheduled` (M-06) · وسم مجدول/لاحقاً في لوحة الفرع.
+- **«سأتحرك لاحقاً» (FR-C06)**: عمود `orders.pickup_time` — عند READY يصل إشعار later_ready.
+- **BR-7 الكوبونات**: `POST/DELETE /v1/carts/:id/coupon` بتحقق خادمي كامل (نافذة، حدود،
+  merchant scope، new_users_only) + خصم في quote + `coupon_redemptions` عند الطلب ·
+  إدارة من admin-web (وحدة العروض).
+- **C-11 البحث**: `GET /v1/search` (ILIKE مطاعم/منتجات/تصنيفات) — مفعّل في customer-web + Expo.
+- **C-62 الإشعارات**: worker يكتب صف inapp من أحداث النطاق (قوالب notification_templates) ·
+  `GET /v1/customers/me/notifications` + mark-read (opened في deliveries) · جرس فعلي في customer-web.
+- **C-33 المحفظة**: `payment_intents.method` (card|wallet) عبر نفس مسار sandbox —
+  Apple Pay/STC Pay فعلياً ينتظر مفاتيح البوابة (HUMAN-ACTIONS B1).
+- **الدعم C-65/A-15**: وحدة تذاكر كاملة (عميل: إنشاء/رسائل بعزل user_id · أدمن: رد/حالة بتدقيق + إشعار العميل).
+- **وحدات الأدمن الخمس**: CMS (بانرات في system_settings:cms.banners + قوالب الإشعارات) ·
+  العروض · الدعم · المخاطر (إشارات محسوبة docs/17§6 + تعليم يبث risk.alert_raised) · Feature Flags
+  (كتابة بتدقيق + invalidateFlagCache) — Sidebar بلا عناصر معطلة.
+- **الموقع التعريفي**: أزرار «حمّل التطبيق قريباً» → «اطلب الآن من المتصفح»
+  (NEXT_PUBLIC_CUSTOMER_APP_URL).
+- **الأعلام** (seed): scheduled_orders/coupons_full/wallet_payments/search/support_tickets = on —
+  الخادم يفرضها (lib/flags.ts) والواجهات تتكيف.
+- **هجرة جديدة**: `20260710090000_pickup_time_and_payment_method` (عمودان بdefault — آمنة).
+- **OpenAPI**: 45 مساراً بعد إضافة مسارات مرحلة 2.
+- **اختبارات**: `apps/api/src/phase2.integration.test.ts` (سعة ذرّية، انتظار الفترة، تحرير الإلغاء،
+  later، كوبون + سقف، بحث، عزل تذاكر + إشعار رد الأدمن، flags بتدقيق، method=wallet).
 
 ## الحالة العامة
 
@@ -92,6 +125,9 @@
 | D5 | Outbox يُنفَّذ عبر جدول background_jobs (job_type='domain_event') — قائمة جداول docs/10 مغلقة ولا تتضمن جدول outbox مستقلاً | docs/12§3 + docs/10 |
 | D6 | عنوان docs/05 يقول «24 حالة» لكن التعداد الحرفي 25 (يشمل PARTIALLY_REFUNDED). القائمة الحرفية هي الحاكمة — اعتُمدت 25 حالة في contracts وPrisma enum | docs/05§1 |
 | D7 | منفذ Postgres المحلي 5433 (لا 5432) — جهاز التطوير عليه PostgreSQL أصلي يحتل 5432 | بيئة محلية |
+| D9 | «سأتحرك لاحقاً» والمجدول يخزنان في عمود `orders.pickup_time` (asap/later/scheduled) — اسم الحقل حرفياً من عقد POST /v1/orders في docs/11§4 (`pickup_time\|slot`)؛ docs/10 لا يذكر عموداً مقابلاً فاعتُمد اسم العقد. لا حالة SCHEDULED في الآلة: المجدول المدفوع ينتظر عند ORDER_SUBMITTED ودخول الفترة يحوله MERCHANT_PENDING (BR-5 حرفياً) | docs/11§4 + docs/06 BR-5 |
+| D10 | وسيلة الدفع (بطاقة/محفظة) عمود `payment_intents.method` — docs/13§2 يعد المحافظ v1 والتمييز مطلوب للتسوية والدعم؛ sandbox يحاكي الوسيلتين بنفس المسار حتى مفاتيح B1 | docs/13§2 |
+| D11 | CMS بلا جداول جديدة (قائمة docs/10 مغلقة): البانرات صفوف تاريخية في `system_settings` بمفتاح `cms.banners`، والقوالب في `notification_templates` — إن لزم جدول محتوى مخصص فيُعدل docs/10 أولاً | docs/10§3 + docs/15§48 |
 | D8 | أُوقفت عملية node قديمة (خادم pickly من محاولة سابقة كان يحتل 4000). يوجد أيضاً Supabase stack قديم على منافذ 54321-54324 لم نمسّه — يمكن إيقافه يدوياً لتحرير موارد | بيئة محلية |
 
 ## ملاحظات تشغيلية

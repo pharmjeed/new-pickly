@@ -2,13 +2,12 @@
 
 /**
  * P3 · C-09 الاستكشاف الموحد — الرئيسية (المرجع: design/customer/P3.html)
- * نطاق الطيار (docs/21§3): هيدر + قائمة الفروع القريبة.
- * البحث والفلاتر والخريطة والإشعارات والتبويبات الأخرى مؤجلة — تظهر شكلياً معطلة.
+ * هيدر + بحث C-11/C-12 + جرس إشعارات C-62 + قائمة الفروع القريبة.
  * الفروع: الرياض افتراضياً مع محاولة تحديد الموقع (الموقع ميزة تحسين لا شرط — docs/14§8).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, fmtSar, getToken } from "@/lib/api";
 import styles from "./page.module.css";
 
 interface BranchCard {
@@ -19,6 +18,29 @@ interface BranchCard {
   eta_minutes: number | null;
   address_short: string;
   busy_message: string | null;
+}
+
+interface SearchResults {
+  branches: BranchCard[];
+  products: Array<{
+    id: string;
+    branch_id: string;
+    brand_name_ar: string;
+    name_ar: string;
+    price_halalas: number;
+  }>;
+}
+
+interface NotifList {
+  notifications: Array<{
+    id: string;
+    order_id: string | null;
+    title_ar: string;
+    body_ar: string;
+    read: boolean;
+    created_at: string;
+  }>;
+  unread_count: number;
 }
 
 const RIYADH = { lat: 24.7, lng: 46.68 };
@@ -131,6 +153,15 @@ export default function HomePage() {
   const [branches, setBranches] = useState<BranchCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [locLabel, setLocLabel] = useState("الرياض");
+  const [coords, setCoords] = useState(RIYADH);
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<SearchResults | null>(null);
+  const [notifs, setNotifs] = useState<NotifList | null>(null);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // تُقرأ بعد التركيب فقط — لا فرق ترطيب بين الخادم والعميل
+  const [loggedIn, setLoggedIn] = useState(false);
+  useEffect(() => setLoggedIn(Boolean(getToken())), []);
 
   useEffect(() => {
     const load = (lat: number, lng: number) =>
@@ -142,6 +173,7 @@ export default function HomePage() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setLocLabel("موقعك الحالي");
+          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
           void load(pos.coords.latitude, pos.coords.longitude);
         },
         () => load(RIYADH.lat, RIYADH.lng), // الموقع ميزة تحسين لا شرط (docs/14§8)
@@ -152,10 +184,52 @@ export default function HomePage() {
     }
   }, []);
 
+  // شارة غير المقروء عند فتح الصفحة — للمسجلين فقط
+  useEffect(() => {
+    if (!loggedIn) return;
+    api<NotifList>("GET", "/v1/customers/me/notifications")
+      .then(setNotifs)
+      .catch(() => undefined); // الجرس ميزة تحسين — لا نُفشل الرئيسية
+  }, [loggedIn]);
+
+  // بحث C-11 بتهدئة 300ms — التسعير والنتائج من الخادم حصراً
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const term = q.trim();
+    if (term.length < 2) {
+      setResults(null);
+      return;
+    }
+    searchTimer.current = setTimeout(() => {
+      api<SearchResults>(
+        "GET",
+        `/v1/search?q=${encodeURIComponent(term)}&lat=${coords.lat}&lng=${coords.lng}`
+      )
+        .then(setResults)
+        .catch(() => setResults(null));
+    }, 300);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [q, coords]);
+
+  const toggleNotifs = () => {
+    const next = !showNotifs;
+    setShowNotifs(next);
+    if (next && notifs && notifs.unread_count > 0) {
+      // فتح الصندوق يعلّم الكل مقروءاً (opened في notification_deliveries)
+      void api("POST", "/v1/customers/me/notifications/read", {}).then(() =>
+        setNotifs((n) =>
+          n ? { unread_count: 0, notifications: n.notifications.map((x) => ({ ...x, read: true })) } : n
+        )
+      );
+    }
+  };
+
   return (
     <main className={styles.page}>
-      {/* ===== رأس الرئيسية: موقع الاستلام + جرس + بحث (C-09 apphead) ===== */}
-      <header className={styles.apphead}>
+      {/* ===== رأس الرئيسية: موقع الاستلام + جرس C-62 + بحث C-11 (C-09 apphead) ===== */}
+      <header className={styles.apphead} style={{ position: "relative" }}>
         <div className={styles.loc}>
           <span style={{ color: "var(--pk-lime-900)", display: "inline-flex" }}>
             <IPin size={17} />
@@ -164,17 +238,88 @@ export default function HomePage() {
             <div className={styles.locLb}>الاستلام قرب</div>
             <b>{locLabel}</b>
           </div>
-          {/* الإشعارات مؤجلة عن نطاق الطيار — معطل شكلياً */}
-          <span className={styles.bell} aria-disabled="true" title="الإشعارات — قريباً">
-            <IBell />
-          </span>
+          {loggedIn ? (
+            <button
+              type="button"
+              className={styles.bell}
+              style={{ cursor: "pointer" }}
+              onClick={toggleNotifs}
+              aria-label="الإشعارات"
+              data-testid="notif-bell"
+            >
+              <IBell />
+              {notifs !== null && notifs.unread_count > 0 && (
+                <span className={styles.bellDot} data-testid="notif-unread">{notifs.unread_count}</span>
+              )}
+            </button>
+          ) : (
+            <Link href="/auth" className={styles.bell} aria-label="الإشعارات — سجّل دخولك" title="سجّل دخولك لرؤية إشعاراتك">
+              <IBell />
+            </Link>
+          )}
         </div>
-        {/* البحث مؤجل (docs/21§3) — معطل شكلياً */}
-        <div className={styles.search} aria-disabled="true">
+        {/* بحث C-11/C-12 — النتائج من GET /v1/search */}
+        <div className={styles.search}>
           <ISearch />
-          <span>ابحث عن مطعم، منتج، تصنيف…</span>
-          <span className={styles.soon}>قريباً</span>
+          <input
+            className={styles.searchInput}
+            placeholder="ابحث عن مطعم، منتج، تصنيف…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            data-testid="home-search"
+          />
         </div>
+
+        {showNotifs && notifs && (
+          <div className={styles.notifPanel} data-testid="notif-panel">
+            {notifs.notifications.length === 0 && (
+              <div className={styles.notifEmpty}>لا إشعارات بعد — نخبرك أولاً بأول عن طلباتك</div>
+            )}
+            {notifs.notifications.map((n) => (
+              <div key={n.id} className={n.read ? styles.notifRow : `${styles.notifRow} ${styles.unread}`}>
+                <b>{n.title_ar}</b>
+                {n.body_ar}
+                <div>
+                  <span className={styles.notifTime}>{new Date(n.created_at).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                  {n.order_id && (
+                    <Link href={`/track/${n.order_id}`} style={{ marginInlineStart: 10, fontSize: 12 }}>
+                      عرض الطلب ←
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {results && !showNotifs && (
+          <div className={styles.searchResults} data-testid="search-results">
+            {results.branches.length === 0 && results.products.length === 0 && (
+              <div className={styles.notifEmpty}>لا نتائج لـ«{q.trim()}» — جرّب كلمة أخرى</div>
+            )}
+            {results.branches.length > 0 && <div className={styles.searchHint}>مطاعم</div>}
+            {results.branches.map((b) => (
+              <Link key={b.id} href={`/r/${b.id}`} className={styles.searchRow} data-testid="search-branch">
+                <IStore size={18} />
+                <span>
+                  {b.brand_name_ar}
+                  {b.address_short ? ` — ${b.address_short}` : ""}
+                </span>
+                {b.distance_meters !== null && <span className={styles.price}>{(b.distance_meters / 1000).toFixed(1)} كم</span>}
+              </Link>
+            ))}
+            {results.products.length > 0 && <div className={styles.searchHint}>منتجات</div>}
+            {results.products.map((p) => (
+              <Link key={p.id} href={`/r/${p.branch_id}`} className={styles.searchRow} data-testid="search-product">
+                <ITag />
+                <span>
+                  {p.name_ar} <span style={{ color: "var(--pk-text-2)" }}>· {p.brand_name_ar}</span>
+                </span>
+                <span className={styles.price}>{fmtSar(p.price_halalas)}</span>
+              </Link>
+            ))}
+          </div>
+        )}
       </header>
 
       <div className={styles.body}>

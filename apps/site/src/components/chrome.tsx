@@ -42,9 +42,10 @@ export function SiteNav() {
           <Link href="/#pricing">الأسعار</Link>
           <Link href="/#faq">الأسئلة</Link>
         </div>
-        <Link className="btn" href="/#join" title="روابط التطبيق قريباً">
-          حمّل التطبيق قريبًا
-        </Link>
+        {/* تطبيق الويب يعمل الآن — المتاجر (App Store/Play) تُضاف عند نشر تطبيق Expo */}
+        <a className="btn" href={process.env.NEXT_PUBLIC_CUSTOMER_APP_URL ?? "https://app.pickly.sa"}>
+          اطلب الآن من المتصفح
+        </a>
       </div>
     </nav>
   );

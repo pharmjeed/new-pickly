@@ -44,8 +44,67 @@
   align-items: center;
   justify-content: center;
   color: var(--pk-text);
-  opacity: 0.5; /* الإشعارات مؤجلة عن نطاق الطيار — معطل شكلياً */
-  cursor: not-allowed;
+  cursor: pointer;
+  position: relative;
+}
+.bellDot {
+  position: absolute;
+  top: -4px;
+  inset-inline-end: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--pk-error);
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  font-family: var(--pk-font-mono);
+}
+.notifPanel {
+  position: absolute;
+  top: 100%;
+  inset-inline-start: 16px;
+  inset-inline-end: 16px;
+  background: var(--pk-surface);
+  border: 1px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  z-index: 30;
+  max-height: 340px;
+  overflow: auto;
+  padding: 8px;
+}
+.notifRow {
+  padding: 10px 12px;
+  border-bottom: 1px dashed var(--pk-border);
+  font-size: var(--pk-fs-13);
+}
+.notifRow:last-child {
+  border-bottom: none;
+}
+.notifRow b {
+  display: block;
+  font-size: var(--pk-fs-14);
+}
+.notifRow.unread {
+  background: var(--pk-lime-100);
+  border-radius: 10px;
+}
+.notifTime {
+  color: var(--pk-text-2);
+  font-size: var(--pk-fs-12);
+  font-family: var(--pk-font-mono);
+  direction: ltr;
+  display: inline-block;
+}
+.notifEmpty {
+  text-align: center;
+  color: var(--pk-text-2);
+  padding: 22px 10px;
+  font-size: var(--pk-fs-13);
 }
 .search {
   display: flex;
@@ -58,8 +117,54 @@
   padding: 0 16px;
   color: var(--pk-text-2);
   font-size: var(--pk-fs-14);
-  opacity: 0.6; /* البحث مؤجل (docs/21§3) — معطل شكلياً */
-  cursor: not-allowed;
+}
+.searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--pk-text);
+  font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-14);
+  min-width: 0;
+}
+.searchResults {
+  position: absolute;
+  top: 100%;
+  inset-inline-start: 16px;
+  inset-inline-end: 16px;
+  background: var(--pk-surface);
+  border: 1px solid var(--pk-border);
+  border-radius: var(--pk-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  z-index: 30;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px;
+}
+.searchHint {
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+  padding: 6px 12px 2px;
+}
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--pk-text);
+  font-size: var(--pk-fs-14);
+  text-decoration: none;
+}
+.searchRow:hover {
+  background: var(--pk-cloud);
+}
+.price {
+  margin-inline-start: auto;
+  font-family: var(--pk-font-mono);
+  color: var(--pk-text-2);
+  font-size: var(--pk-fs-13);
 }
 .soon {
   margin-inline-start: auto;

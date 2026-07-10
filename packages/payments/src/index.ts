@@ -21,6 +21,8 @@ export interface CreateIntentInput {
   currency: "SAR";
   order_ref: string;
   idempotency_key: string;
+  /** وسيلة الدفع C-33: card | wallet (Apple Pay/STC Pay عبر البوابة — docs/13§2) */
+  method?: "card" | "wallet";
 }
 
 export interface ProviderIntent {

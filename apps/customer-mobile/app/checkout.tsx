@@ -1,5 +1,7 @@
 /**
- * P6: الإتمام — صفحة تمرير واحدة: وقت (ASAP فقط) + سيارة + دفع + مراجعة (C-28→C-37).
+ * P6: الإتمام — صفحة تمرير واحدة: وقت + سيارة + دفع + مراجعة (C-28→C-37).
+ * وقت الاستلام FR-C06: أقرب وقت / «سأتحرك لاحقاً» / مجدول بفترات وسعة (BR-5).
+ * الدفع C-33: بطاقة أو محفظة (Apple Pay/STC Pay) — بوابة sandbox بنفس مسار الإنتاج.
  * GET/POST /v1/customers/me/vehicles (S3: لون + آخر 4)
  * POST /v1/orders (idempotent) → payment-intent → mock-gateway pay → /track/{id}
  */
@@ -22,6 +24,7 @@ interface Vehicle {
 }
 interface Cart {
   id: string;
+  branch_id: string;
   items: Array<{
     id: string;
     name_ar: string;
@@ -44,6 +47,18 @@ interface OrderCreated {
   total_halalas: number;
 }
 
+interface Slot {
+  id: string;
+  slot_start: string;
+  slot_end: string;
+  remaining: number;
+}
+
+type PickupTime = "asap" | "later" | "scheduled";
+
+const slotLabel = (iso: string): string =>
+  new Date(iso).toLocaleString("ar-SA", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+
 export default function CheckoutScreen() {
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
@@ -54,10 +69,36 @@ export default function CheckoutScreen() {
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<Cart | null>(null);
   const [done, setDone] = useState<OrderCreated | null>(null);
+  const [donePickup, setDonePickup] = useState<PickupTime>("asap");
+  const [flags, setFlags] = useState<Record<string, boolean>>({});
+  const [pickupTime, setPickupTime] = useState<PickupTime>("asap");
+  const [slots, setSlots] = useState<Slot[] | null>(null);
+  const [slotId, setSlotId] = useState<string | null>(null);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [payMethod, setPayMethod] = useState<"card" | "wallet">("card");
 
   const cartId = getCartId();
   const quoteId = getQuoteId();
   const total = cart?.quote?.total_halalas ?? null;
+
+  useEffect(() => {
+    api<Record<string, boolean>>("GET", "/v1/feature-flags")
+      .then(setFlags)
+      .catch(() => undefined); // الأعلام ميزة تكيف — الافتراضي إخفاء المؤجل
+  }, []);
+
+  // BR-5: فترات الفرع تُجلب عند اختيار الجدولة
+  useEffect(() => {
+    if (pickupTime !== "scheduled" || !cart) return;
+    setSlots(null);
+    setSlotsError(null);
+    api<Slot[]>("GET", `/v1/branches/${cart.branch_id}/slots`)
+      .then((s) => {
+        setSlots(s);
+        if (s.length === 0) setSlotsError("لا فترات متاحة حالياً — جرّب لاحقاً أو اختر أقرب وقت");
+      })
+      .catch((e: Error) => setSlotsError(e.message));
+  }, [pickupTime, cart]);
 
   useEffect(() => {
     api<Vehicle[]>("GET", "/v1/customers/me/vehicles")
@@ -103,16 +144,23 @@ export default function CheckoutScreen() {
 
   const payAndOrder = async () => {
     if (!cartId || !quoteId || !vehicleId) return;
+    if (pickupTime === "scheduled" && !slotId) return;
     setBusy(true);
     setError(null);
     try {
       const order = await api<OrderCreated>(
         "POST",
         "/v1/orders",
-        { cart_id: cartId, quote_id: quoteId, vehicle_id: vehicleId, pickup_time: "asap" },
+        {
+          cart_id: cartId,
+          quote_id: quoteId,
+          vehicle_id: vehicleId,
+          pickup_time: pickupTime,
+          ...(pickupTime === "scheduled" && slotId ? { slot_id: slotId } : {})
+        },
         { idempotent: true }
       );
-      await api("POST", `/v1/orders/${order.id}/payment-intent`, undefined, { idempotent: true });
+      await api("POST", `/v1/orders/${order.id}/payment-intent`, { method: payMethod }, { idempotent: true });
       // بوابة sandbox — نفس مسار الإنتاج: النتيجة عبر webhook موقع
       const pay = await api<{ gateway_result: string }>(
         "POST",
@@ -124,6 +172,7 @@ export default function CheckoutScreen() {
       }
       clearCart();
       await setLastOrderId(order.id);
+      setDonePickup(pickupTime);
       setDone(order); // C-37: نجاح الطلب
     } catch (e) {
       setError((e as Error).message);
@@ -148,7 +197,10 @@ export default function CheckoutScreen() {
             </View>
             <View style={st.kv}>
               <Text style={st.k}>الحالة</Text>
-              <Badge label="أُرسل للمطعم — بانتظار القبول" tone="warn" />
+              <Badge
+                label={donePickup === "scheduled" ? "محجوز لفترتك — ندخله للمطعم وقت الفترة" : "أُرسل للمطعم — بانتظار القبول"}
+                tone="warn"
+              />
             </View>
             <View style={st.kv}>
               <Text style={st.k}>القيمة المدفوعة</Text>
@@ -179,32 +231,86 @@ export default function CheckoutScreen() {
       <ScrollView contentContainerStyle={st.body}>
         {!showAdd && error && <ErrorNote text={error} />}
 
-        {/* ===== وقت الاستلام — ASAP فقط (C-28) ===== */}
+        {/* ===== وقت الاستلام — FR-C06: أقرب وقت / سأتحرك لاحقاً / مجدول (C-28) ===== */}
         <Text style={st.section}>وقت الاستلام</Text>
-        <View style={[st.optCard, st.optSel]}>
-          <View style={[st.rdot, st.rdotOn]} />
+        <Pressable
+          style={[st.optCard, pickupTime === "asap" ? st.optSel : null]}
+          onPress={() => setPickupTime("asap")}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: pickupTime === "asap" }}
+        >
+          <View style={[st.rdot, pickupTime === "asap" ? st.rdotOn : null]} />
           <View style={{ flex: 1 }}>
             <Text style={st.optTitle}>أقرب وقت</Text>
             <Text style={st.optDesc}>المطعم يجهّز طلبك على وقت وصولك</Text>
           </View>
           <Badge label="موصى به" tone="lime" />
-        </View>
-        <View style={[st.optCard, st.optDis]}>
-          <View style={st.rdot} />
+        </Pressable>
+        <Pressable
+          style={[st.optCard, pickupTime === "later" ? st.optSel : null]}
+          onPress={() => setPickupTime("later")}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: pickupTime === "later" }}
+        >
+          <View style={[st.rdot, pickupTime === "later" ? st.rdotOn : null]} />
           <View style={{ flex: 1 }}>
             <Text style={st.optTitle}>سأتحرك لاحقاً</Text>
             <Text style={st.optDesc}>نجهّز طلبك ونرسل لك «وقت التحرك الأنسب» — انطلق وقت ما تبغى</Text>
           </View>
-          <Badge label="قريباً" tone="soft" />
-        </View>
-        <View style={[st.optCard, st.optDis]}>
-          <View style={st.rdot} />
-          <View style={{ flex: 1 }}>
-            <Text style={st.optTitle}>جدولة لوقت لاحق</Text>
-            <Text style={st.optDesc}>فترات بسعة يحددها الفرع (BR-5)</Text>
+        </Pressable>
+        {flags["scheduled_orders"] ? (
+          <Pressable
+            style={[st.optCard, pickupTime === "scheduled" ? st.optSel : null]}
+            onPress={() => setPickupTime("scheduled")}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: pickupTime === "scheduled" }}
+          >
+            <View style={[st.rdot, pickupTime === "scheduled" ? st.rdotOn : null]} />
+            <View style={{ flex: 1 }}>
+              <Text style={st.optTitle}>جدولة لوقت لاحق</Text>
+              <Text style={st.optDesc}>فترات بسعة يحددها الفرع (BR-5) — الدفع يؤكد الحجز</Text>
+            </View>
+          </Pressable>
+        ) : (
+          <View style={[st.optCard, st.optDis]}>
+            <View style={st.rdot} />
+            <View style={{ flex: 1 }}>
+              <Text style={st.optTitle}>جدولة لوقت لاحق</Text>
+              <Text style={st.optDesc}>فترات بسعة يحددها الفرع (BR-5)</Text>
+            </View>
+            <Badge label="قريباً" tone="soft" />
           </View>
-          <Badge label="قريباً" tone="soft" />
-        </View>
+        )}
+
+        {/* فترات BR-5 — تظهر عند اختيار الجدولة */}
+        {pickupTime === "scheduled" && (
+          <View style={{ gap: 8 }}>
+            {!slots && !slotsError && <Loader />}
+            {slotsError && <ErrorNote text={slotsError} />}
+            {slots && slots.length > 0 && (
+              <>
+                <View style={st.slotGrid}>
+                  {slots.map((s) => {
+                    const on = slotId === s.id;
+                    return (
+                      <Pressable
+                        key={s.id}
+                        style={[st.slotChip, on ? st.slotChipSel : null]}
+                        onPress={() => setSlotId(s.id)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on }}
+                      >
+                        <Text style={[st.slotTxt, on ? st.slotTxtSel : null]}>{slotLabel(s.slot_start)}</Text>
+                        <Text style={st.slotSub}>{s.remaining} متاح</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={st.privacy}>آخر تعديل أو إلغاء مجاني: قبل ساعة من الفترة (BR-5).</Text>
+              </>
+            )}
+          </View>
+        )}
 
         {/* ===== السيارة — شرائح + إضافة عبر Sheet (C-30 · S3) ===== */}
         <View style={st.sectionRow}>
@@ -236,24 +342,44 @@ export default function CheckoutScreen() {
         })}
         <Text style={st.privacy}>اللوحات مشفرة ولا تظهر كاملة إلا لموظف التسليم أثناء طلبك النشط فقط.</Text>
 
-        {/* ===== الدفع — بوابة sandbox (C-33) ===== */}
+        {/* ===== الدفع — C-33: بطاقة أو محفظة (بوابة sandbox بنفس مسار الإنتاج) ===== */}
         <Text style={st.section}>الدفع</Text>
-        <View style={[st.optCard, st.optSel]}>
-          <View style={[st.rdot, st.rdotOn]} />
+        <Pressable
+          style={[st.optCard, payMethod === "card" ? st.optSel : null]}
+          onPress={() => setPayMethod("card")}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: payMethod === "card" }}
+        >
+          <View style={[st.rdot, payMethod === "card" ? st.rdotOn : null]} />
           <View style={{ flex: 1 }}>
-            <Text style={st.optTitle}>بطاقة تجريبية — Sandbox</Text>
+            <Text style={st.optTitle}>بطاقة — مدى وفيزا وماستركارد</Text>
             <Text style={st.optDesc}>نفس مسار الإنتاج — النتيجة عبر Webhook موقّع</Text>
           </View>
           <Badge label="بيئة التطوير" tone="lime" />
-        </View>
-        <View style={[st.optCard, st.optDis]}>
-          <View style={st.rdot} />
-          <View style={{ flex: 1 }}>
-            <Text style={st.optTitle}>Apple Pay / STC Pay</Text>
-            <Text style={st.optDesc}>محافظ عبر بوابة الدفع</Text>
+        </Pressable>
+        {flags["wallet_payments"] ? (
+          <Pressable
+            style={[st.optCard, payMethod === "wallet" ? st.optSel : null]}
+            onPress={() => setPayMethod("wallet")}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: payMethod === "wallet" }}
+          >
+            <View style={[st.rdot, payMethod === "wallet" ? st.rdotOn : null]} />
+            <View style={{ flex: 1 }}>
+              <Text style={st.optTitle}>Apple Pay / STC Pay</Text>
+              <Text style={st.optDesc}>محافظ عبر بوابة الدفع — Tokenization فقط</Text>
+            </View>
+          </Pressable>
+        ) : (
+          <View style={[st.optCard, st.optDis]}>
+            <View style={st.rdot} />
+            <View style={{ flex: 1 }}>
+              <Text style={st.optTitle}>Apple Pay / STC Pay</Text>
+              <Text style={st.optDesc}>محافظ عبر بوابة الدفع</Text>
+            </View>
+            <Badge label="قريباً" tone="soft" />
           </View>
-          <Badge label="قريباً" tone="soft" />
-        </View>
+        )}
         <Text style={st.privacy}>لا دفع نقدياً في الإصدار الحالي · Tokenization فقط — لا نخزن رقم بطاقتك أبداً.</Text>
 
         {/* ===== مراجعة الطلب (C-35) ===== */}
@@ -316,7 +442,7 @@ export default function CheckoutScreen() {
         <LimeButton
           title={busy ? "جارٍ الدفع…" : "ادفع الآن"}
           trailing={!busy && total != null ? fmtSar(total) : undefined}
-          disabled={busy || !vehicleId || !cartId}
+          disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
           onPress={() => void payAndOrder()}
         />
       </View>
@@ -406,6 +532,23 @@ const st = StyleSheet.create({
     borderColor: light.border
   },
   rdotOn: { borderColor: colors.lime900, backgroundColor: colors.lime500 },
+  /* فترات BR-5 */
+  slotGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
+  slotChip: {
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: light.surface,
+    borderWidth: 1.5,
+    borderColor: light.border,
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    minWidth: 104
+  },
+  slotChipSel: { borderColor: colors.lime900, backgroundColor: colors.lime100 },
+  slotTxt: { color: light.text, fontSize: fs.fs13, textAlign: "center" },
+  slotTxtSel: { fontWeight: "800" },
+  slotSub: { color: light.text2, fontSize: fs.fs12 },
   plate: { color: light.text, fontSize: fs.fs15, fontWeight: "800", fontVariant: ["tabular-nums"] },
   privacy: { color: light.text2, fontSize: fs.fs12, textAlign: "right", lineHeight: 18 },
   itemsTitle: { color: light.text, fontSize: fs.fs15, fontWeight: "900", textAlign: "right" },
