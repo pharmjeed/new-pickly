@@ -131,7 +131,8 @@ export default function StaffPage() {
     setFullName("");
     setUsername("");
     setPin("");
-    setRoleKey(grantable[0] ?? "cashier");
+    // الافتراضي الأدنى امتيازاً — منح الأدوار العليا قرار مقصود لا افتراضي
+    setRoleKey(grantable.includes("cashier") ? "cashier" : grantable[0] ?? "cashier");
     setBranchIds([]);
     setFormError(null);
   };
