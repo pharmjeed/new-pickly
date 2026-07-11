@@ -11,7 +11,7 @@ const { startSettlementScheduler } = await import("./handlers/settlements.js");
 const { startMaintenanceLoop } = await import("./handlers/maintenance.js");
 const { publishToRealtime } = await import("./handlers/realtime-publisher.js");
 const { writeCustomerNotifications } = await import("./handlers/notifications.js");
-const { handleScheduledSlotEntry, handleScheduledReminder, handleScheduledExpire } = await import(
+const { handleScheduledSlotEntry, handleScheduledReminder, handleScheduledExpire, startWeeklySlotRoll } = await import(
   "./handlers/scheduled.js"
 );
 const { registerEventHandler } = await import("./outbox-publisher.js");
@@ -27,6 +27,7 @@ registerJobHandler("scheduled_expire", handleScheduledExpire);
 const stopRefunds = startRefundProcessor();
 const stopSettlements = startSettlementScheduler();
 const stopMaintenance = startMaintenanceLoop();
+const stopSlotRoll = startWeeklySlotRoll();
 
 /**
  * Worker — Background Workers (docs/09§3):
@@ -47,6 +48,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     stopRefunds();
     stopSettlements();
     stopMaintenance();
+    stopSlotRoll();
     process.exit(0);
   });
 }

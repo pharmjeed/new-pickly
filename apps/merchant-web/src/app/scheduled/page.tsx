@@ -2,7 +2,8 @@
 
 /**
  * M-06: الاستلام المجدول — BR-5 «فترات بسعة يحددها الفرع»:
- * تفعيل الجدولة للفرع + إنشاء فترات يوم دفعة واحدة + جدول الإشغال + حذف الفارغة.
+ * التاجر يحدد دوام الأسبوع (أيام العمل وساعاتها) والفترات تتولّد منه تلقائياً
+ * للأيام السبعة القادمة وتتجدد دورياً — لا إدخال يدوي ليوم يوم.
  * الحجز من العميل يمر بسباق سعة ذرّي خادمياً — هنا الإدارة فقط.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -13,14 +14,21 @@ import { ApiError, apiDelete, apiGet, apiPost, clearToken } from "@/lib/api";
 type Branch = { id: string; name_ar: string };
 type Settings = { branch_id: string; scheduled_enabled: boolean };
 type Slot = { id: string; slot_start: string; slot_end: string; capacity: number; booked: number };
+type Week = {
+  branch_id: string;
+  days: { day_of_week: number; opens_at: string; closes_at: string }[];
+  slot_minutes: number;
+  capacity: number;
+};
+type DayForm = { enabled: boolean; opens: string; closes: string };
+
+const DAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]; // 0=الأحد كما في الخادم
+
+const emptyWeek = (): DayForm[] =>
+  Array.from({ length: 7 }, () => ({ enabled: false, opens: "11:00", closes: "23:00" }));
 
 const dt = (iso: string): string =>
   new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-
-const todayISO = (): string => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
 
 export default function ScheduledPage() {
   const router = useRouter();
@@ -32,9 +40,7 @@ export default function ScheduledPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const [date, setDate] = useState(todayISO());
-  const [fromHour, setFromHour] = useState("11");
-  const [toHour, setToHour] = useState("23");
+  const [week, setWeek] = useState<DayForm[]>(emptyWeek());
   const [slotMinutes, setSlotMinutes] = useState<"30" | "60">("30");
   const [capacity, setCapacity] = useState("6");
 
@@ -65,11 +71,21 @@ export default function ScheduledPage() {
     if (!branchId) return;
     Promise.all([
       apiGet<Settings>(`/api/v1/merchant/scheduled/settings?branch_id=${branchId}`),
-      apiGet<Slot[]>(`/api/v1/merchant/scheduled/slots?branch_id=${branchId}`)
+      apiGet<Slot[]>(`/api/v1/merchant/scheduled/slots?branch_id=${branchId}`),
+      apiGet<Week>(`/api/v1/merchant/scheduled/week?branch_id=${branchId}`)
     ])
-      .then(([st, sl]) => {
+      .then(([st, sl, wk]) => {
         setEnabled(st.scheduled_enabled);
         setSlots(sl);
+        setSlotMinutes(wk.slot_minutes === 60 ? "60" : "30");
+        setCapacity(String(wk.capacity));
+        const days = emptyWeek();
+        for (const d of wk.days) {
+          if (d.day_of_week >= 0 && d.day_of_week <= 6) {
+            days[d.day_of_week] = { enabled: true, opens: d.opens_at, closes: d.closes_at };
+          }
+        }
+        setWeek(days);
       })
       .catch((e: unknown) => {
         if (!authGuard(e)) setError((e as Error).message);
@@ -96,20 +112,24 @@ export default function ScheduledPage() {
     }
   };
 
-  const createSlots = async () => {
+  const setDay = (i: number, patch: Partial<DayForm>) =>
+    setWeek((w) => w.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
+
+  const saveWeek = async () => {
     if (!branchId) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await apiPost<{ slots: number }>("/api/v1/merchant/scheduled/slots", {
+      const res = await apiPost<{ days: number; slots: number }>("/api/v1/merchant/scheduled/week", {
         branch_id: branchId,
-        date,
-        from_hour: Number(fromHour),
-        to_hour: Number(toHour),
         slot_minutes: Number(slotMinutes),
-        capacity: Number(capacity)
+        capacity: Number(capacity),
+        days: week
+          .map((d, day_of_week) => ({ day_of_week, opens_at: d.opens, closes_at: d.closes, enabled: d.enabled }))
+          .filter((d) => d.enabled)
+          .map(({ day_of_week, opens_at, closes_at }) => ({ day_of_week, opens_at, closes_at }))
       });
-      setNotice(`أُنشئت/حُدّثت ${res.slots} فترة ليوم ${date}`);
+      setNotice(`حُفظ دوام الأسبوع (${res.days} ${res.days === 1 ? "يوم" : "أيام"}) — تولّدت/حُدّثت ${res.slots} فترة للأيام السبعة القادمة`);
       loadBranch();
     } catch (e) {
       if (!authGuard(e)) setError((e as Error).message);
@@ -131,8 +151,10 @@ export default function ScheduledPage() {
     }
   };
 
+  const openDays = week.filter((d) => d.enabled);
   const validForm =
-    Number(fromHour) >= 0 && Number(toHour) > Number(fromHour) && Number(toHour) <= 24 && Number(capacity) >= 1;
+    Number(capacity) >= 1 &&
+    openDays.every((d) => /^\d{2}:\d{2}$/.test(d.opens) && /^\d{2}:\d{2}$/.test(d.closes) && d.opens !== d.closes);
 
   return (
     <Shell title="الاستلام المجدول" crumb="فترات بسعة يحددها الفرع (BR-5) — الدفع يؤكد الحجز وآخر تعديل مجاني قبل ساعة">
@@ -168,21 +190,47 @@ export default function ScheduledPage() {
       )}
 
       {branches && (
-        <div className="pcardx" style={{ marginTop: 14 }} data-testid="slots-form">
-          <h3>إنشاء فترات يوم — فترات متساوية بسعة موحدة</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
-            <div className="fld">
-              <label>اليوم</label>
-              <input className="inp" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-            <div className="fld">
-              <label>من الساعة</label>
-              <input className="inp" inputMode="numeric" value={fromHour} onChange={(e) => setFromHour(e.target.value)} />
-            </div>
-            <div className="fld">
-              <label>إلى الساعة</label>
-              <input className="inp" inputMode="numeric" value={toHour} onChange={(e) => setToHour(e.target.value)} />
-            </div>
+        <div className="pcardx" style={{ marginTop: 14 }} data-testid="week-form">
+          <h3>دوام الأسبوع — الفترات تتولّد تلقائياً من أيام وساعات العمل</h3>
+
+          <div className="tblwrap">
+            <table className="tbl" data-testid="week-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 120 }}>اليوم</th>
+                  <th style={{ width: 90 }}>يعمل؟</th>
+                  <th>يفتح</th>
+                  <th>يغلق</th>
+                </tr>
+              </thead>
+              <tbody>
+                {week.map((d, i) => (
+                  <tr key={DAY_NAMES[i]} data-testid="week-day-row" style={{ opacity: d.enabled ? 1 : 0.55 }}>
+                    <td><b>{DAY_NAMES[i]}</b></td>
+                    <td>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={d.enabled}
+                          onChange={(e) => setDay(i, { enabled: e.target.checked })}
+                          data-testid={`week-day-enabled-${i}`}
+                        />
+                        <span className={`badge ${d.enabled ? "b-lime" : "b-soft"}`}>{d.enabled ? "يعمل" : "مغلق"}</span>
+                      </label>
+                    </td>
+                    <td>
+                      <input className="inp" type="time" value={d.opens} disabled={!d.enabled} onChange={(e) => setDay(i, { opens: e.target.value })} style={{ maxWidth: 140 }} />
+                    </td>
+                    <td>
+                      <input className="inp" type="time" value={d.closes} disabled={!d.enabled} onChange={(e) => setDay(i, { closes: e.target.value })} style={{ maxWidth: 140 }} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
             <div className="fld">
               <label>طول الفترة</label>
               <select className="inp" value={slotMinutes} onChange={(e) => setSlotMinutes(e.target.value as "30" | "60")}>
@@ -195,11 +243,14 @@ export default function ScheduledPage() {
               <input className="inp" inputMode="numeric" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
             </div>
           </div>
-          <button type="button" className="btn sm" style={{ marginTop: 12 }} disabled={busy || !validForm || !branchId} onClick={createSlots} data-testid="slots-create">
-            إنشاء الفترات
+
+          <button type="button" className="btn sm" style={{ marginTop: 12 }} disabled={busy || !validForm || !branchId} onClick={saveWeek} data-testid="week-save">
+            حفظ الدوام وتوليد الفترات
           </button>
           <div className="note soft" style={{ marginTop: 10 }}>
-            الفترات القائمة تُحدَّث سعتها دون المساس بالحجوزات — والفترة المحجوزة لا تُحذف.
+            الفترات تتولّد للأيام السبعة القادمة وتتجدد تلقائياً كل ساعة. عند الحفظ تُعاد مواءمة الفترات
+            المستقبلية غير المحجوزة مع الدوام الجديد — والمحجوزة لا تُمس. إن كان وقت الإغلاق قبل الفتح
+            (مثل 18:00 → 02:00) فيُعد دواماً يمتد لما بعد منتصف الليل.
           </div>
         </div>
       )}
@@ -208,7 +259,7 @@ export default function ScheduledPage() {
         <div className="empty">
           <div className="ic">🗓</div>
           <b>لا فترات قادمة</b>
-          <p>أنشئ فترات يومك من النموذج أعلاه ليتمكن العملاء من الحجز</p>
+          <p>حدد أيام دوامك أعلاه واحفظ لتتولد الفترات ويتمكن العملاء من الحجز</p>
         </div>
       )}
 

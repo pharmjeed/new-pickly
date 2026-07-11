@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { hashPin } from "@pickly/auth";
-import { prisma } from "@pickly/database";
+import { generateBranchSlotsFromTemplate, prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { HalalaSchema, UuidSchema, type JwtClaims } from "@pickly/contracts";
 import { assertBranchScope, requireAuth, requireStaff } from "../../lib/auth-plugin.js";
@@ -948,46 +948,98 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
     }));
   });
 
-  /** إنشاء فترات يوم كامل دفعة واحدة — فترات متساوية بسعة موحدة */
-  app.post("/scheduled/slots", async (req) => {
+  /** دوام الأسبوع (branch_hours) + إعدادات التوليد — الفترات تتولّد منه لا من إدخال يومي */
+  app.get("/scheduled/week", async (req) => {
     const claims = requireStaff(req, MANAGER_ROLES);
+    const q = z.object({ branch_id: UuidSchema }).parse(req.query);
+    assertBranchScope(claims, q.branch_id);
+    const [hours, settings] = await Promise.all([
+      prisma.branchHour.findMany({ where: { branch_id: q.branch_id }, orderBy: [{ day_of_week: "asc" }, { opens_at: "asc" }] }),
+      prisma.branchPickupSettings.findUnique({ where: { branch_id: q.branch_id } })
+    ]);
+    return {
+      branch_id: q.branch_id,
+      days: hours.map((h) => ({ day_of_week: h.day_of_week, opens_at: h.opens_at, closes_at: h.closes_at })),
+      slot_minutes: settings?.scheduled_slot_minutes ?? 30,
+      capacity: settings?.scheduled_capacity ?? 6
+    };
+  });
+
+  /**
+   * حفظ دوام الأسبوع وتوليد الفترات منه للأيام السبعة القادمة:
+   * يستبدل branch_hours كاملة، يحذف الفترات المستقبلية غير المحجوزة (مواءمة مع الدوام الجديد)،
+   * ثم يولّد من القالب. المحجوزة لا تُمس. إغلاق قبل الفتح = دوام يمتد بعد منتصف الليل.
+   */
+  app.post("/scheduled/week", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const TimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "صيغة وقت غير صالحة — HH:MM");
     const body = z
       .object({
         branch_id: UuidSchema,
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        from_hour: z.number().int().min(0).max(23),
-        to_hour: z.number().int().min(1).max(24),
         slot_minutes: z.union([z.literal(30), z.literal(60)]).default(30),
-        capacity: z.number().int().min(1).max(200)
+        capacity: z.number().int().min(1).max(200),
+        days: z
+          .array(
+            z
+              .object({
+                day_of_week: z.number().int().min(0).max(6), // 0=الأحد
+                opens_at: TimeSchema,
+                closes_at: TimeSchema
+              })
+              .refine((d) => d.opens_at !== d.closes_at, { message: "وقت الفتح يساوي الإغلاق" })
+          )
+          .max(7)
       })
-      .refine((b) => b.to_hour > b.from_hour, { message: "نطاق ساعات غير صالح" })
+      .refine((b) => new Set(b.days.map((d) => d.day_of_week)).size === b.days.length, {
+        message: "يوم مكرر في الدوام"
+      })
       .parse(req.body);
     assertBranchScope(claims, body.branch_id);
     const merchant_id = merchantIdOf(req);
     const branch = await prisma.branch.findFirst({ where: { id: body.branch_id, merchant_id } });
     if (!branch) throw new AppError("MERCHANT-7003");
 
-    const day = new Date(`${body.date}T00:00:00`);
-    const starts: Date[] = [];
-    for (let h = body.from_hour; h < body.to_hour; h++) {
-      for (let m = 0; m < 60; m += body.slot_minutes) {
-        const start = new Date(day);
-        start.setHours(h, m, 0, 0);
-        if (start > new Date()) starts.push(start);
+    await prisma.$transaction(async (tx) => {
+      await tx.branchHour.deleteMany({ where: { branch_id: body.branch_id } });
+      if (body.days.length > 0) {
+        await tx.branchHour.createMany({
+          data: body.days.map((d) => ({ branch_id: body.branch_id, ...d }))
+        });
       }
-    }
-    // upsert لكل فترة — (branch_id, slot_start) فريد؛ سعة الفترات القائمة تُحدَّث دون مساس بالمحجوز
-    let created = 0;
-    for (const start of starts) {
-      const end = new Date(start.getTime() + body.slot_minutes * 60_000);
-      await prisma.branchCapacitySlot.upsert({
-        where: { branch_id_slot_start: { branch_id: body.branch_id, slot_start: start } },
-        create: { branch_id: body.branch_id, slot_start: start, slot_end: end, capacity: body.capacity },
-        update: { slot_end: end, capacity: body.capacity }
+      await tx.branchPickupSettings.upsert({
+        where: { branch_id: body.branch_id },
+        create: {
+          branch_id: body.branch_id,
+          scheduled_slot_minutes: body.slot_minutes,
+          scheduled_capacity: body.capacity
+        },
+        update: { scheduled_slot_minutes: body.slot_minutes, scheduled_capacity: body.capacity }
       });
-      created++;
-    }
-    return { ok: true, slots: created };
+      // مواءمة: الفترات المستقبلية الفارغة تُحذف ليعاد توليدها وفق الدوام الجديد — المحجوزة تبقى
+      await tx.branchCapacitySlot.deleteMany({
+        where: { branch_id: body.branch_id, slot_start: { gt: new Date() }, booked: 0 }
+      });
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "scheduled_week_updated",
+          entity_type: "branch",
+          entity_id: body.branch_id,
+          merchant_id,
+          branch_id: body.branch_id,
+          after: { days: body.days, slot_minutes: body.slot_minutes, capacity: body.capacity } as never
+        }
+      });
+    });
+
+    const slots = await generateBranchSlotsFromTemplate({
+      branch_id: body.branch_id,
+      windows: body.days,
+      slotMinutes: body.slot_minutes,
+      capacity: body.capacity
+    });
+    return { ok: true, days: body.days.length, slots };
   });
 
   /** حذف فترة — فقط إن لم يكن عليها حجوزات */

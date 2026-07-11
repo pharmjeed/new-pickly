@@ -430,6 +430,110 @@ describe.skipIf(!hasDb)("Phase 2 — الميزات المؤجلة", async () =>
     });
   });
 
+  describe("BR-5 — دوام الأسبوع (توليد الفترات من branch_hours)", () => {
+    async function managerLogin(branch_code: string): Promise<string> {
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/auth/branch/login",
+        payload: { branch_code, username: `${branch_code}-manager`, pin: "1234", device_name: "اختبار" }
+      });
+      return res.json().access_token as string;
+    }
+
+    it("حفظ الدوام يولّد فترات الأيام السبعة ويوائم الفارغة مع القالب الجديد", async () => {
+      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "DW-MALAZ" } });
+      const token = await managerLogin("DW-MALAZ");
+
+      // فترة مستقبلية فارغة خارج القالب — الحفظ يجب أن يحذفها (مواءمة)
+      const strayStart = new Date(Date.now() + 3 * 3600_000 + 17 * 60_000);
+      const stray = await prisma.branchCapacitySlot.upsert({
+        where: { branch_id_slot_start: { branch_id: branch.id, slot_start: strayStart } },
+        create: {
+          branch_id: branch.id,
+          slot_start: strayStart,
+          slot_end: new Date(strayStart.getTime() + 30 * 60_000),
+          capacity: 4
+        },
+        update: { booked: 0 }
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/merchant/scheduled/week",
+        headers: authed(token),
+        payload: {
+          branch_id: branch.id,
+          slot_minutes: 30,
+          capacity: 5,
+          days: [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, opens_at: "10:00", closes_at: "22:00" }))
+        }
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().days).toBe(7);
+      expect(res.json().slots).toBeGreaterThan(0);
+
+      const gone = await prisma.branchCapacitySlot.findUnique({ where: { id: stray.id } });
+      expect(gone).toBeNull();
+
+      const week = await app.inject({
+        method: "GET",
+        url: `/v1/merchant/scheduled/week?branch_id=${branch.id}`,
+        headers: authed(token)
+      });
+      expect(week.statusCode).toBe(200);
+      expect(week.json().days.length).toBe(7);
+      expect(week.json().slot_minutes).toBe(30);
+      expect(week.json().capacity).toBe(5);
+
+      const slots = await app.inject({
+        method: "GET",
+        url: `/v1/merchant/scheduled/slots?branch_id=${branch.id}`,
+        headers: authed(token)
+      });
+      const list = slots.json() as { capacity: number }[];
+      expect(list.length).toBeGreaterThan(0);
+      expect(list.some((s) => s.capacity === 5)).toBe(true);
+    });
+
+    it("الدوام الممتد بعد منتصف الليل يُقبل ويولّد فترات", async () => {
+      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "DW-MALAZ" } });
+      const token = await managerLogin("DW-MALAZ");
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/merchant/scheduled/week",
+        headers: authed(token),
+        payload: {
+          branch_id: branch.id,
+          slot_minutes: 60,
+          capacity: 3,
+          days: [0, 1, 2, 3, 4, 5, 6].map((d) => ({ day_of_week: d, opens_at: "18:00", closes_at: "02:00" }))
+        }
+      });
+      expect(res.statusCode).toBe(200);
+      // 8 ساعات × 7 أيام أفق — بعضها مضى اليوم؛ على الأقل 6 أيام كاملة
+      expect(res.json().slots).toBeGreaterThanOrEqual(6 * 8);
+    });
+
+    it("isolation: مدير تاجر آخر لا يعدّل دوام فرع غيره (403)", async () => {
+      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
+      const foreign = await managerLogin("DW-MALAZ");
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/merchant/scheduled/week",
+        headers: authed(foreign),
+        payload: { branch_id: branch.id, slot_minutes: 30, capacity: 3, days: [] }
+      });
+      expect(res.statusCode).toBe(403);
+
+      const read = await app.inject({
+        method: "GET",
+        url: `/v1/merchant/scheduled/week?branch_id=${branch.id}`,
+        headers: authed(foreign)
+      });
+      expect(read.statusCode).toBe(403);
+    });
+  });
+
   describe("C-33 — وسيلة الدفع", () => {
     it("method=wallet تُخزن على intent وتمر بنفس مسار sandbox", async () => {
       const token = await customerLogin();

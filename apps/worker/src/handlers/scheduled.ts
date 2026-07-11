@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { prisma } from "@pickly/database";
+import { generateBranchSlotsFromTemplate, prisma } from "@pickly/database";
 import { createLogger } from "@pickly/observability";
 import { notifyInApp } from "./notifications.js";
 
@@ -144,4 +144,44 @@ export async function handleScheduledExpire(payload: unknown): Promise<void> {
     });
   });
   logger.warn({ order_id }, "مجدول غير مدفوع — EXPIRED وحُررت السعة");
+}
+
+/**
+ * تجديد متدحرج لفترات BR-5 من دوام الأسبوع (branch_hours):
+ * لكل فرع مفعّل الجدولة وله دوام محفوظ — upsert فترات الأيام السبعة القادمة.
+ * idempotent: القائمة تُحدَّث سعتها فقط، والمحجوز لا يُمس.
+ */
+export async function runWeeklySlotRoll(): Promise<number> {
+  const enabled = await prisma.branchPickupSettings.findMany({ where: { scheduled_enabled: true } });
+  let total = 0;
+  for (const settings of enabled) {
+    const windows = await prisma.branchHour.findMany({ where: { branch_id: settings.branch_id } });
+    if (windows.length === 0) continue;
+    total += await generateBranchSlotsFromTemplate({
+      branch_id: settings.branch_id,
+      windows,
+      slotMinutes: settings.scheduled_slot_minutes,
+      capacity: settings.scheduled_capacity
+    });
+  }
+  if (total > 0) logger.info({ slots: total, branches: enabled.length }, "تجديد فترات الجدولة من دوام الأسبوع");
+  return total;
+}
+
+/** حلقة التجديد — كل ساعة تكفي لأفق 7 أيام */
+export function startWeeklySlotRoll(intervalMs = 3600_000): () => void {
+  let running = true;
+  void (async () => {
+    while (running) {
+      try {
+        await runWeeklySlotRoll();
+      } catch (err) {
+        logger.error({ err }, "weekly slot roll error");
+      }
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+  })();
+  return () => {
+    running = false;
+  };
 }

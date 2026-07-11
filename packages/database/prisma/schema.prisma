@@ -607,6 +607,8 @@ model BranchPickupSettings {
   accept_window_seconds   Int     @default(180) // BR-1: عداد 3 دقائق
   auto_accept_enabled     Boolean @default(false) // S6 — يُفعَّل بشرط 4 أسابيع >98%
   scheduled_enabled       Boolean @default(false) // مؤجل — BR-5
+  scheduled_slot_minutes  Int     @default(30) // طول فترة الاستلام المجدول — تتولّد من دوام الأسبوع (branch_hours)
+  scheduled_capacity      Int     @default(6) // السعة الموحدة لكل فترة متولدة
   default_prep_minutes    Int     @default(15)
   dwell_seconds           Int     @default(20) // مقاومة GPS Drift — docs/14§4
   updated_at              DateTime @updatedAt @db.Timestamptz(6)
