@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { hashPin } from "@pickly/auth";
 import { prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
-import { HalalaSchema, UuidSchema } from "@pickly/contracts";
+import { HalalaSchema, UuidSchema, type JwtClaims } from "@pickly/contracts";
 import { assertBranchScope, requireAuth, requireStaff } from "../../lib/auth-plugin.js";
 
 /**
@@ -72,6 +73,55 @@ const MANAGER_ROLES = ["owner", "general_manager", "operations_manager", "branch
 const MENU_ROLES = [...MANAGER_ROLES, "cashier"] as const; // الكاشير: توفر فرعه فقط
 const FINANCE_VIEW = ["owner", "general_manager", "finance"] as const;
 const REPORT_ROLES = [...MANAGER_ROLES, "finance", "analyst"] as const;
+
+/**
+ * M-10 إدارة الطاقم — docs/16§1 «الموظفون والأدوار»:
+ * مالك/مدير عام ✅ كامل · مدير عمليات 🔶 فروعه · مدير فرع 🔶 فرعه دون مدراء.
+ * التدرّج يمنع تصعيد الصلاحيات: لا منح/تعديل دور برتبة ≥ رتبة الفاعل.
+ */
+const STAFF_ROLE_RANK: Record<string, number> = {
+  owner: 5,
+  general_manager: 4,
+  operations_manager: 3,
+  branch_manager: 2,
+  cashier: 1,
+  kitchen: 1,
+  handoff: 1,
+  finance: 1,
+  analyst: 1
+};
+// المالك لا يُمنح من هنا (يُنشأ عند الانضمام) — أعلى دور قابل للمنح: مدير عام
+const GrantableRoleSchema = z.enum([
+  "general_manager",
+  "operations_manager",
+  "branch_manager",
+  "cashier",
+  "kitchen",
+  "handoff",
+  "finance",
+  "analyst"
+]);
+/** أدوار تشغيلية تتطلب فرعاً واحداً على الأقل (دخول الفرع يشترط تعييناً) */
+const BRANCH_BOUND_ROLES = new Set(["operations_manager", "branch_manager", "cashier", "kitchen", "handoff"]);
+const PinSchema = z.string().regex(/^\d{4,6}$/, "الرمز السري 4-6 أرقام");
+
+const plainRole = (key: string): string => key.replace(/^merchant:/, "");
+const rankOf = (roleKey: string): number => STAFF_ROLE_RANK[plainRole(roleKey)] ?? 0;
+const actorRankOf = (claims: JwtClaims): number => Math.max(0, ...claims.roles.map(rankOf));
+/** المالك/المدير العام نطاقهما كل الفروع؛ من دونهما مقيد بفروع توكنه (docs/16§1 🔶) */
+const hasFullScope = (claims: JwtClaims): boolean =>
+  claims.roles.some((r) => ["owner", "general_manager"].includes(plainRole(r)));
+
+/** يتحقق أن الفاعل يملك منح هذا الدور على هذه الفروع — وإلا AUTH-1006/MERCHANT-7003 */
+function assertStaffGrant(claims: JwtClaims, role_key: string, branch_ids: string[]): void {
+  if (rankOf(role_key) >= actorRankOf(claims)) throw new AppError("AUTH-1006");
+  if (!hasFullScope(claims)) {
+    const scope = new Set(claims.branch_ids ?? []);
+    if (branch_ids.length === 0 || branch_ids.some((b) => !scope.has(b))) {
+      throw new AppError("MERCHANT-7003");
+    }
+  }
+}
 
 export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", requireAuth);
@@ -503,22 +553,187 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
     return { id, deleted: !referenced, deactivated: referenced };
   });
 
-  /** M-10: الطاقم */
+  /** M-10: الطاقم — القائمة ضمن نطاق الفاعل (docs/16§1) */
   app.get("/staff", async (req) => {
-    requireStaff(req, MANAGER_ROLES);
+    const claims = requireStaff(req, MANAGER_ROLES);
     const merchant_id = merchantIdOf(req);
     const staff = await prisma.merchantStaff.findMany({
       where: { merchant_id, status: { not: "removed" } },
-      include: { branch_assignments: { include: { branch: true } } }
+      include: { branch_assignments: { include: { branch: true } } },
+      orderBy: { created_at: "asc" }
     });
-    return staff.map((s) => ({
+    const scope = new Set(claims.branch_ids ?? []);
+    const visible = hasFullScope(claims)
+      ? staff
+      : staff.filter((s) => s.branch_assignments.some((a) => scope.has(a.branch_id)));
+    const myRank = actorRankOf(claims);
+    return visible.map((s) => ({
       id: s.id,
       username: s.username,
       full_name: s.full_name,
-      role_key: s.role_key,
+      role_key: plainRole(s.role_key),
       status: s.status,
-      branches: s.branch_assignments.map((a) => a.branch.name_ar)
+      branches: s.branch_assignments.map((a) => a.branch.name_ar),
+      branch_ids: s.branch_assignments.map((a) => a.branch_id),
+      // للواجهة: هل يستطيع الفاعل إدارة هذا الصف (لا ذاته، ولا رتبة ≥ رتبته)
+      can_manage: (s.user_id == null || s.user_id !== claims.sub) && rankOf(s.role_key) < myRank
     }));
+  });
+
+  /** M-10 CRUD: إضافة موظف بدور وفروع — docs/16§1 «الموظفون والأدوار» */
+  app.post("/staff", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const merchant_id = merchantIdOf(req);
+    const body = z
+      .object({
+        full_name: z.string().min(2).max(60),
+        username: z.string().regex(/^[a-zA-Z0-9._-]{3,32}$/, "اسم الحساب لاتيني 3-32 حرفاً"),
+        pin: PinSchema,
+        role_key: GrantableRoleSchema,
+        branch_ids: z.array(UuidSchema).max(50).default([])
+      })
+      .parse(req.body);
+
+    assertStaffGrant(claims, body.role_key, body.branch_ids);
+    if (BRANCH_BOUND_ROLES.has(body.role_key) && body.branch_ids.length === 0) {
+      throw new AppError("SYS-9004", { branch_ids: "هذا الدور يتطلب فرعاً واحداً على الأقل" });
+    }
+
+    if (body.branch_ids.length > 0) {
+      const owned = await prisma.branch.count({ where: { merchant_id, id: { in: body.branch_ids } } });
+      if (owned !== body.branch_ids.length) throw new AppError("MERCHANT-7003");
+    }
+
+    const dup = await prisma.merchantStaff.findUnique({
+      where: { merchant_id_username: { merchant_id, username: body.username } }
+    });
+    if (dup) throw new AppError("SYS-9004", { username: "اسم الحساب مستخدم مسبقاً" });
+
+    const pin_hash = await hashPin(body.pin);
+    const created = await prisma.$transaction(async (tx) => {
+      const row = await tx.merchantStaff.create({
+        data: {
+          merchant_id,
+          username: body.username,
+          full_name: body.full_name,
+          pin_hash,
+          role_key: `merchant:${body.role_key}`
+        }
+      });
+      if (body.branch_ids.length > 0) {
+        await tx.staffBranchAssignment.createMany({
+          data: body.branch_ids.map((branch_id) => ({ staff_id: row.id, branch_id }))
+        });
+      }
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "staff_created",
+          entity_type: "merchant_staff",
+          entity_id: row.id,
+          merchant_id,
+          after: { username: body.username, role_key: body.role_key, branch_ids: body.branch_ids } as never
+        }
+      });
+      return row;
+    });
+    return { id: created.id, ok: true };
+  });
+
+  /** M-10 CRUD: تعديل موظف — الدور/الفروع/الاسم/PIN/الحالة (إيقاف يُلغي جلساته فوراً) */
+  app.patch("/staff/:id", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const merchant_id = merchantIdOf(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = z
+      .object({
+        full_name: z.string().min(2).max(60).optional(),
+        role_key: GrantableRoleSchema.optional(),
+        branch_ids: z.array(UuidSchema).max(50).optional(),
+        pin: PinSchema.optional(),
+        status: z.enum(["active", "suspended"]).optional()
+      })
+      .parse(req.body);
+
+    const target = await prisma.merchantStaff.findFirst({
+      where: { id, merchant_id, status: { not: "removed" } },
+      include: { branch_assignments: true }
+    });
+    if (!target) throw new AppError("MERCHANT-7003");
+    // لا تعديل ذاتي (دور/إيقاف) — يمنع قفل الحساب أو تصعيده
+    if (target.user_id && target.user_id === claims.sub) throw new AppError("AUTH-1006");
+    // لا إدارة من هو برتبة مساوية/أعلى (مدير الفرع «دون مدراء» — docs/16§1)
+    if (rankOf(target.role_key) >= actorRankOf(claims)) throw new AppError("AUTH-1006");
+
+    const currentBranchIds = target.branch_assignments.map((a) => a.branch_id);
+    const finalRole = body.role_key ?? plainRole(target.role_key);
+    const finalBranches = body.branch_ids ?? currentBranchIds;
+    assertStaffGrant(claims, finalRole, finalBranches);
+    if (!hasFullScope(claims)) {
+      // الهدف نفسه يجب أن يكون بكامله ضمن نطاق الفاعل
+      const scope = new Set(claims.branch_ids ?? []);
+      if (currentBranchIds.some((b) => !scope.has(b))) throw new AppError("MERCHANT-7003");
+    }
+    if (BRANCH_BOUND_ROLES.has(finalRole) && finalBranches.length === 0) {
+      throw new AppError("SYS-9004", { branch_ids: "هذا الدور يتطلب فرعاً واحداً على الأقل" });
+    }
+
+    if (body.branch_ids && body.branch_ids.length > 0) {
+      const owned = await prisma.branch.count({ where: { merchant_id, id: { in: body.branch_ids } } });
+      if (owned !== body.branch_ids.length) throw new AppError("MERCHANT-7003");
+    }
+
+    const pin_hash = body.pin ? await hashPin(body.pin) : undefined;
+    await prisma.$transaction(async (tx) => {
+      await tx.merchantStaff.update({
+        where: { id },
+        data: {
+          ...(body.full_name !== undefined ? { full_name: body.full_name } : {}),
+          ...(body.role_key !== undefined ? { role_key: `merchant:${body.role_key}` } : {}),
+          ...(body.status !== undefined ? { status: body.status } : {}),
+          ...(pin_hash ? { pin_hash } : {})
+        }
+      });
+      if (body.branch_ids) {
+        await tx.staffBranchAssignment.deleteMany({ where: { staff_id: id } });
+        if (body.branch_ids.length > 0) {
+          await tx.staffBranchAssignment.createMany({
+            data: body.branch_ids.map((branch_id) => ({ staff_id: id, branch_id }))
+          });
+        }
+      }
+      // الإيقاف نافذ فوراً: إلغاء جلسات الموظف النشطة (requireAuth يرفضها)
+      if (body.status === "suspended" && target.user_id) {
+        await tx.userSession.updateMany({
+          where: { user_id: target.user_id, revoked_at: null },
+          data: { revoked_at: new Date() }
+        });
+      }
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "staff_updated",
+          entity_type: "merchant_staff",
+          entity_id: id,
+          merchant_id,
+          before: {
+            role_key: plainRole(target.role_key),
+            status: target.status,
+            branch_ids: currentBranchIds
+          } as never,
+          after: {
+            ...(body.full_name !== undefined ? { full_name: body.full_name } : {}),
+            ...(body.role_key !== undefined ? { role_key: body.role_key } : {}),
+            ...(body.status !== undefined ? { status: body.status } : {}),
+            ...(body.branch_ids !== undefined ? { branch_ids: body.branch_ids } : {}),
+            ...(body.pin !== undefined ? { pin: "changed" } : {})
+          } as never
+        }
+      });
+    });
+    return { id, ok: true };
   });
 
   /** M-15: التسويات وكشوفها */
