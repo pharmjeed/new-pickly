@@ -43,6 +43,35 @@ export async function clearTokens(): Promise<void> {
   await SecureStore.deleteItemAsync(REFRESH_KEY);
 }
 
+/**
+ * تجديد الجلسة عند انتهاء توكن الوصول (15 د) عبر توكن التجديد الدوّار (30 يوماً منزلقة).
+ * Promise واحد مشترك — طلبات 401 متزامنة لا تحرق توكن التجديد (يُلغى عند أول تدوير).
+ */
+let refreshing: Promise<boolean> | null = null;
+
+function tryRefresh(): Promise<boolean> {
+  refreshing ??= (async () => {
+    try {
+      const refresh_token = await SecureStore.getItemAsync(REFRESH_KEY);
+      if (!refresh_token) return false;
+      const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token })
+      });
+      if (!res.ok) return false;
+      const data = (await res.json()) as { access_token: string; refresh_token: string };
+      await setTokens(data.access_token, data.refresh_token);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
 export class ApiError extends Error {
   constructor(
     public code: string,
@@ -68,22 +97,42 @@ export async function api<T>(
   body?: unknown,
   opts: { idempotent?: boolean } = {}
 ): Promise<T> {
-  const headers: Record<string, string> = {};
-  // لا Content-Type بلا body — Fastify يرفض JSON فارغاً
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  const token = await getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  if (opts.idempotent) headers["Idempotency-Key"] = uuid();
+  // مفتاح idempotency يثبت عبر إعادة المحاولة بعد التجديد — نفس العملية، لا عملية ثانية
+  const idemKey = opts.idempotent ? uuid() : undefined;
 
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
+  const attempt = async (): Promise<Response> => {
+    const headers: Record<string, string> = {};
+    // لا Content-Type بلا body — Fastify يرفض JSON فارغاً
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    const token = await getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (idemKey) headers["Idempotency-Key"] = idemKey;
+    return fetch(`${API_BASE}${path}`, {
       method,
       headers,
       ...(body !== undefined ? { body: JSON.stringify(body) } : {})
     });
+  };
+
+  let res: Response;
+  try {
+    res = await attempt();
   } catch {
     throw new ApiError("NET-0001", "تعذر الاتصال بالخادم — تأكد من الشبكة", 0);
+  }
+
+  // توكن الوصول انتهى — جدّد بصمت وأعد المحاولة مرة واحدة
+  if (res.status === 401 && (await getToken())) {
+    if (await tryRefresh()) {
+      try {
+        res = await attempt();
+      } catch {
+        throw new ApiError("NET-0001", "تعذر الاتصال بالخادم — تأكد من الشبكة", 0);
+      }
+    } else {
+      // توكن التجديد نفسه انتهى/أُلغي — الشاشات تعرض تسجيل الدخول لغياب التوكن
+      await clearTokens();
+    }
   }
 
   if (!res.ok) {
