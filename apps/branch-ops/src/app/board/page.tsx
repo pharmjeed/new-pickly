@@ -25,8 +25,14 @@ interface Card {
   /** FR-C06: asap | later | scheduled — «لاحقاً» يعني تجهيزاً غير موقوت بالوصول */
   pickup_time: "asap" | "later" | "scheduled";
   scheduled_slot_start: string | null;
+  /** وقت التجهيز المتوقع المحدد عند القبول + موافقة العميل عليه */
+  prep_minutes: number | null;
+  prep_time_confirmed_at: string | null;
   created_at: string;
 }
+
+/** خيارات وقت التجهيز المتوقع عند القبول — بالدقائق */
+const PREP_CHOICES = [10, 15, 20, 25] as const;
 
 interface QueueEntry {
   order_id: string;
@@ -107,6 +113,10 @@ export default function BoardPage() {
   const [codeFor, setCodeFor] = useState<string | null>(null);
   const [codeVal, setCodeVal] = useState("");
   const [now, setNow] = useState<number | null>(null);
+  // القبول على خطوتين: اختيار وقت التجهيز المتوقع (10/15/20/25 د) ثم التأكيد
+  const [acceptFor, setAcceptFor] = useState<string | null>(null);
+  const [prepSel, setPrepSel] = useState<number>(15);
+  const [accepting, setAccepting] = useState(false);
   // استعراض تفاصيل الطلب قبل القبول
   const [detailsFor, setDetailsFor] = useState<string | null>(null);
   const [details, setDetails] = useState<OrderDetails | null>(null);
@@ -399,7 +409,7 @@ export default function BoardPage() {
                 )}
 
                 <div className={s.actions}>
-                  {c.order_status === "MERCHANT_PENDING" && (
+                  {c.order_status === "MERCHANT_PENDING" && acceptFor !== c.id && (
                     <>
                       <button
                         className={`${s.bbtn} ${s.gray}`}
@@ -411,7 +421,10 @@ export default function BoardPage() {
                       <button
                         className={s.bbtn}
                         data-testid="accept-order"
-                        onClick={() => act(`/v1/merchant/orders/${c.id}/accept`, {}, true)}
+                        onClick={() => {
+                          setAcceptFor(c.id);
+                          setPrepSel(15);
+                        }}
                       >
                         قبول
                       </button>
@@ -424,14 +437,71 @@ export default function BoardPage() {
                       </button>
                     </>
                   )}
+                  {c.order_status === "MERCHANT_PENDING" && acceptFor === c.id && (
+                    <div className={s.prepPick} data-testid="prep-time-picker">
+                      <span className={s.prepLbl}>الوقت المتوقع لتجهيز الطلب:</span>
+                      <div className={s.prepOpts}>
+                        {PREP_CHOICES.map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            className={`${s.prepOpt} ${prepSel === m ? s.prepOptOn : ""}`}
+                            data-testid={`prep-${m}`}
+                            onClick={() => setPrepSel(m)}
+                          >
+                            <b className={s.mono}>{m}</b> د
+                          </button>
+                        ))}
+                      </div>
+                      <div className={s.prepActions}>
+                        <button
+                          className={s.bbtn}
+                          data-testid="confirm-accept"
+                          disabled={accepting}
+                          onClick={async () => {
+                            setAccepting(true);
+                            try {
+                              await act(`/v1/merchant/orders/${c.id}/accept`, { prep_time_override_minutes: prepSel }, true);
+                              setAcceptFor(null);
+                            } finally {
+                              setAccepting(false);
+                            }
+                          }}
+                        >
+                          تأكيد القبول ({prepSel} د)
+                        </button>
+                        <button
+                          className={`${s.bbtn} ${s.gray}`}
+                          data-testid="cancel-accept"
+                          disabled={accepting}
+                          onClick={() => setAcceptFor(null)}
+                        >
+                          رجوع
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {c.order_status === "MERCHANT_ACCEPTED" && (
-                    <button
-                      className={`${s.bbtn} ${s.gray}`}
-                      data-testid="start-preparing"
-                      onClick={() => act(`/v1/merchant/orders/${c.id}/preparing`)}
-                    >
-                      بدء التجهيز
-                    </button>
+                    <>
+                      {c.prep_minutes !== null && !c.prep_time_confirmed_at && (
+                        <span className={s.prepWait} data-testid="prep-waiting">
+                          ⏳ بانتظار موافقة العميل على الوقت (<b className={s.mono}>{c.prep_minutes}</b> د)
+                        </span>
+                      )}
+                      {c.prep_minutes !== null && c.prep_time_confirmed_at && (
+                        <span className={s.prepOk} data-testid="prep-confirmed">
+                          ✓ وافق العميل — <b className={s.mono}>{c.prep_minutes}</b> د
+                        </span>
+                      )}
+                      <button
+                        className={`${s.bbtn} ${s.gray}`}
+                        data-testid="start-preparing"
+                        disabled={c.prep_minutes !== null && !c.prep_time_confirmed_at}
+                        onClick={() => act(`/v1/merchant/orders/${c.id}/preparing`)}
+                      >
+                        بدء التجهيز
+                      </button>
+                    </>
                   )}
                   {c.order_status === "PREPARING" && (
                     <button

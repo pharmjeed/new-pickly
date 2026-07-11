@@ -211,6 +211,44 @@
 
 /* ===== أزرار ضخمة للفرع (لمس ≥56px) ===== */
 .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+/* منتقي وقت التجهيز المتوقع قبل تأكيد القبول (10/15/20/25 د) */
+.prepPick { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.prepLbl { font-size: 17px; font-weight: 700; color: var(--pk-ink-900); }
+.prepOpts { display: flex; gap: 8px; flex-wrap: wrap; }
+.prepOpt {
+  min-height: var(--pk-touch-branch);
+  min-width: 88px;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: 2px solid var(--pk-line);
+  background: var(--pk-cloud);
+  color: var(--pk-ink-900);
+  font-family: var(--pk-font-body);
+  font-size: 19px;
+  cursor: pointer;
+}
+.prepOpt:hover { border-color: var(--pk-ink-900); }
+.prepOptOn { background: var(--pk-lime-500); border-color: var(--pk-ink-900); font-weight: 800; }
+.prepActions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* حالة موافقة العميل على الوقت — على بطاقة MERCHANT_ACCEPTED */
+.prepWait {
+  background: var(--pk-st-overdue-bg, #FDF3E7);
+  color: var(--pk-warn);
+  border-radius: var(--pk-radius-pill);
+  padding: 6px 14px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.prepOk {
+  background: var(--pk-lime-100);
+  color: var(--pk-lime-900);
+  border-radius: var(--pk-radius-pill);
+  padding: 6px 14px;
+  font-size: 15px;
+  font-weight: 700;
+}
 .bbtn {
   display: inline-flex;
   align-items: center;

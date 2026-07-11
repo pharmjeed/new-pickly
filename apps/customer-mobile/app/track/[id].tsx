@@ -25,6 +25,8 @@ interface Order {
   brand_name_ar: string;
   handoff_code: string | null;
   prep_minutes: number | null;
+  /** موافقة العميل على وقت التجهيز المتوقع — null حتى يؤكد */
+  prep_time_confirmed_at: string | null;
   vehicle: { color_ar: string; model_ar: string | null; plate_short: string } | null;
 }
 
@@ -84,6 +86,22 @@ export default function TrackScreen() {
   // P8: التقييم بضغطة (BR-11)
   const [reviewDone, setReviewDone] = useState(false);
   const [savingReview, setSavingReview] = useState(false);
+
+  // موافقة العميل على وقت التجهيز المتوقع الذي حدده المطعم عند القبول
+  const [confirmingPrep, setConfirmingPrep] = useState(false);
+  const [prepErr, setPrepErr] = useState<string | null>(null);
+  const confirmPrep = async () => {
+    setConfirmingPrep(true);
+    setPrepErr(null);
+    try {
+      await api("POST", `/v1/orders/${id}/confirm-prep-time`);
+      await refresh();
+    } catch (e) {
+      setPrepErr((e as Error).message);
+    } finally {
+      setConfirmingPrep(false);
+    }
+  };
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -277,6 +295,33 @@ export default function TrackScreen() {
         </Text>
         <Text style={[st.sub, { color: T.text2 }]}>{view.sub}</Text>
 
+        {/* موافقة العميل على وقت التجهيز المتوقع — قبل بدء التجهيز */}
+        {order.order_status === "MERCHANT_ACCEPTED" && order.prep_minutes !== null && !order.prep_time_confirmed_at && (
+          <View style={[st.card, { backgroundColor: T.surface, borderColor: T.border, alignItems: "center" }]}>
+            <Text style={{ color: T.text, fontSize: fs.fs15, fontWeight: "800", textAlign: "center" }}>
+              المطعم حدّد الوقت المتوقع لتجهيز طلبك
+            </Text>
+            <Text style={st.prepMinutes}>{order.prep_minutes} دقيقة</Text>
+            <Text style={{ color: T.text2, fontSize: fs.fs13, textAlign: "center", marginBottom: 8 }}>
+              بموافقتك يبدأ المطعم التجهيز فوراً
+            </Text>
+            {prepErr && <ErrorNote text={prepErr} />}
+            <LimeButton
+              title="موافق — ابدؤوا التجهيز"
+              disabled={confirmingPrep}
+              onPress={() => void confirmPrep()}
+              style={{ alignSelf: "stretch" }}
+            />
+          </View>
+        )}
+        {order.order_status === "MERCHANT_ACCEPTED" && order.prep_minutes !== null && order.prep_time_confirmed_at && (
+          <View style={[st.card, { backgroundColor: T.surface, borderColor: T.border, alignItems: "center" }]}>
+            <View style={st.okBadge}>
+              <Text style={st.okBadgeTxt}>✓ وافقت على وقت التجهيز — {order.prep_minutes} دقيقة</Text>
+            </View>
+          </View>
+        )}
+
         {/* بطاقة ETA الكبيرة — وضع القيادة (C-45) */}
         {driveMode && eta !== null && (
           <View style={[st.card, { backgroundColor: T.surface, borderColor: T.border }]}>
@@ -456,6 +501,14 @@ const st = StyleSheet.create({
     fontSize: fs.fs32,
     fontWeight: "900",
     textAlign: "center",
+    fontVariant: ["tabular-nums"]
+  },
+  prepMinutes: {
+    color: colors.lime900,
+    fontSize: fs.fs32,
+    fontWeight: "900",
+    textAlign: "center",
+    marginVertical: 4,
     fontVariant: ["tabular-nums"]
   },
   vehRow: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },

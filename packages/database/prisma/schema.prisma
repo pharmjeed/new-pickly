@@ -1011,6 +1011,8 @@ model Order {
   /// FR-C06: asap | later | scheduled — حقل عقد POST /v1/orders (docs/11§4)
   pickup_time       String      @default("asap")
   prep_minutes      Int?
+  /// موافقة العميل على وقت التجهيز المتوقع الذي حدده الفرع عند القبول — «انطلقت الآن» تُعدّ موافقة ضمنية
+  prep_time_confirmed_at DateTime? @db.Timestamptz(6)
   accept_deadline_at DateTime?  @db.Timestamptz(6) // عداد BR-1
   accepted_at       DateTime?   @db.Timestamptz(6)
   ready_at          DateTime?   @db.Timestamptz(6)

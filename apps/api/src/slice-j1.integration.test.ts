@@ -241,6 +241,23 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     });
     expect(accept.statusCode).toBe(200);
     expect(accept.json().order_status).toBe("MERCHANT_ACCEPTED");
+    expect(accept.json().prep_minutes).toBe(10);
+
+    // لا تجهيز قبل موافقة العميل على الوقت المتوقع (ORDER-4009)
+    const blocked = await app.inject({
+      method: "POST",
+      url: `/v1/merchant/orders/${orderId}/preparing`,
+      headers: authed(staffToken)
+    });
+    expect(blocked.statusCode).toBe(409);
+
+    const confirmPrep = await app.inject({
+      method: "POST",
+      url: `/v1/orders/${orderId}/confirm-prep-time`,
+      headers: authed(customerToken)
+    });
+    expect(confirmPrep.statusCode).toBe(200);
+    expect(confirmPrep.json().prep_time_confirmed_at).not.toBeNull();
 
     await app.inject({
       method: "POST",

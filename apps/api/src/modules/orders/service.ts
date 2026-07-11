@@ -88,6 +88,7 @@ export function toOrderDto(o: OrderWithItems): OrderDto {
       : null,
     handoff_code: CODE_VISIBLE_STATES.includes(status) ? handoffCodeFor(o.id) : null,
     prep_minutes: o.prep_minutes,
+    prep_time_confirmed_at: o.prep_time_confirmed_at?.toISOString() ?? null,
     pickup_time: o.pickup_time as PickupTime,
     scheduled_slot: o.scheduled_slot
       ? {
@@ -337,6 +338,33 @@ export class OrderService {
     const order = await prisma.order.findUnique({ where: { id: order_id }, include: orderInclude });
     if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
     return toOrderDto(order);
+  }
+
+  /** موافقة العميل على وقت التجهيز المتوقع الذي حدده الفرع عند القبول — الفرع لا يبدأ التجهيز قبلها */
+  async confirmPrepTime(order_id: string, user_id: string): Promise<OrderDto> {
+    const order = await prisma.order.findUnique({ where: { id: order_id }, include: orderInclude });
+    if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
+    if (order.prep_time_confirmed_at) return toOrderDto(order); // idempotent — تكرار الضغط لا يغيّر شيئاً
+
+    const status = order.order_status as OrderState;
+    // مقبولة من القبول حتى ما قبل التسليم — بعدها لا معنى للموافقة
+    const confirmable: OrderState[] = [
+      "MERCHANT_ACCEPTED",
+      "PREPARING",
+      "READY",
+      "CUSTOMER_NOTIFIED",
+      "CUSTOMER_ON_THE_WAY",
+      "CUSTOMER_NEARBY",
+      "CUSTOMER_ARRIVED"
+    ];
+    if (!confirmable.includes(status)) throw new AppError("ORDER-4002", { from: status, to: status });
+
+    const updated = await prisma.order.update({
+      where: { id: order_id },
+      data: { prep_time_confirmed_at: new Date() },
+      include: orderInclude
+    });
+    return toOrderDto(updated);
   }
 
   /** تعديل فترة المجدول — مجاني قبل free_change_until (BR-5) */

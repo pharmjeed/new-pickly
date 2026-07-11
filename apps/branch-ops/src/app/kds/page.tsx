@@ -23,6 +23,9 @@ interface Card {
   eta_minutes: number | null;
   accept_deadline_at: string | null;
   arrived_at: string | null;
+  /** وقت التجهيز المتوقع + موافقة العميل عليه — لا تحضير قبلها */
+  prep_minutes: number | null;
+  prep_time_confirmed_at: string | null;
   created_at: string;
 }
 
@@ -320,13 +323,20 @@ export default function KdsPage() {
               في الانتظار <span className={s.khCount}>{waiting.length}</span>
             </div>
             <div className={s.kb}>
-              {waiting.map((c) =>
-                renderTicket(
+              {waiting.map((c) => {
+                const awaitingCustomer = c.prep_minutes !== null && !c.prep_time_confirmed_at;
+                return renderTicket(
                   c,
                   <>
+                    {awaitingCustomer && (
+                      <span className={s.mod} data-testid="kds-prep-waiting">
+                        ⏳ بانتظار موافقة العميل على الوقت ({c.prep_minutes} د)
+                      </span>
+                    )}
                     <button
                       className={s.bbtn}
                       data-testid="kds-start"
+                      disabled={awaitingCustomer}
                       onClick={() => act(`/v1/merchant/orders/${c.id}/preparing`)}
                     >
                       بدء التحضير
@@ -335,8 +345,8 @@ export default function KdsPage() {
                       نقص منتج
                     </button>
                   </>
-                )
-              )}
+                );
+              })}
               {waiting.length === 0 && <div className={s.kempty}>لا طلبات في الانتظار</div>}
             </div>
           </div>

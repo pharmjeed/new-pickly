@@ -54,10 +54,14 @@ export class PickupService {
       const s = await tx.pickupSession.create({
         data: { order_id, mode }
       });
-      await transitionOrder(tx, order, "CUSTOMER_ON_THE_WAY", {
-        actor_type: "customer",
-        actor_id: user_id
-      });
+      await transitionOrder(
+        tx,
+        order,
+        "CUSTOMER_ON_THE_WAY",
+        { actor_type: "customer", actor_id: user_id },
+        // «انطلقت الآن» موافقة ضمنية على وقت التجهيز المتوقع — لا يبقى الفرع محظوراً من التجهيز
+        order.prep_time_confirmed_at ? {} : { data: { prep_time_confirmed_at: new Date() } }
+      );
       await tx.arrivalEvent.create({
         data: { order_id, session_id: s.id, event_type: "trip_started" }
       });

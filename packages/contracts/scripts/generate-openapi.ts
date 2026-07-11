@@ -69,6 +69,7 @@ const routes: RouteDef[] = [
   { method: "post", path: "/v1/orders/{id}/reschedule", summary: "تعديل فترة المجدول قبل مهلة التعديل المجاني (BR-5)", tags: ["orders"], auth: true, idempotent: true, body: c.RescheduleOrderBodySchema, response: c.OrderSchema },
   { method: "post", path: "/v1/orders/{id}/cancel", summary: "طلب إلغاء", tags: ["orders"], auth: true, idempotent: true, body: c.CancelOrderBodySchema, response: c.OrderSchema },
   { method: "post", path: "/v1/orders/{id}/change-response", summary: "رد العميل على تعديل الفرع (BR-4)", tags: ["orders"], auth: true, body: c.ChangeResponseBodySchema, response: c.OrderSchema },
+  { method: "post", path: "/v1/orders/{id}/confirm-prep-time", summary: "موافقة العميل على وقت التجهيز المتوقع الذي حدده الفرع عند القبول", tags: ["orders"], auth: true, response: c.OrderSchema },
   // §5 الاستلام
   { method: "post", path: "/v1/orders/{id}/trip/start", summary: "أنا في الطريق", tags: ["pickup"], auth: true, response: c.PickupSessionSchema },
   { method: "post", path: "/v1/orders/{id}/trip/location", summary: "تحديث موقع", tags: ["pickup"], auth: true, body: c.TripLocationBodySchema },

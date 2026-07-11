@@ -17,6 +17,8 @@ interface Order {
   brand_name_ar: string;
   handoff_code: string | null;
   prep_minutes: number | null;
+  /** موافقة العميل على وقت التجهيز المتوقع — null حتى يؤكد */
+  prep_time_confirmed_at: string | null;
   vehicle: { color_ar: string; model_ar: string | null; plate_short: string } | null;
 }
 
@@ -149,6 +151,22 @@ export default function TrackPage() {
     setSheetOpen(true);
   };
 
+  // موافقة العميل على وقت التجهيز المتوقع الذي حدده المطعم عند القبول
+  const [confirmingPrep, setConfirmingPrep] = useState(false);
+  const [prepErr, setPrepErr] = useState<string | null>(null);
+  const confirmPrep = async () => {
+    setConfirmingPrep(true);
+    setPrepErr(null);
+    try {
+      await api("POST", `/v1/orders/${id}/confirm-prep-time`);
+      await refresh();
+    } catch (e) {
+      setPrepErr((e as Error).message);
+    } finally {
+      setConfirmingPrep(false);
+    }
+  };
+
   // P8: تقييم بضغطة (BR-11)
   const [reviewDone, setReviewDone] = useState(false);
   const [savingReview, setSavingReview] = useState(false);
@@ -232,6 +250,26 @@ export default function TrackPage() {
           {view.title}
         </h1>
         <p className="pk-muted" style={{ marginBottom: 16 }}>{view.sub}</p>
+
+        {/* موافقة العميل على وقت التجهيز المتوقع — قبل بدء التجهيز */}
+        {order.order_status === "MERCHANT_ACCEPTED" && order.prep_minutes !== null && !order.prep_time_confirmed_at && (
+          <div className="pk-card" data-testid="prep-confirm-card" style={{ textAlign: "center", marginBottom: 12 }}>
+            <p style={{ fontWeight: 700, marginBottom: 4 }}>المطعم حدّد الوقت المتوقع لتجهيز طلبك</p>
+            <p className="pk-display" style={{ fontSize: "var(--pk-fs-34)", margin: "4px 0" }}>
+              <span className="pk-mono">{order.prep_minutes}</span> دقيقة
+            </p>
+            <p className="pk-muted" style={{ marginBottom: 10 }}>بموافقتك يبدأ المطعم التجهيز فوراً</p>
+            {prepErr && <p style={{ color: "var(--pk-error)", marginBottom: 8 }}>{prepErr}</p>}
+            <button className="pk-btn" data-testid="confirm-prep-time" disabled={confirmingPrep} onClick={confirmPrep}>
+              موافق — ابدؤوا التجهيز
+            </button>
+          </div>
+        )}
+        {order.order_status === "MERCHANT_ACCEPTED" && order.prep_minutes !== null && order.prep_time_confirmed_at && (
+          <div className="pk-card" data-testid="prep-confirmed-note" style={{ textAlign: "center", marginBottom: 12 }}>
+            <span className="pk-badge ok">✓ وافقت على وقت التجهيز — <span className="pk-mono">{order.prep_minutes}</span> دقيقة</span>
+          </div>
+        )}
 
         {/* بطاقة ETA الكبيرة — وضع القيادة (C-45) */}
         {driveMode && eta !== null && (

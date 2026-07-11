@@ -70,8 +70,18 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await expect(orderCard).toBeVisible();
   await expect(orderCard).toContainText("بيضاء"); // بطاقة السيارة أكبر عنصر
   await orderCard.getByTestId("accept-order").click();
+  // القبول على خطوتين: اختيار الوقت المتوقع (10/15/20/25 د) ثم التأكيد
+  await orderCard.getByTestId("prep-20").click();
+  await orderCard.getByTestId("confirm-accept").click();
 
+  // العميل يرى الوقت المتوقع ويوافق — قبلها «بدء التجهيز» معطل
+  await expect(c.getByTestId("prep-confirm-card")).toContainText("20");
   await b.getByTestId("tab-preparing").click();
+  await expect(orderCard.getByTestId("start-preparing")).toBeDisabled();
+  await c.getByTestId("confirm-prep-time").click();
+  await expect(c.getByTestId("prep-confirmed-note")).toBeVisible();
+
+  await expect(orderCard.getByTestId("start-preparing")).toBeEnabled();
   await orderCard.getByTestId("start-preparing").click();
   await orderCard.getByTestId("mark-ready").click();
 

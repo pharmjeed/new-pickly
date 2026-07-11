@@ -45,6 +45,13 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     return service.reschedule(id, claims.sub, body.slot_id);
   });
 
+  /** موافقة العميل على وقت التجهيز المتوقع الذي حدده الفرع عند القبول */
+  app.post("/:id/confirm-prep-time", async (req) => {
+    const claims = requireCustomer(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    return service.confirmPrepTime(id, claims.sub);
+  });
+
   /** رد العميل على تعديل الفرع — BR-4 */
   app.post("/:id/change-response", async (req) => {
     const claims = requireCustomer(req);

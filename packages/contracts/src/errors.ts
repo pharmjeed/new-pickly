@@ -53,6 +53,7 @@ export const ERROR_CODES = {
   "ORDER-4006": { ar: "الفترة المختارة ممتلئة أو غير متاحة — اختر فترة أخرى", en: "Selected slot is full or unavailable — pick another", status: 409 },
   "ORDER-4007": { ar: "الجدولة غير متاحة لهذا الفرع حالياً", en: "Scheduling is not available for this branch", status: 409 },
   "ORDER-4008": { ar: "انتهت مهلة التعديل المجاني لهذا الطلب المجدول", en: "Free-change window for this scheduled order has passed", status: 409 },
+  "ORDER-4009": { ar: "بانتظار موافقة العميل على وقت التجهيز المتوقع", en: "Awaiting customer confirmation of the expected prep time", status: 409 },
 
   // PAY-5xxx
   "PAY-5001": { ar: "ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ", en: "Payment failed. Try another card — your order is saved", status: 402 },
