@@ -58,8 +58,12 @@ export const OrderSchema = z.object({
   /** رمز التسليم — يظهر للعميل فقط بعد ARRIVED أو عند الجاهزية حسب الحالة */
   handoff_code: z.string().nullable(),
   prep_minutes: z.number().int().nullable(),
-  /** موافقة العميل على وقت التجهيز المتوقع — null حتى يؤكد (أو يضغط «انطلقت الآن») */
+  /** موافقة العميل على وقت التجهيز المتوقع — شرط الانتقال للدفع (docs/05§3) */
   prep_time_confirmed_at: z.string().datetime().nullable().default(null),
+  /** مهلة موافقة العميل على الوقت — 5 د من قبول الفرع (docs/06 BR-2)، null خارج مرحلتها */
+  prep_confirm_deadline_at: z.string().datetime().nullable().default(null),
+  /** مهلة إتمام الدفع — 5 د من الموافقة، null خارج مرحلتها */
+  payment_deadline_at: z.string().datetime().nullable().default(null),
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة رحلة العميل */
   preparing_at: z.string().datetime().nullable().default(null),
   ready_at: z.string().datetime().nullable().default(null),

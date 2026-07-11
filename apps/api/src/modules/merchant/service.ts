@@ -1,5 +1,5 @@
 import { prisma, type Prisma } from "@pickly/database";
-import type { BranchOrderCard, OrderState } from "@pickly/contracts";
+import type { BranchOrderCard, BranchRadarEntry, OrderState } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
 import { emitEvent, scheduleJob } from "../../lib/events.js";
 import { transitionOrder } from "../../lib/state-machine.js";
@@ -15,6 +15,8 @@ import { payments } from "../orders/service.js";
 const ACTIVE_STATES: OrderState[] = [
   "MERCHANT_PENDING",
   "MERCHANT_ACCEPTED",
+  "PAYMENT_PENDING",
+  "PAYMENT_FAILED",
   "PREPARING",
   "READY",
   "CUSTOMER_NOTIFIED",
@@ -22,6 +24,19 @@ const ACTIVE_STATES: OrderState[] = [
   "CUSTOMER_NEARBY",
   "CUSTOMER_ARRIVED",
   "HANDOFF_IN_PROGRESS"
+];
+
+/** بين القبول والدفع — يظهر معلوماتياً في عمود «بانتظار الدفع» مع منع التحضير (docs/06 BR-2) */
+const AWAITING_PAYMENT_STATES: OrderState[] = ["MERCHANT_ACCEPTED", "PAYMENT_PENDING", "PAYMENT_FAILED"];
+
+/** الحالات المدفوعة النشطة — نطاق رادار الوصول (docs/14§5-مكرر) */
+const RADAR_STATES: OrderState[] = [
+  "PREPARING",
+  "READY",
+  "CUSTOMER_NOTIFIED",
+  "CUSTOMER_ON_THE_WAY",
+  "CUSTOMER_NEARBY",
+  "CUSTOMER_ARRIVED"
 ];
 
 /**
@@ -34,9 +49,11 @@ const JOURNEY_STATES: OrderState[] = [...JOURNEY_EN_ROUTE, "CUSTOMER_ARRIVED"];
 
 const TAB_WHERE: Record<string, Prisma.OrderWhereInput> = {
   new: { order_status: "MERCHANT_PENDING" },
+  // بين القبول والدفع — معلوماتي فقط، التحضير يبدأ آلياً عند نجاح الدفع
+  awaiting_payment: { order_status: { in: AWAITING_PAYMENT_STATES } },
   preparing: {
     OR: [
-      { order_status: { in: ["MERCHANT_ACCEPTED", "PREPARING"] } },
+      { order_status: "PREPARING" },
       { order_status: { in: JOURNEY_EN_ROUTE }, ready_at: null }
     ]
   },
@@ -58,9 +75,20 @@ function maskPhone(phone: string): string {
 
 type OrderForCard = Prisma.OrderGetPayload<{ include: { user: true; scheduled_slot: true } }>;
 
+/** مهلتا ما بعد القبول — 5 دقائق لكلٍّ (docs/06 BR-2) لعرض عداد «بانتظار الدفع» */
+const POST_ACCEPT_WINDOW_MS = 5 * 60_000;
+
 function toCard(o: OrderForCard, etaMinutes: number | null): BranchOrderCard {
   const status = o.order_status as OrderState;
   const isActive = ACTIVE_STATES.includes(status);
+  const prepConfirmDeadline =
+    status === "MERCHANT_ACCEPTED" && o.prep_minutes !== null && !o.prep_time_confirmed_at && o.accepted_at
+      ? new Date(o.accepted_at.getTime() + POST_ACCEPT_WINDOW_MS)
+      : null;
+  const paymentDeadline =
+    o.prep_time_confirmed_at && AWAITING_PAYMENT_STATES.includes(status)
+      ? new Date(o.prep_time_confirmed_at.getTime() + POST_ACCEPT_WINDOW_MS)
+      : null;
   return {
     id: o.id,
     display_code: o.display_code,
@@ -78,6 +106,8 @@ function toCard(o: OrderForCard, etaMinutes: number | null): BranchOrderCard {
     scheduled_slot_start: o.scheduled_slot?.slot_start.toISOString() ?? null,
     prep_minutes: o.prep_minutes,
     prep_time_confirmed_at: o.prep_time_confirmed_at?.toISOString() ?? null,
+    prep_confirm_deadline_at: prepConfirmDeadline?.toISOString() ?? null,
+    payment_deadline_at: paymentDeadline?.toISOString() ?? null,
     preparing_at: o.preparing_at?.toISOString() ?? null,
     ready_at: o.ready_at?.toISOString() ?? null,
     created_at: o.created_at.toISOString()
@@ -114,7 +144,11 @@ export class MerchantOrderService {
     return order;
   }
 
-  /** قبول — BR-1: يجوز مع تعديل وقت التجهيز + Capture (docs/13§3) */
+  /**
+   * قبول — BR-1: تحديد وقت التجهيز المتوقع (10/15/20/25 د).
+   * الدفع بعد القبول (docs/05§3): لا Capture هنا — لا مال بعد؛
+   * القبول يفتح مهلة موافقة العميل على الوقت (5 د) وانتهاؤها = EXPIRED.
+   */
   async accept(order_id: string, branch_ids: string[], staff_user_id: string, prepOverride?: number) {
     const order = await this.loadBranchOrder(order_id, branch_ids);
     if (order.order_status !== "MERCHANT_PENDING") throw new AppError("MERCHANT-7001");
@@ -124,44 +158,36 @@ export class MerchantOrderService {
     });
     const prep = prepOverride ?? settings?.default_prep_minutes ?? 15;
 
-    // Capture خارج المعاملة (نداء شبكة) ثم الانتقال — فشله يبقي الطلب PENDING
-    const intent = await prisma.paymentIntent.findUnique({ where: { order_id } });
-    if (intent?.provider_ref && intent.supports_capture) {
-      const captured = await payments.capture(intent.provider_ref, intent.amount_halalas);
-      if (!captured.ok) throw new AppError("SYS-9002", { hint: "capture failed" });
-    }
-
     await prisma.$transaction(async (tx) => {
-      if (intent) {
-        await tx.paymentIntent.update({ where: { id: intent.id }, data: { status: "captured" } });
-        await tx.paymentTransaction.create({
-          data: {
-            intent_id: intent.id,
-            type: "capture",
-            debit_account: "gateway_pending",
-            credit_account: "merchant_payable",
-            amount_halalas: intent.amount_halalas,
-            provider_ref: intent.provider_ref
-          }
-        });
-      }
+      const acceptedAt = new Date();
       await transitionOrder(
         tx,
         order,
         "MERCHANT_ACCEPTED",
         { actor_type: "merchant_staff", actor_id: staff_user_id },
-        { data: { accepted_at: new Date(), prep_minutes: prep }, payload: { prep_minutes: prep } }
+        { data: { accepted_at: acceptedAt, prep_minutes: prep }, payload: { prep_minutes: prep } }
+      );
+      await scheduleJob(
+        tx,
+        "prep_confirm_timeout",
+        { order_id },
+        new Date(acceptedAt.getTime() + POST_ACCEPT_WINDOW_MS),
+        `prep_confirm_timeout:${order_id}`
       );
     });
     return this.card(order_id);
   }
 
-  /** رفض بسبب مغلق → استرجاع/تحرير آلي (J5) */
+  /**
+   * رفض بسبب مغلق (J5) — الدفع بعد القبول: الرفض يسبق قبض أي مبلغ،
+   * فلا استرجاع إلا لطلب قديم دُفع قبل تغيير المسار (حارس توافق خلفي).
+   */
   async reject(order_id: string, branch_ids: string[], staff_user_id: string, reason: string) {
     const order = await this.loadBranchOrder(order_id, branch_ids);
     if (order.order_status !== "MERCHANT_PENDING") throw new AppError("MERCHANT-7001");
 
     const intent = await prisma.paymentIntent.findUnique({ where: { order_id } });
+    const paid = intent !== null && ["authorized", "captured"].includes(intent.status);
 
     await prisma.$transaction(async (tx) => {
       await transitionOrder(
@@ -171,29 +197,31 @@ export class MerchantOrderService {
         { actor_type: "merchant_staff", actor_id: staff_user_id },
         { reason, payload: { reason } }
       );
-      await transitionOrder(
-        tx,
-        { ...order, order_status: "MERCHANT_REJECTED" },
-        "REFUND_PENDING",
-        { actor_type: "system" },
-        { reason }
-      );
-      await tx.refund.create({
-        data: {
-          order_id,
-          intent_id: intent?.id ?? null,
-          amount_halalas: order.total_halalas,
-          includes_service_fee: true, // رفض الفرع: استرجاع كامل — BR-2
-          reason: `merchant_reject:${reason}`,
-          status: "pending",
-          requested_by: "system",
-          idempotency_key: `reject:${order_id}`
-        }
-      });
+      if (paid && intent) {
+        await transitionOrder(
+          tx,
+          { ...order, order_status: "MERCHANT_REJECTED" },
+          "REFUND_PENDING",
+          { actor_type: "system" },
+          { reason }
+        );
+        await tx.refund.create({
+          data: {
+            order_id,
+            intent_id: intent.id,
+            amount_halalas: order.total_halalas,
+            includes_service_fee: true, // رفض الفرع: استرجاع كامل — BR-2
+            reason: `merchant_reject:${reason}`,
+            status: "pending",
+            requested_by: "system",
+            idempotency_key: `reject:${order_id}`
+          }
+        });
+      }
     });
 
-    // التنفيذ عند البوابة ثم الإكمال — تحرير الحجز أو استرجاع (docs/13§3)
-    if (intent?.provider_ref) {
+    // حارس التوافق الخلفي: تنفيذ الاسترجاع عند البوابة لطلب مدفوع بالمسار القديم
+    if (paid && intent?.provider_ref) {
       const released = intent.status === "captured"
         ? await payments.refund(intent.provider_ref, order.total_halalas, `reject:${order_id}`)
         : { ok: (await payments.cancelOrRelease(intent.provider_ref)).ok, refund_ref: "release" };
@@ -221,10 +249,14 @@ export class MerchantOrderService {
     return this.card(order_id);
   }
 
+  /**
+   * «بدء التجهيز» اليدوي — بعد تغيير المسار يبقى للمسار الموازي فقط
+   * (عميل انطلق وطلبه لم يُعلَّم preparing_at)؛ التحضير الاعتيادي يبدأ آلياً عند الدفع.
+   */
   async preparing(order_id: string, branch_ids: string[], staff_user_id: string) {
     const order = await this.loadBranchOrder(order_id, branch_ids);
-    // لا تجهيز قبل موافقة العميل على الوقت المتوقع — «انطلقت الآن» تُعدّ موافقة ضمنية
-    if (order.prep_minutes !== null && !order.prep_time_confirmed_at) {
+    // لا تجهيز قبل الدفع — الطلب بين القبول والدفع معلوماتي فقط (docs/06 BR-2)
+    if (AWAITING_PAYMENT_STATES.includes(order.order_status as OrderState)) {
       throw new AppError("ORDER-4009");
     }
     const status = order.order_status as OrderState;
@@ -380,6 +412,44 @@ export class MerchantOrderService {
     return this.card(order_id);
   }
 
+  /**
+   * رادار الوصول — docs/14§5-مكرر: لكل طلب مدفوع نشط سطر يقارن
+   * المتبقي لوصول العميل (أحدث لقطة ETA) بما مضى من دقائق التجهيز (من preparing_at).
+   * لا استدعاء خرائط هنا — نقرأ لقطات ETA المخزنة من رحلة العميل فقط.
+   */
+  async radar(branch_id: string): Promise<BranchRadarEntry[]> {
+    const orders = await prisma.order.findMany({
+      where: { branch_id, order_status: { in: RADAR_STATES } },
+      include: { user: true },
+      orderBy: { preparing_at: "asc" },
+      take: 100
+    });
+
+    const entries: BranchRadarEntry[] = [];
+    for (const o of orders) {
+      const session = await prisma.pickupSession.findUnique({
+        where: { order_id: o.id },
+        include: { eta_snapshots: { orderBy: { created_at: "desc" }, take: 1 } }
+      });
+      const snap = session?.status === "active" || session?.status === "arrived" ? session.eta_snapshots[0] : null;
+      entries.push({
+        order_id: o.id,
+        display_code: o.display_code,
+        order_status: o.order_status as OrderState,
+        customer_first_name: (o.user.full_name ?? "عميل").split(" ")[0] ?? "عميل",
+        vehicle_summary: o.vehicle_summary,
+        prep_minutes: o.prep_minutes,
+        preparing_at: o.preparing_at?.toISOString() ?? null,
+        ready_at: o.ready_at?.toISOString() ?? null,
+        arrived_at: o.arrived_at?.toISOString() ?? null,
+        trip_active: session?.status === "active" || session?.status === "arrived",
+        eta_minutes: snap ? Math.round(snap.eta_seconds / 60) : null,
+        eta_updated_at: snap?.created_at.toISOString() ?? null
+      });
+    }
+    return entries;
+  }
+
   /** طابور الوصول — الترتيب BR-9 */
   async arrivalQueue(branch_id: string) {
     const settings = await prisma.branchPickupSettings.findUnique({ where: { branch_id } });
@@ -466,8 +536,10 @@ export class MerchantOrderService {
     input: { order_item_id: string; issue: "out_of_stock" | "partial"; substitute_product_id?: string | undefined; note?: string | undefined }
   ) {
     const order = await this.loadBranchOrder(order_id, branch_ids);
-    if (!["MERCHANT_ACCEPTED", "PREPARING"].includes(order.order_status)) {
-      throw new AppError("MERCHANT-7004", { hint: "التعديل بعد القبول وقبل الجاهزية" });
+    // الدفع بعد القبول: نقص المنتج يُبلغ بعد الدفع (PREPARING) وقبل الجاهزية —
+    // قبل الدفع لا تعديل مالي؛ يكفي الرفض أو انتهاء المهلة
+    if (order.order_status !== "PREPARING" || order.ready_at) {
+      throw new AppError("MERCHANT-7004", { hint: "التعديل أثناء التحضير وقبل الجاهزية" });
     }
     const item = await prisma.orderItem.findUnique({ where: { id: input.order_item_id } });
     if (!item || item.order_id !== order_id) throw new AppError("ORDER-4001");

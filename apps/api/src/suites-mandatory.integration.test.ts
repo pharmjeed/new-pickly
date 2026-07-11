@@ -51,8 +51,8 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
     return res.json().access_token as string;
   }
 
-  /** ينشئ طلباً مدفوعاً حتى MERCHANT_PENDING ويعيد ids */
-  async function paidOrder(branch_code: string) {
+  /** ينشئ طلباً مُرسلاً بلا دفع حتى MERCHANT_PENDING (الدفع بعد القبول — docs/05§3) */
+  async function submittedOrder(branch_code: string) {
     const token = await customerLogin();
     const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code } });
     const veh = await app.inject({
@@ -89,6 +89,23 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
       payload: { cart_id: cartId, quote_id: quoteId, vehicle_id: veh.json().id, pickup_time: "asap" }
     });
     const orderId = orderRes.json().id as string;
+    return { token, orderId, branchId: branch.id, branch_code };
+  }
+
+  /** يكمل المسار حتى الدفع: قبول الفرع ← موافقة العميل ← intent ← دفع sandbox ← PREPARING */
+  async function acceptConfirmPay(orderId: string, token: string, branch_code: string) {
+    const staff = await staffLogin(branch_code);
+    await app.inject({
+      method: "POST",
+      url: `/v1/merchant/orders/${orderId}/accept`,
+      headers: { ...authed(staff), "idempotency-key": randomUUID() },
+      payload: { prep_time_override_minutes: 15 }
+    });
+    await app.inject({
+      method: "POST",
+      url: `/v1/orders/${orderId}/confirm-prep-time`,
+      headers: authed(token)
+    });
     await app.inject({
       method: "POST",
       url: `/v1/orders/${orderId}/payment-intent`,
@@ -100,12 +117,12 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
       headers: { "content-type": "application/json" },
       payload: "{}"
     });
-    return { token, orderId, branchId: branch.id };
+    return staff;
   }
 
   describe("isolation — عزل التجار (BR-15)", () => {
     it("موظف تاجر آخر لا يقرأ طلبات/منيو/لوحة تاجر غيره", async () => {
-      const { branchId } = await paidOrder("BB-OLAYA");
+      const { branchId } = await submittedOrder("BB-OLAYA");
       const foreignToken = await staffLogin("DW-MALAZ"); // تاجر مختلف
 
       const orders = await app.inject({
@@ -131,7 +148,7 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
     });
 
     it("isolation: عميل لا يقرأ طلب عميل آخر", async () => {
-      const { orderId } = await paidOrder("BB-OLAYA");
+      const { orderId } = await submittedOrder("BB-OLAYA");
       const stranger = await customerLogin();
       const res = await app.inject({
         method: "GET",
@@ -165,7 +182,7 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
   describe("idempotency — لا تكرار مالي (docs/13§4-2)", () => {
     it("idempotency: نفس مفتاح إنشاء الطلب يعيد الطلب نفسه", async () => {
       // مغطى تفصيلاً في slice-j1 — هنا تأكيد السلوك عبر مفتاح ثابت
-      const { token, orderId } = await paidOrder("BB-OLAYA");
+      const { token, orderId } = await submittedOrder("BB-OLAYA");
       void token;
       const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
       const dup = await prisma.order.findMany({ where: { idempotency_key: order.idempotency_key } });
@@ -173,7 +190,8 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
     });
 
     it("idempotency: webhook مكرر لا يُعالج مرتين ولا يكرر قيود ledger", async () => {
-      const { orderId } = await paidOrder("BB-OLAYA");
+      const { token, orderId, branch_code } = await submittedOrder("BB-OLAYA");
+      await acceptConfirmPay(orderId, token, branch_code);
       const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { order_id: orderId } });
       const authsBefore = await prisma.paymentTransaction.count({
         where: { intent_id: intent.id, type: "authorization" }
@@ -192,6 +210,9 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
         where: { intent_id: intent.id, type: "authorization" }
       });
       expect(authsAfter).toBe(1); // الحالة لم تعد PAYMENT_PENDING — لا قيد جديداً
+
+      const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+      expect(order.order_status).toBe("PREPARING"); // لحظة الصفر ثابتة رغم التكرار
     });
 
     it("idempotency: مفتاح Idempotency مفقود على POST مالي ← PAY-5002", async () => {
@@ -208,8 +229,8 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
   });
 
   describe("refunds — الاسترجاع (BR-2/BR-12 + docs/13§5)", () => {
-    it("refunds: رفض الفرع ← REFUNDED كامل + قيد ledger + منع التكرار", async () => {
-      const { orderId, branchId } = await paidOrder("BB-OLAYA");
+    it("refunds: رفض الفرع يسبق الدفع ← MERCHANT_REJECTED بلا أي استرجاع (BR-2)", async () => {
+      const { orderId, branchId } = await submittedOrder("BB-OLAYA");
       const branch = await prisma.branch.findUniqueOrThrow({ where: { id: branchId } });
       const staff = await staffLogin(branch.branch_code);
 
@@ -222,19 +243,14 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
       expect(reject.statusCode).toBe(200);
 
       const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
-      expect(order.order_status).toBe("REFUNDED");
+      // الدفع بعد القبول: الرفض قبل قبض أي مبلغ — لا REFUND_PENDING ولا refund
+      expect(order.order_status).toBe("MERCHANT_REJECTED");
+      expect(await prisma.refund.count({ where: { order_id: orderId } })).toBe(0);
+      expect(
+        await prisma.paymentTransaction.count({ where: { intent: { order_id: orderId } } })
+      ).toBe(0);
 
-      const refunds = await prisma.refund.findMany({ where: { order_id: orderId } });
-      expect(refunds).toHaveLength(1);
-      expect(refunds[0]!.status).toBe("completed");
-      expect(refunds[0]!.amount_halalas).toBe(order.total_halalas); // كامل — BR-2
-
-      const ledger = await prisma.paymentTransaction.findMany({
-        where: { intent: { order_id: orderId }, type: "refund" }
-      });
-      expect(ledger.length).toBeLessThanOrEqual(1);
-
-      // إعادة الرفض ← MERCHANT-7001 (لم يعد PENDING) — لا استرجاع مكرر
+      // إعادة الرفض ← MERCHANT-7001 (لم يعد PENDING)
       const again = await app.inject({
         method: "POST",
         url: `/v1/merchant/orders/${orderId}/reject`,
@@ -242,13 +258,44 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
         payload: { reason: "item_unavailable" }
       });
       expect(again.statusCode).toBe(409);
-      expect(await prisma.refund.count({ where: { order_id: orderId } })).toBe(1);
+    });
+
+    it("timeouts: انتهاء مهلة موافقة العميل (5 د) ← EXPIRED بلا أثر مالي (BR-2)", async () => {
+      const { orderId, token, branch_code } = await submittedOrder("BB-OLAYA");
+      const staff = await staffLogin(branch_code);
+      await app.inject({
+        method: "POST",
+        url: `/v1/merchant/orders/${orderId}/accept`,
+        headers: { ...authed(staff), "idempotency-key": randomUUID() },
+        payload: { prep_time_override_minutes: 10 }
+      });
+
+      // مهلة الموافقة (5 د) مجدولة في background_jobs بمفتاح إزالة تكرار
+      const job = await prisma.backgroundJob.findFirst({
+        where: { job_type: "prep_confirm_timeout", dedupe_key: `prep_confirm_timeout:${orderId}` }
+      });
+      expect(job).not.toBeNull();
+      const accepted = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+      const runAt = job!.run_at!.getTime() - accepted.accepted_at!.getTime();
+      expect(Math.round(runAt / 60_000)).toBe(5); // 5 دقائق — BR-2
+
+      // معالج الـworker يحوّل EXPIRED (يُختبر تنفيذه في حزمة الـworker) — نحاكي أثره هنا
+      await prisma.order.update({ where: { id: orderId }, data: { order_status: "EXPIRED" } });
+      expect(await prisma.refund.count({ where: { order_id: orderId } })).toBe(0);
+
+      // بعد الانتهاء لا موافقة ولا دفع
+      const late = await app.inject({
+        method: "POST",
+        url: `/v1/orders/${orderId}/confirm-prep-time`,
+        headers: authed(token)
+      });
+      expect(late.statusCode).toBe(409);
     });
   });
 
   describe("state machine — قواعد صلبة على API (docs/05§4)", () => {
     it("state machine: لا HANDOFF قبل READY ولا COMPLETED بلا تسليم", async () => {
-      const { orderId, branchId } = await paidOrder("BB-OLAYA");
+      const { orderId, branchId } = await submittedOrder("BB-OLAYA");
       const branch = await prisma.branch.findUniqueOrThrow({ where: { id: branchId } });
       const staff = await staffLogin(branch.branch_code);
 

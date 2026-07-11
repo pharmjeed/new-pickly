@@ -1,12 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * J1 Happy Path (docs/03) في المتصفح — البوابة الكبرى للمرحلة 2:
- * عميل: تسجيل ← مطعم ← منتجات ← سلة ← إتمام ← دفع sandbox ← تتبع
- * فرع: قبول ← تجهيز ← جاهز
- * عميل: انطلقت ← وصلت (يدوي — J10: بلا صلاحية موقع)
- * فرع: خرج الموظف ← تحقق بالرمز ← سلّمت
- * عميل: تم التسليم.
+ * J1 Happy Path (docs/03) في المتصفح — الدفع بعد القبول (قرار المالك 2026-07-11):
+ * عميل: تسجيل ← مطعم ← منتجات ← سلة ← إرسال بلا دفع ← تتبع
+ * فرع: قبول بوقت تجهيز ← عمود «بانتظار الدفع»
+ * عميل: موافقة على الوقت ← دفع sandbox ← التجهيز يبدأ آلياً
+ * فرع: جاهز · عميل: انطلقت ← وصلت (يدوي — J10: بلا صلاحية موقع)
+ * فرع: خرج الموظف ← تحقق بالرمز ← سلّمت · عميل: تم التسليم.
  */
 
 const CUSTOMER = "http://localhost:3000";
@@ -45,20 +45,21 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await expect(c.getByTestId("quote-box")).toContainText("رسم خدمة بيكلي"); // BR-6 مفصول
   await c.getByTestId("go-checkout").click();
 
-  // ===== 4. الإتمام: سيارة مصغرة (S3) + دفع sandbox (P6) =====
+  // ===== 4. الإتمام: سيارة مصغرة (S3) + إرسال بلا دفع (P6) =====
   await c.getByTestId("veh-color").fill("بيضاء");
   await c.getByTestId("veh-plate").fill("8241");
   await c.getByTestId("veh-save").click();
   await expect(c.getByTestId("vehicle-radio").first()).toBeChecked();
+  await expect(c.getByTestId("pay-after-accept")).toContainText("الدفع بعد قبول المطعم");
   await c.getByTestId("pay-button").click();
 
-  // ===== 5. التتبع: الطلب وصل للفرع (P7) =====
+  // ===== 5. التتبع: الطلب وصل للفرع بلا دفع (P7) =====
   await c.waitForURL(/\/track\//);
   const orderCode = (await c.getByTestId("order-code").textContent())?.trim() ?? "";
   expect(orderCode).toMatch(/^P-\d{4}$/);
   await expect(c.getByTestId("track-title")).toContainText("أُرسل طلبك");
 
-  // ===== 6. لوحة الفرع: دخول + قبول + تجهيز + جاهز (B-01→B-03) =====
+  // ===== 6. لوحة الفرع: دخول + قبول بوقت تجهيز (B-01→B-03) =====
   await b.goto(BRANCH);
   await b.getByTestId("branch-code").fill("BB-OLAYA");
   await b.getByTestId("username").fill("BB-OLAYA-cashier");
@@ -74,15 +75,22 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await orderCard.getByTestId("prep-20").click();
   await orderCard.getByTestId("confirm-accept").click();
 
-  // العميل يرى الوقت المتوقع ويوافق — قبلها «بدء التجهيز» معطل
-  await expect(c.getByTestId("prep-confirm-card")).toContainText("20");
-  await b.getByTestId("tab-preparing").click();
-  await expect(orderCard.getByTestId("start-preparing")).toBeDisabled();
-  await c.getByTestId("confirm-prep-time").click();
-  await expect(c.getByTestId("prep-confirmed-note")).toBeVisible();
+  // الطلب في عمود «بانتظار الدفع» — معلوماتي، لا تحضير قبل الدفع
+  await b.getByTestId("tab-awaiting_payment").click();
+  await expect(orderCard.getByTestId("prep-waiting")).toBeVisible();
 
-  await expect(orderCard.getByTestId("start-preparing")).toBeEnabled();
-  await orderCard.getByTestId("start-preparing").click();
+  // ===== 7. العميل: موافقة على الوقت ← دفع sandbox ← التجهيز يبدأ آلياً =====
+  await expect(c.getByTestId("prep-confirm-card")).toContainText("20");
+  await c.getByTestId("confirm-prep-time").click();
+  await expect(c.getByTestId("pay-card")).toBeVisible();
+  await expect(orderCard.getByTestId("awaiting-payment")).toBeVisible();
+  await c.getByTestId("pay-now").click();
+  await expect(c.getByTestId("track-title")).toContainText("قيد التجهيز");
+
+  // الفرع: الطلب انتقل آلياً لتبويب «قيد التحضير» ويظهر في رادار الوصول
+  await b.getByTestId("tab-preparing").click();
+  await expect(orderCard).toBeVisible();
+  await expect(b.getByTestId("radar-row").filter({ hasText: orderCode })).toBeVisible();
   await orderCard.getByTestId("mark-ready").click();
 
   // ===== 7. العميل: جاهز ← انطلقت ← وصلت (J10: يدوي بلا GPS) =====

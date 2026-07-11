@@ -37,23 +37,26 @@ export const OrderStateSchema = z.enum(ORDER_STATES);
 export type OrderState = z.infer<typeof OrderStateSchema>;
 
 /**
- * جدول الانتقالات المسموحة — docs/05§3.
+ * جدول الانتقالات المسموحة — docs/05§3 (الدفع بعد القبول — قرار المالك 2026-07-11).
  * المفتاح: الحالة الحالية؛ القيمة: الحالات التي يجوز الانتقال إليها.
  * ملاحظات:
+ * - الطلب يُرسل للفرع بلا دفع؛ الدفع بعد قبول الفرع وموافقة العميل على الوقت.
+ * - نجاح الدفع (PAYMENT_AUTHORIZED) يقود مباشرة إلى PREPARING — لحظة الصفر.
  * - مسار الوصول (ON_THE_WAY→NEARBY→ARRIVED) عبر Pickup Session ويجوز أن يسبق READY.
- * - «أنا في الطريق» مسموح من MERCHANT_ACCEPTED فصاعداً (docs/05§4-1).
+ * - «انطلقت الآن» مسموحة من PREPARING فصاعداً — بعد الدفع حصراً (docs/05§4-1).
  * - CANCELLATION_REQUESTED مسموح من أي حالة قبل HANDOFF_IN_PROGRESS.
+ * - EXPIRED: انتهاء مهلة الموافقة على الوقت أو مهلة الدفع (5 د لكلٍّ — docs/06 BR-2).
  */
 export const ORDER_TRANSITIONS: Readonly<Record<OrderState, readonly OrderState[]>> = {
   DRAFT: ["CART_ACTIVE"],
   CART_ACTIVE: ["CHECKOUT_PENDING", "EXPIRED"],
-  CHECKOUT_PENDING: ["PAYMENT_PENDING", "CART_ACTIVE", "EXPIRED"],
-  PAYMENT_PENDING: ["PAYMENT_AUTHORIZED", "PAYMENT_FAILED", "EXPIRED"],
-  PAYMENT_AUTHORIZED: ["ORDER_SUBMITTED"],
-  PAYMENT_FAILED: ["PAYMENT_PENDING", "REFUND_PENDING", "EXPIRED"],
-  ORDER_SUBMITTED: ["MERCHANT_PENDING", "CANCELLATION_REQUESTED"],
+  CHECKOUT_PENDING: ["ORDER_SUBMITTED", "CART_ACTIVE", "EXPIRED"],
+  PAYMENT_PENDING: ["PAYMENT_AUTHORIZED", "PAYMENT_FAILED", "EXPIRED", "CANCELLATION_REQUESTED"],
+  PAYMENT_AUTHORIZED: ["PREPARING"],
+  PAYMENT_FAILED: ["PAYMENT_PENDING", "EXPIRED", "CANCELLATION_REQUESTED"],
+  ORDER_SUBMITTED: ["MERCHANT_PENDING", "CANCELLATION_REQUESTED", "EXPIRED"],
   MERCHANT_PENDING: ["MERCHANT_ACCEPTED", "MERCHANT_REJECTED", "CANCELLATION_REQUESTED"],
-  MERCHANT_ACCEPTED: ["PREPARING", "CUSTOMER_ON_THE_WAY", "CANCELLATION_REQUESTED"],
+  MERCHANT_ACCEPTED: ["PAYMENT_PENDING", "CANCELLATION_REQUESTED", "EXPIRED"],
   MERCHANT_REJECTED: ["REFUND_PENDING"],
   PREPARING: ["READY", "CUSTOMER_ON_THE_WAY", "CANCELLATION_REQUESTED"],
   READY: ["CUSTOMER_NOTIFIED", "CUSTOMER_ON_THE_WAY", "CANCELLATION_REQUESTED"],
@@ -96,9 +99,10 @@ export const CUSTOMER_DISPLAY_MAP: Readonly<Record<OrderState, CustomerDisplaySt
   DRAFT: null,
   CART_ACTIVE: null,
   CHECKOUT_PENDING: null,
-  PAYMENT_PENDING: null,
-  PAYMENT_AUTHORIZED: null,
-  PAYMENT_FAILED: null,
+  // حالات الدفع تأتي بعد قبول الفرع — تُعرض للعميل ضمن مرحلة «قبله المطعم»
+  PAYMENT_PENDING: "ACCEPTED",
+  PAYMENT_AUTHORIZED: "ACCEPTED",
+  PAYMENT_FAILED: "ACCEPTED",
   ORDER_SUBMITTED: "SUBMITTED",
   MERCHANT_PENDING: "SUBMITTED",
   MERCHANT_ACCEPTED: "ACCEPTED",

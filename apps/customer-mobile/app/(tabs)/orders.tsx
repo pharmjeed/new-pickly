@@ -20,7 +20,10 @@ interface Order {
 
 const STATUS_AR: Record<string, string> = {
   MERCHANT_PENDING: "بانتظار قبول المطعم",
-  MERCHANT_ACCEPTED: "قبل المطعم طلبك",
+  MERCHANT_ACCEPTED: "قبل المطعم — وافق على الوقت وادفع",
+  PAYMENT_PENDING: "بانتظار دفعك — ادفع ليبدأ التجهيز",
+  PAYMENT_FAILED: "ما تمّ الدفع — جرّب مرة ثانية",
+  EXPIRED: "انتهت مهلة الطلب — لم يُدفع شيء",
   PREPARING: "قيد التجهيز",
   READY: "جاهز للاستلام",
   CUSTOMER_NOTIFIED: "جاهز — بانتظار انطلاقك",

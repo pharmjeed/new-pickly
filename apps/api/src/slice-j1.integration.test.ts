@@ -10,11 +10,12 @@ process.env.GEO_PROVIDER = "mock";
 process.env.PUSH_PROVIDER = "mock";
 
 /**
- * بوابة الـVertical Slice — رحلة J1 كاملة (docs/03) عبر API الحقيقي وقاعدة حقيقية:
- * تسجيل ← فروع ← منيو ← سلة ← تسعير ← طلب ← دفع sandbox ← webhook ←
- * قبول ← تجهيز ← جاهز ← أنا في الطريق (محاكي رحلة) ← اقتراب ← وصلت ←
- * موقف ← خرج الموظف ← تسليم بالرمز ← COMPLETED.
- * تتخطى نفسها إن لم تتوفر قاعدة بيانات (CI يوفرها).
+ * بوابة الـVertical Slice — رحلة J1 كاملة (docs/03) عبر API الحقيقي وقاعدة حقيقية.
+ * الدفع بعد القبول (docs/05§3 — قرار المالك 2026-07-11):
+ * تسجيل ← فروع ← منيو ← سلة ← تسعير ← طلب **بلا دفع** ← MERCHANT_PENDING ←
+ * قبول بوقت تجهيز ← موافقة العميل ← دفع sandbox ← webhook ← PREPARING آلياً ←
+ * جاهز ← انطلقت الآن (محاكي رحلة) ← اقتراب ← وصلت ← موقف ← خرج الموظف ←
+ * تسليم بالرمز ← COMPLETED. تتخطى نفسها إن لم تتوفر قاعدة بيانات (CI يوفرها).
  */
 
 const hasDb = Boolean(process.env.DATABASE_URL);
@@ -150,7 +151,7 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     quoteId = cart.quote.quote_id;
   });
 
-  it("4. إنشاء الطلب بـIdempotency — التكرار لا ينشئ طلباً ثانياً", async () => {
+  it("4. إنشاء الطلب بلا دفع — يصل الفرع فوراً (MERCHANT_PENDING) وبـIdempotency", async () => {
     const key = randomUUID();
     const payload = { cart_id: cartId, quote_id: quoteId, vehicle_id: vehicleId, pickup_time: "asap" };
 
@@ -163,7 +164,8 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     expect(res1.statusCode).toBe(200);
     const order = res1.json();
     orderId = order.id;
-    expect(order.order_status).toBe("CHECKOUT_PENDING");
+    // الدفع بعد القبول: الإرسال بلا دفع يصل الفرع مباشرة (docs/05§3)
+    expect(order.order_status).toBe("MERCHANT_PENDING");
     expect(order.display_code).toMatch(/^P-\d{4}$/);
 
     const res2 = await app.inject({
@@ -173,41 +175,17 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
       payload
     });
     expect(res2.json().id).toBe(orderId); // idempotent — docs/05§4-6
-  });
 
-  it("5. الدفع: intent ← sandbox ← webhook موقع ← MERCHANT_PENDING", async () => {
-    const intentRes = await app.inject({
+    // لا intent قبل قبول الفرع وموافقة العميل على الوقت
+    const early = await app.inject({
       method: "POST",
       url: `/v1/orders/${orderId}/payment-intent`,
       headers: { ...authed(customerToken), "idempotency-key": randomUUID() }
     });
-    expect(intentRes.statusCode).toBe(200);
-
-    const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { order_id: orderId } });
-    providerRef = intent.provider_ref ?? "";
-
-    const payRes = await app.inject({
-      method: "POST",
-      url: `/v1/dev/mock-gateway/${providerRef}/pay`,
-      headers: { "content-type": "application/json" },
-      payload: "{}"
-    });
-    expect(payRes.statusCode).toBe(200);
-    expect(payRes.json().gateway_result).toBe("authorized");
-
-    const orderRes = await app.inject({
-      method: "GET",
-      url: `/v1/orders/${orderId}`,
-      headers: authed(customerToken)
-    });
-    expect(orderRes.json().order_status).toBe("MERCHANT_PENDING");
-
-    // webhook مكرر لا يعالج مرتين
-    const dup = await prisma.paymentWebhookEvent.count({ where: { provider: "mock" } });
-    expect(dup).toBeGreaterThan(0);
+    expect(early.statusCode).toBe(409);
   });
 
-  it("6. الفرع: دخول بكود الفرع ثم قبول وتجهيز وجاهز", async () => {
+  it("5. الفرع يقبل بوقت تجهيز ← موافقة العميل ← الدفع ← PREPARING آلياً", async () => {
     const branch = await prisma.branch.findUniqueOrThrow({ where: { id: branchId } });
     const login = await app.inject({
       method: "POST",
@@ -242,14 +220,37 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     expect(accept.statusCode).toBe(200);
     expect(accept.json().order_status).toBe("MERCHANT_ACCEPTED");
     expect(accept.json().prep_minutes).toBe(10);
+    expect(accept.json().prep_confirm_deadline_at).not.toBeNull(); // مهلة 5 د — BR-2
 
-    // لا تجهيز قبل موافقة العميل على الوقت المتوقع (ORDER-4009)
+    // الطلب في عمود «بانتظار الدفع» — معلوماتي مع منع التحضير
+    const awaitingTab = await app.inject({
+      method: "GET",
+      url: `/v1/merchant/orders?branch_id=${branchId}&tab=awaiting_payment`,
+      headers: authed(staffToken)
+    });
+    expect((awaitingTab.json() as Array<{ id: string }>).some((c) => c.id === orderId)).toBe(true);
     const blocked = await app.inject({
       method: "POST",
       url: `/v1/merchant/orders/${orderId}/preparing`,
       headers: authed(staffToken)
     });
-    expect(blocked.statusCode).toBe(409);
+    expect(blocked.statusCode).toBe(409); // لا تجهيز قبل الدفع (ORDER-4009)
+
+    // لا دفع قبل موافقة العميل على الوقت
+    const noConfirm = await app.inject({
+      method: "POST",
+      url: `/v1/orders/${orderId}/payment-intent`,
+      headers: { ...authed(customerToken), "idempotency-key": randomUUID() }
+    });
+    expect(noConfirm.statusCode).toBe(409);
+
+    // ولا رحلة قبل الدفع (docs/05§4-1)
+    const noTrip = await app.inject({
+      method: "POST",
+      url: `/v1/orders/${orderId}/trip/start`,
+      headers: authed(customerToken)
+    });
+    expect(noTrip.statusCode).toBe(409);
 
     const confirmPrep = await app.inject({
       method: "POST",
@@ -258,12 +259,56 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     });
     expect(confirmPrep.statusCode).toBe(200);
     expect(confirmPrep.json().prep_time_confirmed_at).not.toBeNull();
+    expect(confirmPrep.json().payment_deadline_at).not.toBeNull(); // مهلة الدفع 5 د
 
-    await app.inject({
+    // الدفع: intent ← sandbox ← webhook موقع ← PREPARING آلياً (لحظة الصفر)
+    const intentRes = await app.inject({
       method: "POST",
-      url: `/v1/merchant/orders/${orderId}/preparing`,
+      url: `/v1/orders/${orderId}/payment-intent`,
+      headers: { ...authed(customerToken), "idempotency-key": randomUUID() }
+    });
+    expect(intentRes.statusCode).toBe(200);
+
+    const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { order_id: orderId } });
+    providerRef = intent.provider_ref ?? "";
+
+    const payRes = await app.inject({
+      method: "POST",
+      url: `/v1/dev/mock-gateway/${providerRef}/pay`,
+      headers: { "content-type": "application/json" },
+      payload: "{}"
+    });
+    expect(payRes.statusCode).toBe(200);
+    expect(payRes.json().gateway_result).toBe("authorized");
+
+    const orderRes = await app.inject({
+      method: "GET",
+      url: `/v1/orders/${orderId}`,
+      headers: authed(customerToken)
+    });
+    expect(orderRes.json().order_status).toBe("PREPARING");
+    expect(orderRes.json().preparing_at).not.toBeNull(); // عداد التجهيز من لحظة الدفع
+
+    // webhook مكرر لا يعالج مرتين
+    const dup = await prisma.paymentWebhookEvent.count({ where: { provider: "mock" } });
+    expect(dup).toBeGreaterThan(0);
+  });
+
+  it("6. جاهز ← إشعار العميل + رادار الوصول يعرض الطلب", async () => {
+    // رادار الوصول (docs/14§5-مكرر): الطلب المدفوع يظهر قبل انطلاق العميل «لم ينطلق بعد»
+    const radar = await app.inject({
+      method: "GET",
+      url: `/v1/merchant/radar?branch_id=${branchId}`,
       headers: authed(staffToken)
     });
+    expect(radar.statusCode).toBe(200);
+    const entry = (radar.json() as Array<{ order_id: string; trip_active: boolean; prep_minutes: number | null }>).find(
+      (e) => e.order_id === orderId
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.trip_active).toBe(false);
+    expect(entry!.prep_minutes).toBe(10);
+
     const ready = await app.inject({
       method: "POST",
       url: `/v1/merchant/orders/${orderId}/ready`,
@@ -367,13 +412,14 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
       orderBy: { created_at: "asc" }
     });
     const path = history.map((h) => h.to_status);
+    // الدفع بعد القبول (docs/05§3): الإرسال بلا دفع، والدفع بين القبول والتحضير
     expect(path).toEqual([
       "CHECKOUT_PENDING",
-      "PAYMENT_PENDING",
-      "PAYMENT_AUTHORIZED",
       "ORDER_SUBMITTED",
       "MERCHANT_PENDING",
       "MERCHANT_ACCEPTED",
+      "PAYMENT_PENDING",
+      "PAYMENT_AUTHORIZED",
       "PREPARING",
       "READY",
       "CUSTOMER_NOTIFIED",
@@ -493,6 +539,20 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
       }
     });
     const order2 = orderRes.json().id as string;
+    // المسار الجديد: قبول ← موافقة العميل ← دفع ← PREPARING آلياً
+    const accept = await app.inject({
+      method: "POST",
+      url: `/v1/merchant/orders/${order2}/accept`,
+      headers: { ...authed(staffToken), "idempotency-key": randomUUID() },
+      payload: { prep_time_override_minutes: 15 }
+    });
+    expect(accept.statusCode).toBe(200);
+    const confirm2 = await app.inject({
+      method: "POST",
+      url: `/v1/orders/${order2}/confirm-prep-time`,
+      headers: authed(customerToken)
+    });
+    expect(confirm2.statusCode).toBe(200);
     const intentRes = await app.inject({
       method: "POST",
       url: `/v1/orders/${order2}/payment-intent`,
@@ -506,15 +566,8 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
       headers: { "content-type": "application/json" },
       payload: "{}"
     });
-    const accept = await app.inject({
-      method: "POST",
-      url: `/v1/merchant/orders/${order2}/accept`,
-      headers: { ...authed(staffToken), "idempotency-key": randomUUID() },
-      payload: { prep_time_override_minutes: 15 }
-    });
-    expect(accept.statusCode).toBe(200);
 
-    // العميل ينطلق فوراً — قبل أي تجهيز («انطلقت الآن» موافقة ضمنية على الوقت)
+    // العميل ينطلق فوراً بعد الدفع — قبل اكتمال التجهيز
     const start = await app.inject({
       method: "POST",
       url: `/v1/orders/${order2}/trip/start`,
@@ -552,23 +605,14 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
       url: `/v1/merchant/orders?branch_id=${branchId}&tab=arrived`,
       headers: authed(staffToken)
     });
-    const card = (arrivedTab.json() as Array<{ id: string; ready_at: string | null }>).find(
+    const card = (arrivedTab.json() as Array<{ id: string; ready_at: string | null; preparing_at: string | null }>).find(
       (c) => c.id === order2
     );
     expect(card).toBeDefined();
     expect(card!.ready_at).toBeNull();
+    expect(card!.preparing_at).not.toBeNull(); // التحضير بدأ آلياً عند الدفع
 
-    // «بدء التجهيز» يسجل الحقيقة دون كسر حالة الرحلة
-    const prep = await app.inject({
-      method: "POST",
-      url: `/v1/merchant/orders/${order2}/preparing`,
-      headers: authed(staffToken)
-    });
-    expect(prep.statusCode).toBe(200);
-    expect(prep.json().order_status).toBe("CUSTOMER_ARRIVED");
-    expect(prep.json().preparing_at).not.toBeNull();
-
-    // «جاهز» كذلك — ready_at تُسجل والحالة تبقى CUSTOMER_ARRIVED (لا CUSTOMER_NOTIFIED)
+    // «جاهز» موازٍ — ready_at تُسجل والحالة تبقى CUSTOMER_ARRIVED (لا CUSTOMER_NOTIFIED)
     const rdy = await app.inject({
       method: "POST",
       url: `/v1/merchant/orders/${order2}/ready`,
@@ -594,14 +638,14 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     });
     expect(complete.json().order_status).toBe("COMPLETED");
 
-    // سجل الحالات بلا PREPARING/READY — التجهيز جرى موازياً بالحقائق، والأحداث بُثت
+    // سجل الحالات: PREPARING دخلها آلياً عند الدفع، وREADY جرت موازياً بالحقائق فقط
     const history = await prisma.orderStatusHistory.findMany({
       where: { order_id: order2 },
       orderBy: { created_at: "asc" }
     });
     const path = history.map((h) => h.to_status);
+    expect(path).toContain("PREPARING");
     expect(path).toContain("CUSTOMER_ON_THE_WAY");
-    expect(path).not.toContain("PREPARING");
     expect(path).not.toContain("READY");
     const prepEvents = await prisma.backgroundJob.findMany({
       where: { job_type: "domain_event", payload: { path: ["aggregate_id"], equals: order2 } }

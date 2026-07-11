@@ -2,9 +2,10 @@
 
 /**
  * B-07/B-08: KDS المطبخ — التحضير والجاهزية (design/branch/B-07.html) —
- * شاشة مطبخ فعلياً مستقلة (docs/21§1): ثلاثة أعمدة «في الانتظار» (MERCHANT_ACCEPTED)
- * و«قيد التحضير» (PREPARING) من tab=preparing، و«جاهز» من tab=ready.
- * «بدء التحضير» → POST /preparing · «جاهز» → POST /ready · «نقص منتج» → Sheet BR-4.
+ * شاشة مطبخ فعلياً مستقلة (docs/21§1). الدفع بعد القبول (docs/05§3):
+ * الطلب يدخل «قيد التحضير» آلياً فور نجاح الدفع — لا زر «بدء تحضير» للمسار الاعتيادي؛
+ * عمود «في الانتظار» يبقى للمسار الموازي النادر (عميل انطلق وطلبه لم يبدأ تحضيره).
+ * «جاهز» → POST /ready · «نقص منتج» → Sheet BR-4 (أثناء التحضير فقط).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -214,9 +215,9 @@ export default function KdsPage() {
     () => [...prepCards, ...arrivedCards.filter((c) => c.order_status === "CUSTOMER_ARRIVED" && !c.ready_at)],
     [prepCards, arrivedCards]
   );
+  // الدفع بعد القبول: التحضير يبدأ آلياً عند الدفع — «في الانتظار» للمسار الموازي فقط
   const notStarted = (c: Card): boolean =>
-    c.order_status === "MERCHANT_ACCEPTED" ||
-    (JOURNEY_STATES.includes(c.order_status) && !c.preparing_at && !c.ready_at);
+    JOURNEY_STATES.includes(c.order_status) && !c.preparing_at && !c.ready_at;
   const inProgress = (c: Card): boolean =>
     c.order_status === "PREPARING" ||
     (JOURNEY_STATES.includes(c.order_status) && Boolean(c.preparing_at) && !c.ready_at);
@@ -332,42 +333,32 @@ export default function KdsPage() {
         </div>
 
         <div className={s.grid3}>
-          {/* في الانتظار — MERCHANT_ACCEPTED */}
+          {/* في الانتظار — المسار الموازي فقط: عميل انطلق وطلبه لم يبدأ تحضيره */}
           <div className={s.kcol}>
             <div className={`${s.kh} ${s.khWait}`}>
               في الانتظار <span className={s.khCount}>{waiting.length}</span>
             </div>
             <div className={s.kb}>
-              {waiting.map((c) => {
-                const awaitingCustomer = c.prep_minutes !== null && !c.prep_time_confirmed_at;
-                return renderTicket(
+              {waiting.map((c) =>
+                renderTicket(
                   c,
                   <>
-                    {awaitingCustomer && (
-                      <span className={s.mod} data-testid="kds-prep-waiting">
-                        ⏳ بانتظار موافقة العميل على الوقت ({c.prep_minutes} د)
-                      </span>
-                    )}
-                    {JOURNEY_STATES.includes(c.order_status) && (
-                      <span className={s.alrg} data-testid="kds-journey">
-                        {c.order_status === "CUSTOMER_ARRIVED" ? "🚘 العميل واصل!" : "🚗 العميل في الطريق"}
-                      </span>
-                    )}
+                    <span className={s.alrg} data-testid="kds-journey">
+                      {c.order_status === "CUSTOMER_ARRIVED" ? "🚘 العميل واصل!" : "🚗 العميل في الطريق"}
+                    </span>
                     <button
                       className={s.bbtn}
                       data-testid="kds-start"
-                      disabled={awaitingCustomer}
                       onClick={() => act(`/v1/merchant/orders/${c.id}/preparing`)}
                     >
                       بدء التحضير
                     </button>
-                    <button className={`${s.bbtn} ${s.gray}`} data-testid="kds-issue" onClick={() => openIssue(c)}>
-                      نقص منتج
-                    </button>
                   </>
-                );
-              })}
-              {waiting.length === 0 && <div className={s.kempty}>لا طلبات في الانتظار</div>}
+                )
+              )}
+              {waiting.length === 0 && (
+                <div className={s.kempty}>الطلبات المدفوعة تدخل «قيد التحضير» تلقائياً</div>
+              )}
             </div>
           </div>
 

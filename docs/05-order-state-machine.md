@@ -36,51 +36,58 @@ REFUNDED                 استرجاع كامل
 
 ## 2. المخطط الرئيسي
 
+> **قرار المالك (2026-07-11): الدفع بعد القبول.** الطلب يُرسل للفرع **بلا دفع**؛ الفرع يقبل محدداً وقت التجهيز (10/15/20/25 د)؛ العميل يوافق على الوقت خلال **5 دقائق**؛ ثم يدفع خلال **5 دقائق**؛ ونجاح الدفع هو ما يبدأ التحضير (PREPARING) وعداد دقائق التجهيز معاً. رفض الفرع أو انتهاء أي مهلة قبل الدفع = إنهاء **بلا استرجاع** لأن لا مال قُبض.
+
 ```mermaid
 flowchart LR
-    D(DRAFT) --> CA(CART_ACTIVE) --> CP(CHECKOUT_PENDING) --> PP(PAYMENT_PENDING)
-    PP --> PA(PAYMENT_AUTHORIZED) --> OS(ORDER_SUBMITTED)
-    PP --> PF(PAYMENT_FAILED)
+    D(DRAFT) --> CA(CART_ACTIVE) --> CP(CHECKOUT_PENDING) --> OS(ORDER_SUBMITTED)
     OS --> MP(MERCHANT_PENDING)
-    MP --> MA(MERCHANT_ACCEPTED) --> PR(PREPARING) --> R(READY) --> CN(CUSTOMER_NOTIFIED)
+    MP --> MA(MERCHANT_ACCEPTED)
     MP --> MR(MERCHANT_REJECTED)
+    MA -->|موافقة العميل على الوقت ثم Intent| PP(PAYMENT_PENDING)
+    PP --> PA(PAYMENT_AUTHORIZED) --> PR(PREPARING)
+    PP --> PF(PAYMENT_FAILED) -->|إعادة محاولة ضمن المهلة| PP
+    MA & PP & PF -->|انتهاء مهلة 5 د| EX(EXPIRED)
+    PR --> R(READY) --> CN(CUSTOMER_NOTIFIED)
     CN --> OTW(CUSTOMER_ON_THE_WAY) --> NB(CUSTOMER_NEARBY) --> AR(CUSTOMER_ARRIVED)
-    MA & PR & R -.->|يمكن التحرك مبكراً| OTW
+    PR & R -.->|يمكن التحرك بعد الدفع| OTW
     AR --> H(HANDOFF_IN_PROGRESS) --> C(COMPLETED)
-    MR & PF --> RP(REFUND_PENDING) --> RF(REFUNDED)
     CN -->|تجاوز العتبة| NS(NO_SHOW)
-    any(أي حالة قبل HANDOFF) --> CR(CANCELLATION_REQUESTED) --> X(CANCELLED) --> RP
+    any(أي حالة قبل HANDOFF) --> CR(CANCELLATION_REQUESTED) --> X(CANCELLED)
+    X & NS -->|فقط إن سبق الدفع| RP(REFUND_PENDING) --> RF(REFUNDED)
     RP --> PRf(PARTIALLY_REFUNDED)
 ```
 
-ملاحظة: مسار الوصول (ON_THE_WAY→NEARBY→ARRIVED) يجري عبر **Pickup Session** موازية (`14-pickup-location-spec.md`)؛ يجوز أن يسبق READY — الفرع يراه بوضوح («وصل مبكراً») ولا يبدأ HANDOFF قبل READY.
+ملاحظة: مسار الوصول (ON_THE_WAY→NEARBY→ARRIVED) يجري عبر **Pickup Session** موازية (`14-pickup-location-spec.md`)؛ يجوز أن يسبق READY — الفرع يراه بوضوح («وصل مبكراً») ولا يبدأ HANDOFF قبل READY. الرحلة تبدأ من PREPARING فصاعداً (أي بعد الدفع حصراً).
 
 ## 3. جدول الانتقالات (المالك + الشرط)
 
 | من → إلى | المالك | الشرط/الأثر |
 |----------|--------|--------------|
 | CART_ACTIVE → CHECKOUT_PENDING | العميل | سلة صالحة + quote خادمي ساري |
-| CHECKOUT → PAYMENT_PENDING | النظام | Payment Intent + Idempotency-Key |
+| CHECKOUT → ORDER_SUBMITTED | العميل | إنشاء الطلب **بلا دفع** في معاملة DB واحدة + Idempotency-Key |
+| SUBMITTED → MERCHANT_PENDING | النظام | فوراً (المجدول: عند دخول فترته) + إشعار الفرع + عداد القبول BR-1 |
+| MERCHANT_PENDING → ACCEPTED | كاشير/مدير | تحديد وقت التجهيز المتوقع (10/15/20/25 د) + بدء **مهلة موافقة العميل 5 د** |
+| MERCHANT_PENDING → REJECTED | الفرع أو انتهاء العداد | سبب مغلق؛ **لا استرجاع — لم يُدفع**؛ يُحتسب على الفرع |
+| ACCEPTED → PAYMENT_PENDING | العميل | موافقته على الوقت (prep_time_confirmed_at) ثم Payment Intent + بدء **مهلة الدفع 5 د** |
+| ACCEPTED/PAYMENT_PENDING/FAILED → EXPIRED | النظام | انتهاء مهلة الموافقة أو الدفع (5 د لكلٍّ) — إشعار الطرفين وتحرير اللوحة |
 | PAYMENT_PENDING → AUTHORIZED/FAILED | webhook البوابة | التوقيع + مطابقة المبلغ والعملة |
-| AUTHORIZED → ORDER_SUBMITTED | النظام | إنشاء الطلب في **معاملة DB واحدة** |
-| SUBMITTED → MERCHANT_PENDING | النظام | إشعار الفرع + بدء عداد القبول |
-| MERCHANT_PENDING → ACCEPTED | كاشير/مدير | يجوز مع تعديل وقت التجهيز؛ Capture |
-| MERCHANT_PENDING → REJECTED | الفرع أو انتهاء العداد | سبب مغلق؛ تحرير/استرجاع؛ يُحتسب على الفرع |
-| ACCEPTED → PREPARING | مطبخ/كاشير | مؤقت KDS |
+| PAYMENT_FAILED → PAYMENT_PENDING | العميل | إعادة محاولة ضمن مهلة الدفع |
+| AUTHORIZED → PREPARING | النظام | **لحظة الصفر**: Capture إن وجد + بدء عداد دقائق التجهيز من paid_at + تنبيه الفرع «ابدأ التجهيز» |
 | PREPARING → READY | مطبخ | منع «جاهز» ناقص العناصر |
 | READY → CUSTOMER_NOTIFIED | النظام | إشعار + «متى تتحرك» |
-| (ACCEPTED..NOTIFIED) → ON_THE_WAY | العميل | «أنا في الطريق» → Pickup Session |
-| ON_THE_WAY → NEARBY | النظام | ETA/Geofence (10/5/3 د) |
+| (PREPARING..NOTIFIED) → ON_THE_WAY | العميل | «انطلقت الآن» → Pickup Session — **بعد الدفع حصراً** |
+| ON_THE_WAY → NEARBY | النظام | ETA/Geofence (10/5/3/**1** د — عتبة الدقيقة تُحمّر الطلب في رادار الفرع) |
 | NEARBY/ON_THE_WAY → ARRIVED | **العميل حصراً** | تأكيد يدوي — لا GPS وحده |
 | ARRIVED → HANDOFF_IN_PROGRESS | موظف التسليم | «خرج الموظف» + الطلب READY |
 | HANDOFF → COMPLETED | تحقق | رمز/QR/زر العميل/تأكيد اللوحة (مزدوج للقيمة العالية) |
 | CUSTOMER_NOTIFIED → NO_SHOW | نظام | تجاوز عتبة السياسة بعد تذكير |
-| قبل HANDOFF → CANCELLATION_REQUESTED → CANCELLED | عميل/فرع/أدمن | وفق مصفوفة الإلغاء في `06` |
-| REJECTED/CANCELLED/NO_SHOW/شكوى → REFUND_PENDING → REFUNDED/PARTIALLY | Finance آلي | ledger مستقل، منع التكرار |
+| قبل HANDOFF → CANCELLATION_REQUESTED → CANCELLED | عميل/فرع/أدمن | وفق مصفوفة الإلغاء في `06` — قبل الدفع: إنهاء فوري بلا أي أثر مالي |
+| CANCELLED/NO_SHOW/شكوى (بعد الدفع فقط) → REFUND_PENDING → REFUNDED/PARTIALLY | Finance آلي | ledger مستقل، منع التكرار |
 
 ## 4. القواعد الصلبة (من المخطط الشامل — مُلزمة)
 
-1. لا رحلة قبل وجود طلب صالح (≥ MERCHANT_ACCEPTED... يُسمح بها من ACCEPTED فصاعداً).
+1. لا رحلة قبل الدفع — «انطلقت الآن» تُسمح من PREPARING فصاعداً حصراً.
 2. التوجه قبل الجاهزية مسموح، والفرع يراه بوضوح.
 3. **لا تتحول الحالة إلى «وصل» بإشارة GPS واحدة** — تأكيد العميل شرط.
 4. لا COMPLETED دون تأكيد تسليم.

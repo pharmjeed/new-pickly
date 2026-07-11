@@ -1,9 +1,10 @@
 /**
- * P6: الإتمام — صفحة تمرير واحدة: وقت + سيارة + دفع + مراجعة (C-28→C-37).
+ * P6: الإتمام — صفحة تمرير واحدة: وقت + سيارة + مراجعة (C-28→C-37).
+ * الدفع بعد القبول (docs/05§3): الإرسال هنا **بلا دفع** — الفرع يقبل بوقت تجهيز،
+ * والعميل يوافق ويدفع من صفحة التتبع خلال مهلتي 5 دقائق.
  * وقت الاستلام FR-C06: أقرب وقت / «سأتحرك لاحقاً» / مجدول بفترات وسعة (BR-5).
- * الدفع C-33: بطاقة أو محفظة (Apple Pay/STC Pay) — بوابة sandbox بنفس مسار الإنتاج.
  * GET/POST /v1/customers/me/vehicles (S3: لون + آخر 4)
- * POST /v1/orders (idempotent) → payment-intent → mock-gateway pay → /track/{id}
+ * POST /v1/orders (idempotent) → /track/{id}
  */
 import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -75,7 +76,6 @@ export default function CheckoutScreen() {
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [slotId, setSlotId] = useState<string | null>(null);
   const [slotsError, setSlotsError] = useState<string | null>(null);
-  const [payMethod, setPayMethod] = useState<"card" | "wallet">("card");
 
   const cartId = getCartId();
   const quoteId = getQuoteId();
@@ -142,7 +142,8 @@ export default function CheckoutScreen() {
     }
   };
 
-  const payAndOrder = async () => {
+  /** الإرسال بلا دفع — الدفع يأتي بعد قبول الفرع وموافقتك على الوقت (docs/05§3) */
+  const submitOrder = async () => {
     if (!cartId || !quoteId || !vehicleId) return;
     if (pickupTime === "scheduled" && !slotId) return;
     setBusy(true);
@@ -160,20 +161,10 @@ export default function CheckoutScreen() {
         },
         { idempotent: true }
       );
-      await api("POST", `/v1/orders/${order.id}/payment-intent`, { method: payMethod }, { idempotent: true });
-      // بوابة sandbox — نفس مسار الإنتاج: النتيجة عبر webhook موقع
-      const pay = await api<{ gateway_result: string }>(
-        "POST",
-        `/v1/dev/mock-gateway/by-order/${order.id}/pay`
-      );
-      if (pay.gateway_result !== "authorized") {
-        setError("ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
-        return;
-      }
       clearCart();
       await setLastOrderId(order.id);
       setDonePickup(pickupTime);
-      setDone(order); // C-37: نجاح الطلب
+      setDone(order); // C-37: نجاح الإرسال
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -189,7 +180,7 @@ export default function CheckoutScreen() {
           <View style={st.bigic}>
             <Text style={{ color: colors.lime900, fontSize: fs.fs34, fontWeight: "900" }}>✓</Text>
           </View>
-          <Text style={st.bigTitle}>تم إنشاء طلبك</Text>
+          <Text style={st.bigTitle}>أُرسل طلبك — بلا دفع حتى الآن</Text>
           <Card style={{ alignSelf: "stretch", gap: 8 }}>
             <View style={st.kv}>
               <Text style={st.k}>رقم الطلب</Text>
@@ -203,7 +194,7 @@ export default function CheckoutScreen() {
               />
             </View>
             <View style={st.kv}>
-              <Text style={st.k}>القيمة المدفوعة</Text>
+              <Text style={st.k}>الإجمالي — يُدفع بعد قبول المطعم وموافقتك</Text>
               <Text style={st.v}>{fmtSar(done.total_halalas)}</Text>
             </View>
           </Card>
@@ -342,45 +333,19 @@ export default function CheckoutScreen() {
         })}
         <Text style={st.privacy}>اللوحات مشفرة ولا تظهر كاملة إلا لموظف التسليم أثناء طلبك النشط فقط.</Text>
 
-        {/* ===== الدفع — C-33: بطاقة أو محفظة (بوابة sandbox بنفس مسار الإنتاج) ===== */}
+        {/* ===== الدفع بعد القبول (docs/05§3) — لا دفع في هذه الخطوة ===== */}
         <Text style={st.section}>الدفع</Text>
-        <Pressable
-          style={[st.optCard, payMethod === "card" ? st.optSel : null]}
-          onPress={() => setPayMethod("card")}
-          accessibilityRole="radio"
-          accessibilityState={{ selected: payMethod === "card" }}
-        >
-          <View style={[st.rdot, payMethod === "card" ? st.rdotOn : null]} />
+        <View style={[st.optCard, st.optSel]}>
           <View style={{ flex: 1 }}>
-            <Text style={st.optTitle}>بطاقة — مدى وفيزا وماستركارد</Text>
-            <Text style={st.optDesc}>نفس مسار الإنتاج — النتيجة عبر Webhook موقّع</Text>
+            <Text style={st.optTitle}>الدفع بعد قبول المطعم</Text>
+            <Text style={st.optDesc}>
+              المطعم يحدد وقت التجهيز المتوقع — توافق عليه ثم تدفع من صفحة المتابعة، ولا يبدأ التجهيز
+              قبل دفعك
+            </Text>
           </View>
-          <Badge label="بيئة التطوير" tone="lime" />
-        </Pressable>
-        {flags["wallet_payments"] ? (
-          <Pressable
-            style={[st.optCard, payMethod === "wallet" ? st.optSel : null]}
-            onPress={() => setPayMethod("wallet")}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: payMethod === "wallet" }}
-          >
-            <View style={[st.rdot, payMethod === "wallet" ? st.rdotOn : null]} />
-            <View style={{ flex: 1 }}>
-              <Text style={st.optTitle}>Apple Pay / STC Pay</Text>
-              <Text style={st.optDesc}>محافظ عبر بوابة الدفع — Tokenization فقط</Text>
-            </View>
-          </Pressable>
-        ) : (
-          <View style={[st.optCard, st.optDis]}>
-            <View style={st.rdot} />
-            <View style={{ flex: 1 }}>
-              <Text style={st.optTitle}>Apple Pay / STC Pay</Text>
-              <Text style={st.optDesc}>محافظ عبر بوابة الدفع</Text>
-            </View>
-            <Badge label="قريباً" tone="soft" />
-          </View>
-        )}
-        <Text style={st.privacy}>لا دفع نقدياً في الإصدار الحالي · Tokenization فقط — لا نخزن رقم بطاقتك أبداً.</Text>
+          <Badge label="بلا دفع الآن" tone="lime" />
+        </View>
+        <Text style={st.privacy}>لا دفع نقدياً · Tokenization فقط — لا نخزن رقم بطاقتك أبداً.</Text>
 
         {/* ===== مراجعة الطلب (C-35) ===== */}
         {cart && cart.items.length > 0 && (
@@ -428,22 +393,22 @@ export default function CheckoutScreen() {
               </Card>
             )}
             <Text style={st.privacy}>
-              سياسة الإلغاء: مجاني قبل قبول الفرع · بعد بدء التحضير لا يُسترجع ثمن الطلب · رسوم الخدمة
-              تُسترجع وفق المصفوفة.
+              سياسة الإلغاء: كل ما قبل الدفع بلا أي رسوم (لم يُدفع شيء) · بعد الدفع وبدء التحضير لا
+              يُسترجع ثمن الطلب · رسوم الخدمة تُسترجع وفق المصفوفة.
             </Text>
           </>
         )}
 
-        <Text style={st.sandNote}>دفع تجريبي آمن (sandbox) — لا بطاقة حقيقية في بيئة التطوير</Text>
+        <Text style={st.sandNote}>لا دفع في هذه الخطوة — الدفع بعد قبول المطعم وموافقتك على وقت التجهيز</Text>
       </ScrollView>
 
-      {/* CTA الدفع */}
+      {/* CTA الإرسال */}
       <View style={st.footbar}>
         <LimeButton
-          title={busy ? "جارٍ الدفع…" : "ادفع الآن"}
+          title={busy ? "جارٍ الإرسال…" : "أرسل الطلب — الدفع بعد القبول"}
           trailing={!busy && total != null ? fmtSar(total) : undefined}
           disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
-          onPress={() => void payAndOrder()}
+          onPress={() => void submitOrder()}
         />
       </View>
 

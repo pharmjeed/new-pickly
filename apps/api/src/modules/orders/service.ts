@@ -8,11 +8,17 @@ import { emitEvent, scheduleJob } from "../../lib/events.js";
 import { requireFlag } from "../../lib/flags.js";
 import { transitionOrder } from "../../lib/state-machine.js";
 
-/** وحدة Orders — رحلة J1 (docs/03) على آلة docs/05 وقواعد docs/06 + J3 المجدول (BR-5) */
+/**
+ * وحدة Orders — رحلة J1 (docs/03) على آلة docs/05 وقواعد docs/06 + J3 المجدول (BR-5).
+ * الدفع بعد القبول (قرار المالك 2026-07-11): الإرسال بلا دفع → قبول الفرع بوقت تجهيز →
+ * موافقة العميل (5 د) → الدفع (5 د) → نجاح الدفع يبدأ PREPARING وعداد التجهيز معاً.
+ */
 
 const DUAL_CONFIRMATION_THRESHOLD_HALALAS = 30_000; // BR-8: ≥300 ر.س
 const FREE_CHANGE_MINUTES_DEFAULT = 60; // BR-5 — قابل للضبط br5.free_change_minutes
-const UNPAID_EXPIRE_MINUTES_DEFAULT = 30; // مجدول لم يُدفع → EXPIRED
+/** مهلتا ما بعد القبول — docs/06 BR-2 (قرار المالك: 5 دقائق لكلٍّ) */
+export const PREP_CONFIRM_WINDOW_MINUTES = 5;
+export const PAYMENT_WINDOW_MINUTES = 5;
 
 export const payments = createPaymentAdapter();
 
@@ -52,8 +58,20 @@ const CODE_VISIBLE_STATES: OrderState[] = [
   "HANDOFF_IN_PROGRESS"
 ];
 
+/** الحالات التي ينتظر فيها الطلب دفع العميل بعد موافقته على الوقت */
+const AWAITING_PAYMENT_STATES: OrderState[] = ["MERCHANT_ACCEPTED", "PAYMENT_PENDING", "PAYMENT_FAILED"];
+
 export function toOrderDto(o: OrderWithItems): OrderDto {
   const status = o.order_status as OrderState;
+  // مهلتا 5 د تُشتقان من طوابع القبول/الموافقة — نفس القيم المجدولة في background_jobs
+  const prepConfirmDeadline =
+    status === "MERCHANT_ACCEPTED" && o.prep_minutes !== null && !o.prep_time_confirmed_at && o.accepted_at
+      ? new Date(o.accepted_at.getTime() + PREP_CONFIRM_WINDOW_MINUTES * 60_000)
+      : null;
+  const paymentDeadline =
+    o.prep_time_confirmed_at && AWAITING_PAYMENT_STATES.includes(status)
+      ? new Date(o.prep_time_confirmed_at.getTime() + PAYMENT_WINDOW_MINUTES * 60_000)
+      : null;
   return {
     id: o.id,
     display_code: o.display_code,
@@ -89,6 +107,8 @@ export function toOrderDto(o: OrderWithItems): OrderDto {
     handoff_code: CODE_VISIBLE_STATES.includes(status) ? handoffCodeFor(o.id) : null,
     prep_minutes: o.prep_minutes,
     prep_time_confirmed_at: o.prep_time_confirmed_at?.toISOString() ?? null,
+    prep_confirm_deadline_at: prepConfirmDeadline?.toISOString() ?? null,
+    payment_deadline_at: paymentDeadline?.toISOString() ?? null,
     preparing_at: o.preparing_at?.toISOString() ?? null,
     ready_at: o.ready_at?.toISOString() ?? null,
     pickup_time: o.pickup_time as PickupTime,
@@ -143,10 +163,6 @@ export class OrderService {
       if (!settings?.scheduled_enabled) throw new AppError("ORDER-4007");
       freeChangeMinutes = await numericSetting("br5.free_change_minutes", FREE_CHANGE_MINUTES_DEFAULT);
     }
-    const unpaidExpireMinutes = await numericSetting(
-      "br5.unpaid_expire_minutes",
-      UNPAID_EXPIRE_MINUTES_DEFAULT
-    );
 
     const vehicle_summary = [vehicle.model_ar ?? vehicle.make_ar, vehicle.color_ar, vehicle.plate_short]
       .filter(Boolean)
@@ -204,14 +220,6 @@ export class OrderService {
             free_change_until: new Date(slot.slot_start.getTime() - freeChangeMinutes * 60_000)
           }
         });
-        // مجدول لم يُدفع خلال المهلة → EXPIRED ويُحرَّر الحجز (docs/05)
-        await scheduleJob(
-          tx,
-          "scheduled_expire",
-          { order_id: created.id, slot_id: body.slot_id },
-          new Date(Date.now() + unpaidExpireMinutes * 60_000),
-          `scheduled_expire:${created.id}`
-        );
       }
 
       // BR-7: تسجيل استخدام الكوبون — order_id فريد يمنع التكرار
@@ -262,6 +270,50 @@ export class OrderService {
       });
 
       await tx.cart.update({ where: { id: cart.id }, data: { status: "checked_out" } });
+
+      // الدفع بعد القبول (docs/05§3): الإرسال للفرع فوراً بلا دفع
+      await transitionOrder(tx, created, "ORDER_SUBMITTED", { actor_type: "customer", actor_id: user_id });
+
+      const slotStart =
+        body.pickup_time === "scheduled" && body.slot_id
+          ? (await tx.scheduledPickupSlot.findUniqueOrThrow({ where: { order_id: created.id } })).slot_start
+          : null;
+
+      if (slotStart && slotStart > new Date()) {
+        // BR-5: المجدول ينتظر عند ORDER_SUBMITTED — دخول الفترة يحوّله لمسار ASAP
+        await scheduleJob(
+          tx,
+          "scheduled_slot_entry",
+          { order_id: created.id },
+          slotStart,
+          `slot_entry:${created.id}:${slotStart.getTime()}`
+        );
+        const remindAt = new Date(slotStart.getTime() - 15 * 60_000);
+        if (remindAt > new Date()) {
+          await scheduleJob(
+            tx,
+            "scheduled_reminder",
+            { order_id: created.id },
+            remindAt,
+            `scheduled_reminder:${created.id}:${slotStart.getTime()}`
+          );
+        }
+      } else {
+        // عداد قبول الفرع — BR-1
+        const settings = await tx.branchPickupSettings.findUnique({
+          where: { branch_id: cart.branch_id }
+        });
+        const windowSec = settings?.accept_window_seconds ?? 180;
+        const deadline = new Date(Date.now() + windowSec * 1000);
+        await transitionOrder(
+          tx,
+          { ...created, order_status: "ORDER_SUBMITTED" },
+          "MERCHANT_PENDING",
+          { actor_type: "system" },
+          { data: { accept_deadline_at: deadline } }
+        );
+        await scheduleJob(tx, "accept_timeout", { order_id: created.id }, deadline, `accept_timeout:${created.id}`);
+      }
       return created;
     });
 
@@ -272,7 +324,11 @@ export class OrderService {
     return toOrderDto(full);
   }
 
-  /** POST /v1/orders/:id/payment-intent — docs/13§3 (method: بطاقة أو محفظة C-33) */
+  /**
+   * POST /v1/orders/:id/payment-intent — docs/13§3 (الدفع بعد القبول):
+   * لا يُنشأ Intent إلا بعد قبول الفرع وموافقة العميل على الوقت،
+   * ومن PAYMENT_FAILED يُعاد فتح الدفع ضمن مهلة الـ5 دقائق نفسها.
+   */
   async createPaymentIntent(
     order_id: string,
     user_id: string,
@@ -283,18 +339,46 @@ export class OrderService {
     if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
     if (method === "wallet") await requireFlag("wallet_payments");
 
-    const existingIntent = await prisma.paymentIntent.findUnique({ where: { order_id } });
-    if (existingIntent && existingIntent.idempotency_key === idempotency_key) {
-      return {
-        intent_id: existingIntent.id,
-        provider: existingIntent.provider,
-        client_secret: existingIntent.client_secret ?? "",
-        amount_halalas: existingIntent.amount_halalas,
-        currency: "SAR" as const,
-        status: existingIntent.status === "requires_payment" ? ("requires_payment" as const) : ("processing" as const)
-      };
+    const status = order.order_status as OrderState;
+    if (!["MERCHANT_ACCEPTED", "PAYMENT_PENDING", "PAYMENT_FAILED"].includes(status)) {
+      throw new AppError("ORDER-4002", { from: status, to: "PAYMENT_PENDING" });
     }
-    if (existingIntent) throw new AppError("ORDER-4002", { hint: "intent موجود لهذا الطلب" });
+    if (!order.prep_time_confirmed_at) throw new AppError("ORDER-4009");
+
+    const asResponse = (intent: {
+      id: string;
+      provider: string;
+      client_secret: string | null;
+      amount_halalas: number;
+      status: string;
+    }) => ({
+      intent_id: intent.id,
+      provider: intent.provider,
+      client_secret: intent.client_secret ?? "",
+      amount_halalas: intent.amount_halalas,
+      currency: "SAR" as const,
+      status: intent.status === "requires_payment" ? ("requires_payment" as const) : ("processing" as const)
+    });
+
+    const existingIntent = await prisma.paymentIntent.findUnique({ where: { order_id } });
+    if (existingIntent) {
+      // إعادة محاولة بعد فشل — نعيد فتح نفس الـintent ونرجع الطلب لمسار الدفع
+      if (status === "PAYMENT_FAILED") {
+        const reopened = await prisma.$transaction(async (tx) => {
+          const upd = await tx.paymentIntent.update({
+            where: { id: existingIntent.id },
+            data: { status: "requires_payment" }
+          });
+          await transitionOrder(tx, order, "PAYMENT_PENDING", { actor_type: "customer", actor_id: user_id });
+          return upd;
+        });
+        return asResponse(reopened);
+      }
+      if (existingIntent.idempotency_key === idempotency_key || status === "PAYMENT_PENDING") {
+        return asResponse(existingIntent); // تحديث الصفحة لا ينشئ دفعاً ثانياً
+      }
+      throw new AppError("ORDER-4002", { hint: "intent موجود لهذا الطلب" });
+    }
 
     const providerIntent = await payments.createIntent({
       amount_halalas: order.total_halalas,
@@ -318,22 +402,13 @@ export class OrderService {
           idempotency_key
         }
       });
-      if (order.order_status === "CHECKOUT_PENDING") {
-        await transitionOrder(tx, order, "PAYMENT_PENDING", {
-          actor_type: "system"
-        });
+      if (order.order_status === "MERCHANT_ACCEPTED") {
+        await transitionOrder(tx, order, "PAYMENT_PENDING", { actor_type: "customer", actor_id: user_id });
       }
       return created;
     });
 
-    return {
-      intent_id: intent.id,
-      provider: intent.provider,
-      client_secret: intent.client_secret ?? "",
-      amount_halalas: intent.amount_halalas,
-      currency: "SAR" as const,
-      status: "requires_payment" as const
-    };
+    return asResponse(intent);
   }
 
   async get(order_id: string, user_id: string): Promise<OrderDto> {
@@ -342,29 +417,33 @@ export class OrderService {
     return toOrderDto(order);
   }
 
-  /** موافقة العميل على وقت التجهيز المتوقع الذي حدده الفرع عند القبول — الفرع لا يبدأ التجهيز قبلها */
+  /**
+   * موافقة العميل على وقت التجهيز المتوقع الذي حدده الفرع عند القبول —
+   * شرط الانتقال للدفع (docs/05§3)، وتفتح مهلة الدفع (5 د) التي انتهاؤها = EXPIRED.
+   */
   async confirmPrepTime(order_id: string, user_id: string): Promise<OrderDto> {
     const order = await prisma.order.findUnique({ where: { id: order_id }, include: orderInclude });
     if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
     if (order.prep_time_confirmed_at) return toOrderDto(order); // idempotent — تكرار الضغط لا يغيّر شيئاً
 
     const status = order.order_status as OrderState;
-    // مقبولة من القبول حتى ما قبل التسليم — بعدها لا معنى للموافقة
-    const confirmable: OrderState[] = [
-      "MERCHANT_ACCEPTED",
-      "PREPARING",
-      "READY",
-      "CUSTOMER_NOTIFIED",
-      "CUSTOMER_ON_THE_WAY",
-      "CUSTOMER_NEARBY",
-      "CUSTOMER_ARRIVED"
-    ];
-    if (!confirmable.includes(status)) throw new AppError("ORDER-4002", { from: status, to: status });
+    if (status !== "MERCHANT_ACCEPTED") throw new AppError("ORDER-4002", { from: status, to: "PAYMENT_PENDING" });
 
-    const updated = await prisma.order.update({
-      where: { id: order_id },
-      data: { prep_time_confirmed_at: new Date() },
-      include: orderInclude
+    const confirmedAt = new Date();
+    const updated = await prisma.$transaction(async (tx) => {
+      const upd = await tx.order.update({
+        where: { id: order_id },
+        data: { prep_time_confirmed_at: confirmedAt },
+        include: orderInclude
+      });
+      await scheduleJob(
+        tx,
+        "payment_timeout",
+        { order_id },
+        new Date(confirmedAt.getTime() + PAYMENT_WINDOW_MINUTES * 60_000),
+        `payment_timeout:${order_id}`
+      );
+      return upd;
     });
     return toOrderDto(updated);
   }
@@ -380,8 +459,8 @@ export class OrderService {
       throw new AppError("SYS-9004", { hint: "الطلب ليس مجدولاً" });
     }
     if (new Date() >= order.scheduled_slot.free_change_until) throw new AppError("ORDER-4008");
-    // بعد دخول مسار ASAP لا تعديل
-    if (!["CHECKOUT_PENDING", "PAYMENT_PENDING", "PAYMENT_AUTHORIZED", "ORDER_SUBMITTED"].includes(order.order_status)) {
+    // بعد دخول مسار ASAP (فترة بدأت → قبول → دفع) لا تعديل — المجدول ينتظر عند ORDER_SUBMITTED
+    if (order.order_status !== "ORDER_SUBMITTED") {
       throw new AppError("ORDER-4008");
     }
 

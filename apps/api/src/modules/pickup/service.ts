@@ -13,8 +13,8 @@ import { handoffCodeFor } from "../../lib/codes.js";
 
 const geo = createGeoAdapter();
 
-/** الرحلة مسموحة من MERCHANT_ACCEPTED فصاعداً (docs/05§4-1) */
-const TRIP_ALLOWED: OrderState[] = ["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"];
+/** الرحلة مسموحة بعد الدفع حصراً — من PREPARING فصاعداً (docs/05§4-1) */
+const TRIP_ALLOWED: OrderState[] = ["PREPARING", "READY", "CUSTOMER_NOTIFIED"];
 
 function toSessionDto(s: {
   id: string;
@@ -54,14 +54,11 @@ export class PickupService {
       const s = await tx.pickupSession.create({
         data: { order_id, mode }
       });
-      await transitionOrder(
-        tx,
-        order,
-        "CUSTOMER_ON_THE_WAY",
-        { actor_type: "customer", actor_id: user_id },
-        // «انطلقت الآن» موافقة ضمنية على وقت التجهيز المتوقع — لا يبقى الفرع محظوراً من التجهيز
-        order.prep_time_confirmed_at ? {} : { data: { prep_time_confirmed_at: new Date() } }
-      );
+      // الرحلة تبدأ بعد الدفع — الموافقة على الوقت سبقت الدفع أصلاً (docs/05§3)
+      await transitionOrder(tx, order, "CUSTOMER_ON_THE_WAY", {
+        actor_type: "customer",
+        actor_id: user_id
+      });
       await tx.arrivalEvent.create({
         data: { order_id, session_id: s.id, event_type: "trip_started" }
       });
@@ -122,8 +119,8 @@ export class PickupService {
         payload: { eta_seconds: route.eta_seconds, distance_m: route.distance_m }
       });
 
-      // عتبات إشعار الفرع 10/5/3 دقائق (docs/14§1)
-      for (const threshold of [10, 5, 3] as const) {
+      // عتبات إشعار الفرع 10/5/3 دقائق + عتبة الدقيقة (تنبيه رادار الوصول الأحمر — docs/14§1)
+      for (const threshold of [10, 5, 3, 1] as const) {
         if (etaMin <= threshold) {
           const eventType = `eta_threshold_${threshold}` as const;
           const already = await tx.arrivalEvent.findFirst({

@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { MockPaymentAdapter } from "@pickly/payments";
-import { emitEvent, scheduleJob } from "../../lib/events.js";
+import { emitEvent } from "../../lib/events.js";
 import { transitionOrder } from "../../lib/state-machine.js";
 import { payments } from "../orders/service.js";
 
@@ -104,7 +104,11 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
   }
 }
 
-/** مطابقة المبلغ والعملة والطلب قبل أي تحويل حالة — docs/13§4-5 */
+/**
+ * مطابقة المبلغ والعملة والطلب قبل أي تحويل حالة — docs/13§4-5.
+ * الدفع بعد القبول (docs/05§3): نجاح الدفع هو «لحظة الصفر» —
+ * PAYMENT_PENDING → AUTHORIZED → PREPARING، وعداد دقائق التجهيز يبدأ من الآن.
+ */
 async function handlePaymentEvent(
   event_type: string,
   provider_ref: string,
@@ -112,7 +116,7 @@ async function handlePaymentEvent(
 ): Promise<void> {
   const intent = await prisma.paymentIntent.findFirst({
     where: { provider_ref },
-    include: { order: { include: { scheduled_slot: true } } }
+    include: { order: true }
   });
   if (!intent) throw new AppError("ORDER-4001", { provider_ref });
   if (intent.amount_halalas !== amount_halalas) throw new AppError("PAY-5004");
@@ -120,10 +124,38 @@ async function handlePaymentEvent(
   const order = intent.order;
 
   if (event_type === "payment.authorized") {
+    // سباق نادر: المهلة أنهت الطلب قبل وصول الـwebhook — لا نبدأ تحضيراً؛ نسجل استرجاعاً معلقاً
+    if (order.order_status === "EXPIRED") {
+      await prisma.$transaction(async (tx) => {
+        await tx.paymentIntent.update({ where: { id: intent.id }, data: { status: "authorized" } });
+        await tx.refund.upsert({
+          where: { idempotency_key: `expired_paid:${order.id}` },
+          create: {
+            order_id: order.id,
+            intent_id: intent.id,
+            amount_halalas,
+            includes_service_fee: true,
+            reason: "paid_after_expiry",
+            status: "pending",
+            requested_by: "system",
+            idempotency_key: `expired_paid:${order.id}`
+          },
+          update: {}
+        });
+      });
+      return;
+    }
+
+    // Capture فوري — الفرع قَبِل مسبقاً (docs/13§3)؛ نداء شبكة خارج المعاملة
+    let captured = false;
+    if (intent.supports_capture) {
+      captured = (await payments.capture(provider_ref, amount_halalas)).ok;
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.paymentIntent.update({
         where: { id: intent.id },
-        data: { status: "authorized" }
+        data: { status: captured ? "captured" : "authorized" }
       });
       // Ledger: قيد مزدوج — docs/13§4-6
       await tx.paymentTransaction.create({
@@ -136,14 +168,28 @@ async function handlePaymentEvent(
           provider_ref
         }
       });
+      if (captured) {
+        await tx.paymentTransaction.create({
+          data: {
+            intent_id: intent.id,
+            type: "capture",
+            debit_account: "gateway_pending",
+            credit_account: "merchant_payable",
+            amount_halalas,
+            provider_ref
+          }
+        });
+      }
 
-      // PAYMENT_PENDING → AUTHORIZED → ORDER_SUBMITTED → MERCHANT_PENDING (معاملة واحدة)
+      // لحظة الصفر: PAYMENT_PENDING → AUTHORIZED → PREPARING (معاملة واحدة)
+      // preparing_at = لحظة الدفع — منها يُحسب عداد دقائق التجهيز المتفق عليها
       await transitionOrder(tx, order, "PAYMENT_AUTHORIZED", { actor_type: "system" });
       await transitionOrder(
         tx,
         { ...order, order_status: "PAYMENT_AUTHORIZED" },
-        "ORDER_SUBMITTED",
-        { actor_type: "system" }
+        "PREPARING",
+        { actor_type: "system" },
+        { data: { preparing_at: new Date() }, payload: { paid: true, prep_minutes: order.prep_minutes } }
       );
       await emitEvent(tx, {
         name: "payment.authorized",
@@ -153,51 +199,6 @@ async function handlePaymentEvent(
         branch_id: order.branch_id,
         payload: { amount_halalas }
       });
-
-      // BR-5: المجدول المدفوع ينتظر عند ORDER_SUBMITTED — دخول الفترة يحوّله لمسار ASAP
-      const slot = order.scheduled_slot;
-      if (order.pickup_time === "scheduled" && slot && slot.slot_start > new Date()) {
-        await scheduleJob(
-          tx,
-          "scheduled_slot_entry",
-          { order_id: order.id },
-          slot.slot_start,
-          `slot_entry:${order.id}:${slot.slot_start.getTime()}`
-        );
-        // تذكير «حان وقت التوجه» قبل الفترة (J3 — docs/03)
-        const remindAt = new Date(slot.slot_start.getTime() - 15 * 60_000);
-        if (remindAt > new Date()) {
-          await scheduleJob(
-            tx,
-            "scheduled_reminder",
-            { order_id: order.id },
-            remindAt,
-            `scheduled_reminder:${order.id}:${slot.slot_start.getTime()}`
-          );
-        }
-        return;
-      }
-
-      // عداد قبول الفرع — BR-1
-      const settings = await tx.branchPickupSettings.findUnique({
-        where: { branch_id: order.branch_id }
-      });
-      const windowSec = settings?.accept_window_seconds ?? 180;
-      const deadline = new Date(Date.now() + windowSec * 1000);
-      await transitionOrder(
-        tx,
-        { ...order, order_status: "ORDER_SUBMITTED" },
-        "MERCHANT_PENDING",
-        { actor_type: "system" },
-        { data: { accept_deadline_at: deadline } }
-      );
-      await scheduleJob(
-        tx,
-        "accept_timeout",
-        { order_id: order.id },
-        deadline,
-        `accept_timeout:${order.id}`
-      );
     });
   } else if (event_type === "payment.failed") {
     await prisma.$transaction(async (tx) => {
