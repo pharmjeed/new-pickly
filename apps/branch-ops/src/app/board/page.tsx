@@ -28,11 +28,17 @@ interface Card {
   /** وقت التجهيز المتوقع المحدد عند القبول + موافقة العميل عليه */
   prep_minutes: number | null;
   prep_time_confirmed_at: string | null;
+  /** مسار التجهيز الموازي (docs/05§3) — يتقدم ولو كان العميل في الطريق أو واصلاً */
+  preparing_at: string | null;
+  ready_at: string | null;
   created_at: string;
 }
 
 /** خيارات وقت التجهيز المتوقع عند القبول — بالدقائق */
 const PREP_CHOICES = [10, 15, 20, 25] as const;
+
+/** رحلة العميل — التجهيز يستمر موازياً لها بالحقائق (preparing_at/ready_at) */
+const JOURNEY_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY", "CUSTOMER_ARRIVED"];
 
 interface QueueEntry {
   order_id: string;
@@ -512,7 +518,42 @@ export default function BoardPage() {
                       جاهز
                     </button>
                   )}
-                  {c.order_status === "CUSTOMER_ARRIVED" && (
+                  {/* العميل سبق التجهيز (docs/05§3): التحضير يستمر موازياً — لا بطاقة بلا زر */}
+                  {JOURNEY_STATES.includes(c.order_status) && !c.ready_at && (
+                    <>
+                      <span
+                        className={c.order_status === "CUSTOMER_ARRIVED" ? s.prepWait : s.prepOk}
+                        data-testid="journey-badge"
+                      >
+                        {c.order_status === "CUSTOMER_ARRIVED"
+                          ? "🚘 العميل واصل — طلبه لم يجهز بعد"
+                          : "🚗 العميل في الطريق — جهّزوا على وصوله"}
+                      </span>
+                      {!c.preparing_at ? (
+                        <button
+                          className={`${s.bbtn} ${s.gray}`}
+                          data-testid="start-preparing"
+                          onClick={() => act(`/v1/merchant/orders/${c.id}/preparing`)}
+                        >
+                          بدء التجهيز
+                        </button>
+                      ) : (
+                        <button
+                          className={s.bbtn}
+                          data-testid="mark-ready"
+                          onClick={() => act(`/v1/merchant/orders/${c.id}/ready`, {})}
+                        >
+                          جاهز
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"].includes(c.order_status) && c.ready_at && (
+                    <span className={s.prepOk} data-testid="ready-en-route">
+                      ✓ جاهز — العميل في الطريق
+                    </span>
+                  )}
+                  {c.order_status === "CUSTOMER_ARRIVED" && c.ready_at && (
                     <button
                       className={`${s.bbtn} ${s.orange}`}
                       data-testid="handoff-start"

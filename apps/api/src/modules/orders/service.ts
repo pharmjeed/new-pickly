@@ -89,6 +89,8 @@ export function toOrderDto(o: OrderWithItems): OrderDto {
     handoff_code: CODE_VISIBLE_STATES.includes(status) ? handoffCodeFor(o.id) : null,
     prep_minutes: o.prep_minutes,
     prep_time_confirmed_at: o.prep_time_confirmed_at?.toISOString() ?? null,
+    preparing_at: o.preparing_at?.toISOString() ?? null,
+    ready_at: o.ready_at?.toISOString() ?? null,
     pickup_time: o.pickup_time as PickupTime,
     scheduled_slot: o.scheduled_slot
       ? {

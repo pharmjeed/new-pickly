@@ -34,6 +34,9 @@ export const BranchOrderCardSchema = z.object({
   prep_minutes: z.number().int().nullable().default(null),
   /** موافقة العميل على الوقت — «بدء التجهيز» محظور قبلها */
   prep_time_confirmed_at: z.string().datetime().nullable().default(null),
+  /** مسار التجهيز الموازي (docs/05§3) — يتقدم ولو كانت order_status في مسار رحلة العميل */
+  preparing_at: z.string().datetime().nullable().default(null),
+  ready_at: z.string().datetime().nullable().default(null),
   created_at: z.string().datetime()
 });
 export type BranchOrderCard = z.infer<typeof BranchOrderCardSchema>;

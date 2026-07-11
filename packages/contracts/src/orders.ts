@@ -60,6 +60,9 @@ export const OrderSchema = z.object({
   prep_minutes: z.number().int().nullable(),
   /** موافقة العميل على وقت التجهيز المتوقع — null حتى يؤكد (أو يضغط «انطلقت الآن») */
   prep_time_confirmed_at: z.string().datetime().nullable().default(null),
+  /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة رحلة العميل */
+  preparing_at: z.string().datetime().nullable().default(null),
+  ready_at: z.string().datetime().nullable().default(null),
   pickup_time: PickupTimeSchema,
   /** فترة BR-5 المحجوزة — null لغير المجدول */
   scheduled_slot: z

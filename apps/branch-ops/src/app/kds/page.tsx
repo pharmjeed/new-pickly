@@ -26,8 +26,14 @@ interface Card {
   /** وقت التجهيز المتوقع + موافقة العميل عليه — لا تحضير قبلها */
   prep_minutes: number | null;
   prep_time_confirmed_at: string | null;
+  /** مسار التجهيز الموازي (docs/05§3) — يتقدم ولو كان العميل في الطريق أو واصلاً */
+  preparing_at: string | null;
+  ready_at: string | null;
   created_at: string;
 }
+
+/** رحلة العميل — بطاقات المطبخ تُصنَّف بحقائق التجهيز لا بحالة الرحلة */
+const JOURNEY_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY", "CUSTOMER_ARRIVED"];
 
 interface DetailsItem {
   /** معرّف صنف الطلب — مطلوب لبلاغ نقص المنتج (BR-4) */
@@ -83,6 +89,8 @@ export default function KdsPage() {
   const [branchId, setBranchId] = useState<string | null>(null);
   const [prepCards, setPrepCards] = useState<Card[]>([]);
   const [readyCards, setReadyCards] = useState<Card[]>([]);
+  // «وصلوا» غير المجهزين — يجب أن يراهم المطبخ فوراً (أولوية قصوى)
+  const [arrivedCards, setArrivedCards] = useState<Card[]>([]);
   const [details, setDetails] = useState<Record<string, OrderDetails>>({});
   const detailsRef = useRef<Record<string, OrderDetails>>({});
   const [error, setError] = useState<string | null>(null);
@@ -140,21 +148,23 @@ export default function KdsPage() {
 
   const refresh = useCallback(async () => {
     if (!branchId) return;
-    let lists: [Card[], Card[]];
+    let lists: [Card[], Card[], Card[]];
     try {
       lists = await Promise.all([
         call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=preparing`),
-        call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=ready`)
+        call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=ready`),
+        call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=arrived`)
       ]);
       setPrepCards(lists[0]);
       setReadyCards(lists[1]);
+      setArrivedCards(lists[2]);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
       return;
     }
     // تفاصيل الطلب (العناصر والمُعدِّلات والملاحظات) — تُجلب مرة لكل طلب وتُحفظ
-    const missing = [...lists[0], ...lists[1]]
+    const missing = [...lists[0], ...lists[1], ...lists[2]]
       .map((c) => c.id)
       .filter((id) => !detailsRef.current[id]);
     if (missing.length === 0) return;
@@ -199,14 +209,19 @@ export default function KdsPage() {
   };
 
   const byCreated = (a: Card, b: Card): number => a.created_at.localeCompare(b.created_at);
-  const waiting = useMemo(
-    () => prepCards.filter((c) => c.order_status === "MERCHANT_ACCEPTED").sort(byCreated),
-    [prepCards]
+  // حوض المطبخ: تبويب التحضير + الواصلون غير المجهزين — التصنيف بحقائق التجهيز (docs/05§3)
+  const kitchenPool = useMemo(
+    () => [...prepCards, ...arrivedCards.filter((c) => c.order_status === "CUSTOMER_ARRIVED" && !c.ready_at)],
+    [prepCards, arrivedCards]
   );
-  const cooking = useMemo(
-    () => prepCards.filter((c) => c.order_status === "PREPARING").sort(byCreated),
-    [prepCards]
-  );
+  const notStarted = (c: Card): boolean =>
+    c.order_status === "MERCHANT_ACCEPTED" ||
+    (JOURNEY_STATES.includes(c.order_status) && !c.preparing_at && !c.ready_at);
+  const inProgress = (c: Card): boolean =>
+    c.order_status === "PREPARING" ||
+    (JOURNEY_STATES.includes(c.order_status) && Boolean(c.preparing_at) && !c.ready_at);
+  const waiting = useMemo(() => kitchenPool.filter(notStarted).sort(byCreated), [kitchenPool]);
+  const cooking = useMemo(() => kitchenPool.filter(inProgress).sort(byCreated), [kitchenPool]);
   const ready = useMemo(() => [...readyCards].sort(byCreated), [readyCards]);
   const lateCount = useMemo(
     () => [...waiting, ...cooking].filter(isLate).length,
@@ -333,6 +348,11 @@ export default function KdsPage() {
                         ⏳ بانتظار موافقة العميل على الوقت ({c.prep_minutes} د)
                       </span>
                     )}
+                    {JOURNEY_STATES.includes(c.order_status) && (
+                      <span className={s.alrg} data-testid="kds-journey">
+                        {c.order_status === "CUSTOMER_ARRIVED" ? "🚘 العميل واصل!" : "🚗 العميل في الطريق"}
+                      </span>
+                    )}
                     <button
                       className={s.bbtn}
                       data-testid="kds-start"
@@ -361,6 +381,11 @@ export default function KdsPage() {
                 renderTicket(
                   c,
                   <>
+                    {JOURNEY_STATES.includes(c.order_status) && (
+                      <span className={s.alrg} data-testid="kds-journey">
+                        {c.order_status === "CUSTOMER_ARRIVED" ? "🚘 العميل واصل!" : "🚗 العميل في الطريق"}
+                      </span>
+                    )}
                     <button
                       className={`${s.bbtn} ${s.green}`}
                       data-testid="kds-ready"

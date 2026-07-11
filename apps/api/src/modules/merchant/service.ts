@@ -24,13 +24,30 @@ const ACTIVE_STATES: OrderState[] = [
   "HANDOFF_IN_PROGRESS"
 ];
 
-const TAB_STATES: Record<string, OrderState[]> = {
-  new: ["MERCHANT_PENDING"],
-  preparing: ["MERCHANT_ACCEPTED", "PREPARING"],
-  ready: ["READY", "CUSTOMER_NOTIFIED", "CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"],
-  arrived: ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"],
-  completed: ["COMPLETED"],
-  all: []
+/**
+ * مسار التجهيز الموازي (docs/05§3): رحلة العميل يجوز أن تسبق READY،
+ * فالتبويب يُصنَّف بحقيقة الجاهزية (ready_at) لا بحالة الرحلة —
+ * طلب لم يجهز يبقى «قيد التحضير» ولو انطلق العميل، والواصل يظهر في «وصلوا».
+ */
+const JOURNEY_EN_ROUTE: OrderState[] = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
+const JOURNEY_STATES: OrderState[] = [...JOURNEY_EN_ROUTE, "CUSTOMER_ARRIVED"];
+
+const TAB_WHERE: Record<string, Prisma.OrderWhereInput> = {
+  new: { order_status: "MERCHANT_PENDING" },
+  preparing: {
+    OR: [
+      { order_status: { in: ["MERCHANT_ACCEPTED", "PREPARING"] } },
+      { order_status: { in: JOURNEY_EN_ROUTE }, ready_at: null }
+    ]
+  },
+  ready: {
+    OR: [
+      { order_status: { in: ["READY", "CUSTOMER_NOTIFIED"] } },
+      { order_status: { in: JOURNEY_EN_ROUTE }, ready_at: { not: null } }
+    ]
+  },
+  arrived: { order_status: { in: ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"] } },
+  completed: { order_status: "COMPLETED" }
 };
 
 function maskPhone(phone: string): string {
@@ -61,20 +78,17 @@ function toCard(o: OrderForCard, etaMinutes: number | null): BranchOrderCard {
     scheduled_slot_start: o.scheduled_slot?.slot_start.toISOString() ?? null,
     prep_minutes: o.prep_minutes,
     prep_time_confirmed_at: o.prep_time_confirmed_at?.toISOString() ?? null,
+    preparing_at: o.preparing_at?.toISOString() ?? null,
+    ready_at: o.ready_at?.toISOString() ?? null,
     created_at: o.created_at.toISOString()
   };
 }
 
 export class MerchantOrderService {
   async list(branch_id: string, tab: string): Promise<BranchOrderCard[]> {
-    const states = TAB_STATES[tab] ?? [];
+    const tabWhere = TAB_WHERE[tab] ?? { order_status: { in: [...ACTIVE_STATES, "COMPLETED"] } };
     const orders = await prisma.order.findMany({
-      where: {
-        branch_id,
-        ...(states.length > 0
-          ? { order_status: { in: states } }
-          : { order_status: { in: [...ACTIVE_STATES, "COMPLETED"] } })
-      },
+      where: { branch_id, ...tabWhere },
       include: { user: true, scheduled_slot: true, _count: { select: { items: true } } },
       orderBy: { created_at: "desc" },
       take: 100
@@ -213,11 +227,32 @@ export class MerchantOrderService {
     if (order.prep_minutes !== null && !order.prep_time_confirmed_at) {
       throw new AppError("ORDER-4009");
     }
+    const status = order.order_status as OrderState;
     await prisma.$transaction(async (tx) => {
-      await transitionOrder(tx, order, "PREPARING", {
-        actor_type: "merchant_staff",
-        actor_id: staff_user_id
-      });
+      if (JOURNEY_STATES.includes(status)) {
+        // العميل سبق التجهيز (docs/05§3): المسار يتقدم بالحقائق لا بالحالة —
+        // order_status تبقى لرحلة العميل، وpreparing_at يسجل بدء التحضير
+        if (order.ready_at || order.preparing_at) {
+          throw new AppError("ORDER-4002", { from: status, to: "PREPARING" });
+        }
+        await tx.order.update({ where: { id: order.id }, data: { preparing_at: new Date() } });
+        await emitEvent(tx, {
+          name: "order.preparing",
+          aggregate_type: "order",
+          aggregate_id: order.id,
+          merchant_id: order.merchant_id,
+          branch_id: order.branch_id,
+          payload: { parallel_to: status }
+        });
+      } else {
+        await transitionOrder(
+          tx,
+          order,
+          "PREPARING",
+          { actor_type: "merchant_staff", actor_id: staff_user_id },
+          { data: { preparing_at: new Date() } }
+        );
+      }
     });
     return this.card(order_id);
   }
@@ -225,7 +260,26 @@ export class MerchantOrderService {
   /** جاهز → إشعار العميل (READY → CUSTOMER_NOTIFIED آلياً) */
   async ready(order_id: string, branch_ids: string[], staff_user_id: string) {
     const order = await this.loadBranchOrder(order_id, branch_ids);
+    const status = order.order_status as OrderState;
     await prisma.$transaction(async (tx) => {
+      if (JOURNEY_STATES.includes(status)) {
+        // العميل في الطريق أو واصل: الجاهزية حقيقة تُسجَّل دون تغيير حالة الرحلة،
+        // ولا إشعار «انطلق» ولا مهام No-show — العميل متحرك أصلاً
+        if (order.ready_at) throw new AppError("ORDER-4002", { from: status, to: "READY" });
+        await tx.order.update({
+          where: { id: order.id },
+          data: { ready_at: new Date(), preparing_at: order.preparing_at ?? new Date() }
+        });
+        await emitEvent(tx, {
+          name: "order.ready",
+          aggregate_type: "order",
+          aggregate_id: order.id,
+          merchant_id: order.merchant_id,
+          branch_id: order.branch_id,
+          payload: { parallel_to: status }
+        });
+        return;
+      }
       await transitionOrder(
         tx,
         order,

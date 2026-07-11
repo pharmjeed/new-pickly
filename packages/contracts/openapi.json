@@ -4121,6 +4121,22 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "pickup_time": {
                       "type": "string",
                       "enum": [
@@ -4489,6 +4505,22 @@
                       ]
                     },
                     "prep_time_confirmed_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
                       "type": [
                         "string",
                         "null"
@@ -5111,6 +5143,22 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "pickup_time": {
                       "type": "string",
                       "enum": [
@@ -5525,6 +5573,22 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "pickup_time": {
                       "type": "string",
                       "enum": [
@@ -5927,6 +5991,22 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "pickup_time": {
                       "type": "string",
                       "enum": [
@@ -6295,6 +6375,22 @@
                       ]
                     },
                     "prep_time_confirmed_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
                       "type": [
                         "string",
                         "null"
@@ -7163,6 +7259,22 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "pickup_time": {
                       "type": "string",
                       "enum": [
@@ -7719,6 +7831,22 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "pickup_time": {
                       "type": "string",
                       "enum": [
@@ -8114,6 +8242,22 @@
                         "format": "date-time",
                         "default": null
                       },
+                      "preparing_at": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date-time",
+                        "default": null
+                      },
+                      "ready_at": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date-time",
+                        "default": null
+                      },
                       "created_at": {
                         "type": "string",
                         "format": "date-time"
@@ -8410,6 +8554,22 @@
                       "default": null
                     },
                     "prep_time_confirmed_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
                       "type": [
                         "string",
                         "null"
@@ -8731,6 +8891,22 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time"
@@ -8998,6 +9174,22 @@
                       "default": null
                     },
                     "prep_time_confirmed_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
                       "type": [
                         "string",
                         "null"
@@ -9294,6 +9486,22 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time"
@@ -9561,6 +9769,22 @@
                       "default": null
                     },
                     "prep_time_confirmed_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
                       "type": [
                         "string",
                         "null"
@@ -9870,6 +10094,22 @@
                       "default": null
                     },
                     "prep_time_confirmed_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "preparing_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "ready_at": {
                       "type": [
                         "string",
                         "null"

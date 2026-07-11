@@ -27,6 +27,9 @@ interface Order {
   prep_minutes: number | null;
   /** موافقة العميل على وقت التجهيز المتوقع — null حتى يؤكد */
   prep_time_confirmed_at: string | null;
+  /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة الرحلة */
+  preparing_at: string | null;
+  ready_at: string | null;
   vehicle: { color_ar: string; model_ar: string | null; plate_short: string } | null;
 }
 
@@ -230,9 +233,30 @@ export default function TrackScreen() {
     );
   }
 
-  const view = DISPLAY[order.order_status] ?? DISPLAY.MERCHANT_PENDING!;
+  const baseView = DISPLAY[order.order_status] ?? DISPLAY.MERCHANT_PENDING!;
+  // رحلتك قد تسبق التجهيز (docs/05§3) — النص يصدُق: الطلب ما زال يُجهَّز
+  const journeyBeforeReady =
+    ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY", "CUSTOMER_ARRIVED"].includes(order.order_status) &&
+    !order.ready_at;
+  const view = journeyBeforeReady
+    ? {
+        ...baseView,
+        sub:
+          order.order_status === "CUSTOMER_ARRIVED"
+            ? "طلبك يُجهَّز الآن — نطلع لك فور جاهزيته"
+            : "المطعم يجهّز طلبك على وقت وصولك"
+      }
+    : baseView;
   const stepIdx = STEPS.indexOf(view.step);
   const completed = order.order_status === "COMPLETED";
+  // صدق شريط الخطوات: «قيد التجهيز» و«جاهز» تُعلَّمان بحقائق التجهيز لا بموقع الرحلة
+  const stepDone = (i: number): boolean => {
+    if (completed) return true;
+    if (i >= stepIdx) return false;
+    if (STEPS[i] === "PREPARING") return Boolean(order.preparing_at ?? order.ready_at);
+    if (STEPS[i] === "READY") return Boolean(order.ready_at);
+    return true;
+  };
   const driveMode = DRIVE_STATES.includes(order.order_status); // وضع القيادة الداكن
   const arrived = ARRIVED_STATES.includes(order.order_status);
   const canStart = ["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(
@@ -263,7 +287,7 @@ export default function TrackScreen() {
         {/* شريط الحالات السبع */}
         <View style={st.steps} accessibilityLabel="حالة الطلب">
           {STEP_LABELS.map((lb, i) => {
-            const done = completed || i < stepIdx;
+            const done = stepDone(i);
             const cur = !completed && i === stepIdx;
             return (
               <View key={lb} style={st.step}>

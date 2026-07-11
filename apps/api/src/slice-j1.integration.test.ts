@@ -456,4 +456,158 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     });
     expect(res2.statusCode).toBe(401);
   });
+
+  it("12. J2 — العميل يسبق التجهيز: المسار الموازي لا يعلق الطلب (docs/05§3)", async () => {
+    // طلب ثانٍ كامل: سلة ← تسعير ← طلب ← دفع ← قبول
+    const menuRes = await app.inject({ method: "GET", url: `/v1/branches/${branchId}/menu` });
+    const products = menuRes.json().categories.flatMap(
+      (c: { products: Array<{ id: string }> }) => c.products
+    ) as Array<{ id: string }>;
+    const cartRes = await app.inject({
+      method: "POST",
+      url: "/v1/carts",
+      headers: authed(customerToken),
+      payload: { branch_id: branchId }
+    });
+    const cart2 = cartRes.json().id;
+    await app.inject({
+      method: "POST",
+      url: `/v1/carts/${cart2}/items`,
+      headers: authed(customerToken),
+      payload: { product_id: products[0]!.id, quantity: 1, modifier_ids: [] }
+    });
+    const quoteRes = await app.inject({
+      method: "POST",
+      url: `/v1/carts/${cart2}/quote`,
+      headers: authed(customerToken)
+    });
+    const orderRes = await app.inject({
+      method: "POST",
+      url: "/v1/orders",
+      headers: { ...authed(customerToken), "idempotency-key": randomUUID() },
+      payload: {
+        cart_id: cart2,
+        quote_id: quoteRes.json().quote.quote_id,
+        vehicle_id: vehicleId,
+        pickup_time: "asap"
+      }
+    });
+    const order2 = orderRes.json().id as string;
+    const intentRes = await app.inject({
+      method: "POST",
+      url: `/v1/orders/${order2}/payment-intent`,
+      headers: { ...authed(customerToken), "idempotency-key": randomUUID() }
+    });
+    expect(intentRes.statusCode).toBe(200);
+    const intent2 = await prisma.paymentIntent.findUniqueOrThrow({ where: { order_id: order2 } });
+    await app.inject({
+      method: "POST",
+      url: `/v1/dev/mock-gateway/${intent2.provider_ref}/pay`,
+      headers: { "content-type": "application/json" },
+      payload: "{}"
+    });
+    const accept = await app.inject({
+      method: "POST",
+      url: `/v1/merchant/orders/${order2}/accept`,
+      headers: { ...authed(staffToken), "idempotency-key": randomUUID() },
+      payload: { prep_time_override_minutes: 15 }
+    });
+    expect(accept.statusCode).toBe(200);
+
+    // العميل ينطلق فوراً — قبل أي تجهيز («انطلقت الآن» موافقة ضمنية على الوقت)
+    const start = await app.inject({
+      method: "POST",
+      url: `/v1/orders/${order2}/trip/start`,
+      headers: authed(customerToken)
+    });
+    expect(start.statusCode).toBe(200);
+
+    // انطلق ولم يجهز: يبقى في «قيد التحضير» — لا يقفز إلى «جاهزة»
+    const prepTab = await app.inject({
+      method: "GET",
+      url: `/v1/merchant/orders?branch_id=${branchId}&tab=preparing`,
+      headers: authed(staffToken)
+    });
+    expect((prepTab.json() as Array<{ id: string }>).some((c) => c.id === order2)).toBe(true);
+
+    // ثم يصل
+    const arrive = await app.inject({
+      method: "POST",
+      url: `/v1/orders/${order2}/arrival`,
+      headers: authed(customerToken)
+    });
+    expect(arrive.statusCode).toBe(200);
+
+    // «خرج الموظف» قبل الجاهزية مرفوض (PICKUP-6005)
+    const early = await app.inject({
+      method: "POST",
+      url: `/v1/merchant/orders/${order2}/handoff/start`,
+      headers: authed(staffToken)
+    });
+    expect(early.statusCode).toBe(409);
+
+    // الواصل غير المجهز في تبويب «وصلوا» بحقائق تجهيز فارغة
+    const arrivedTab = await app.inject({
+      method: "GET",
+      url: `/v1/merchant/orders?branch_id=${branchId}&tab=arrived`,
+      headers: authed(staffToken)
+    });
+    const card = (arrivedTab.json() as Array<{ id: string; ready_at: string | null }>).find(
+      (c) => c.id === order2
+    );
+    expect(card).toBeDefined();
+    expect(card!.ready_at).toBeNull();
+
+    // «بدء التجهيز» يسجل الحقيقة دون كسر حالة الرحلة
+    const prep = await app.inject({
+      method: "POST",
+      url: `/v1/merchant/orders/${order2}/preparing`,
+      headers: authed(staffToken)
+    });
+    expect(prep.statusCode).toBe(200);
+    expect(prep.json().order_status).toBe("CUSTOMER_ARRIVED");
+    expect(prep.json().preparing_at).not.toBeNull();
+
+    // «جاهز» كذلك — ready_at تُسجل والحالة تبقى CUSTOMER_ARRIVED (لا CUSTOMER_NOTIFIED)
+    const rdy = await app.inject({
+      method: "POST",
+      url: `/v1/merchant/orders/${order2}/ready`,
+      headers: authed(staffToken)
+    });
+    expect(rdy.statusCode).toBe(200);
+    expect(rdy.json().order_status).toBe("CUSTOMER_ARRIVED");
+    expect(rdy.json().ready_at).not.toBeNull();
+
+    // الآن «خرج الموظف» يمر ثم التسليم بالرمز حتى COMPLETED — لا طريق مسدود
+    const handoff = await app.inject({
+      method: "POST",
+      url: `/v1/merchant/orders/${order2}/handoff/start`,
+      headers: authed(staffToken)
+    });
+    expect(handoff.statusCode).toBe(200);
+    expect(handoff.json().order_status).toBe("HANDOFF_IN_PROGRESS");
+    const complete = await app.inject({
+      method: "POST",
+      url: `/v1/merchant/orders/${order2}/handoff/complete`,
+      headers: authed(staffToken),
+      payload: { verification: { method: "code", code: handoffCodeFor(order2) } }
+    });
+    expect(complete.json().order_status).toBe("COMPLETED");
+
+    // سجل الحالات بلا PREPARING/READY — التجهيز جرى موازياً بالحقائق، والأحداث بُثت
+    const history = await prisma.orderStatusHistory.findMany({
+      where: { order_id: order2 },
+      orderBy: { created_at: "asc" }
+    });
+    const path = history.map((h) => h.to_status);
+    expect(path).toContain("CUSTOMER_ON_THE_WAY");
+    expect(path).not.toContain("PREPARING");
+    expect(path).not.toContain("READY");
+    const prepEvents = await prisma.backgroundJob.findMany({
+      where: { job_type: "domain_event", payload: { path: ["aggregate_id"], equals: order2 } }
+    });
+    const names = prepEvents.map((e) => (e.payload as { name?: string }).name);
+    expect(names).toContain("order.preparing");
+    expect(names).toContain("order.ready");
+  });
 });
