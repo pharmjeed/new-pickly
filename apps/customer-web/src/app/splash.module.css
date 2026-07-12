@@ -1,0 +1,88 @@
+/* شاشة البداية — كل الألوان والخطوط والحركة من tokens.css حصراً */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: var(--pk-lime-500);
+  color: var(--pk-ink-900);
+  pointer-events: none;
+}
+
+/* تُعرض فقط عندما يقرر سكربت الإقلاع ذلك — قبل أول رسم */
+:global(html[data-pk-splash="1"]) .splash {
+  display: flex;
+}
+
+.out {
+  opacity: 0;
+  transition: opacity 450ms var(--pk-ease);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  animation: pk-pop 500ms var(--pk-ease) both;
+}
+
+.word {
+  text-align: left;
+  font-family: var(--pk-font-display);
+}
+.wordLatin {
+  display: block;
+  font-size: var(--pk-fs-34);
+  font-weight: 800;
+  line-height: 1;
+}
+.wordAr {
+  display: block;
+  font-size: var(--pk-fs-24);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.tagline {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-20);
+  font-weight: 700;
+  animation: pk-rise 550ms var(--pk-ease) 200ms both;
+}
+
+@keyframes pk-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.88) skewX(var(--pk-skew));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) skewX(0deg);
+  }
+}
+
+@keyframes pk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inner,
+  .tagline {
+    animation: none;
+  }
+  .out {
+    transition: none;
+  }
+}

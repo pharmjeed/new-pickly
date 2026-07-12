@@ -1,7 +1,7 @@
 /**
- * P1: التهيئة — 3 شرائح تعريف (C-03 · J2):
- * اطلب مسبقاً / توجه إلى الفرع / استلم داخل سيارتك — ثم «ابدأ».
- * تُتخطى إن سبق العرض (علم في SecureStore).
+ * P1: شاشة البداية + التهيئة.
+ * عند الفتح: اللوقو سريعاً مع «خليك في السيارة وطلبك يجيك» ثم الانتقال
+ * لقائمة المطاعم (أو شرائح التعريف الثلاث C-03 · J2 في أول استخدام).
  */
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -10,6 +10,8 @@ import { router } from "expo-router";
 import { LimeButton, GhostButton } from "../src/ui";
 import { colors, fs, light, radius, radiusPill } from "../src/theme";
 import { markOnboarded, wasOnboarded } from "../src/session";
+
+const SPLASH_MS = 1500;
 
 const SLIDES = [
   {
@@ -26,23 +28,44 @@ const SLIDES = [
   }
 ] as const;
 
+/** شاشة البداية — اللوقو + العبارة على خلفية ليمونية */
+function SplashView() {
+  return (
+    <View style={st.splash}>
+      <View style={st.splashBadge}>
+        <Text style={st.splashBadgeTxt}>بيكلي</Text>
+      </View>
+      <Text style={st.splashTag}>خليك في السيارة وطلبك يجيك</Text>
+    </View>
+  );
+}
+
 export default function Onboarding() {
-  const [ready, setReady] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
+  const [seen, setSeen] = useState<boolean | null>(null);
   const [slide, setSlide] = useState(0);
+
+  // اللوقو يظهر سريعاً ثم نُكمل — التحقق من التهيئة يجري بالتوازي
+  useEffect(() => {
+    const t = setTimeout(() => setSplashDone(true), SPLASH_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     let alive = true;
-    void wasOnboarded().then((seen) => {
-      if (!alive) return;
-      if (seen) router.replace("/(tabs)/home");
-      else setReady(true);
+    void wasOnboarded().then((v) => {
+      if (alive) setSeen(v);
     });
     return () => {
       alive = false;
     };
   }, []);
 
-  if (!ready) return <View style={st.blank} />;
+  useEffect(() => {
+    if (splashDone && seen === true) router.replace("/(tabs)/home");
+  }, [splashDone, seen]);
+
+  if (!splashDone || seen === null || seen === true) return <SplashView />;
 
   const last = slide === SLIDES.length - 1;
   const s = SLIDES[slide]!;
@@ -86,7 +109,32 @@ export default function Onboarding() {
 }
 
 const st = StyleSheet.create({
-  blank: { flex: 1, backgroundColor: light.bg },
+  splash: {
+    flex: 1,
+    backgroundColor: colors.lime500,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 18
+  },
+  splashBadge: {
+    backgroundColor: colors.ink900,
+    borderRadius: radius,
+    paddingHorizontal: 26,
+    paddingVertical: 14,
+    transform: [{ skewX: "-8deg" }]
+  },
+  splashBadgeTxt: {
+    color: colors.lime500,
+    fontSize: fs.fs32,
+    fontWeight: "900",
+    transform: [{ skewX: "8deg" }]
+  },
+  splashTag: {
+    color: colors.ink900,
+    fontSize: fs.fs20,
+    fontWeight: "700",
+    textAlign: "center"
+  },
   screen: { flex: 1, backgroundColor: light.bg },
   body: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   badge: {
