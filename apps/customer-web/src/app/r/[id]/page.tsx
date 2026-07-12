@@ -383,7 +383,7 @@ export default function RestaurantPage() {
       {/* ===== شريط السلة العائم ===== */}
       {count > 0 && (
         <div className={styles.cartBar}>
-          <button className={styles.cartBtn} data-testid="go-cart" onClick={() => router.push("/cart")}>
+          <button className={styles.cartBtn} data-testid="go-cart" onClick={() => router.push("/checkout")}>
             <span>عرض السلة · {count}</span>
             <span className={styles.cartTotal}>{fmtSar(totalHalalas)}</span>
           </button>

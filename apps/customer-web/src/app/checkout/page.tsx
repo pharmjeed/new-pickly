@@ -1,17 +1,44 @@
 "use client";
 
 /**
- * P6: الإتمام — صفحة تمرير واحدة: وقت + سيارة + دفع + مراجعة (C-28→C-37)
+ * P5+P6: السلة والإتمام — صفحة تمرير واحدة: سلة + وقت + سيارة + دفع + فاتورة (C-26→C-37)
+ * - السلة C-26 مدموجة هنا (قرار المالك 2026-07-12): حذف عنصر → إبطال التسعيرة وإعادة التسعير فوراً،
+ *   والتسعير خادمي حصراً (BR-6) — /cart تحوّل إلى هنا.
  * - وقت الاستلام FR-C06: أقرب وقت / مجدول بفترات وسعة (BR-5)
  * - السيارة كشرائح + إضافة سيارة مصغرة عبر Sheet (S3: لون + آخر 4 أرقام)
  * - الدفع C-33: بطاقة أو محفظة (Apple Pay/STC Pay) — بوابة sandbox بنفس مسار الإنتاج
  * - كوبون BR-7: التحقق والخصم خادميان
  * - النجاح حالة ختامية (C-37) ثم الانتقال للتتبع /track/{id}
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, fmtSar } from "@/lib/api";
+import { api, ApiError, fmtSar } from "@/lib/api";
 import styles from "./checkout.module.css";
+
+/** عدّاد السعر المتحرك — يصعد بسلاسة عند كل إعادة تسعير، ويحترم تفضيل تقليل الحركة */
+function AnimatedSar({ halalas, className }: { halalas: number; className?: string }) {
+  const [shown, setShown] = useState(0);
+  const fromRef = useRef(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      fromRef.current = halalas;
+      setShown(halalas);
+      return;
+    }
+    const from = fromRef.current;
+    const t0 = performance.now();
+    let raf = requestAnimationFrame(function step(t) {
+      const k = Math.min((t - t0) / 600, 1);
+      const eased = 1 - (1 - k) ** 3;
+      const v = Math.round(from + (halalas - from) * eased);
+      fromRef.current = v;
+      setShown(v);
+      if (k < 1) raf = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [halalas]);
+  return <span className={className}>{fmtSar(shown)}</span>;
+}
 
 interface Vehicle {
   id: string;
@@ -231,6 +258,8 @@ export default function CheckoutPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<Cart | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busyItem, setBusyItem] = useState<string | null>(null);
   const [done, setDone] = useState<OrderCreated | null>(null);
   const [donePickup, setDonePickup] = useState<PickupTime>("asap");
   const [flags, setFlags] = useState<Record<string, boolean>>({});
@@ -316,6 +345,11 @@ export default function CheckoutPage() {
     setShowSched(false);
   };
 
+  const applyQuoted = useCallback((c: Cart) => {
+    setCart(c);
+    if (c.quote) sessionStorage.setItem("pk_quote", c.quote.quote_id);
+  }, []);
+
   useEffect(() => {
     api<Vehicle[]>("GET", "/v1/customers/me/vehicles")
       .then((vs) => {
@@ -325,12 +359,52 @@ export default function CheckoutPage() {
         else setShowAdd(true); // بلا سيارات؟ الإضافة تظهر مباشرة
       })
       .catch((e: Error) => setError(e.message));
-    if (cartId) {
-      api<Cart>("GET", `/v1/carts/${cartId}`)
-        .then(setCart)
-        .catch(() => undefined);
+    if (!cartId) {
+      setLoading(false);
+      return;
     }
-  }, [cartId]);
+    // تسعير خادمي فور فتح الصفحة — BR-6
+    api<Cart>("POST", `/v1/carts/${cartId}/quote`)
+      .then(applyQuoted)
+      .catch(async (e: Error) => {
+        // سلة بلا عناصر: التسعير يرفض — نعرض الحالة الفارغة بدل الخطأ
+        if (e instanceof ApiError) {
+          try {
+            const c = await api<Cart>("GET", `/v1/carts/${cartId}`);
+            if (c.items.length === 0) {
+              setCart(c);
+              return;
+            }
+          } catch {
+            /* نُبقي رسالة الخطأ الأصلية */
+          }
+        }
+        setError(e.message);
+      })
+      .finally(() => setLoading(false));
+  }, [cartId, applyQuoted]);
+
+  const removeItem = async (itemId: string) => {
+    if (!cartId) return;
+    setError(null);
+    setBusyItem(itemId);
+    try {
+      // DELETE يُبطل التسعيرة السارية — ثم إعادة التسعير فوراً
+      const afterDelete = await api<Cart>("DELETE", `/v1/carts/${cartId}/items/${itemId}`);
+      if (afterDelete.items.length === 0) {
+        sessionStorage.removeItem("pk_quote");
+        setCart(afterDelete);
+        return;
+      }
+      applyQuoted(await api<Cart>("POST", `/v1/carts/${cartId}/quote`));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyItem(null);
+    }
+  };
+
+  const isEmpty = !cartId || (cart !== null && cart.items.length === 0);
 
   // النجاح حالة ختامية — ثم ننتقل للتتبع تلقائياً
   useEffect(() => {
@@ -474,11 +548,63 @@ export default function CheckoutPage() {
       {/* رأس رجوع */}
       <header className={styles.bhead}>
         <button className={styles.bk} onClick={() => router.back()} aria-label="رجوع"><ChevIcon /></button>
-        <h1 className={styles.title}>إتمام الطلب</h1>
+        <h1 className={styles.title}>السلة والإتمام</h1>
         <span className={`${styles.badge} ${styles.badgeLime}`}>صفحة واحدة</span>
       </header>
 
       {!showAdd && errorNote}
+      {loading && <div className="pk-loader"><span /><span /><span /></div>}
+
+      {/* ===== الحالة الفارغة — السلة بلا عناصر (C-26) ===== */}
+      {!loading && isEmpty && !error && (
+        <div className={styles.empty}>
+          <div className={styles.emptyIcon}>
+            <svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true">
+              <g fill="none" stroke="currentColor" strokeWidth="7" strokeLinejoin="round">
+                <path d="M32,32 L68,32 L64,80 L36,80 Z" />
+                <path d="M41,32 Q50,20 59,32" strokeLinecap="round" />
+              </g>
+            </svg>
+          </div>
+          <b className={styles.emptyTitle}>سلتك فاضية</b>
+          <p className={styles.emptyText}>لا طلبات حالية — اطلب من متجرك المفضل وخلّنا على السيارة</p>
+          <button className={styles.browse} onClick={() => router.push("/")}>
+            تصفح المطاعم
+          </button>
+        </div>
+      )}
+
+      {!isEmpty && cart && (
+        <>
+      {/* ===== السلة (C-26): العناصر أول ما ينزل عليه العميل ===== */}
+      <div className={styles.sech}><h2>سلتك</h2></div>
+      {cart.items.map((i) => (
+        <div key={i.id} className={styles.item} data-testid="cart-item">
+          <div className={styles.thumb}>img</div>
+          <div className={styles.grow}>
+            <div className={styles.name}>{i.name_ar}</div>
+            {i.modifiers.length > 0 && (
+              <div className={styles.mods}>{i.modifiers.map((m) => m.name_ar).join(" · ")}</div>
+            )}
+            <div className={styles.itemRow}>
+              <span className={styles.qty}>× {i.quantity}</span>
+              <span className={styles.price}>{fmtSar(i.line_total_halalas)}</span>
+            </div>
+            <div className={styles.itemActions}>
+              <button
+                className={styles.del}
+                onClick={() => removeItem(i.id)}
+                disabled={busyItem !== null}
+              >
+                حذف
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+      <button className={styles.more} onClick={() => router.push(`/r/${cart.branch_id}`)}>
+        + إضافة منتجات أخرى
+      </button>
 
       {/* ===== وقت الاستلام — FR-C06: أقرب وقت / مجدول (C-28) ===== */}
       <div className={styles.sech}><h2>وقت الاستلام</h2></div>
@@ -603,22 +729,10 @@ export default function CheckoutPage() {
         <span>لا دفع نقدياً في الإصدار الحالي · Tokenization فقط — لا نخزن رقم بطاقتك أبداً.</span>
       </div>
 
-      {/* ===== مراجعة الطلب (C-35) ===== */}
-      {cart && cart.items.length > 0 && (
+      {/* ===== ملخص الفاتورة (C-35) — العناصر نفسها معروضة أعلى الصفحة ===== */}
+      {cart.items.length > 0 && (
         <>
-          <div className={styles.sech}><h2>مراجعة الطلب</h2></div>
-          <div className={styles.card}>
-            <b className={styles.itemsTitle}>المنتجات ({cart.items.length})</b>
-            {cart.items.map((i) => (
-              <div key={i.id} className={styles.kv}>
-                <span className={styles.k}>
-                  {i.quantity}× {i.name_ar}
-                  {i.modifiers.length > 0 && ` — ${i.modifiers.map((m) => m.name_ar).join("، ")}`}
-                </span>
-                <span className={styles.kvv}>{fmtSar(i.line_total_halalas)}</span>
-              </div>
-            ))}
-          </div>
+          <div className={styles.sech}><h2>ملخص الفاتورة</h2></div>
           {/* كوبون BR-7 — التحقق والخصم خادميان حصراً */}
           {flags["coupons_full"] && (
             <div className={styles.card} data-testid="coupon-box">
@@ -656,13 +770,13 @@ export default function CheckoutPage() {
             </div>
           )}
           {cart.quote && (
-            <div className={styles.card}>
+            <div className={styles.card} data-testid="quote-box">
               <div className={styles.srow}><span>المجموع الفرعي</span><span className={styles.sv}>{fmtSar(cart.quote.subtotal_halalas)}</span></div>
               {cart.quote.discount_halalas > 0 && (
                 <div className={`${styles.srow} ${styles.srowOk}`}><span>الخصم</span><span className={styles.sv}>−{fmtSar(cart.quote.discount_halalas)}</span></div>
               )}
               {/* رسم الخدمة مفصول وواضح دائماً — BR-6 */}
-              <div className={styles.srow}><span>رسوم خدمة بيكلي</span><span className={styles.sv}>{fmtSar(cart.quote.service_fee_halalas)}</span></div>
+              <div className={styles.srow}><span>رسم خدمة بيكلي</span><span className={styles.sv}>{fmtSar(cart.quote.service_fee_halalas)}</span></div>
               <div className={`${styles.srow} ${styles.srowTot}`}><span>الإجمالي</span><span className={styles.sv}>{fmtSar(cart.quote.total_halalas)}</span></div>
               <p className={styles.srow} style={{ fontSize: 12, opacity: 0.7 }}>الأسعار شاملة ضريبة القيمة المضافة</p>
             </div>
@@ -676,10 +790,10 @@ export default function CheckoutPage() {
 
       <p className={styles.sandNote}>دفع تجريبي آمن (sandbox) — لا بطاقة حقيقية في بيئة التطوير</p>
 
-      {/* ===== CTA الدفع ===== */}
+      {/* ===== CTA الدفع — الزر الحيوي المدموم من السلة: نبض + سعر متحرك + سيارة بيكلي ===== */}
       <div className={styles.footbar}>
         <button
-          className={busy || total == null ? `${styles.payBtn} ${styles.payBtnCenter}` : styles.payBtn}
+          className={busy || total == null ? `${styles.payBtn} ${styles.payBtnCenter}` : `${styles.payBtn} ${styles.cta}`}
           data-testid="pay-button"
           disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
           onClick={payAndOrder}
@@ -688,8 +802,33 @@ export default function CheckoutPage() {
             "جارٍ الدفع…"
           ) : total != null ? (
             <>
-              <span>ادفع الآن</span>
-              <span className={styles.payAmt}>{fmtSar(total)}</span>
+              <span className={styles.ctaLabel}>
+                ادفع الآن
+                <span className={styles.ctaArrow} aria-hidden="true">
+                  <span>←</span>
+                  <span>←</span>
+                  <span>←</span>
+                </span>
+              </span>
+              <AnimatedSar halalas={total} className={styles.payAmt} />
+              <span className={styles.carLane} aria-hidden="true">
+                <span className={styles.car}>
+                  <span className={styles.carTrail}>
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  {/* المقدمة لليسار — اتجاه السير؛ الكبوت منخفض أماماً والمقصورة للخلف */}
+                  <svg width="38" height="18" viewBox="0 0 38 18">
+                    <path
+                      d="M2.5 13 L3.5 10 Q4 8.5 6.5 8.2 L16 8 L19.5 4.2 Q20.5 3 22.5 3 L29.5 3 Q33.5 3 34.8 8.5 L35.5 12 Q35.6 13 34.5 13 Z"
+                      fill="var(--pk-ink-900)"
+                    />
+                    <circle cx="9.5" cy="14" r="3" fill="var(--pk-ink-900)" stroke="var(--pk-lime-500)" strokeWidth="1.4" />
+                    <circle cx="28.5" cy="14" r="3" fill="var(--pk-ink-900)" stroke="var(--pk-lime-500)" strokeWidth="1.4" />
+                  </svg>
+                </span>
+              </span>
             </>
           ) : (
             "ادفع الآن"
@@ -797,6 +936,8 @@ export default function CheckoutPage() {
             </button>
           </div>
         </div>
+      )}
+        </>
       )}
     </main>
   );

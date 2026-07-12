@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 /**
  * J1 Happy Path (docs/03) في المتصفح — البوابة الكبرى للمرحلة 2:
- * عميل: تسجيل ← مطعم ← منتجات ← سلة ← إتمام ← دفع sandbox ← تتبع
+ * عميل: تسجيل ← مطعم ← منتجات ← صفحة السلة والإتمام الواحدة ← دفع sandbox ← تتبع
  * فرع: قبول ← تجهيز ← جاهز
  * عميل: انطلقت ← وصلت (يدوي — J10: بلا صلاحية موقع)
  * فرع: خرج الموظف ← تحقق بالرمز ← سلّمت
@@ -47,12 +47,12 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await c.getByTestId("add-product").click();
   await expect(c.getByTestId("add-product")).toBeHidden();
 
-  // ===== 3. السلة والتسعير الخادمي (P5) =====
+  // ===== 3. السلة والإتمام صفحة واحدة (P5+P6): «عرض السلة» يفتح /checkout مباشرة =====
   await c.getByTestId("go-cart").click();
+  await expect(c.getByTestId("cart-item").first()).toBeVisible();
   await expect(c.getByTestId("quote-box")).toContainText("رسم خدمة بيكلي"); // BR-6 مفصول
-  await c.getByTestId("go-checkout").click();
 
-  // ===== 4. الإتمام: سيارة مصغرة (S3) + دفع sandbox (P6) =====
+  // ===== 4. الإتمام (نفس الصفحة): سيارة مصغرة (S3) + دفع sandbox =====
   await c.getByTestId("veh-color").fill("بيضاء");
   await c.getByTestId("veh-plate").fill("8241");
   await c.getByTestId("veh-save").click();
@@ -76,19 +76,14 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   const orderCard = b.getByTestId("order-card").filter({ hasText: orderCode });
   await expect(orderCard).toBeVisible();
   await expect(orderCard).toContainText("بيضاء"); // بطاقة السيارة أكبر عنصر
+  // قبول بضغطة — الوقت المتوقع يُختم آلياً من «متوسط وقت التجهيز» في إعدادات المطعم
   await orderCard.getByTestId("accept-order").click();
-  // القبول على خطوتين: اختيار الوقت المتوقع (10/15/20/25 د) ثم التأكيد
-  await orderCard.getByTestId("prep-20").click();
-  await orderCard.getByTestId("confirm-accept").click();
 
-  // العميل يرى الوقت المتوقع ويوافق — قبلها «بدء التجهيز» معطل
-  await expect(c.getByTestId("prep-confirm-card")).toContainText("20");
+  // العميل يرى الوقت المتوقع (من متوسط المطعم) تلقائياً — لا موافقة مطلوبة
+  await expect(c.getByTestId("prep-expected")).toBeVisible();
+
   await b.getByTestId("tab-preparing").click();
-  await expect(orderCard.getByTestId("start-preparing")).toBeDisabled();
-  await c.getByTestId("confirm-prep-time").click();
-  await expect(c.getByTestId("prep-confirmed-note")).toBeVisible();
-
-  await expect(orderCard.getByTestId("start-preparing")).toBeEnabled();
+  await expect(orderCard.getByTestId("prep-avg")).toBeVisible();
   await orderCard.getByTestId("start-preparing").click();
   await orderCard.getByTestId("mark-ready").click();
 

@@ -260,7 +260,7 @@ export default function RestaurantScreen() {
           <LimeButton
             title={`عرض السلة · ${count}`}
             trailing={fmtSar(totalHalalas)}
-            onPress={() => router.push("/cart")}
+            onPress={() => router.push("/checkout")}
           />
         </View>
       )}

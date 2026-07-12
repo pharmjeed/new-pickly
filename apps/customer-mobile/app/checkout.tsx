@@ -1,18 +1,103 @@
 /**
- * P6: الإتمام — صفحة تمرير واحدة: وقت + سيارة + دفع + مراجعة (C-28→C-37).
+ * P5+P6: السلة والإتمام — صفحة تمرير واحدة: سلة + وقت + سيارة + دفع + فاتورة (C-26→C-37).
+ * السلة C-26 مدموجة هنا (قرار المالك 2026-07-12): حذف عنصر → إعادة تسعير فورية،
+ * والتسعير خادمي حصراً (BR-6) — app/cart.tsx تحوّل إلى هنا.
  * وقت الاستلام FR-C06: أقرب وقت / مجدول بفترات وسعة (BR-5).
  * الدفع C-33: بطاقة أو محفظة (Apple Pay/STC Pay) — بوابة sandbox بنفس مسار الإنتاج.
  * GET/POST /v1/customers/me/vehicles (S3: لون + آخر 4)
  * POST /v1/orders (idempotent) → payment-intent → mock-gateway pay → /track/{id}
  */
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AccessibilityInfo,
+  Animated,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { api, fmtSar } from "../src/api";
-import { clearCart, getCartId, getQuoteId, setLastOrderId } from "../src/session";
-import { Badge, Card, ErrorNote, LimeButton, Loader } from "../src/ui";
+import { api, ApiError, fmtSar } from "../src/api";
+import { clearCart, getCartId, getQuoteId, setLastOrderId, setQuoteId } from "../src/session";
+import { Badge, Card, ErrorNote, GhostButton, LimeButton, Loader } from "../src/ui";
 import { colors, fs, light, radius, radiusPill, shadow2, touch } from "../src/theme";
+
+/** عدّاد السعر المتحرك — يصعد بسلاسة عند كل إعادة تسعير، ويحترم «تقليل الحركة» */
+function useCountUp(halalas: number): number {
+  const [shown, setShown] = useState(0);
+  const fromRef = useRef(0);
+  useEffect(() => {
+    let raf = 0;
+    let cancelled = false;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (cancelled) return;
+      if (reduce) {
+        fromRef.current = halalas;
+        setShown(halalas);
+        return;
+      }
+      const from = fromRef.current;
+      const t0 = Date.now();
+      const step = () => {
+        const k = Math.min((Date.now() - t0) / 600, 1);
+        const eased = 1 - (1 - k) ** 3;
+        const v = Math.round(from + (halalas - from) * eased);
+        fromRef.current = v;
+        setShown(v);
+        if (k < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [halalas]);
+  return shown;
+}
+
+/** النبض الحي — هالة ليمونية تتمدد وتتلاشى خلف زر الدفع */
+function PulseRing() {
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    let cancelled = false;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (reduce || cancelled) return;
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1, duration: 1500, useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 0, duration: 0, useNativeDriver: true }),
+          Animated.delay(700)
+        ])
+      );
+      loop.start();
+    });
+    return () => {
+      cancelled = true;
+      loop?.stop();
+    };
+  }, [pulse]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        st.pulseRing,
+        {
+          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }),
+          transform: [
+            { scaleX: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) },
+            { scaleY: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] }) }
+          ]
+        }
+      ]}
+    />
+  );
+}
 
 interface Vehicle {
   id: string;
@@ -148,6 +233,8 @@ export default function CheckoutScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<Cart | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busyItem, setBusyItem] = useState<string | null>(null);
   const [done, setDone] = useState<OrderCreated | null>(null);
   const [donePickup, setDonePickup] = useState<PickupTime>("asap");
   const [flags, setFlags] = useState<Record<string, boolean>>({});
@@ -161,8 +248,9 @@ export default function CheckoutScreen() {
   const [payMethod, setPayMethod] = useState<"card" | "wallet">("card");
 
   const cartId = getCartId();
-  const quoteId = getQuoteId();
+  const quoteId = cart?.quote?.quote_id ?? getQuoteId();
   const total = cart?.quote?.total_halalas ?? null;
+  const shownTotal = useCountUp(total ?? 0);
 
   useEffect(() => {
     api<Record<string, boolean>>("GET", "/v1/feature-flags")
@@ -230,6 +318,11 @@ export default function CheckoutScreen() {
     setShowSched(false);
   };
 
+  const applyQuoted = useCallback((c: Cart) => {
+    setCart(c);
+    if (c.quote) setQuoteId(c.quote.quote_id);
+  }, []);
+
   useEffect(() => {
     api<Vehicle[]>("GET", "/v1/customers/me/vehicles")
       .then((vs) => {
@@ -239,12 +332,52 @@ export default function CheckoutScreen() {
         else setShowAdd(true); // بلا سيارات؟ الإضافة تظهر مباشرة
       })
       .catch((e: Error) => setError(e.message));
-    if (cartId) {
-      api<Cart>("GET", `/v1/carts/${cartId}`)
-        .then(setCart)
-        .catch(() => undefined);
+    if (!cartId) {
+      setLoading(false);
+      return;
     }
-  }, [cartId]);
+    // تسعير خادمي فور فتح الصفحة — BR-6
+    api<Cart>("POST", `/v1/carts/${cartId}/quote`)
+      .then(applyQuoted)
+      .catch(async (e: Error) => {
+        // سلة بلا عناصر: التسعير يرفض — نعرض الحالة الفارغة بدل الخطأ
+        if (e instanceof ApiError) {
+          try {
+            const c = await api<Cart>("GET", `/v1/carts/${cartId}`);
+            if (c.items.length === 0) {
+              setCart(c);
+              return;
+            }
+          } catch {
+            /* نُبقي رسالة الخطأ الأصلية */
+          }
+        }
+        setError(e.message);
+      })
+      .finally(() => setLoading(false));
+  }, [cartId, applyQuoted]);
+
+  const removeItem = async (itemId: string) => {
+    if (!cartId) return;
+    setError(null);
+    setBusyItem(itemId);
+    try {
+      // DELETE يُبطل التسعيرة السارية — ثم إعادة التسعير فوراً
+      const afterDelete = await api<Cart>("DELETE", `/v1/carts/${cartId}/items/${itemId}`);
+      if (afterDelete.items.length === 0) {
+        setQuoteId(null);
+        setCart(afterDelete);
+        return;
+      }
+      applyQuoted(await api<Cart>("POST", `/v1/carts/${cartId}/quote`));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyItem(null);
+    }
+  };
+
+  const isEmpty = !cartId || (cart !== null && cart.items.length === 0);
 
   // النجاح حالة ختامية — ثم ننتقل للتتبع تلقائياً
   useEffect(() => {
@@ -354,12 +487,55 @@ export default function CheckoutScreen() {
         <Pressable style={st.back} onPress={() => router.back()} accessibilityRole="button">
           <Text style={st.backTxt}>‹</Text>
         </Pressable>
-        <Text style={st.title}>إتمام الطلب</Text>
+        <Text style={st.title}>السلة والإتمام</Text>
         <Badge label="صفحة واحدة" tone="lime" />
       </View>
 
       <ScrollView contentContainerStyle={st.body}>
         {!showAdd && error && <ErrorNote text={error} />}
+        {loading && <Loader />}
+
+        {/* ===== الحالة الفارغة — السلة بلا عناصر (C-26) ===== */}
+        {!loading && isEmpty && !error && (
+          <View style={st.empty}>
+            <Text style={st.emptyTitle}>سلتك فاضية</Text>
+            <Text style={st.emptyTxt}>لا طلبات حالية — اطلب من متجرك المفضل وخلّنا على السيارة</Text>
+            <GhostButton
+              title="تصفح المطاعم"
+              onPress={() => router.replace("/(tabs)/home")}
+              style={{ alignSelf: "stretch", marginTop: 16 }}
+            />
+          </View>
+        )}
+
+        {!isEmpty && cart && (
+          <>
+        {/* ===== السلة (C-26): العناصر أول ما ينزل عليه العميل ===== */}
+        <Text style={st.section}>سلتك</Text>
+        {cart.items.map((i) => (
+          <Card key={i.id} style={{ gap: 4 }}>
+            <Text style={st.itemName}>{i.name_ar}</Text>
+            {i.modifiers.length > 0 && (
+              <Text style={st.itemMods}>{i.modifiers.map((m) => m.name_ar).join(" · ")}</Text>
+            )}
+            <View style={st.itemRow}>
+              <Text style={st.itemQty}>× {i.quantity}</Text>
+              <Text style={st.itemPrice}>{fmtSar(i.line_total_halalas)}</Text>
+            </View>
+            <Pressable
+              style={st.del}
+              disabled={busyItem !== null}
+              onPress={() => void removeItem(i.id)}
+              accessibilityRole="button"
+            >
+              <Text style={st.delTxt}>حذف</Text>
+            </Pressable>
+          </Card>
+        ))}
+        <GhostButton
+          title="+ إضافة منتجات أخرى"
+          onPress={() => router.push(`/restaurant/${cart.branch_id}` as never)}
+        />
 
         {/* ===== وقت الاستلام — FR-C06: أقرب وقت / مجدول (C-28) ===== */}
         <Text style={st.section}>وقت الاستلام</Text>
@@ -477,22 +653,10 @@ export default function CheckoutScreen() {
         )}
         <Text style={st.privacy}>لا دفع نقدياً في الإصدار الحالي · Tokenization فقط — لا نخزن رقم بطاقتك أبداً.</Text>
 
-        {/* ===== مراجعة الطلب (C-35) ===== */}
-        {cart && cart.items.length > 0 && (
+        {/* ===== ملخص الفاتورة (C-35) — العناصر نفسها معروضة أعلى الصفحة ===== */}
+        {cart.items.length > 0 && (
           <>
-            <Text style={st.section}>مراجعة الطلب</Text>
-            <Card style={{ gap: 6 }}>
-              <Text style={st.itemsTitle}>المنتجات ({cart.items.length})</Text>
-              {cart.items.map((i) => (
-                <View key={i.id} style={st.kv}>
-                  <Text style={st.k} numberOfLines={2}>
-                    {i.quantity}× {i.name_ar}
-                    {i.modifiers.length > 0 && ` — ${i.modifiers.map((m) => m.name_ar).join("، ")}`}
-                  </Text>
-                  <Text style={st.v}>{fmtSar(i.line_total_halalas)}</Text>
-                </View>
-              ))}
-            </Card>
+            <Text style={st.section}>ملخص الفاتورة</Text>
             {cart.quote && (
               <Card style={{ gap: 6 }}>
                 <View style={st.kv}>
@@ -509,7 +673,7 @@ export default function CheckoutScreen() {
                 )}
                 {/* رسم الخدمة مفصول وواضح دائماً — BR-6 */}
                 <View style={st.kv}>
-                  <Text style={st.k}>رسوم خدمة بيكلي</Text>
+                  <Text style={st.k}>رسم خدمة بيكلي</Text>
                   <Text style={st.v}>{fmtSar(cart.quote.service_fee_halalas)}</Text>
                 </View>
                 <View style={[st.kv, st.totRow]}>
@@ -529,17 +693,24 @@ export default function CheckoutScreen() {
         )}
 
         <Text style={st.sandNote}>دفع تجريبي آمن (sandbox) — لا بطاقة حقيقية في بيئة التطوير</Text>
+          </>
+        )}
       </ScrollView>
 
-      {/* CTA الدفع */}
-      <View style={st.footbar}>
-        <LimeButton
-          title={busy ? "جارٍ الدفع…" : "ادفع الآن"}
-          trailing={!busy && total != null ? fmtSar(total) : undefined}
-          disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
-          onPress={() => void payAndOrder()}
-        />
-      </View>
+      {/* CTA الدفع — الزر الحيوي المدموم من السلة: نبض + سعر متحرك + سيارة بيكلي */}
+      {!isEmpty && (
+        <View style={st.footbar}>
+          <PulseRing />
+          <LimeButton
+            title={busy ? "جارٍ الدفع…" : "ادفع الآن"}
+            arrow
+            car
+            trailing={!busy && total != null ? fmtSar(shownTotal) : undefined}
+            disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
+            onPress={() => void payAndOrder()}
+          />
+        </View>
+      )}
 
       {/* Sheet الجدولة — «حدد موعد طلبك»: عجلتا يوم/وقت (BR-5) */}
       <Modal visible={showSched} transparent animationType="slide" onRequestClose={closeSched}>
@@ -584,8 +755,8 @@ export default function CheckoutScreen() {
         </View>
       </Modal>
 
-      {/* Sheet إضافة سيارة (C-30 · S3: حقلان) */}
-      <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
+      {/* Sheet إضافة سيارة (C-30 · S3: حقلان) — لا تظهر فوق السلة الفارغة */}
+      <Modal visible={showAdd && !isEmpty} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
         <View style={st.dim}>
           <Pressable style={{ flex: 1 }} onPress={() => setShowAdd(false)} />
           <View style={st.sheet}>
@@ -708,7 +879,23 @@ const st = StyleSheet.create({
   totK: { color: light.text, fontSize: fs.fs16, fontWeight: "900" },
   totV: { color: light.text, fontSize: fs.fs16, fontWeight: "900", fontVariant: ["tabular-nums"] },
   sandNote: { color: light.text2, fontSize: fs.fs12, textAlign: "center", marginTop: 8 },
-  footbar: { position: "absolute", bottom: 16, left: 16, right: 16, ...shadow2 },
+  footbar: { position: "absolute", bottom: 16, left: 16, right: 16, borderRadius: radius, ...shadow2 },
+  pulseRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius,
+    backgroundColor: colors.lime500
+  },
+  /* السلة المدمجة (C-26) */
+  empty: { alignItems: "center", padding: 24, paddingTop: 64, gap: 6 },
+  emptyTitle: { color: light.text, fontSize: fs.fs17, fontWeight: "800" },
+  emptyTxt: { color: light.text2, fontSize: fs.fs14, textAlign: "center" },
+  itemName: { color: light.text, fontSize: fs.fs15, fontWeight: "800", textAlign: "right" },
+  itemMods: { color: light.text2, fontSize: fs.fs13, textAlign: "right" },
+  itemRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" },
+  itemQty: { color: light.text2, fontSize: fs.fs14 },
+  itemPrice: { color: light.text, fontSize: fs.fs14, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  del: { alignSelf: "flex-start", minHeight: 32, justifyContent: "center" },
+  delTxt: { color: colors.error, fontSize: fs.fs13, fontWeight: "700" },
   success: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
   bigic: {
     width: 84,
