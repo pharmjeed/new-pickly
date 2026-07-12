@@ -285,7 +285,8 @@ export class OrderService {
     user_id: string,
     idempotency_key: string,
     method: PaymentMethodKey = "card",
-    use_wallet = false
+    use_wallet = false,
+    card_id?: string
   ) {
     const order = await prisma.order.findUnique({
       where: { id: order_id },
@@ -298,6 +299,20 @@ export class OrderService {
       const active = await activePaymentMethods();
       if (!active.some((m) => m.key === method))
         throw new AppError("PAY-5001", { hint: "طريقة الدفع غير مفعلة حالياً" });
+    }
+
+    // بطاقة محفوظة (بطاقاتي): ملكية العميل + سارية — الدفع بـtoken البوابة فقط
+    let card_token: string | undefined;
+    if (method === "card" && card_id) {
+      const card = await prisma.customerCard.findUnique({ where: { id: card_id } });
+      if (!card || card.user_id !== user_id || !card.is_active)
+        throw new AppError("PAY-5001", { hint: "البطاقة غير موجودة" });
+      const now = new Date();
+      const expired =
+        card.exp_year < now.getFullYear() ||
+        (card.exp_year === now.getFullYear() && card.exp_month < now.getMonth() + 1);
+      if (expired) throw new AppError("PAY-5001", { hint: "البطاقة منتهية الصلاحية — حدّثها أو اختر غيرها" });
+      card_token = card.token;
     }
 
     const existingIntent = await prisma.paymentIntent.findUnique({ where: { order_id } });
@@ -390,7 +405,8 @@ export class OrderService {
       currency: "SAR",
       order_ref: order.display_code,
       idempotency_key,
-      method
+      method,
+      ...(card_token ? { card_token } : {})
     });
 
     const intent = await prisma.$transaction(async (tx) => {

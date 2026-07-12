@@ -251,6 +251,7 @@ model User {
   notifications             Notification[]
   support_tickets           SupportTicket[]
   wallet_entries            CustomerWalletEntry[]
+  cards                     CustomerCard[]
   loyalty_account           LoyaltyAccount?
   merchant_staff_identities MerchantStaff[]
 
@@ -1344,6 +1345,28 @@ model PaymentIntent {
   refunds      Refund[]
 
   @@map("payment_intents")
+}
+
+/// بطاقات العميل المحفوظة (قرار المالك 2026-07-12) — Tokenization فقط:
+/// لا PAN ولا CVV أبداً؛ token من البوابة + brand/last4/expiry للعرض (docs/17)
+model CustomerCard {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  user        User     @relation(fields: [user_id], references: [id])
+  provider    String // mock | hyperpay | moyasar | tap
+  /// مرجع البطاقة عند البوابة — يُستخدم للدفع دون لمس رقم البطاقة
+  token       String   @unique
+  brand       String // mada | visa | mastercard
+  last4       String
+  exp_month   Int
+  exp_year    Int
+  holder_name String?
+  is_default  Boolean  @default(false)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([user_id])
+  @@map("customer_cards")
 }
 
 /// Ledger مستقل — كل حركة قيد مزدوج (docs/13§4-6)

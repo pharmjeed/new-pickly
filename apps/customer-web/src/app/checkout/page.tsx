@@ -115,6 +115,28 @@ interface WalletInfo {
   balance_halalas: number;
 }
 
+/* بطاقاتي — Tokenization فقط: لا يُخزن رقم البطاقة، فقط brand/last4/expiry */
+interface SavedCard {
+  id: string;
+  brand: "mada" | "visa" | "mastercard";
+  last4: string;
+  exp_month: number;
+  exp_year: number;
+  holder_name: string | null;
+  is_default: boolean;
+  expired: boolean;
+}
+
+const BRAND_AR: Record<SavedCard["brand"], string> = {
+  mada: "مدى",
+  visa: "VISA",
+  mastercard: "Mastercard"
+};
+
+/** تنسيق رقم البطاقة أثناء الكتابة: مجموعات من 4 */
+const formatPan = (s: string): string =>
+  s.replace(/\D/g, "").slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ");
+
 type PickupTime = "asap" | "scheduled";
 
 /* ===== جدولة BR-5: تسميات اليوم والفترة (كما في تصميم «حدد موعد طلبك») ===== */
@@ -359,6 +381,17 @@ export default function CheckoutPage() {
   const [showPay, setShowPay] = useState(false);
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [walletOn, setWalletOn] = useState(false);
+  // بطاقاتي — Tokenization فقط (قرار المالك 2026-07-12)
+  const [cards, setCards] = useState<SavedCard[]>([]);
+  const [cardId, setCardId] = useState<string | null>(null);
+  const [showAddCard, setShowAddCard] = useState(false);
+  const [pan, setPan] = useState("");
+  const [expiry, setExpiry] = useState(""); // MM/YY
+  const [cvv, setCvv] = useState("");
+  const [holder, setHolder] = useState("");
+  const [saveDefault, setSaveDefault] = useState(true);
+  const [cardBusy, setCardBusy] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [couponBusy, setCouponBusy] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -370,6 +403,40 @@ export default function CheckoutPage() {
   const walletApplied = walletOn && wallet && total != null ? Math.min(wallet.balance_halalas, total) : 0;
   const dueTotal = total != null ? total - walletApplied : null;
   const selMethod = methods.find((m) => m.key === payMethod) ?? null;
+  const selCard = payMethod === "card" && cardId ? cards.find((c) => c.id === cardId) ?? null : null;
+
+  /** «إضافة بطاقة جديدة» — البيانات تذهب للبوابة (tokenize) ولا تُخزن لدينا */
+  const submitCard = async () => {
+    const [mm, yy] = expiry.split("/");
+    setCardBusy(true);
+    setCardError(null);
+    try {
+      const card = await api<SavedCard>("POST", "/v1/customers/me/cards", {
+        card_number: pan.replace(/\s/g, ""),
+        exp_month: Number(mm),
+        exp_year: Number(yy),
+        cvv,
+        holder_name: holder.trim() || undefined,
+        set_default: saveDefault
+      });
+      setCards((cs) => [card, ...cs.map((c) => (saveDefault ? { ...c, is_default: false } : c))]);
+      setPayMethod("card");
+      setCardId(card.id);
+      setPan("");
+      setExpiry("");
+      setCvv("");
+      setHolder("");
+      setShowAddCard(false);
+      setShowPay(false);
+    } catch (e) {
+      setCardError((e as Error).message);
+    } finally {
+      setCardBusy(false);
+    }
+  };
+
+  const expiryValid = /^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry);
+  const cardFormValid = pan.replace(/\s/g, "").length >= 13 && expiryValid && /^\d{3,4}$/.test(cvv);
 
   useEffect(() => {
     api<Record<string, boolean>>("GET", "/v1/feature-flags")
@@ -389,6 +456,10 @@ export default function CheckoutPage() {
         setMethods(ms);
         if (ms.length > 0) setPayMethod(ms[0].key);
       })
+      .catch(() => undefined);
+    // بطاقاتي المحفوظة — تظهر في «اختر طريقة الدفع»
+    api<SavedCard[]>("GET", "/v1/customers/me/cards")
+      .then(setCards)
       .catch(() => undefined);
     // كتالوج الماركات والموديلات — يغذي قوائم «أضف سيارة جديدة»
     api<VehicleCatalog>("GET", "/v1/vehicle-catalog")
@@ -681,7 +752,11 @@ export default function CheckoutPage() {
       const intent = await api<{ amount_halalas: number; status: string }>(
         "POST",
         `/v1/orders/${order.id}/payment-intent`,
-        { method: payMethod, use_wallet: walletOn },
+        {
+          method: payMethod,
+          use_wallet: walletOn,
+          ...(payMethod === "card" && cardId ? { card_id: cardId } : {})
+        },
         { idempotent: true }
       );
       // محفظة بيكلي غطت الطلب كاملاً → تفويض فوري بلا بوابة
@@ -936,8 +1011,12 @@ export default function CheckoutPage() {
         >
           <span className={styles.pmIcon}><MethodIcon k={payMethod} /></span>
           <span className={styles.paySelBody}>
-            <b className={styles.optTitle}>{selMethod?.name_ar ?? "طريقة الدفع"}</b>
-            <span className={styles.optDesc}>طرق الدفع</span>
+            <b className={styles.optTitle}>
+              {selCard
+                ? `${BRAND_AR[selCard.brand]} •••• ${selCard.last4}`
+                : selMethod?.name_ar ?? "طريقة الدفع"}
+            </b>
+            <span className={styles.optDesc}>{selCard?.holder_name ?? "طرق الدفع"}</span>
           </span>
           <span className={styles.changeLink}>تغيير</span>
         </button>
@@ -1128,7 +1207,7 @@ export default function CheckoutPage() {
             </div>
             <div className={styles.paySechTitle}>خيارات الدفع</div>
             {methods.map((m) => {
-              const on = payMethod === m.key;
+              const on = payMethod === m.key && (m.key !== "card" || !cardId);
               return (
                 <button
                   key={m.key}
@@ -1137,6 +1216,7 @@ export default function CheckoutPage() {
                   data-testid={`pay-opt-${m.key}`}
                   onClick={() => {
                     setPayMethod(m.key);
+                    setCardId(null);
                     setShowPay(false);
                   }}
                 >
@@ -1156,6 +1236,153 @@ export default function CheckoutPage() {
             {methods.length === 0 && (
               <div className={`${styles.note} ${styles.noteErr}`}>لا طرق دفع مفعلة حالياً — جرّب لاحقاً</div>
             )}
+
+            {/* ===== بطاقاتي — Tokenization فقط: نعرض الشبكة وآخر 4 أرقام ===== */}
+            {methods.some((m) => m.key === "card") && (
+              <>
+                <div className={styles.paySechTitle}>بطاقاتي</div>
+                {cards.map((c) => {
+                  const on = payMethod === "card" && cardId === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`${on ? `${styles.optCard} ${styles.optCardSel}` : styles.optCard}${c.expired ? ` ${styles.optCardDis}` : ""}`}
+                      data-testid="saved-card"
+                      disabled={c.expired}
+                      onClick={() => {
+                        setPayMethod("card");
+                        setCardId(c.id);
+                        setShowPay(false);
+                      }}
+                    >
+                      <span className={on ? `${styles.rdot} ${styles.rdotOn}` : styles.rdot} />
+                      <div className={styles.optBody}>
+                        <b className={styles.optTitle}>{c.holder_name ?? `${BRAND_AR[c.brand]} •••• ${c.last4}`}</b>
+                        <div className={styles.optDesc}>
+                          {BRAND_AR[c.brand]} •••• {c.last4} ·{" "}
+                          {c.expired ? (
+                            <span className={styles.expired}>منتهية الصلاحية</span>
+                          ) : (
+                            `تنتهي ${String(c.exp_month).padStart(2, "0")}/${String(c.exp_year).slice(-2)}`
+                          )}
+                          {c.is_default && !c.expired && " · الأساسية"}
+                        </div>
+                      </div>
+                      <span className={styles.pmIcon}>
+                        <span className={styles.net}>{BRAND_AR[c.brand]}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  className={styles.optCard}
+                  data-testid="add-card"
+                  onClick={() => {
+                    setCardError(null);
+                    setShowAddCard(true);
+                  }}
+                >
+                  <span className={styles.addPlus}>+</span>
+                  <div className={styles.optBody}>
+                    <b className={styles.optTitle}>إضافة بطاقة جديدة</b>
+                    <div className={styles.optDesc}>احفظ وادفع عبر البطاقة</div>
+                  </div>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== Sheet «إضافة بطاقة جديدة» — البيانات للبوابة فقط (Tokenization) ===== */}
+      {showAddCard && (
+        <div className={styles.dim}>
+          <div className={styles.sheet} role="dialog" aria-label="إضافة بطاقة جديدة" data-testid="add-card-sheet">
+            <div className={styles.grab} />
+            <div className={styles.sheetHead}>
+              <h2>إضافة بطاقة جديدة</h2>
+              <button className={styles.bk} onClick={() => setShowAddCard(false)} aria-label="إغلاق">
+                <XIcon />
+              </button>
+            </div>
+            <div className={styles.netsCenter}><CardNetworks /></div>
+            {cardError && <div className={`${styles.note} ${styles.noteErr}`} data-testid="card-error">{cardError}</div>}
+
+            <input
+              className={`${styles.inp} ${styles.panInp}`}
+              data-testid="card-number"
+              inputMode="numeric"
+              dir="ltr"
+              placeholder="يُرجى إدخال رقم البطاقة المصرفية"
+              value={pan}
+              onChange={(e) => setPan(formatPan(e.target.value))}
+            />
+            <div className={styles.plateRow}>
+              <input
+                className={styles.inp}
+                data-testid="card-expiry"
+                inputMode="numeric"
+                dir="ltr"
+                maxLength={5}
+                placeholder="الشهر/السنة MM/YY"
+                value={expiry}
+                onChange={(e) => {
+                  const d = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  setExpiry(d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d);
+                }}
+              />
+              <input
+                className={styles.inp}
+                data-testid="card-cvv"
+                inputMode="numeric"
+                dir="ltr"
+                maxLength={4}
+                placeholder="CVV/CVC"
+                value={cvv}
+                onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              />
+            </div>
+            <input
+              className={styles.inp}
+              data-testid="card-holder"
+              placeholder="يُرجى إدخال الاسم الموجود على البطاقة"
+              value={holder}
+              onChange={(e) => setHolder(e.target.value)}
+            />
+            <div className={styles.walletRow} style={{ borderTop: "none", padding: "4px 2px" }}>
+              <span className={styles.paySelBody}>
+                <b className={styles.optTitle}>حفظ كطريقة الدفع الأساسية</b>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={saveDefault}
+                className={saveDefault ? `${styles.sw} ${styles.swOn}` : styles.sw}
+                onClick={() => setSaveDefault((v) => !v)}
+              >
+                <span className={styles.swKnob} />
+              </button>
+            </div>
+
+            {/* ضمانات الأمان — Tokenization (docs/17) */}
+            <div className={styles.assure}>
+              <b className={styles.assureTitle}>✓ تحمي بيكلي معلومات بطاقتك</b>
+              <span>✓ رقم البطاقة وCVV يمران لبوابة الدفع مباشرة — لا نخزنهما أبداً (Tokenization).</span>
+              <span>✓ معلومات البطاقة آمنة، ولن تتم مشاركتها مع أي طرف.</span>
+              <span>✓ جميع البيانات مشفّرة وفق معيار أمان بطاقات الدفع (PCI DSS) لدى البوابة.</span>
+              <span>✓ في حال حدوث عملية تفويض مسبق، سيتم إعادة المبلغ على الفور.</span>
+            </div>
+
+            <button
+              className={`${styles.payBtn} ${styles.payBtnCenter}`}
+              data-testid="card-save"
+              disabled={cardBusy || !cardFormValid}
+              onClick={() => void submitCard()}
+            >
+              {cardBusy ? "جارٍ الحفظ…" : "تأكيد"}
+            </button>
           </div>
         </div>
       )}

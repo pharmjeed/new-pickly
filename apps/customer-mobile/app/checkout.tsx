@@ -170,6 +170,28 @@ interface WalletInfo {
 /** علامة « Pay» — رمز التفاحة نص iOS، ونص كامل على أندرويد */
 const APPLE_PAY_LABEL = Platform.OS === "ios" ? " Pay" : "Apple Pay";
 
+/* بطاقاتي — Tokenization فقط: لا يُخزن رقم البطاقة، فقط brand/last4/expiry */
+interface SavedCard {
+  id: string;
+  brand: "mada" | "visa" | "mastercard";
+  last4: string;
+  exp_month: number;
+  exp_year: number;
+  holder_name: string | null;
+  is_default: boolean;
+  expired: boolean;
+}
+
+const BRAND_AR: Record<SavedCard["brand"], string> = {
+  mada: "مدى",
+  visa: "VISA",
+  mastercard: "Mastercard"
+};
+
+/** تنسيق رقم البطاقة أثناء الكتابة: مجموعات من 4 */
+const formatPan = (s: string): string =>
+  s.replace(/\D/g, "").slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ");
+
 interface Slot {
   id: string;
   slot_start: string;
@@ -297,6 +319,17 @@ export default function CheckoutScreen() {
   const [showPay, setShowPay] = useState(false);
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [walletOn, setWalletOn] = useState(false);
+  // بطاقاتي — Tokenization فقط (قرار المالك 2026-07-12)
+  const [cards, setCards] = useState<SavedCard[]>([]);
+  const [cardId, setCardId] = useState<string | null>(null);
+  const [showAddCard, setShowAddCard] = useState(false);
+  const [pan, setPan] = useState("");
+  const [expiry, setExpiry] = useState(""); // MM/YY
+  const [cvv, setCvv] = useState("");
+  const [holder, setHolder] = useState("");
+  const [saveDefault, setSaveDefault] = useState(true);
+  const [cardBusy, setCardBusy] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   const cartId = getCartId();
   const quoteId = cart?.quote?.quote_id ?? getQuoteId();
@@ -305,7 +338,41 @@ export default function CheckoutScreen() {
   const walletApplied = walletOn && wallet && total != null ? Math.min(wallet.balance_halalas, total) : 0;
   const dueTotal = total != null ? total - walletApplied : null;
   const selMethod = methods.find((m) => m.key === payMethod) ?? null;
+  const selCard = payMethod === "card" && cardId ? cards.find((c) => c.id === cardId) ?? null : null;
   const shownTotal = useCountUp(dueTotal ?? 0);
+
+  /** «إضافة بطاقة جديدة» — البيانات تذهب للبوابة (tokenize) ولا تُخزن لدينا */
+  const submitCard = async () => {
+    const [mm, yy] = expiry.split("/");
+    setCardBusy(true);
+    setCardError(null);
+    try {
+      const card = await api<SavedCard>("POST", "/v1/customers/me/cards", {
+        card_number: pan.replace(/\s/g, ""),
+        exp_month: Number(mm),
+        exp_year: Number(yy),
+        cvv,
+        holder_name: holder.trim() || undefined,
+        set_default: saveDefault
+      });
+      setCards((cs) => [card, ...cs.map((c) => (saveDefault ? { ...c, is_default: false } : c))]);
+      setPayMethod("card");
+      setCardId(card.id);
+      setPan("");
+      setExpiry("");
+      setCvv("");
+      setHolder("");
+      setShowAddCard(false);
+      setShowPay(false);
+    } catch (e) {
+      setCardError((e as Error).message);
+    } finally {
+      setCardBusy(false);
+    }
+  };
+
+  const expiryValid = /^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry);
+  const cardFormValid = pan.replace(/\s/g, "").length >= 13 && expiryValid && /^\d{3,4}$/.test(cvv);
 
   useEffect(() => {
     api<Record<string, boolean>>("GET", "/v1/feature-flags")
@@ -325,6 +392,10 @@ export default function CheckoutScreen() {
         setMethods(ms);
         if (ms.length > 0) setPayMethod(ms[0].key);
       })
+      .catch(() => undefined);
+    // بطاقاتي المحفوظة — تظهر في «اختر طريقة الدفع»
+    api<SavedCard[]>("GET", "/v1/customers/me/cards")
+      .then(setCards)
       .catch(() => undefined);
     // كتالوج الماركات والموديلات — يغذي قوائم «أضف سيارة جديدة»
     api<VehicleCatalog>("GET", "/v1/vehicle-catalog")
@@ -574,7 +645,11 @@ export default function CheckoutScreen() {
       const intent = await api<{ amount_halalas: number; status: string }>(
         "POST",
         `/v1/orders/${order.id}/payment-intent`,
-        { method: payMethod, use_wallet: walletOn },
+        {
+          method: payMethod,
+          use_wallet: walletOn,
+          ...(payMethod === "card" && cardId ? { card_id: cardId } : {})
+        },
         { idempotent: true }
       );
       // محفظة بيكلي غطت الطلب كاملاً → تفويض فوري بلا بوابة
@@ -825,8 +900,10 @@ export default function CheckoutScreen() {
               </Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={st.optTitle}>{selMethod?.name_ar ?? "طريقة الدفع"}</Text>
-              <Text style={st.optDesc}>طرق الدفع</Text>
+              <Text style={st.optTitle}>
+                {selCard ? `${BRAND_AR[selCard.brand]} •••• ${selCard.last4}` : selMethod?.name_ar ?? "طريقة الدفع"}
+              </Text>
+              <Text style={st.optDesc}>{selCard?.holder_name ?? "طرق الدفع"}</Text>
             </View>
             <Text style={st.changeLink}>تغيير</Text>
           </Pressable>
@@ -993,7 +1070,146 @@ export default function CheckoutScreen() {
               );
             })}
             {methods.length === 0 && <ErrorNote text="لا طرق دفع مفعلة حالياً — جرّب لاحقاً" />}
+
+            {/* بطاقاتي — Tokenization فقط: الشبكة وآخر 4 أرقام */}
+            {methods.some((m) => m.key === "card") && (
+              <>
+                <Text style={st.paySechTitle}>بطاقاتي</Text>
+                {cards.map((c) => {
+                  const on = payMethod === "card" && cardId === c.id;
+                  return (
+                    <Pressable
+                      key={c.id}
+                      style={[st.optCard, on ? st.optSel : null, c.expired ? { opacity: 0.55 } : null]}
+                      disabled={c.expired}
+                      onPress={() => {
+                        setPayMethod("card");
+                        setCardId(c.id);
+                        setShowPay(false);
+                      }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: on }}
+                    >
+                      <View style={[st.rdot, on ? st.rdotOn : null]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={st.optTitle}>{c.holder_name ?? `${BRAND_AR[c.brand]} •••• ${c.last4}`}</Text>
+                        <Text style={st.optDesc}>
+                          {BRAND_AR[c.brand]} •••• {c.last4} ·{" "}
+                          {c.expired ? (
+                            <Text style={st.expired}>منتهية الصلاحية</Text>
+                          ) : (
+                            `تنتهي ${String(c.exp_month).padStart(2, "0")}/${String(c.exp_year).slice(-2)}`
+                          )}
+                          {c.is_default && !c.expired ? " · الأساسية" : ""}
+                        </Text>
+                      </View>
+                      <View style={st.pmMark}>
+                        <Text style={st.pmMarkTxt}>{BRAND_AR[c.brand]}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+                <Pressable
+                  style={st.optCard}
+                  onPress={() => {
+                    setCardError(null);
+                    setShowAddCard(true);
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Text style={st.addPlus}>+</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.optTitle}>إضافة بطاقة جديدة</Text>
+                    <Text style={st.optDesc}>احفظ وادفع عبر البطاقة</Text>
+                  </View>
+                </Pressable>
+              </>
+            )}
             <Text style={st.privacy}>الدفع الإلكتروني مؤمن — Tokenization فقط، لا نخزن رقم بطاقتك أبداً.</Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sheet «إضافة بطاقة جديدة» — البيانات للبوابة فقط (Tokenization) */}
+      <Modal visible={showAddCard} transparent animationType="slide" onRequestClose={() => setShowAddCard(false)}>
+        <View style={st.dim}>
+          <Pressable style={{ flex: 1 }} onPress={() => setShowAddCard(false)} />
+          <View style={st.sheet}>
+            <View style={st.grab} />
+            <View style={st.schedHead}>
+              <Text style={st.sheetTitle}>إضافة بطاقة جديدة</Text>
+              <Pressable
+                style={st.schedClose}
+                onPress={() => setShowAddCard(false)}
+                accessibilityRole="button"
+                accessibilityLabel="إغلاق"
+              >
+                <Text style={st.schedCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <Text style={st.netsTxt}>مدى · VISA · Mastercard</Text>
+            {cardError && <ErrorNote text={cardError} />}
+
+            <TextInput
+              style={[st.inp, st.panInp]}
+              placeholder="يُرجى إدخال رقم البطاقة المصرفية"
+              placeholderTextColor={colors.gray}
+              keyboardType="number-pad"
+              value={pan}
+              onChangeText={(t) => setPan(formatPan(t))}
+            />
+            <View style={st.plateRow}>
+              <TextInput
+                style={[st.inp, st.plateInp]}
+                placeholder="الشهر/السنة MM/YY"
+                placeholderTextColor={colors.gray}
+                keyboardType="number-pad"
+                maxLength={5}
+                value={expiry}
+                onChangeText={(t) => {
+                  const d = t.replace(/\D/g, "").slice(0, 4);
+                  setExpiry(d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d);
+                }}
+              />
+              <TextInput
+                style={[st.inp, st.plateInp]}
+                placeholder="CVV/CVC"
+                placeholderTextColor={colors.gray}
+                keyboardType="number-pad"
+                maxLength={4}
+                secureTextEntry
+                value={cvv}
+                onChangeText={(t) => setCvv(t.replace(/\D/g, "").slice(0, 4))}
+              />
+            </View>
+            <TextInput
+              style={st.inp}
+              placeholder="يُرجى إدخال الاسم الموجود على البطاقة"
+              placeholderTextColor={colors.gray}
+              value={holder}
+              onChangeText={setHolder}
+            />
+            <View style={[st.walletRow, { borderTopWidth: 0, paddingHorizontal: 2 }]}>
+              <Text style={[st.optTitle, { flex: 1 }]}>حفظ كطريقة الدفع الأساسية</Text>
+              <Switch
+                value={saveDefault}
+                onValueChange={setSaveDefault}
+                trackColor={{ false: colors.cloud, true: colors.lime500 }}
+                thumbColor={colors.white}
+              />
+            </View>
+            <View style={{ gap: 6, marginVertical: 8 }}>
+              <Text style={st.assureTitle}>✓ تحمي بيكلي معلومات بطاقتك</Text>
+              <Text style={st.assureTxt}>✓ رقم البطاقة وCVV يمران لبوابة الدفع مباشرة — لا نخزنهما أبداً (Tokenization).</Text>
+              <Text style={st.assureTxt}>✓ معلومات البطاقة آمنة، ولن تتم مشاركتها مع أي طرف.</Text>
+              <Text style={st.assureTxt}>✓ جميع البيانات مشفّرة وفق معيار أمان بطاقات الدفع (PCI DSS) لدى البوابة.</Text>
+              <Text style={st.assureTxt}>✓ في حال حدوث عملية تفويض مسبق، سيتم إعادة المبلغ على الفور.</Text>
+            </View>
+            <LimeButton
+              title={cardBusy ? "جارٍ الحفظ…" : "تأكيد"}
+              disabled={cardBusy || !cardFormValid}
+              onPress={() => void submitCard()}
+            />
           </View>
         </View>
       </Modal>
@@ -1303,7 +1519,24 @@ const st = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8
   },
-  netsTxt: { color: light.text2, fontSize: fs.fs12, textAlign: "right", marginTop: 4 },
+  netsTxt: { color: light.text2, fontSize: fs.fs12, textAlign: "center", marginTop: 4, marginBottom: 6 },
+  /* بطاقاتي + «إضافة بطاقة جديدة» — Tokenization فقط */
+  expired: { color: colors.error, fontWeight: "800" },
+  addPlus: {
+    width: 22,
+    height: 22,
+    borderRadius: radiusPill,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: light.text2,
+    color: light.text2,
+    textAlign: "center",
+    fontWeight: "900",
+    lineHeight: 19
+  },
+  panInp: { letterSpacing: 1, textAlign: "left", writingDirection: "ltr" },
+  assureTitle: { color: "#1a9a4a", fontSize: fs.fs14, fontWeight: "800", textAlign: "right" },
+  assureTxt: { color: light.text2, fontSize: fs.fs12, textAlign: "right", lineHeight: 19 },
   /* زر Apple Pay الأسود — بشعارهم كما في المرجع */
   appleBtn: {
     backgroundColor: "#000000",

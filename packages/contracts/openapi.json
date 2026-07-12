@@ -5206,6 +5206,10 @@
                     ],
                     "default": "card"
                   },
+                  "card_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
                   "use_wallet": {
                     "type": "boolean",
                     "default": false
@@ -10994,6 +10998,548 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customers/me/cards": {
+      "get": {
+        "summary": "بطاقاتي المحفوظة (Tokenization — لا PAN)",
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "brand": {
+                        "type": "string",
+                        "enum": [
+                          "mada",
+                          "visa",
+                          "mastercard"
+                        ]
+                      },
+                      "last4": {
+                        "type": "string"
+                      },
+                      "exp_month": {
+                        "type": "integer"
+                      },
+                      "exp_year": {
+                        "type": "integer"
+                      },
+                      "holder_name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "is_default": {
+                        "type": "boolean"
+                      },
+                      "expired": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "brand",
+                      "last4",
+                      "exp_month",
+                      "exp_year",
+                      "holder_name",
+                      "is_default",
+                      "expired"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "إضافة بطاقة جديدة — الرقم وCVV يمران للبوابة ولا يُخزنان",
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "card_number": {
+                    "type": "string"
+                  },
+                  "exp_month": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                  },
+                  "exp_year": {
+                    "type": "integer"
+                  },
+                  "cvv": {
+                    "type": "string",
+                    "pattern": "^\\d{3,4}$"
+                  },
+                  "holder_name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60
+                  },
+                  "set_default": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "required": [
+                  "card_number",
+                  "exp_month",
+                  "exp_year",
+                  "cvv"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "brand": {
+                      "type": "string",
+                      "enum": [
+                        "mada",
+                        "visa",
+                        "mastercard"
+                      ]
+                    },
+                    "last4": {
+                      "type": "string"
+                    },
+                    "exp_month": {
+                      "type": "integer"
+                    },
+                    "exp_year": {
+                      "type": "integer"
+                    },
+                    "holder_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "is_default": {
+                      "type": "boolean"
+                    },
+                    "expired": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "brand",
+                    "last4",
+                    "exp_month",
+                    "exp_year",
+                    "holder_name",
+                    "is_default",
+                    "expired"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customers/me/cards/{id}": {
+      "delete": {
+        "summary": "حذف بطاقة محفوظة",
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           },
           "400": {
             "description": "غلاف الخطأ الموحد",

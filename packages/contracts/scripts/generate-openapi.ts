@@ -93,6 +93,9 @@ const routes: RouteDef[] = [
   { method: "post", path: "/v1/merchant/branches/{id}/prep-minutes", summary: "متوسط وقت تجهيز الطلب — يُختم على كل طلب عند قبوله ويظهر للعميل", tags: ["merchant"], auth: true, body: z.object({ prep_minutes: z.number().int().min(1).max(120) }) },
   // §7 العميل — الإشعارات والدعم (مرحلة 2)
   { method: "get", path: "/v1/customers/me/wallet", summary: "محفظة بيكلي — الرصيد وآخر الحركات", tags: ["customers"], auth: true, response: c.CustomerWalletSchema },
+  { method: "get", path: "/v1/customers/me/cards", summary: "بطاقاتي المحفوظة (Tokenization — لا PAN)", tags: ["customers"], auth: true, response: z.array(c.CustomerCardSchema) },
+  { method: "post", path: "/v1/customers/me/cards", summary: "إضافة بطاقة جديدة — الرقم وCVV يمران للبوابة ولا يُخزنان", tags: ["customers"], auth: true, body: c.AddCardBodySchema, response: c.CustomerCardSchema },
+  { method: "delete", path: "/v1/customers/me/cards/{id}", summary: "حذف بطاقة محفوظة", tags: ["customers"], auth: true },
   { method: "get", path: "/v1/customers/me/notifications", summary: "صندوق الإشعارات C-62", tags: ["customers"], auth: true, response: c.NotificationListResponseSchema },
   { method: "post", path: "/v1/customers/me/notifications/read", summary: "تعليم الكل مقروءاً", tags: ["customers"], auth: true },
   { method: "get", path: "/v1/customers/me/support-tickets", summary: "تذاكري", tags: ["support"], auth: true, response: z.array(c.SupportTicketSchema) },

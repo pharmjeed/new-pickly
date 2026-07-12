@@ -100,6 +100,8 @@ export type PaymentMethodKey = z.infer<typeof PaymentMethodKeySchema>;
 
 export const CreatePaymentIntentBodySchema = z.object({
   method: PaymentMethodKeySchema.default("card"),
+  /** بطاقة محفوظة (بطاقاتي) — للدفع بها عند method=card؛ الملكية تُتحقق خادمياً */
+  card_id: UuidSchema.optional(),
   /** محفظة بيكلي: صرف الرصيد من الإجمالي (كلياً أو جزئياً) قبل البوابة */
   use_wallet: z.boolean().default(false)
 });

@@ -33,7 +33,7 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     const key = idempotencyKeyOf(req);
     const id = UuidSchema.parse((req.params as { id: string }).id);
     const body = CreatePaymentIntentBodySchema.parse(req.body ?? {});
-    return service.createPaymentIntent(id, claims.sub, key, body.method, body.use_wallet);
+    return service.createPaymentIntent(id, claims.sub, key, body.method, body.use_wallet, body.card_id);
   });
 
   /** تعديل فترة المجدول قبل مهلة التعديل المجاني — BR-5 */

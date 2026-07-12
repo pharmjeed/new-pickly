@@ -1,9 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
+  AddCardBodySchema,
   CreateTicketBodySchema,
   CreateTicketMessageBodySchema,
   UuidSchema,
+  type CardBrand,
+  type CustomerCard as CustomerCardDto,
   type NotificationListResponse,
   type SupportTicket as SupportTicketDto,
   type TicketStatus
@@ -14,6 +17,7 @@ import { requireAuth, requireCustomer } from "../../lib/auth-plugin.js";
 import { requireFlag } from "../../lib/flags.js";
 import { walletBalance } from "../../lib/payment-methods.js";
 import { decryptPlate, encryptPlate } from "../../lib/plate-crypto.js";
+import { payments } from "../orders/service.js";
 
 /** وحدة Customers: الملف + السيارات + صندوق الإشعارات (C-62) + تذاكر الدعم (C-65/66) */
 export async function customerRoutes(app: FastifyInstance): Promise<void> {
@@ -188,6 +192,106 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
       } else {
         await prisma.customerDefaultVehicle.delete({ where: { user_id: claims.sub } });
       }
+    }
+    return { ok: true };
+  });
+
+  // ===== بطاقاتي — Tokenization فقط (قرار المالك 2026-07-12، docs/17) =====
+
+  /** بطاقة منتهية إذا مضى شهر انتهائها */
+  const isExpired = (exp_month: number, exp_year: number): boolean => {
+    const now = new Date();
+    return exp_year < now.getFullYear() || (exp_year === now.getFullYear() && exp_month < now.getMonth() + 1);
+  };
+
+  const cardDto = (c: {
+    id: string;
+    brand: string;
+    last4: string;
+    exp_month: number;
+    exp_year: number;
+    holder_name: string | null;
+    is_default: boolean;
+  }): CustomerCardDto => ({
+    id: c.id,
+    brand: c.brand as CardBrand,
+    last4: c.last4,
+    exp_month: c.exp_month,
+    exp_year: c.exp_year,
+    holder_name: c.holder_name,
+    is_default: c.is_default,
+    expired: isExpired(c.exp_month, c.exp_year)
+  });
+
+  app.get("/me/cards", async (req) => {
+    const claims = requireCustomer(req);
+    const cards = await prisma.customerCard.findMany({
+      where: { user_id: claims.sub, is_active: true },
+      orderBy: [{ is_default: "desc" }, { created_at: "desc" }]
+    });
+    return cards.map(cardDto);
+  });
+
+  /** «إضافة بطاقة جديدة» — الرقم وCVV يمران للبوابة (tokenize) ولا يُخزنان ولا يُسجلان */
+  app.post("/me/cards", async (req) => {
+    const claims = requireCustomer(req);
+    const body = AddCardBodySchema.parse(req.body);
+    if (isExpired(body.exp_month, body.exp_year))
+      throw new AppError("SYS-9004", { hint: "البطاقة منتهية الصلاحية" });
+
+    let tokenized;
+    try {
+      tokenized = await payments.tokenizeCard({
+        card_number: body.card_number,
+        exp_month: body.exp_month,
+        exp_year: body.exp_year,
+        cvv: body.cvv,
+        ...(body.holder_name ? { holder_name: body.holder_name } : {})
+      });
+    } catch {
+      // رسالة البوابة لا تُمرر خاماً — ولا يُسجل أي جزء من البيانات
+      throw new AppError("SYS-9004", { hint: "تحقق من رقم البطاقة وبياناتها" });
+    }
+
+    const card = await prisma.$transaction(async (tx) => {
+      if (body.set_default) {
+        await tx.customerCard.updateMany({
+          where: { user_id: claims.sub, is_default: true },
+          data: { is_default: false }
+        });
+      }
+      return tx.customerCard.create({
+        data: {
+          user_id: claims.sub,
+          provider: payments.provider,
+          token: tokenized.token,
+          brand: tokenized.brand,
+          last4: tokenized.last4,
+          exp_month: body.exp_month,
+          exp_year: body.exp_year,
+          holder_name: body.holder_name ?? null,
+          is_default: body.set_default
+        }
+      });
+    });
+    return cardDto(card);
+  });
+
+  /** حذف بطاقة (إخفاء ناعم) — الافتراضية تنتقل لأحدث بطاقة متبقية */
+  app.delete("/me/cards/:id", async (req) => {
+    const claims = requireCustomer(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const existing = await prisma.customerCard.findUnique({ where: { id } });
+    if (!existing || existing.user_id !== claims.sub || !existing.is_active)
+      throw new AppError("SYS-9004", { hint: "البطاقة غير موجودة" });
+
+    await prisma.customerCard.update({ where: { id }, data: { is_active: false, is_default: false } });
+    if (existing.is_default) {
+      const next = await prisma.customerCard.findFirst({
+        where: { user_id: claims.sub, is_active: true },
+        orderBy: { created_at: "desc" }
+      });
+      if (next) await prisma.customerCard.update({ where: { id: next.id }, data: { is_default: true } });
     }
     return { ok: true };
   });

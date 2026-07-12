@@ -23,6 +23,8 @@ export interface CreateIntentInput {
   idempotency_key: string;
   /** وسيلة الدفع: card | apple_pay | stc_pay ("wallet" القديمة C-33 للتوافق) — docs/13§2 */
   method?: "card" | "apple_pay" | "stc_pay" | "wallet";
+  /** token بطاقة محفوظة — الدفع بها دون لمس رقم البطاقة */
+  card_token?: string;
 }
 
 export interface ProviderIntent {
@@ -41,9 +43,26 @@ export interface WebhookVerification {
   currency: string;
 }
 
+/** بيانات البطاقة تمر للبوابة فقط — لا تُخزن ولا تُسجل (docs/17) */
+export interface TokenizeCardInput {
+  card_number: string;
+  exp_month: number;
+  exp_year: number;
+  cvv: string;
+  holder_name?: string;
+}
+
+export interface CardToken {
+  token: string;
+  brand: "mada" | "visa" | "mastercard";
+  last4: string;
+}
+
 export interface PaymentAdapter {
   readonly provider: string;
   createIntent(input: CreateIntentInput): Promise<ProviderIntent>;
+  /** حفظ بطاقة كـtoken عند البوابة — Tokenization فقط، لا تخزين PAN/CVV */
+  tokenizeCard(input: TokenizeCardInput): Promise<CardToken>;
   capture(provider_ref: string, amount_halalas: number): Promise<{ ok: boolean }>;
   cancelOrRelease(provider_ref: string): Promise<{ ok: boolean }>;
   refund(provider_ref: string, amount_halalas: number, idempotency_key: string): Promise<{ ok: boolean; refund_ref: string }>;
@@ -80,6 +99,35 @@ export class MockPaymentAdapter implements PaymentAdapter {
     };
     this.byIdempotency.set(input.idempotency_key, intent);
     return intent;
+  }
+
+  /**
+   * Tokenization في الـsandbox — يتحقق شكلياً (Luhn) ويستنتج الشبكة من البادئة:
+   * بادئات مدى الشائعة ثم 4=فيزا و2/5=ماستركارد. لا يُخزن الرقم في أي مكان.
+   */
+  async tokenizeCard(input: TokenizeCardInput): Promise<CardToken> {
+    const pan = input.card_number.replace(/\s/g, "");
+    if (!/^\d{13,19}$/.test(pan)) throw new Error("invalid_card_number");
+    // Luhn — يرفض الأخطاء المطبعية قبل «البوابة»
+    let sum = 0;
+    for (let i = 0; i < pan.length; i++) {
+      let d = Number(pan[pan.length - 1 - i]);
+      if (i % 2 === 1) {
+        d *= 2;
+        if (d > 9) d -= 9;
+      }
+      sum += d;
+    }
+    if (sum % 10 !== 0) throw new Error("invalid_card_number");
+    if (!/^\d{3,4}$/.test(input.cvv)) throw new Error("invalid_cvv");
+
+    const MADA_PREFIXES = ["4463", "4580", "5297", "5885", "6058", "9682"];
+    const brand: CardToken["brand"] = MADA_PREFIXES.some((p) => pan.startsWith(p))
+      ? "mada"
+      : pan.startsWith("4")
+        ? "visa"
+        : "mastercard";
+    return { token: `mock_card_${randomUUID()}`, brand, last4: pan.slice(-4) };
   }
 
   /** يحاكي إتمام العميل للدفع (3DS) — تستدعيه أداة sandbox/الاختبارات */

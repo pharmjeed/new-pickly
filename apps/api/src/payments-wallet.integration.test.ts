@@ -176,6 +176,107 @@ describe.skipIf(!hasDb)("طرق الدفع + محفظة بيكلي", async () =>
     });
   });
 
+  describe("بطاقاتي — Tokenization فقط (قرار المالك 2026-07-12)", () => {
+    it("الإضافة تحفظ token/brand/last4 فقط، والدفع بالبطاقة المحفوظة يصل MERCHANT_PENDING، وبطاقة غيري تُرفض", async () => {
+      const token = await customerLogin();
+
+      // رقم غير صحيح (Luhn) → يُرفض قبل الحفظ
+      const bad = await app.inject({
+        method: "POST",
+        url: "/v1/customers/me/cards",
+        headers: authed(token),
+        payload: { card_number: "4111111111111112", exp_month: 12, exp_year: 30, cvv: "123" }
+      });
+      expect(bad.statusCode).toBe(400);
+
+      const add = await app.inject({
+        method: "POST",
+        url: "/v1/customers/me/cards",
+        headers: authed(token),
+        payload: {
+          card_number: "4111 1111 1111 1111",
+          exp_month: 12,
+          exp_year: 30,
+          cvv: "123",
+          holder_name: "ABDULMAJEED ALTURKI",
+          set_default: true
+        }
+      });
+      expect(add.statusCode).toBe(200);
+      const card = add.json() as { id: string; brand: string; last4: string; is_default: boolean; expired: boolean };
+      expect(card.brand).toBe("visa");
+      expect(card.last4).toBe("1111");
+      expect(card.is_default).toBe(true);
+      expect(card.expired).toBe(false);
+
+      // لا PAN في القاعدة — token البوابة فقط
+      const stored = await prisma.customerCard.findUniqueOrThrow({ where: { id: card.id } });
+      expect(stored.token.startsWith("mock_card_")).toBe(true);
+      expect(JSON.stringify(stored)).not.toContain("4111111111111111");
+
+      const list = await app.inject({ method: "GET", url: "/v1/customers/me/cards", headers: authed(token) });
+      expect((list.json() as unknown[]).length).toBe(1);
+
+      // الدفع بالبطاقة المحفوظة
+      const { order } = await createOrder(token);
+      const intent = await app.inject({
+        method: "POST",
+        url: `/v1/orders/${order.id}/payment-intent`,
+        headers: { ...authed(token), "idempotency-key": randomUUID() },
+        payload: { method: "card", card_id: card.id }
+      });
+      expect(intent.statusCode).toBe(200);
+      const pay = await app.inject({ method: "POST", url: `/v1/dev/mock-gateway/by-order/${order.id}/pay` });
+      expect(pay.json().gateway_result).toBe("authorized");
+      const fresh = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+      expect(fresh.order_status).toBe("MERCHANT_PENDING");
+
+      // عزل: بطاقة مستخدم آخر تُرفض PAY-5001
+      const tokenB = await customerLogin();
+      const { order: orderB } = await createOrder(tokenB);
+      const foreign = await app.inject({
+        method: "POST",
+        url: `/v1/orders/${orderB.id}/payment-intent`,
+        headers: { ...authed(tokenB), "idempotency-key": randomUUID() },
+        payload: { method: "card", card_id: card.id }
+      });
+      expect(foreign.statusCode).toBe(402);
+      expect(foreign.json().error.code).toBe("PAY-5001");
+
+      // بطاقة منتهية الصلاحية تُرفض عند الدفع
+      const me = await app.inject({ method: "GET", url: "/v1/customers/me", headers: authed(token) });
+      const expiredCard = await prisma.customerCard.create({
+        data: {
+          user_id: me.json().id as string,
+          provider: "mock",
+          token: `mock_card_${randomUUID()}`,
+          brand: "visa",
+          last4: "9999",
+          exp_month: 1,
+          exp_year: 2024
+        }
+      });
+      const { order: order2 } = await createOrder(token);
+      const expiredRes = await app.inject({
+        method: "POST",
+        url: `/v1/orders/${order2.id}/payment-intent`,
+        headers: { ...authed(token), "idempotency-key": randomUUID() },
+        payload: { method: "card", card_id: expiredCard.id }
+      });
+      expect(expiredRes.statusCode).toBe(402);
+
+      // الحذف الناعم — تختفي من القائمة
+      const del = await app.inject({
+        method: "DELETE",
+        url: `/v1/customers/me/cards/${card.id}`,
+        headers: authed(token)
+      });
+      expect(del.statusCode).toBe(200);
+      const after = await app.inject({ method: "GET", url: "/v1/customers/me/cards", headers: authed(token) });
+      expect((after.json() as Array<{ id: string }>).some((c) => c.id === card.id)).toBe(false);
+    });
+  });
+
   describe("محفظة بيكلي", () => {
     it("إيداع الأدمن يظهر للعميل، والخصم فوق الرصيد يُرفض PAY-5006، والمحفظة معزولة بين المستخدمين", async () => {
       const admin = await adminLogin();

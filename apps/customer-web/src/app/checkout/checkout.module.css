@@ -545,3 +545,21 @@
   font-family: -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
   font-size: 19px; font-weight: 600; letter-spacing: 0.2px;
 }
+
+/* ===== بطاقاتي + «إضافة بطاقة جديدة» — Tokenization فقط (قرار المالك 2026-07-12) ===== */
+.expired { color: var(--pk-error); font-weight: 800; }
+.addPlus {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px dashed var(--pk-ink-600); color: var(--pk-ink-600);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 15px; line-height: 1;
+}
+.netsCenter { display: flex; justify-content: center; margin: 2px 0 12px; }
+.netsCenter .nets { margin-top: 0; transform: scale(1.25); }
+.panInp { letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+.assure {
+  display: flex; flex-direction: column; gap: 7px;
+  font-size: var(--pk-fs-12); color: var(--pk-text-2);
+  margin: 12px 2px; line-height: 1.7;
+}
+.assureTitle { color: #1a9a4a; font-size: var(--pk-fs-14); }
