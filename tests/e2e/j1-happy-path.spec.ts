@@ -39,9 +39,13 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await expect(firstCard).toContainText("بيست برجر");
   await firstCard.click();
   await expect(c.getByTestId("product-card").first()).toBeVisible();
-  await c.getByTestId("add-product").first().click();
+  // الضغط على البطاقة يفتح ورقة التخصيص دائماً، والتأكيد داخلها يضيف للسلة
+  await c.getByTestId("product-card").first().click();
+  await c.getByTestId("add-product").click();
   await expect(c.getByTestId("go-cart")).toBeVisible();
-  await c.getByTestId("add-product").nth(1).click();
+  await c.getByTestId("product-card").nth(1).click();
+  await c.getByTestId("add-product").click();
+  await expect(c.getByTestId("add-product")).toBeHidden();
 
   // ===== 3. السلة والتسعير الخادمي (P5) =====
   await c.getByTestId("go-cart").click();
