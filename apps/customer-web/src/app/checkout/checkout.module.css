@@ -377,11 +377,6 @@
   font-size: var(--pk-fs-14); position: relative; overflow: hidden; white-space: nowrap;
 }
 .pmChipOn { background: var(--pk-surface); border: 1.5px solid var(--pk-ink-600); color: var(--pk-ink-900); font-weight: 700; }
-.pmChipOff { background: var(--pk-line); color: var(--pk-gray); font-weight: 500; }
-.pmChipOff::after {
-  content: ""; position: absolute; left: -12px; right: -12px; top: 50%;
-  height: 1.5px; background: var(--pk-gray); transform: rotate(-10deg);
-}
 
 /* ===== بطاقة اللوحة السعودية ===== */
 .vRow { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }

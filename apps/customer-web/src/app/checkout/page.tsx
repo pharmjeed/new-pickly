@@ -769,15 +769,13 @@ export default function CheckoutPage() {
         <div className={`${styles.note} ${styles.noteErr}`}>{slotsError}</div>
       )}
 
-      {/* ===== طريقة الاستلام — السيارة فقط ضمن النطاق (بقية الطرق معروضة مشطوبة) ===== */}
+      {/* ===== طريقة الاستلام — السيارة (النطاق كله استلام من السيارة) ===== */}
       <div className={styles.sech}><h2>طريقة الاستلام</h2></div>
       <div className={styles.pmRow}>
         <span className={`${styles.pmChip} ${styles.pmChipOn}`}>
           <CarIcon size={20} />
           <span>السيارة</span>
         </span>
-        <span className={`${styles.pmChip} ${styles.pmChipOff}`}>من المتجر</span>
-        <span className={`${styles.pmChip} ${styles.pmChipOff}`}>في المحل</span>
       </div>
 
       {/* بطاقات اللوحة السعودية: اختيار بالضغط · تعديل بالضغط المطول · ⊕ للإضافة */}

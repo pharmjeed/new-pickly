@@ -690,20 +690,12 @@ export default function CheckoutScreen() {
         {/* خطأ الفترات (BR-5) — يظهر تحت الخيار لو تعذر الجلب أو لا فترات */}
         {pickupTime === "scheduled" && slotsError && <ErrorNote text={slotsError} />}
 
-        {/* ===== طريقة الاستلام — السيارة فقط ضمن النطاق (بقية الطرق معروضة مشطوبة) ===== */}
+        {/* ===== طريقة الاستلام — السيارة (النطاق كله استلام من السيارة) ===== */}
         <Text style={st.section}>طريقة الاستلام</Text>
         <View style={st.pmRow}>
           <View style={[st.pmChip, st.pmChipOn]}>
             <Text style={st.pmCar}>🚘</Text>
             <Text style={st.pmTxtOn}>السيارة</Text>
-          </View>
-          <View style={[st.pmChip, st.pmChipOff]}>
-            <Text style={st.pmTxtOff}>من المتجر</Text>
-            <View style={st.pmSlash} />
-          </View>
-          <View style={[st.pmChip, st.pmChipOff]}>
-            <Text style={st.pmTxtOff}>في المحل</Text>
-            <View style={st.pmSlash} />
           </View>
         </View>
 
@@ -1234,19 +1226,8 @@ const st = StyleSheet.create({
     overflow: "hidden"
   },
   pmChipOn: { backgroundColor: light.surface, borderWidth: 1.5, borderColor: colors.ink600 },
-  pmChipOff: { backgroundColor: colors.line },
   pmCar: { fontSize: fs.fs15 },
   pmTxtOn: { color: colors.ink900, fontSize: fs.fs14, fontWeight: "800" },
-  pmTxtOff: { color: colors.gray, fontSize: fs.fs14, fontWeight: "600" },
-  pmSlash: {
-    position: "absolute",
-    left: -12,
-    right: -12,
-    top: "50%",
-    height: 1.5,
-    backgroundColor: colors.gray,
-    transform: [{ rotate: "-10deg" }]
-  },
   /* ===== بطاقة اللوحة السعودية ===== */
   vRow: {
     flexDirection: "row-reverse",
