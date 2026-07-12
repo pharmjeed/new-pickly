@@ -233,10 +233,20 @@
   align-items: center;
   gap: 8px;
 }
-/* السهم الموجّه — يتحرك باتجاه الإتمام (يسار في RTL) */
+/* الأسهم الثلاثة الموجّهة — موجة تلاشٍ باتجاه الإتمام (يسار في RTL)،
+   بدرجات تلاشي الخطوط الثلاثة من الهوية */
 .checkoutArrow {
   display: inline-flex;
-  animation: arrowNudge 1.4s var(--pk-ease) infinite;
+}
+.checkoutArrow span {
+  opacity: var(--pk-fade-3);
+  animation: arrowWave 1.4s var(--pk-ease) infinite;
+}
+.checkoutArrow span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.checkoutArrow span:nth-child(3) {
+  animation-delay: 0.3s;
 }
 @keyframes checkoutPulse {
   0% {
@@ -249,19 +259,22 @@
     box-shadow: 0 0 0 0 rgba(201, 243, 57, 0);
   }
 }
-@keyframes arrowNudge {
+@keyframes arrowWave {
   0%,
   100% {
+    opacity: var(--pk-fade-3);
     transform: translateX(0);
   }
   50% {
-    transform: translateX(-5px);
+    opacity: var(--pk-fade-1);
+    transform: translateX(-3px);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .checkout::after,
-  .checkoutArrow {
+  .checkoutArrow span {
     animation: none;
+    opacity: var(--pk-fade-2);
   }
 }
 .checkoutTotal {

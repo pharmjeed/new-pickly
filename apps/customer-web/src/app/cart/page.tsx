@@ -221,7 +221,9 @@ export default function CartPage() {
             <span className={styles.checkoutLabel}>
               متابعة الإتمام
               <span className={styles.checkoutArrow} aria-hidden="true">
-                ←
+                <span>←</span>
+                <span>←</span>
+                <span>←</span>
               </span>
             </span>
             <AnimatedSar halalas={cart.quote.total_halalas} className={styles.checkoutTotal} />

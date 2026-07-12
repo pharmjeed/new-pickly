@@ -15,20 +15,26 @@ import {
   type TextStyle,
   type ViewStyle
 } from "react-native";
-import { colors, fs, light, radius, radiusPill, shadow1, touch } from "./theme";
+import { colors, fs, light, motion, radius, radiusPill, shadow1, touch } from "./theme";
 
-/** السهم الموجّه — يتحرك باتجاه الإتمام (يسار في RTL) ويحترم «تقليل الحركة» */
-function NudgeArrow() {
-  const x = useRef(new Animated.Value(0)).current;
+/** سهم واحد من موجة الأسهم الثلاثة — يضيء بدوره ثم يخفت (دورة 1.4ث بإزاحة delay) */
+function WaveArrow({ delay }: { delay: number }) {
+  const v = useRef(new Animated.Value(motion.fade3)).current;
   useEffect(() => {
     let loop: Animated.CompositeAnimation | null = null;
     let cancelled = false;
     void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
-      if (reduce || cancelled) return;
+      if (cancelled) return;
+      if (reduce) {
+        v.setValue(motion.fade2);
+        return;
+      }
       loop = Animated.loop(
         Animated.sequence([
-          Animated.timing(x, { toValue: -5, duration: 700, useNativeDriver: true }),
-          Animated.timing(x, { toValue: 0, duration: 700, useNativeDriver: true })
+          Animated.delay(delay),
+          Animated.timing(v, { toValue: motion.fade1, duration: 350, useNativeDriver: true }),
+          Animated.timing(v, { toValue: motion.fade3, duration: 350, useNativeDriver: true }),
+          Animated.delay(700 - delay)
         ])
       );
       loop.start();
@@ -37,14 +43,18 @@ function NudgeArrow() {
       cancelled = true;
       loop?.stop();
     };
-  }, [x]);
+  }, [v, delay]);
+  return <Animated.Text style={[st.limeArrow, { opacity: v }]}>←</Animated.Text>;
+}
+
+/** الأسهم الثلاثة الموجّهة — موجة تلاشٍ باتجاه الإتمام (يسار)، بدرجات الخطوط الثلاثة */
+function ArrowWave() {
   return (
-    <Animated.Text
-      accessibilityElementsHidden
-      style={[st.limeArrow, { transform: [{ translateX: x }] }]}
-    >
-      ←
-    </Animated.Text>
+    <View style={st.limeArrows} accessibilityElementsHidden>
+      <WaveArrow delay={300} />
+      <WaveArrow delay={150} />
+      <WaveArrow delay={0} />
+    </View>
   );
 }
 
@@ -78,7 +88,7 @@ export function LimeButton({
       ]}
     >
       <Text style={st.limeTxt}>{title}</Text>
-      {arrow === true && <NudgeArrow />}
+      {arrow === true && <ArrowWave />}
       {trailing !== undefined && <Text style={st.limeTrail}>{trailing}</Text>}
     </Pressable>
   );
@@ -158,6 +168,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 18
   },
   limeTxt: { color: colors.ink900, fontSize: fs.fs16, fontWeight: "800" },
+  limeArrows: { flexDirection: "row", alignItems: "center" },
   limeArrow: { color: colors.ink900, fontSize: fs.fs16, fontWeight: "800" },
   limeTrail: { color: colors.lime900, fontSize: fs.fs15, fontWeight: "700" },
   ghost: {
