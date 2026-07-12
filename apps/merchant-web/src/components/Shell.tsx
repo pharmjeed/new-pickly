@@ -32,6 +32,7 @@ const NAV = [
   { href: "/menu", label: "المنيو والتوفر" },
   { href: "/scheduled", label: "الاستلام المجدول" },
   { gp: "الإدارة" },
+  { href: "/profile", label: "معلومات المطعم" },
   { href: "/staff", label: "الطاقم" },
   { gp: "الأعمال" },
   { href: "/settlements", label: "المالية والتسويات" },

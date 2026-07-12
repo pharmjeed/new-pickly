@@ -70,6 +70,8 @@ const ModifierGroupsSchema = z
  */
 
 const MANAGER_ROLES = ["owner", "general_manager", "operations_manager", "branch_manager"] as const;
+/** هوية العلامة (الاسم/الشعار/الغلاف) تمس كل الفروع — المالك والمدير العام فقط */
+const BRAND_EDIT_ROLES = ["owner", "general_manager"] as const;
 const MENU_ROLES = [...MANAGER_ROLES, "cashier"] as const; // الكاشير: توفر فرعه فقط
 const FINANCE_VIEW = ["owner", "general_manager", "finance"] as const;
 const REPORT_ROLES = [...MANAGER_ROLES, "finance", "analyst"] as const;
@@ -201,6 +203,90 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
       default_prep_minutes: b.pickup_settings?.default_prep_minutes ?? 15,
       service_target_seconds: b.pickup_settings?.service_target_seconds ?? 120
     }));
+  });
+
+  /**
+   * M-02: الملف التعريفي — هوية المطعم كما يراها العميل في Discovery
+   * (الشعار logo_url، الغلاف cover_url، الاسم، نوع المطبخ).
+   */
+  app.get("/profile", async (req) => {
+    requireStaff(req, MANAGER_ROLES);
+    const merchant_id = merchantIdOf(req);
+    const [merchant, brands] = await Promise.all([
+      prisma.merchant.findUniqueOrThrow({
+        where: { id: merchant_id },
+        select: { name_ar: true, name_en: true }
+      }),
+      prisma.brand.findMany({
+        where: { merchant_id },
+        orderBy: { created_at: "asc" },
+        select: {
+          id: true,
+          name_ar: true,
+          name_en: true,
+          cuisine_ar: true,
+          logo_url: true,
+          cover_url: true,
+          is_active: true
+        }
+      })
+    ]);
+    return { merchant, brands };
+  });
+
+  /**
+   * M-02: تعديل هوية العلامة — الاسم/المطبخ/الشعار/الغلاف.
+   * الصور data URL كنمط صور الأصناف: "" للإزالة، data URL للتبديل، غياب المفتاح = إبقاء.
+   */
+  app.patch("/brands/:id", async (req) => {
+    const claims = requireStaff(req, BRAND_EDIT_ROLES);
+    const merchant_id = merchantIdOf(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = z
+      .object({
+        name_ar: z.string().min(2).max(60).optional(),
+        name_en: z.string().min(2).max(60).nullable().optional(),
+        cuisine_ar: z.string().min(2).max(40).nullable().optional(),
+        logo_data_url: z.union([ImageDataUrlSchema, z.literal("")]).optional(),
+        cover_data_url: z.union([ImageDataUrlSchema, z.literal("")]).optional()
+      })
+      .parse(req.body);
+
+    const brand = await prisma.brand.findFirst({ where: { id, merchant_id } });
+    if (!brand) throw new AppError("MERCHANT-7003");
+
+    const data: Record<string, unknown> = {};
+    if (body.name_ar !== undefined) data.name_ar = body.name_ar;
+    if (body.name_en !== undefined) data.name_en = body.name_en;
+    if (body.cuisine_ar !== undefined) data.cuisine_ar = body.cuisine_ar;
+    if (body.logo_data_url !== undefined) data.logo_url = body.logo_data_url === "" ? null : body.logo_data_url;
+    if (body.cover_data_url !== undefined) data.cover_url = body.cover_data_url === "" ? null : body.cover_data_url;
+
+    await prisma.$transaction(async (tx) => {
+      if (Object.keys(data).length > 0) {
+        await tx.brand.update({ where: { id }, data });
+      }
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "brand_profile_updated",
+          entity_type: "brand",
+          entity_id: id,
+          merchant_id,
+          before: { name_ar: brand.name_ar, name_en: brand.name_en, cuisine_ar: brand.cuisine_ar } as never,
+          after: {
+            ...(body.name_ar !== undefined ? { name_ar: body.name_ar } : {}),
+            ...(body.name_en !== undefined ? { name_en: body.name_en } : {}),
+            ...(body.cuisine_ar !== undefined ? { cuisine_ar: body.cuisine_ar } : {}),
+            ...(body.logo_data_url !== undefined ? { logo: body.logo_data_url === "" ? "removed" : "changed" } : {}),
+            ...(body.cover_data_url !== undefined ? { cover: body.cover_data_url === "" ? "removed" : "changed" } : {})
+          } as never
+        }
+      });
+    });
+
+    return { id, ok: true };
   });
 
   /** M-08: المنيو والتوفر — قائمة موحدة لكل فرع */
