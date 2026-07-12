@@ -43,7 +43,16 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm --filter @pickly/database migrate:deploy
+      # الاختبارات التكاملية تعتمد على بيانات الseed (فروع وحسابات تجريبية)
+      - run: pnpm db:seed
       - run: pnpm test
+        env:
+          OTP_DEV_FIXED_CODE: "1234"
+          SMS_PROVIDER: mock
+          PAYMENT_PROVIDER: mock
+          GEO_PROVIDER: mock
+          PUSH_PROVIDER: mock
+          PAYMENT_WEBHOOK_SECRET: dev-webhook-secret
 
   e2e:
     runs-on: ubuntu-latest
