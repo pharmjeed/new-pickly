@@ -418,9 +418,25 @@
 }
 .nm {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 8px;
+}
+/* غلاف/شعار العلامة يملأ رأس البطاقة (من بوابة التاجر M-02) */
+.imgCover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* شعار مصغّر بجانب اسم المطعم */
+.nmLogo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  object-fit: cover;
+  border: 1px solid var(--pk-border);
+  flex-shrink: 0;
 }
 .nm b {
   font-family: var(--pk-font-display);

@@ -67,6 +67,9 @@ function defaultSelection(p: Product): Record<string, string[]> {
 export default function RestaurantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [menu, setMenu] = useState<Menu | null>(null);
+  const [brand, setBrand] = useState<{ name_ar: string; logo_url: string | null; cover_url: string | null } | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [count, setCount] = useState(0);
   const [totalHalalas, setTotalHalalas] = useState(0);
@@ -78,6 +81,20 @@ export default function RestaurantScreen() {
     api<Menu>("GET", `/v1/branches/${id}/menu`)
       .then(setMenu)
       .catch((e: Error) => setError(e.message));
+  }, [id]);
+
+  // هوية العلامة للرأس (اسم/شعار/غلاف من بوابة التاجر M-02) — تحسين عرض؛ فشلها لا يعطل الشاشة
+  useEffect(() => {
+    if (!id) return;
+    api<Array<{ id: string; brand_name_ar: string; logo_url: string | null; cover_url: string | null }>>(
+      "GET",
+      "/v1/branches/nearby?lat=24.7&lng=46.68&radius=30000"
+    )
+      .then((list) => {
+        const b = list.find((x) => x.id === id);
+        if (b) setBrand({ name_ar: b.brand_name_ar, logo_url: b.logo_url, cover_url: b.cover_url });
+      })
+      .catch(() => undefined);
   }, [id]);
 
   const ensureCart = async (): Promise<string> => {
@@ -173,11 +190,13 @@ export default function RestaurantScreen() {
   return (
     <SafeAreaView style={st.screen} edges={["top"]}>
       {/* رأس المطعم */}
+      {brand?.cover_url && <Image source={{ uri: brand.cover_url }} style={st.brandCover} resizeMode="cover" />}
       <View style={st.head}>
         <Pressable style={st.back} onPress={() => router.back()} accessibilityRole="button">
           <Text style={st.backTxt}>‹</Text>
         </Pressable>
-        <Text style={st.title}>قائمة المطعم</Text>
+        {brand?.logo_url && <Image source={{ uri: brand.logo_url }} style={st.brandLogo} resizeMode="cover" />}
+        <Text style={st.title}>{brand?.name_ar ?? "قائمة المطعم"}</Text>
       </View>
       <Text style={st.carLine}>يصل طلبك إلى سيارتك — خلّك في سيارتك، الباقي علينا</Text>
 
@@ -371,6 +390,15 @@ export default function RestaurantScreen() {
 const st = StyleSheet.create({
   screen: { flex: 1, backgroundColor: light.bg },
   head: { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 16, paddingBottom: 4 },
+  brandCover: { height: 150, backgroundColor: light.bg },
+  brandLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: light.border,
+    backgroundColor: light.bg
+  },
   back: { width: touch, height: touch, alignItems: "center", justifyContent: "center" },
   backTxt: { color: light.text, fontSize: fs.fs24, fontWeight: "800" },
   title: { color: light.text, fontSize: fs.fs20, fontWeight: "900", textAlign: "right" },

@@ -3,7 +3,7 @@
  * chips تصنيفات (docs/21 P3) بتصفية ?c= + بطاقات الفروع القريبة.
  */
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Location from "expo-location";
@@ -15,6 +15,8 @@ interface BranchCard {
   id: string;
   brand_name_ar: string;
   cuisine_ar: string | null;
+  logo_url: string | null;
+  cover_url: string | null;
   status: string;
   distance_meters: number | null;
   eta_minutes: number | null;
@@ -152,7 +154,15 @@ export default function RestaurantsScreen() {
                 onPress={() => router.push(`/restaurant/${b.id}` as never)}
                 accessibilityRole="button"
               >
+                {(b.cover_url ?? b.logo_url) && (
+                  <Image
+                    source={{ uri: b.cover_url ?? b.logo_url ?? undefined }}
+                    style={st.cardCover}
+                    resizeMode="cover"
+                  />
+                )}
                 <View style={st.cardTop}>
+                  {b.logo_url && <Image source={{ uri: b.logo_url }} style={st.cardLogo} resizeMode="cover" />}
                   <Text style={st.cardName} numberOfLines={1}>
                     {b.brand_name_ar}
                     {b.address_short ? ` — ${b.address_short}` : ""}
@@ -226,6 +236,20 @@ const st = StyleSheet.create({
     ...shadow1
   },
   cardTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  cardCover: {
+    height: 120,
+    borderRadius: radius - 4,
+    marginBottom: 4,
+    backgroundColor: light.bg
+  },
+  cardLogo: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: light.border,
+    backgroundColor: light.bg
+  },
   cardName: { color: light.text, fontSize: fs.fs16, fontWeight: "800", flexShrink: 1, textAlign: "right" },
   metaRow: { flexDirection: "row-reverse", gap: 12 },
   meta: { color: light.text2, fontSize: fs.fs13 },

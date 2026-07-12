@@ -14,6 +14,8 @@ export interface BranchCard {
   id: string;
   brand_name_ar: string;
   cuisine_ar: string | null;
+  logo_url: string | null;
+  cover_url: string | null;
   status: string;
   distance_meters: number | null;
   eta_minutes: number | null;
@@ -433,11 +435,20 @@ export function RestaurantCard({ b }: { b: BranchCard }) {
   return (
     <Link href={`/r/${b.id}`} className={styles.rcard} data-testid="branch-card">
       <div className={styles.img}>
-        <IStore size={40} />
+        {b.cover_url || b.logo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={b.cover_url ?? b.logo_url ?? ""} alt="" className={styles.imgCover} />
+        ) : (
+          <IStore size={40} />
+        )}
         <span className={`${styles.stBadge} ${st.cls}`}>{st.label}</span>
       </div>
       <div className={styles.bd}>
         <div className={styles.nm}>
+          {b.logo_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={b.logo_url} alt="" className={styles.nmLogo} />
+          )}
           <b>
             {b.brand_name_ar}
             {b.address_short ? ` — ${b.address_short}` : ""}

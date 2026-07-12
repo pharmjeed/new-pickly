@@ -40,6 +40,8 @@ interface Menu {
 interface BranchCard {
   id: string;
   brand_name_ar: string;
+  logo_url: string | null;
+  cover_url: string | null;
   status: string;
   busy_message: string | null;
   distance_meters: number | null;
@@ -220,7 +222,12 @@ export default function RestaurantPage() {
     <main className={styles.page}>
       {/* ===== الغلاف (C-19) ===== */}
       <div className={styles.cover}>
-        <span>cover 390×180</span>
+        {branch?.cover_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={branch.cover_url} alt="" className={styles.coverImg} />
+        ) : (
+          <span>{branch?.brand_name_ar ?? ""}</span>
+        )}
         <button className={styles.backBtn} onClick={() => router.push("/")} aria-label="رجوع">
           ‹
         </button>
@@ -239,7 +246,14 @@ export default function RestaurantPage() {
       {/* ===== رأس المطعم ===== */}
       <div className={styles.head}>
         <div className={styles.brandRow}>
-          <div className={styles.logo}>logo</div>
+          <div className={styles.logo}>
+            {branch?.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={branch.logo_url} alt="" className={styles.logoImg} />
+            ) : (
+              <span className={styles.logoLetter}>{branch?.brand_name_ar?.charAt(0) ?? "م"}</span>
+            )}
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 className={styles.brandName}>{branch?.brand_name_ar ?? "قائمة المطعم"}</h1>
             {branch && <div className={styles.brandSub}>{branch.address_short}</div>}
