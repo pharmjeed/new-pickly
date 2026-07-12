@@ -42,13 +42,21 @@ describe("AuthService — OTP (BR-13)", () => {
   });
 
   it("يرفض بعد تجاوز حد الإرسال (Rate Limiting)", async () => {
-    const repo = makeRepo({
-      countRecentOtpRequests: vi.fn().mockResolvedValue(5)
-    } as Partial<AuthRepository>);
-    const service = new AuthService(repo, mockSms);
-    await expect(service.requestOtp("+966500000001")).rejects.toMatchObject({
-      code: "AUTH-1004"
-    });
+    // CI يرفع الحد للاختبارات التكاملية — هنا نثبته على حد الإنتاج
+    const prev = process.env.OTP_RATE_MAX_PER_WINDOW;
+    process.env.OTP_RATE_MAX_PER_WINDOW = "5";
+    try {
+      const repo = makeRepo({
+        countRecentOtpRequests: vi.fn().mockResolvedValue(5)
+      } as Partial<AuthRepository>);
+      const service = new AuthService(repo, mockSms);
+      await expect(service.requestOtp("+966500000001")).rejects.toMatchObject({
+        code: "AUTH-1004"
+      });
+    } finally {
+      if (prev === undefined) delete process.env.OTP_RATE_MAX_PER_WINDOW;
+      else process.env.OTP_RATE_MAX_PER_WINDOW = prev;
+    }
   });
 
   it("رمز صحيح ← مستخدم جديد + توكنات", async () => {

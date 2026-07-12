@@ -227,6 +227,20 @@ describe.skipIf(!hasDb)("Phase 2 — الميزات المؤجلة", async () =>
       const booked = await prisma.branchCapacitySlot.findUniqueOrThrow({ where: { id: slot.id } });
       expect(booked.booked).toBe(1);
 
+      // الدفع أولاً — مسودة ما قبل الدفع لا تقبل إلغاء العميل في آلة الحالات (docs/05§3)
+      await app.inject({
+        method: "POST",
+        url: `/v1/orders/${orderId}/payment-intent`,
+        headers: { ...authed(token), "idempotency-key": randomUUID() },
+        payload: { method: "card" }
+      });
+      await app.inject({
+        method: "POST",
+        url: `/v1/dev/mock-gateway/by-order/${orderId}/pay`,
+        headers: { "content-type": "application/json" },
+        payload: "{}"
+      });
+
       const cancelRes = await app.inject({
         method: "POST",
         url: `/v1/orders/${orderId}/cancel`,

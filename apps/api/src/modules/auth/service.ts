@@ -15,9 +15,10 @@ import type { TokenPair } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
 import { authRepository, type AuthRepository } from "./repository.js";
 
-/** حدود BR-13: OTP بحد محاولات وRate Limiting — الحد قابل للرفع في بيئة الاختبار فقط */
+/** حدود BR-13: OTP بحد محاولات وRate Limiting — الحد قابل للرفع في بيئة الاختبار فقط،
+ * ويُقرأ عند كل طلب حتى يحترم متغير البيئة الذي تضبطه الاختبارات بعد تحميل الوحدة */
 const OTP_RATE_WINDOW_SECONDS = 3600;
-const OTP_RATE_MAX_PER_WINDOW = Number(process.env.OTP_RATE_MAX_PER_WINDOW ?? 5);
+const otpRateMaxPerWindow = () => Number(process.env.OTP_RATE_MAX_PER_WINDOW ?? 5);
 
 const REFRESH_TTL_MS = 30 * 24 * 3600 * 1000;
 
@@ -29,7 +30,7 @@ export class AuthService {
 
   async requestOtp(phone: string, ip?: string): Promise<{ request_id: string; retry_after_seconds: number }> {
     const recent = await this.repo.countRecentOtpRequests(phone, OTP_RATE_WINDOW_SECONDS);
-    if (recent >= OTP_RATE_MAX_PER_WINDOW) {
+    if (recent >= otpRateMaxPerWindow()) {
       throw new AppError("AUTH-1004");
     }
 
