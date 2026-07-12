@@ -212,14 +212,25 @@
 }
 
 /* ===== Sheet الموقف ===== */
+@keyframes pk-dim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pk-sheet-up {
+  from { transform: translateY(48px); }
+  to { transform: translateY(0); }
+}
 .dim {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--pk-ink-900) 45%, transparent);
-  z-index: 50;
+  /* فوق طبقات Leaflet (تصل 1000) — وإلا تطفو الخريطة ودبابيسها فوق التعتيم */
+  z-index: 1200;
+  background: color-mix(in srgb, var(--pk-ink-900) 55%, transparent);
+  backdrop-filter: blur(2px);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  animation: pk-dim-in var(--pk-dur) var(--pk-ease);
 }
 .sheet {
   background: var(--pk-surface);
@@ -227,14 +238,17 @@
   border: 1px solid var(--pk-border);
   border-bottom: none;
   border-radius: 24px 24px 0 0;
-  padding: 10px 18px 18px;
+  padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px));
   width: 100%;
   max-width: 480px;
   margin: 0 auto;
+  max-height: 88dvh;
+  overflow-y: auto;
   box-shadow: var(--pk-shadow-2);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  animation: pk-sheet-up 260ms var(--pk-ease);
 }
 .grab {
   width: 44px;
@@ -244,10 +258,59 @@
   margin: 2px auto 6px;
   flex-shrink: 0;
 }
+.sheetHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 .sheetTitle {
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-20);
   font-weight: 700;
+}
+.closeBtn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--pk-cloud);
+  color: var(--pk-text-2);
+  font-size: var(--pk-fs-14);
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--pk-dur) var(--pk-ease), color var(--pk-dur) var(--pk-ease);
+}
+.closeBtn:hover {
+  background: var(--pk-line);
+  color: var(--pk-text);
+}
+/* شاشات أعرض من الجوال: حوار مركزي بزوايا كاملة بدل شريط ملتصق بأسفل شاشة عريضة */
+@media (min-width: 560px) {
+  .dim {
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+  }
+  .sheet {
+    max-width: 430px;
+    border-radius: 24px;
+    border-bottom: 1px solid var(--pk-border);
+    padding: 18px 22px 22px;
+    max-height: calc(100dvh - 48px);
+    animation: pk-modal-in 240ms var(--pk-ease);
+  }
+  .grab {
+    display: none;
+  }
+}
+@keyframes pk-modal-in {
+  from { transform: translateY(14px) scale(0.97); opacity: 0; }
+  to { transform: none; opacity: 1; }
 }
 .sheetHint {
   color: var(--pk-text-2);
@@ -451,6 +514,6 @@
 :global(.pk-drive) .mapsBtn:hover { background: var(--pk-ink-600); }
 
 @media (prefers-reduced-motion: reduce) {
-  .waitRing, .waitLogo, .sl1, .sl2, .sl3 { animation: none; }
+  .waitRing, .waitLogo, .sl1, .sl2, .sl3, .dim, .sheet { animation: none; }
   .waitRing { opacity: 0.25; transform: scale(1.3); }
 }

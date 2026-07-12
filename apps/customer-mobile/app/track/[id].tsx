@@ -31,7 +31,7 @@ interface Order {
 }
 
 const STEPS = ["SUBMITTED", "ACCEPTED", "PREPARING", "READY", "ARRIVED", "COMPLETED"];
-/* عناوين شريط الحالات الست — أثناء الرحلة يبقى «جاهز للاستلام» مضاءً حتى «وصلت» */
+/* عناوين شريط الحالات الست — «جاهز للاستلام» لا تُضاء إلا بضغطة المطعم «جاهز» (ready_at) */
 const STEP_LABELS = [
   "تم استلام الطلب",
   "تم قبول الطلب",
@@ -195,6 +195,8 @@ export default function TrackScreen() {
   const view = journeyBeforeReady
     ? {
         ...baseView,
+        // الشريط لا يتقدم لـ«جاهز للاستلام» قبل ضغطة المطعم «جاهز» — الخطوة الصادقة «قيد التجهيز»
+        step: order.order_status === "CUSTOMER_ARRIVED" ? baseView.step : "PREPARING",
         sub:
           order.order_status === "CUSTOMER_ARRIVED"
             ? "طلبك يُجهَّز الآن — نطلع لك فور جاهزيته"

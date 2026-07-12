@@ -33,7 +33,7 @@ interface Order {
 }
 
 const STEPS = ["SUBMITTED", "ACCEPTED", "PREPARING", "READY", "ARRIVED", "COMPLETED"];
-/* عناوين شريط الحالات الست — أثناء الرحلة يبقى «جاهز للاستلام» مضاءً حتى «وصلت» */
+/* عناوين شريط الحالات الست — «جاهز للاستلام» لا تُضاء إلا بضغطة المطعم «جاهز» (ready_at) */
 const STEP_LABELS = [
   "تم استلام الطلب",
   "تم قبول الطلب",
@@ -136,6 +136,21 @@ export default function TrackPage() {
   const [chosenSpot, setChosenSpot] = useState<BranchSpot | null>(null);
   const [savingSpot, setSavingSpot] = useState(false);
   const [spotErr, setSpotErr] = useState<string | null>(null);
+
+  // Sheet مفتوح → قفل تمرير الصفحة خلفه + الإغلاق بـEscape
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSheetOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [sheetOpen]);
 
   // مواقف الفرع — موقف واحد أو أكثر والعميل يختار منها
   const branchId = order?.branch_id;
@@ -256,6 +271,8 @@ export default function TrackPage() {
   const view = journeyBeforeReady
     ? {
         ...baseView,
+        // الشريط لا يتقدم لـ«جاهز للاستلام» قبل ضغطة المطعم «جاهز» — الخطوة الصادقة «قيد التجهيز»
+        step: order.order_status === "CUSTOMER_ARRIVED" ? baseView.step : "PREPARING",
         sub:
           order.order_status === "CUSTOMER_ARRIVED"
             ? "طلبك يُجهَّز الآن — نطلع لك فور جاهزيته"
@@ -481,7 +498,12 @@ export default function TrackPage() {
         <div className={s.dim} role="dialog" aria-modal="true" aria-label="وين وقفت؟" onClick={() => setSheetOpen(false)}>
           <div className={s.sheet} onClick={(e) => e.stopPropagation()}>
             <div className={s.grab} />
-            <b className={s.sheetTitle}>{arrived ? "وين وقفت؟" : "اختر موقفك"}</b>
+            <div className={s.sheetHead}>
+              <b className={s.sheetTitle}>{arrived ? "وين وقفت؟" : "اختر موقفك"}</b>
+              <button type="button" className={s.closeBtn} aria-label="إغلاق" onClick={() => setSheetOpen(false)}>
+                ✕
+              </button>
+            </div>
             <p className={s.sheetHint}>
               {arrived
                 ? "تحديد موقفك يوصل راشد لسيارتك مباشرة — بلا لف ولا اتصال."
