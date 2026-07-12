@@ -319,9 +319,6 @@ export default function RestaurantPage() {
                     className={`${styles.pcard} ${!p.is_available ? styles.pcardNa : ""}`}
                     data-testid="product-card"
                   >
-                    <div className={styles.pimg}>
-                      {p.image_url ? <img src={p.image_url} alt={p.name_ar} /> : "product"}
-                    </div>
                     <div className={styles.pbody}>
                       <div className={styles.ptitle}>
                         {p.name_ar}
@@ -335,30 +332,35 @@ export default function RestaurantPage() {
                         {fmtSar(p.price_halalas)}
                       </span>
                     </div>
-                    {p.is_available ? (
-                      customizable ? (
-                        <button
-                          className={styles.addBtn}
-                          data-testid="customize-product"
-                          onClick={() => openSheet(p)}
-                          aria-label={`خصّص ${p.name_ar}`}
-                        >
-                          +
-                        </button>
+                    <div className={styles.pmedia}>
+                      <div className={styles.pimg}>
+                        {p.image_url ? <img src={p.image_url} alt={p.name_ar} /> : "product"}
+                      </div>
+                      {p.is_available ? (
+                        customizable ? (
+                          <button
+                            className={styles.addBtn}
+                            data-testid="customize-product"
+                            onClick={() => openSheet(p)}
+                            aria-label={`خصّص ${p.name_ar}`}
+                          >
+                            +
+                          </button>
+                        ) : (
+                          <button
+                            className={styles.addBtn}
+                            data-testid="add-product"
+                            disabled={adding}
+                            onClick={() => addDirect(p)}
+                            aria-label={`أضف ${p.name_ar}`}
+                          >
+                            +
+                          </button>
+                        )
                       ) : (
-                        <button
-                          className={styles.addBtn}
-                          data-testid="add-product"
-                          disabled={adding}
-                          onClick={() => addDirect(p)}
-                          aria-label={`أضف ${p.name_ar}`}
-                        >
-                          +
-                        </button>
-                      )
-                    ) : (
-                      <span className={`${styles.badgeSoft} ${styles.naBadge}`}>غير متوفر</span>
-                    )}
+                        <span className={`${styles.badgeSoft} ${styles.naBadge}`}>غير متوفر</span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
