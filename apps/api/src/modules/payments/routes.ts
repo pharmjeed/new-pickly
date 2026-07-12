@@ -19,7 +19,9 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
     { parseAs: "string" },
     (_req, body, done) => {
       try {
-        done(null, { raw: body as string, parsed: JSON.parse(body as string) });
+        const raw = body as string;
+        // جسم فارغ بترويسة JSON (زر الدفع بلا حمولة) لا يُسقط الطلب بـ500
+        done(null, { raw, parsed: raw ? JSON.parse(raw) : {} });
       } catch (e) {
         done(e as Error);
       }
