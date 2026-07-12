@@ -5,7 +5,7 @@
  * الهيكل ثابت والمحتوى يتبدل (docs/21§1، design/customer/P7.html C-38→C-51).
  * وضع القيادة داكن إجباري أثناء الطريق. النبضة عند رصد الوصول هي الاحتفالية الوحيدة.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import SpotsMap from "./SpotsMap";
@@ -52,7 +52,7 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   MERCHANT_REJECTED: { step: "SUBMITTED", title: "نعتذر — ما قدر المطعم يستقبل طلبك", sub: "مبلغك يرجع لك كاملاً" },
   PREPARING: { step: "PREPARING", title: "قيد التجهيز", sub: "خلّك مستعد للانطلاق" },
   READY: { step: "READY", title: "طلبك جاهز", sub: "خلّك في سيارتك، الباقي علينا" },
-  CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "اضغط «انطلقت الآن» حين تتحرك" },
+  CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "توجه للمطعم — واضغط «وصلت» عند وصولك" },
   CUSTOMER_ON_THE_WAY: { step: "READY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
   CUSTOMER_NEARBY: { step: "READY", title: "اقتربت!", sub: "تم رصد اقترابك — أبلغنا المطعم تلقائيًا" },
   CUSTOMER_ARRIVED: { step: "ARRIVED", title: "وصلت؟ إحنا عرفنا.", sub: "الموظف في طريقه إليك" },
@@ -125,8 +125,6 @@ export default function TrackPage() {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [eta, setEta] = useState<number | null>(null);
-  const tripTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Sheet الموقف (C-48): مواقف الفرع المعرفة من المطعم أو وصف حر — POST /v1/orders/{id}/parking-spot
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -163,13 +161,6 @@ export default function TrackPage() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  useEffect(
-    () => () => {
-      if (tripTimer.current) clearInterval(tripTimer.current);
-    },
-    []
-  );
-
   // شاشة الانتظار: رسائل متبدلة تحت الشعار الحي — يتوقف التبديل فور مغادرة حالة الانتظار
   const isWaiting = WAITING_STATES.includes(order?.order_status ?? "");
   const [waitIdx, setWaitIdx] = useState(0);
@@ -202,40 +193,7 @@ export default function TrackPage() {
     return () => clearInterval(t);
   }, [prepCountdownOn]);
 
-  // GPS رصدك عند نقطة موقفك المثبتة — تذكير بزر «وصلت» (التحول يبقى يدوياً)
-  const [atSpotHint, setAtSpotHint] = useState(false);
-
-  const startTrip = async () => {
-    await api("POST", `/v1/orders/${id}/trip/start`);
-    // إرسال الموقع الفعلي إن توفر — والرحلة تعمل يدوياً بدونه (docs/14§8)
-    if (navigator.geolocation && !tripTimer.current) {
-      tripTimer.current = setInterval(() => {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          try {
-            const res = await api<{ eta_minutes: number | null; at_spot?: boolean }>(
-              "POST",
-              `/v1/orders/${id}/trip/location`,
-              {
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude,
-                speed: pos.coords.speed,
-                heading: pos.coords.heading,
-                accuracy: pos.coords.accuracy
-              }
-            );
-            if (res.eta_minutes !== null) setEta(res.eta_minutes);
-            if (res.at_spot) setAtSpotHint(true);
-          } catch {
-            /* التتبع تحسين لا شرط */
-          }
-        });
-      }, 8000);
-    }
-    await refresh();
-  };
-
   const confirmArrival = async () => {
-    if (tripTimer.current) clearInterval(tripTimer.current);
     await api("POST", `/v1/orders/${id}/arrival`);
     await refresh();
     // بعد تأكيد الوصول → «وين وقفت؟» (C-47 → C-48)
@@ -317,7 +275,8 @@ export default function TrackPage() {
   const driveMode = DRIVE_STATES.includes(order.order_status);
   const arrived = ARRIVED_STATES.includes(order.order_status);
   const canStart = ["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(order.order_status);
-  const canArrive = DRIVE_STATES.includes(order.order_status);
+  // «وصلت» متاح من القبول وحتى الوصول — بلا زر «انطلقت الآن»: الخادم يفتح جلسة يدوية تلقائياً (J10)
+  const canArrive = canStart || driveMode;
 
   return (
     <div className={driveMode ? "pk-drive" : ""}>
@@ -452,14 +411,6 @@ export default function TrackPage() {
           </button>
         )}
 
-        {/* بطاقة ETA الكبيرة — وضع القيادة (C-45) */}
-        {driveMode && eta !== null && (
-          <div className={`pk-card ${s.etaCard}`}>
-            <span className={s.etaValue}>{eta} دقيقة</span>
-            <p className="pk-muted">حتى وصولك — {order.brand_name_ar}</p>
-          </div>
-        )}
-
         {/* بطاقة الرمز الليمونية (C-50/C-51) */}
         {order.handoff_code && arrived && (
           <div className={s.codeCard}>
@@ -475,20 +426,12 @@ export default function TrackPage() {
           </button>
         )}
 
-        {canStart && (
-          <button className="pk-btn" data-testid="start-trip" onClick={startTrip}>انطلقت الآن</button>
-        )}
         {canArrive && (
           <>
-            {atSpotHint && (
-              <p className={s.footNote} data-testid="at-spot-hint" style={{ fontWeight: 700 }}>
-                وصلت لنقطة موقفك{parkingLabel ? ` — ${parkingLabel}` : ""} 🅿 — اضغط «وصلت» ليطلع لك الموظف
-              </p>
-            )}
             <button className="pk-btn" data-testid="confirm-arrival" onClick={confirmArrival} style={{ marginTop: 8 }}>
               وصلت
             </button>
-            <p className={s.footNote}>«وصلت» بيدك دائماً — ما نحوّل حالتك بالـGPS وحده أبداً</p>
+            <p className={s.footNote}>«وصلت» بيدك دائماً — اضغطه فور وقوفك عند المطعم</p>
           </>
         )}
 

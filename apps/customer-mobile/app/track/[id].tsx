@@ -3,17 +3,14 @@
  * - polling كل 2.5s على GET /v1/orders/{id}
  * - شريط الحالات السبع
  * - وضع قيادة داكن (ink-900) أثناء الطريق
- * - «انطلقت الآن» POST trip/start + إرسال المواقع من expo-location كل 8s
- *   (foreground فقط — الخلفية تتطلب dev build + Task Manager لاحقاً)
- * - «وصلت» POST arrival · Sheet الموقف POST parking-spot {free_text}
+ * - «وصلت» POST arrival (الخادم يفتح جلسة يدوية تلقائياً — J10) · Sheet الموقف POST parking-spot {free_text}
  * - بطاقة رمز الاستلام الليمونية · عند COMPLETED تقييم بنجوم (P8)
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import * as Location from "expo-location";
 import { api } from "../../src/api";
 import { ErrorNote, GhostButton, LimeButton, Loader } from "../../src/ui";
 import { colors, dark, fs, light, radius, radiusPill, touch } from "../../src/theme";
@@ -57,7 +54,7 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   },
   PREPARING: { step: "PREPARING", title: "قيد التجهيز", sub: "خلّك مستعد للانطلاق" },
   READY: { step: "READY", title: "طلبك جاهز", sub: "خلّك في سيارتك، الباقي علينا" },
-  CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "اضغط «انطلقت الآن» حين تتحرك" },
+  CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "توجه للمطعم — واضغط «وصلت» عند وصولك" },
   CUSTOMER_ON_THE_WAY: { step: "READY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
   CUSTOMER_NEARBY: { step: "READY", title: "اقتربت!", sub: "تم رصد اقترابك — أبلغنا المطعم تلقائيًا" },
   CUSTOMER_ARRIVED: { step: "ARRIVED", title: "وصلت؟ إحنا عرفنا.", sub: "الموظف في طريقه إليك" },
@@ -85,8 +82,6 @@ export default function TrackScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [eta, setEta] = useState<number | null>(null);
-  const tripTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Sheet الموقف (C-48) — المواقف من تعريف الفرع لا قائمة ثابتة
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -121,14 +116,6 @@ export default function TrackScreen() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  // تنظيف مؤقت الرحلة عند مغادرة الشاشة
-  useEffect(
-    () => () => {
-      if (tripTimer.current) clearInterval(tripTimer.current);
-    },
-    []
-  );
-
   // مواقف الفرع المعرفة من المطعم — موقف واحد أو أكثر والعميل يختار منها
   const branchId = order?.branch_id;
   useEffect(() => {
@@ -138,53 +125,7 @@ export default function TrackScreen() {
       .catch(() => setBranchSpots([])); // لا مواقف معرفة → الوصف النصي يكفي
   }, [branchId]);
 
-  // GPS رصدك عند نقطة موقفك المثبتة — تذكير بزر «وصلت» (التحول يبقى يدوياً)
-  const [atSpotHint, setAtSpotHint] = useState(false);
-
-  const sendLocation = useCallback(async () => {
-    try {
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const res = await api<{ eta_minutes: number | null; at_spot?: boolean }>("POST", `/v1/orders/${id}/trip/location`, {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        speed: pos.coords.speed,
-        heading: pos.coords.heading,
-        accuracy: pos.coords.accuracy
-      });
-      if (res.eta_minutes !== null) setEta(res.eta_minutes);
-      if (res.at_spot) setAtSpotHint(true);
-    } catch {
-      /* التتبع تحسين لا شرط (docs/14§8) */
-    }
-  }, [id]);
-
-  const startTrip = async () => {
-    try {
-      await api("POST", `/v1/orders/${id}/trip/start`);
-    } catch (e) {
-      setError((e as Error).message);
-      return;
-    }
-    // إرسال الموقع كل 8 ثوانٍ — foreground فقط (الخلفية عبر dev build لاحقاً)
-    let granted = false;
-    try {
-      const perm = await Location.requestForegroundPermissionsAsync();
-      granted = perm.status === Location.PermissionStatus.GRANTED;
-    } catch {
-      granted = false;
-    }
-    if (granted && !tripTimer.current) {
-      void sendLocation();
-      tripTimer.current = setInterval(() => void sendLocation(), 8000);
-    }
-    await refresh();
-  };
-
   const confirmArrival = async () => {
-    if (tripTimer.current) {
-      clearInterval(tripTimer.current);
-      tripTimer.current = null;
-    }
     try {
       await api("POST", `/v1/orders/${id}/arrival`);
     } catch (e) {
@@ -275,7 +216,8 @@ export default function TrackScreen() {
   const canStart = ["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(
     order.order_status
   );
-  const canArrive = DRIVE_STATES.includes(order.order_status);
+  // «وصلت» متاح من القبول وحتى الوصول — بلا زر «انطلقت الآن»: الخادم يفتح جلسة يدوية تلقائياً (J10)
+  const canArrive = canStart || driveMode;
 
   // رموز دلالية بحسب الوضع — القيادة: ink-900 (08§7)
   const T = driveMode
@@ -348,16 +290,6 @@ export default function TrackScreen() {
           </View>
         )}
 
-        {/* بطاقة ETA الكبيرة — وضع القيادة (C-45) */}
-        {driveMode && eta !== null && (
-          <View style={[st.card, { backgroundColor: T.surface, borderColor: T.border }]}>
-            <Text style={st.etaValue}>{eta} دقيقة</Text>
-            <Text style={{ color: T.text2, fontSize: fs.fs14, textAlign: "center" }}>
-              حتى وصولك — {order.brand_name_ar}
-            </Text>
-          </View>
-        )}
-
         {/* بطاقة السيارة (C-42/C-49) */}
         {order.vehicle && (
           <View style={[st.card, st.vehRow, { backgroundColor: T.surface, borderColor: T.border }]}>
@@ -423,19 +355,11 @@ export default function TrackScreen() {
           />
         )}
 
-        {canStart && (
-          <LimeButton title="انطلقت الآن" onPress={() => void startTrip()} style={{ marginTop: 12 }} />
-        )}
         {canArrive && (
           <>
-            {atSpotHint && (
-              <Text style={[st.footNote, { color: T.text, fontWeight: "800", marginTop: 10 }]}>
-                وصلت لنقطة موقفك{parkingLabel ? ` — ${parkingLabel}` : ""} 🅿 — اضغط «وصلت» ليطلع لك الموظف
-              </Text>
-            )}
             <LimeButton title="وصلت" onPress={() => void confirmArrival()} style={{ marginTop: 12 }} />
             <Text style={[st.footNote, { color: T.text2 }]}>
-              «وصلت» بيدك دائماً — ما نحوّل حالتك بالـGPS وحده أبداً
+              «وصلت» بيدك دائماً — اضغطه فور وقوفك عند المطعم
             </Text>
           </>
         )}
@@ -564,13 +488,6 @@ const st = StyleSheet.create({
   title: { fontWeight: "900", textAlign: "right", marginBottom: 4 },
   sub: { fontSize: fs.fs15, textAlign: "right", marginBottom: 14 },
   card: { borderRadius: radius, borderWidth: 1, padding: 14, marginBottom: 10 },
-  etaValue: {
-    color: colors.lime500,
-    fontSize: fs.fs32,
-    fontWeight: "900",
-    textAlign: "center",
-    fontVariant: ["tabular-nums"]
-  },
   prepMinutes: {
     color: colors.lime900,
     fontSize: fs.fs32,

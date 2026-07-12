@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
  * J1 Happy Path (docs/03) في المتصفح — البوابة الكبرى للمرحلة 2:
  * عميل: تسجيل ← مطعم ← منتجات ← صفحة السلة والإتمام الواحدة ← دفع sandbox ← تتبع
  * فرع: قبول ← تجهيز ← جاهز
- * عميل: انطلقت ← وصلت (يدوي — J10: بلا صلاحية موقع)
+ * عميل: وصلت مباشرة (يدوي — J10: بلا زر انطلاق ولا صلاحية موقع)
  * فرع: خرج الموظف ← تحقق بالرمز ← سلّمت
  * عميل: تم التسليم.
  */
@@ -92,10 +92,8 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await b.getByTestId("tab-ready").click();
   await expect(orderCard).toBeVisible();
 
-  // ===== 7. العميل: جاهز ← انطلقت ← وصلت (J10: يدوي بلا GPS) =====
+  // ===== 7. العميل: جاهز ← وصلت مباشرة (J10: الخادم يفتح الجلسة اليدوية تلقائياً) =====
   await expect(c.getByTestId("track-title")).toContainText("طلبك جاهز");
-  await c.getByTestId("start-trip").click();
-  await expect(c.getByTestId("track-title")).toContainText("أنت في الطريق");
   await c.getByTestId("confirm-arrival").click();
   await expect(c.getByTestId("track-title")).toContainText("وصلت؟ إحنا عرفنا.");
 
