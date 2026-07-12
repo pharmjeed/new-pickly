@@ -678,6 +678,55 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
+  // ===== رسوم خدمة بيكلي — قيمة الرسم وحصة التاجر منه (system_settings:pricing.service_fee) =====
+
+  app.get("/pricing/service-fee", async (req) => {
+    requireAdmin(req, ALL_READ);
+    const setting = await prisma.systemSetting.findFirst({
+      where: { key: "pricing.service_fee" },
+      orderBy: { effective_at: "desc" }
+    });
+    if (setting) {
+      const v = setting.value as { amount_halalas?: number; merchant_share_halalas?: number };
+      return {
+        amount_halalas: v.amount_halalas ?? 0,
+        merchant_share_halalas: v.merchant_share_halalas ?? 0
+      };
+    }
+    const fee = await prisma.fee.findUnique({ where: { key: "pickly_service_fee" } });
+    return { amount_halalas: fee?.amount_halalas ?? 0, merchant_share_halalas: 0 };
+  });
+
+  /** يُحفظ صفاً جديداً — system_settings سجل تاريخي؛ يسري على التسعيرات الجديدة فوراً */
+  app.post("/pricing/service-fee", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin", "finance"]);
+    const body = z
+      .object({
+        amount_halalas: z.number().int().min(0).max(10_000),
+        merchant_share_halalas: z.number().int().min(0),
+        reason: z.string().min(3)
+      })
+      .refine((b) => b.merchant_share_halalas <= b.amount_halalas, {
+        message: "حصة التاجر لا تتجاوز قيمة الرسم"
+      })
+      .parse(req.body);
+    const setting = await prisma.systemSetting.create({
+      data: {
+        key: "pricing.service_fee",
+        value: {
+          amount_halalas: body.amount_halalas,
+          merchant_share_halalas: body.merchant_share_halalas
+        } as never,
+        created_by: sub
+      }
+    });
+    await audit(sub, "pricing_service_fee_saved", "system_setting", setting.id, body.reason, {
+      amount_halalas: body.amount_halalas,
+      merchant_share_halalas: body.merchant_share_halalas
+    });
+    return { ok: true };
+  });
+
   // ===== العلامات: إسناد تصنيف كل مطعم (brand.cuisine_ar) — تصفية C-09 تعتمد عليه =====
 
   app.get("/brands", async (req) => {

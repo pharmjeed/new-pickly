@@ -513,8 +513,8 @@ export default function CheckoutPage() {
               )}
               {/* رسم الخدمة مفصول وواضح دائماً — BR-6 */}
               <div className={styles.srow}><span>رسوم خدمة بيكلي</span><span className={styles.sv}>{fmtSar(cart.quote.service_fee_halalas)}</span></div>
-              <div className={styles.srow}><span>الضريبة (15٪)</span><span className={styles.sv}>{fmtSar(cart.quote.vat_halalas)}</span></div>
               <div className={`${styles.srow} ${styles.srowTot}`}><span>الإجمالي</span><span className={styles.sv}>{fmtSar(cart.quote.total_halalas)}</span></div>
+              <p className={styles.srow} style={{ fontSize: 12, opacity: 0.7 }}>الأسعار شاملة ضريبة القيمة المضافة</p>
             </div>
           )}
           <div className={`${styles.note} ${styles.noteSoft}`}>

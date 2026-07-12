@@ -382,14 +382,13 @@ export default function CheckoutScreen() {
                   <Text style={st.k}>رسوم خدمة بيكلي</Text>
                   <Text style={st.v}>{fmtSar(cart.quote.service_fee_halalas)}</Text>
                 </View>
-                <View style={st.kv}>
-                  <Text style={st.k}>الضريبة (15٪)</Text>
-                  <Text style={st.v}>{fmtSar(cart.quote.vat_halalas)}</Text>
-                </View>
                 <View style={[st.kv, st.totRow]}>
                   <Text style={st.totK}>الإجمالي</Text>
                   <Text style={st.totV}>{fmtSar(cart.quote.total_halalas)}</Text>
                 </View>
+                <Text style={{ fontSize: fs.fs12, color: light.text2, textAlign: "right" }}>
+                  الأسعار شاملة ضريبة القيمة المضافة
+                </Text>
               </Card>
             )}
             <Text style={st.privacy}>

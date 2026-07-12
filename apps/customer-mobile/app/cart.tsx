@@ -247,15 +247,11 @@ export default function CartScreen() {
                 <Text style={st.sk}>رسم خدمة بيكلي</Text>
                 <Text style={st.sv}>{fmtSar(cart.quote.service_fee_halalas)}</Text>
               </View>
-              <View style={st.srow}>
-                <Text style={st.sk}>الضريبة (15٪)</Text>
-                <Text style={st.sv}>{fmtSar(cart.quote.vat_halalas)}</Text>
-              </View>
               <View style={[st.srow, st.totRow]}>
                 <Text style={st.totK}>الإجمالي</Text>
                 <Text style={st.totV}>{fmtSar(cart.quote.total_halalas)}</Text>
               </View>
-              <Text style={st.brNote}>رسوم الخدمة تظهر مفصولة دائماً · التسعير خادمي (BR-6)</Text>
+              <Text style={st.brNote}>الأسعار شاملة ضريبة القيمة المضافة · التسعير خادمي (BR-6)</Text>
             </Card>
           )}
         </ScrollView>

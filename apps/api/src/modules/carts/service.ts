@@ -7,9 +7,38 @@ import { requireFlag } from "../../lib/flags.js";
  * وحدة Carts + Pricing — BR-6: التسعير خادمي حصراً (pricing_quotes)،
  * رسم الخدمة مفصول دائماً، الحد الأدنى للطلب من الفرع.
  * BR-7: الكوبون يُتحقق ويُخصم خادمياً — amount | percent.
+ * الأسعار شاملة ضريبة القيمة المضافة — لا يُضاف بند ضريبة على العميل؛
+ * vat_halalas = الضريبة المضمّنة داخل الإجمالي (للسجلات والفوترة).
  */
 
 const QUOTE_TTL_MS = 10 * 60 * 1000;
+
+/** رسم خدمة بيكلي — قابل للتغيير من السوبر أدمن، مع حصة اختيارية للتاجر منه */
+export const SERVICE_FEE_SETTING_KEY = "pricing.service_fee";
+
+export type ServiceFeeConfig = {
+  key: string;
+  name_ar: string;
+  amount_halalas: number;
+  merchant_share_halalas: number;
+};
+
+/** أحدث قيمة من system_settings (سجل تاريخي) — وإلا صف fees المزروع كقيمة افتراضية */
+export async function loadServiceFeeConfig(): Promise<ServiceFeeConfig> {
+  const [setting, fee] = await Promise.all([
+    prisma.systemSetting.findFirst({
+      where: { key: SERVICE_FEE_SETTING_KEY },
+      orderBy: { effective_at: "desc" }
+    }),
+    prisma.fee.findUniqueOrThrow({ where: { key: "pickly_service_fee" } })
+  ]);
+  const v = (setting?.value ?? null) as
+    | { amount_halalas?: number; merchant_share_halalas?: number }
+    | null;
+  const amount = Math.max(v?.amount_halalas ?? fee.amount_halalas ?? 0, 0);
+  const share = Math.min(Math.max(v?.merchant_share_halalas ?? 0, 0), amount);
+  return { key: fee.key, name_ar: fee.name_ar, amount_halalas: amount, merchant_share_halalas: share };
+}
 
 type CartWithRelations = Prisma.CartGetPayload<{
   include: {
@@ -178,7 +207,7 @@ export class CartService {
     }
 
     const vatRule = await prisma.taxRule.findUniqueOrThrow({ where: { key: "vat_standard" } });
-    const serviceFee = await prisma.fee.findUniqueOrThrow({ where: { key: "pickly_service_fee" } });
+    const feeConfig = await loadServiceFeeConfig();
 
     // BR-7: خصم الكوبون على المنتجات فقط — لا يمس رسم الخدمة
     let discount = 0;
@@ -190,10 +219,11 @@ export class CartService {
         : Math.min(subtotal, coupon.value);
       couponBreakdown = { code: coupon.code, type: coupon.type, amount_halalas: discount };
     }
-    const service_fee = serviceFee.amount_halalas ?? 0;
-    // الضريبة على (المنتجات − الخصم) + رسم الخدمة خاضع للضريبة ضمن فاتورة Pickly
-    const vat = Math.round(((subtotal - discount + service_fee) * vatRule.rate_bp) / 10000);
-    const total = subtotal - discount + service_fee + vat;
+    const service_fee = feeConfig.amount_halalas;
+    // الأسعار شاملة الضريبة: الإجمالي = (المنتجات − الخصم) + رسم الخدمة، بلا بند ضريبة يُضاف.
+    // الضريبة المضمّنة تُستخرج من الإجمالي للسجلات والفوترة: total × bp ÷ (10000 + bp)
+    const total = subtotal - discount + service_fee;
+    const vat = Math.round((total * vatRule.rate_bp) / (10000 + vatRule.rate_bp));
 
     const quote = await prisma.pricingQuote.create({
       data: {
@@ -204,8 +234,17 @@ export class CartService {
         service_fee_halalas: service_fee,
         total_halalas: total,
         breakdown: {
-          fees: [{ key: serviceFee.key, name_ar: serviceFee.name_ar, amount_halalas: service_fee }],
+          fees: [
+            {
+              key: feeConfig.key,
+              name_ar: feeConfig.name_ar,
+              amount_halalas: service_fee,
+              // لقطة حصة التاجر لحظة التسعير — التسويات تعتمدها لا القيمة الحالية
+              merchant_share_halalas: feeConfig.merchant_share_halalas
+            }
+          ],
           vat_rate_bp: vatRule.rate_bp,
+          vat_included: true,
           ...(couponBreakdown ? { coupon: couponBreakdown } : {})
         } as never,
         expires_at: new Date(Date.now() + QUOTE_TTL_MS)

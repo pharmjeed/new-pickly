@@ -11,7 +11,11 @@ const logger = createLogger("settlements");
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 
-/** رسوم Pickly في الطيار = رسم الخدمة المحصل من العميل (باقة pilot_basic بلا نسبة) */
+/**
+ * رسوم Pickly = رسم الخدمة المحصل من العميل − حصة التاجر منه.
+ * الحصة لقطة من تسعيرة الطلب (breakdown.fees[].merchant_share_halalas)
+ * فتغييرها من السوبر أدمن لا يمس طلبات سُعّرت قبله.
+ */
 export async function generateDueSettlements(now = new Date()): Promise<number> {
   const merchants = await prisma.merchant.findMany({ where: { status: "approved" } });
   let generated = 0;
@@ -62,8 +66,26 @@ export async function generateDueSettlements(now = new Date()): Promise<number> 
       continue;
     }
 
+    // حصة التاجر من رسم الخدمة — من لقطة تسعيرة كل طلب
+    const quoteIds = orders.map((o) => o.quote_id).filter((q): q is string => q !== null);
+    const quotes = quoteIds.length
+      ? await prisma.pricingQuote.findMany({ where: { id: { in: quoteIds } } })
+      : [];
+    const shareByQuote = new Map(
+      quotes.map((q) => {
+        const fees =
+          (q.breakdown as { fees?: Array<{ key?: string; merchant_share_halalas?: number }> } | null)
+            ?.fees ?? [];
+        const share = fees.find((f) => f.key === "pickly_service_fee")?.merchant_share_halalas ?? 0;
+        return [q.id, share] as const;
+      })
+    );
+    const merchantShareOf = (o: (typeof orders)[number]): number =>
+      Math.min(Math.max(o.quote_id ? (shareByQuote.get(o.quote_id) ?? 0) : 0, 0), o.service_fee_halalas);
+
     const gross = orders.reduce((s, o) => s + o.total_halalas, 0);
-    const pickly_fees = orders.reduce((s, o) => s + o.service_fee_halalas, 0);
+    // بيكلي تحتفظ بـ(الرسم − حصة التاجر) — الحصة تبقى ضمن صافي مستحق التاجر
+    const pickly_fees = orders.reduce((s, o) => s + (o.service_fee_halalas - merchantShareOf(o)), 0);
     const refundsSum = refundsInPeriod.reduce((s, r) => s + r.amount_halalas, 0);
     const tips = orders.reduce((s, o) => s + o.tip_halalas, 0);
     const promo_share = 0; // كوبونات الطيار مؤجلة
@@ -95,13 +117,18 @@ export async function generateDueSettlements(now = new Date()): Promise<number> 
             amount_halalas: o.total_halalas
           }
         });
-        if (o.service_fee_halalas > 0) {
+        const merchantShare = merchantShareOf(o);
+        const retainedFee = o.service_fee_halalas - merchantShare;
+        if (retainedFee > 0) {
           await tx.settlementLine.create({
             data: {
               settlement_id: settlement.id,
               order_id: o.id,
               line_type: "pickly_fee",
-              amount_halalas: -o.service_fee_halalas
+              amount_halalas: -retainedFee,
+              ...(merchantShare > 0
+                ? { meta: { merchant_share_halalas: merchantShare } as never }
+                : {})
             }
           });
         }

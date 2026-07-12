@@ -59,12 +59,24 @@ async function seedSystemDefaults() {
     create: {
       key: "pickly_service_fee",
       name_ar: "رسم خدمة بيكلي",
-      amount_halalas: 300, // 3 ر.س — رسوم رمزية تُعرض بوضوح قبل الدفع
+      amount_halalas: 300, // قيمة احتياطية — الفعلية من system_settings:pricing.service_fee
       percent_bp: null,
       applies_to: "order"
     },
     update: {}
   });
+  // رسم الخدمة القابل للتغيير من السوبر أدمن + حصة التاجر منه (سجل تاريخي)
+  const feeSetting = await prisma.systemSetting.findFirst({
+    where: { key: "pricing.service_fee" }
+  });
+  if (!feeSetting) {
+    await prisma.systemSetting.create({
+      data: {
+        key: "pricing.service_fee",
+        value: { amount_halalas: 200, merchant_share_halalas: 100 } // 2 ر.س: ريال لبيكلي وريال للتاجر
+      }
+    });
+  }
 
   const reviewCategories: Array<[string, string, number]> = [
     ["overall", "التقييم العام", 0],

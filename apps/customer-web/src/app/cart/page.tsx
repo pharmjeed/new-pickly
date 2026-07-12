@@ -196,16 +196,12 @@ export default function CartPage() {
                   <span>رسم خدمة بيكلي</span>
                   <span className={styles.val}>{fmtSar(cart.quote.service_fee_halalas)}</span>
                 </div>
-                <div className={styles.srow}>
-                  <span>الضريبة (15٪)</span>
-                  <span className={styles.val}>{fmtSar(cart.quote.vat_halalas)}</span>
-                </div>
                 <div className={`${styles.srow} ${styles.tot}`}>
                   <span>الإجمالي</span>
                   <span className={styles.val}>{fmtSar(cart.quote.total_halalas)}</span>
                 </div>
               </div>
-              <p className={styles.brNote}>رسوم الخدمة تظهر مفصولة دائماً · التسعير خادمي (BR-6)</p>
+              <p className={styles.brNote}>الأسعار شاملة ضريبة القيمة المضافة · التسعير خادمي (BR-6)</p>
             </div>
           )}
         </div>
