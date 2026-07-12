@@ -10,6 +10,8 @@ export const BranchCardSchema = z.object({
   brand_id: UuidSchema,
   brand_name_ar: z.string(),
   brand_name_en: z.string().nullable(),
+  /** تصنيف المطبخ (برجر/شاورما/مقهى…) — تصنيفات C-09 تُشتق منه */
+  cuisine_ar: z.string().nullable(),
   logo_url: z.string().nullable(),
   cover_url: z.string().nullable(),
   status: BranchStatusSchema,

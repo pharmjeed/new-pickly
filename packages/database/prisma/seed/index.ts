@@ -145,7 +145,14 @@ async function seedSystemDefaults() {
     ["retention.location_events_days", 30],
     ["br5.free_change_minutes", 60], // آخر تعديل/إلغاء مجاني قبل الفترة — BR-5
     ["br5.unpaid_expire_minutes", 30], // مجدول لم يُدفع → EXPIRED (docs/05)
-    ["cms.banners", []] // بانرات CMS (A-13) — تُدار من لوحة الأدمن
+    // بانرات CMS (A-13) — تُدار من لوحة الأدمن (رئيسية العميل C-09)
+    [
+      "cms.banners",
+      [
+        { title_ar: "خليك في السيارة وطلبك يجيك", body_ar: "اطلب وادفع وقُد — نجهّز طلبك موقوتاً بوصولك", image_url: null, link: "/restaurants" },
+        { title_ar: "بلا طوابير وبلا نزول", body_ar: "رمز تحقق واحد ويوصل طلبك لشباك سيارتك", image_url: null, link: null }
+      ]
+    ]
   ];
   for (const [key, value] of settings) {
     const existing = await prisma.systemSetting.findFirst({ where: { key } });

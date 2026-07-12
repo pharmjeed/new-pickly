@@ -912,6 +912,12 @@
                           "null"
                         ]
                       },
+                      "cuisine_ar": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
                       "logo_url": {
                         "type": [
                           "string",
@@ -994,6 +1000,7 @@
                       "brand_id",
                       "brand_name_ar",
                       "brand_name_en",
+                      "cuisine_ar",
                       "logo_url",
                       "cover_url",
                       "status",
@@ -1506,6 +1513,12 @@
                               "null"
                             ]
                           },
+                          "cuisine_ar": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "logo_url": {
                             "type": [
                               "string",
@@ -1588,6 +1601,7 @@
                           "brand_id",
                           "brand_name_ar",
                           "brand_name_en",
+                          "cuisine_ar",
                           "logo_url",
                           "cover_url",
                           "status",

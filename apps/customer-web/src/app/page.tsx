@@ -1,343 +1,124 @@
 "use client";
 
 /**
- * P3 · C-09 الاستكشاف الموحد — الرئيسية (المرجع: design/customer/P3.html)
- * هيدر + بحث C-11/C-12 + جرس إشعارات C-62 + قائمة الفروع القريبة.
- * الفروع: الرياض افتراضياً مع محاولة تحديد الموقع (الموقع ميزة تحسين لا شرط — docs/14§8).
+ * P3 · C-09 الاستكشاف الموحد — الرئيسية:
+ * بحث C-11 في الأعلى ← بانرات CMS متحركة (A-13، تُدار من السوبر أدمن) ← تصنيفات المطاعم
+ * ← زر كل المطاعم. قائمة المطاعم نفسها صفحة تالية: /restaurants (تصفية بالتصنيف).
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, fmtSar, getToken } from "@/lib/api";
+import { api } from "@/lib/api";
+import { AppHead, IStore, TabBar, cuisineIcon, useNearby } from "./shell";
 import styles from "./page.module.css";
 
-interface BranchCard {
-  id: string;
-  brand_name_ar: string;
-  status: string;
-  distance_meters: number | null;
-  eta_minutes: number | null;
-  address_short: string;
-  busy_message: string | null;
+interface Banner {
+  title_ar: string;
+  body_ar: string | null;
+  image_url: string | null;
+  link: string | null;
 }
 
-interface SearchResults {
-  branches: BranchCard[];
-  products: Array<{
-    id: string;
-    branch_id: string;
-    brand_name_ar: string;
-    name_ar: string;
-    price_halalas: number;
-  }>;
-}
+const BANNER_MS = 4000;
 
-interface NotifList {
-  notifications: Array<{
-    id: string;
-    order_id: string | null;
-    title_ar: string;
-    body_ar: string;
-    read: boolean;
-    created_at: string;
-  }>;
-  unread_count: number;
-}
+/** بانرات CMS — تنقّل تلقائي بتلاشٍ وانزلاق، والنقاط للتنقل اليدوي */
+function Banners() {
+  const [banners, setBanners] = useState<Banner[] | null>(null);
+  const [idx, setIdx] = useState(0);
 
-const RIYADH = { lat: 24.7, lng: 46.68 };
+  useEffect(() => {
+    api<Banner[]>("GET", "/v1/content/banners")
+      .then(setBanners)
+      .catch(() => setBanners([])); // البانرات ميزة تحسين — لا نُفشل الرئيسية
+  }, []);
 
-/* ===== أيقونات خطية من رموز P3.html ===== */
-function Icon({
-  size = 13,
-  sw = 7,
-  children
-}: {
-  size?: number;
-  sw?: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={sw}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      style={{ flexShrink: 0 }}
-    >
-      {children}
-    </svg>
+  useEffect(() => {
+    if (!banners || banners.length < 2) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % banners.length), BANNER_MS);
+    return () => clearInterval(t);
+  }, [banners]);
+
+  if (banners === null) return <div className={`${styles.skl} ${styles.sklBanner}`} />;
+  if (banners.length === 0) return null;
+
+  const current = banners[Math.min(idx, banners.length - 1)];
+  if (!current) return null;
+
+  const inner = (
+    <>
+      {current.image_url ? (
+        // صور البانرات من CMS روابط خارجية — next/image يتطلب أذونات نطاقات مسبقة
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={current.image_url} alt={current.title_ar} className={styles.bimg} />
+      ) : null}
+      <div className={styles.btxt}>
+        <b>{current.title_ar}</b>
+        {current.body_ar && <p>{current.body_ar}</p>}
+      </div>
+    </>
   );
-}
-const IPin = ({ size = 13 }: { size?: number }) => (
-  <Icon size={size}>
-    <path d="M50,14 C36,14 26,24 26,38 C26,54 50,84 50,84 C50,84 74,54 74,38 C74,24 64,14 50,14 Z" />
-    <circle cx="50" cy="37" r="6" fill="currentColor" stroke="none" />
-  </Icon>
-);
-const ICar = ({ size = 13 }: { size?: number }) => (
-  <Icon size={size}>
-    <path d="M30,56 Q35,40 50,40 Q65,40 70,56" />
-    <rect x="18" y="54" width="64" height="18" rx="9" />
-    <circle cx="34" cy="78" r="6" strokeWidth="6" />
-    <circle cx="66" cy="78" r="6" strokeWidth="6" />
-  </Icon>
-);
-const ISearch = ({ size = 15 }: { size?: number }) => (
-  <Icon size={size}>
-    <circle cx="44" cy="44" r="24" />
-    <path d="M62,62 L82,82" />
-  </Icon>
-);
-const IBell = ({ size = 18 }: { size?: number }) => (
-  <Icon size={size}>
-    <path d="M50,18 C36,18 30,28 30,40 C30,58 24,64 22,68 H78 C76,64 70,58 70,40 C70,28 64,18 50,18 Z" />
-    <path d="M42,78 C44,84 56,84 58,78" />
-  </Icon>
-);
-const IStore = ({ size = 32 }: { size?: number }) => (
-  <Icon size={size}>
-    <path d="M22,42 V80 H78 V42" />
-    <path d="M16,42 L24,20 H76 L84,42 C84,48 78,52 73,52 C68,52 64,48 64,44 C64,48 60,52 55,52 C50,52 46,48 46,44 C46,48 42,52 37,52 C32,52 28,48 28,44 C28,48 24,52 19,52 C16,52 16,46 16,42 Z" />
-    <path d="M40,80 V62 H60 V80" />
-  </Icon>
-);
-const IAlert = ({ size = 18 }: { size?: number }) => (
-  <Icon size={size}>
-    <path d="M50,16 L88,80 H12 Z" />
-    <path d="M50,42 V60" />
-    <circle cx="50" cy="70" r="1.5" fill="currentColor" strokeWidth="5" />
-  </Icon>
-);
-const IHome = () => (
-  <Icon size={21}>
-    <path d="M20,50 L50,22 L80,50" />
-    <path d="M30,46 V78 H70 V46" />
-  </Icon>
-);
-const ITag = () => (
-  <Icon size={21}>
-    <path d="M18,50 L50,18 L82,18 L82,50 L50,82 Z" />
-    <circle cx="66" cy="34" r="6" fill="currentColor" stroke="none" />
-  </Icon>
-);
-const IReceipt = () => (
-  <Icon size={21}>
-    <path d="M30,16 H70 V84 L62,78 L54,84 L46,78 L38,84 L30,78 Z" />
-    <path d="M40,36 H60 M40,50 H60" />
-  </Icon>
-);
-const IHeart = () => (
-  <Icon size={21}>
-    <path d="M50,80 C20,60 14,40 26,28 C36,18 50,26 50,36 C50,26 64,18 74,28 C86,40 80,60 50,80 Z" />
-  </Icon>
-);
-const IUser = () => (
-  <Icon size={21}>
-    <circle cx="50" cy="36" r="16" />
-    <path d="M22,82 C26,64 38,58 50,58 C62,58 74,64 78,82" />
-  </Icon>
-);
 
-/* حالة الفرع → شارة على صورة البطاقة (كما في rcard بالتصميم) */
-function statusBadge(status: string): { label: string; cls: string } {
-  if (status === "open") return { label: "مفتوح", cls: styles.stOpen };
-  if (status === "busy") return { label: "ازدحام", cls: styles.stBusy };
-  return { label: "مغلق", cls: styles.stClosed };
+  return (
+    <section className={styles.banners} data-testid="home-banners" aria-label="عروض بيكلي">
+      {current.link ? (
+        current.link.startsWith("/") ? (
+          <Link key={idx} href={current.link} className={styles.bslide}>
+            {inner}
+          </Link>
+        ) : (
+          <a key={idx} href={current.link} className={styles.bslide} target="_blank" rel="noreferrer">
+            {inner}
+          </a>
+        )
+      ) : (
+        <div key={idx} className={styles.bslide}>
+          {inner}
+        </div>
+      )}
+      {banners.length > 1 && (
+        <div className={styles.bdots}>
+          {banners.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`البانر ${i + 1}`}
+              className={i === idx ? `${styles.bdot} ${styles.bdotOn}` : styles.bdot}
+              onClick={() => setIdx(i)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 
 export default function HomePage() {
-  const [branches, setBranches] = useState<BranchCard[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [locLabel, setLocLabel] = useState("الرياض");
-  const [coords, setCoords] = useState(RIYADH);
-  const [q, setQ] = useState("");
-  const [results, setResults] = useState<SearchResults | null>(null);
-  const [notifs, setNotifs] = useState<NotifList | null>(null);
-  const [showNotifs, setShowNotifs] = useState(false);
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // تُقرأ بعد التركيب فقط — لا فرق ترطيب بين الخادم والعميل
-  const [loggedIn, setLoggedIn] = useState(false);
-  useEffect(() => setLoggedIn(Boolean(getToken())), []);
+  const { branches, error, locLabel, coords } = useNearby();
 
-  useEffect(() => {
-    const load = (lat: number, lng: number) =>
-      api<BranchCard[]>("GET", `/v1/branches/nearby?lat=${lat}&lng=${lng}&radius=30000`)
-        .then(setBranches)
-        .catch((e: Error) => setError(e.message));
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLocLabel("موقعك الحالي");
-          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          void load(pos.coords.latitude, pos.coords.longitude);
-        },
-        () => load(RIYADH.lat, RIYADH.lng), // الموقع ميزة تحسين لا شرط (docs/14§8)
-        { timeout: 3000 }
-      );
-    } else {
-      void load(RIYADH.lat, RIYADH.lng);
-    }
-  }, []);
-
-  // شارة غير المقروء عند فتح الصفحة — للمسجلين فقط
-  useEffect(() => {
-    if (!loggedIn) return;
-    api<NotifList>("GET", "/v1/customers/me/notifications")
-      .then(setNotifs)
-      .catch(() => undefined); // الجرس ميزة تحسين — لا نُفشل الرئيسية
-  }, [loggedIn]);
-
-  // بحث C-11 بتهدئة 300ms — التسعير والنتائج من الخادم حصراً
-  useEffect(() => {
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    const term = q.trim();
-    if (term.length < 2) {
-      setResults(null);
-      return;
-    }
-    searchTimer.current = setTimeout(() => {
-      api<SearchResults>(
-        "GET",
-        `/v1/search?q=${encodeURIComponent(term)}&lat=${coords.lat}&lng=${coords.lng}`
-      )
-        .then(setResults)
-        .catch(() => setResults(null));
-    }, 300);
-    return () => {
-      if (searchTimer.current) clearTimeout(searchTimer.current);
-    };
-  }, [q, coords]);
-
-  const toggleNotifs = () => {
-    const next = !showNotifs;
-    setShowNotifs(next);
-    if (next && notifs && notifs.unread_count > 0) {
-      // فتح الصندوق يعلّم الكل مقروءاً (opened في notification_deliveries)
-      void api("POST", "/v1/customers/me/notifications/read", {}).then(() =>
-        setNotifs((n) =>
-          n ? { unread_count: 0, notifications: n.notifications.map((x) => ({ ...x, read: true })) } : n
-        )
-      );
-    }
-  };
+  // تصنيفات المطاعم — تُشتق من مطابخ الفروع القريبة (brand.cuisine_ar) بعددها
+  const cats = new Map<string, number>();
+  for (const b of branches ?? []) {
+    if (b.cuisine_ar) cats.set(b.cuisine_ar, (cats.get(b.cuisine_ar) ?? 0) + 1);
+  }
 
   return (
     <main className={styles.page}>
-      {/* ===== رأس الرئيسية: موقع الاستلام + جرس C-62 + بحث C-11 (C-09 apphead) ===== */}
-      <header className={styles.apphead} style={{ position: "relative" }}>
-        <div className={styles.loc}>
-          <span style={{ color: "var(--pk-lime-900)", display: "inline-flex" }}>
-            <IPin size={17} />
-          </span>
-          <div>
-            <div className={styles.locLb}>الاستلام قرب</div>
-            <b>{locLabel}</b>
-          </div>
-          {loggedIn ? (
-            <button
-              type="button"
-              className={styles.bell}
-              style={{ cursor: "pointer" }}
-              onClick={toggleNotifs}
-              aria-label="الإشعارات"
-              data-testid="notif-bell"
-            >
-              <IBell />
-              {notifs !== null && notifs.unread_count > 0 && (
-                <span className={styles.bellDot} data-testid="notif-unread">{notifs.unread_count}</span>
-              )}
-            </button>
-          ) : (
-            <Link href="/auth" className={styles.bell} aria-label="الإشعارات — سجّل دخولك" title="سجّل دخولك لرؤية إشعاراتك">
-              <IBell />
-            </Link>
-          )}
-        </div>
-        {/* بحث C-11/C-12 — النتائج من GET /v1/search */}
-        <div className={styles.search}>
-          <ISearch />
-          <input
-            className={styles.searchInput}
-            placeholder="ابحث عن مطعم، منتج، تصنيف…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            data-testid="home-search"
-          />
-        </div>
-
-        {showNotifs && notifs && (
-          <div className={styles.notifPanel} data-testid="notif-panel">
-            {notifs.notifications.length === 0 && (
-              <div className={styles.notifEmpty}>لا إشعارات بعد — نخبرك أولاً بأول عن طلباتك</div>
-            )}
-            {notifs.notifications.map((n) => (
-              <div key={n.id} className={n.read ? styles.notifRow : `${styles.notifRow} ${styles.unread}`}>
-                <b>{n.title_ar}</b>
-                {n.body_ar}
-                <div>
-                  <span className={styles.notifTime}>{new Date(n.created_at).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-                  {n.order_id && (
-                    <Link href={`/track/${n.order_id}`} style={{ marginInlineStart: 10, fontSize: 12 }}>
-                      عرض الطلب ←
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {results && !showNotifs && (
-          <div className={styles.searchResults} data-testid="search-results">
-            {results.branches.length === 0 && results.products.length === 0 && (
-              <div className={styles.notifEmpty}>لا نتائج لـ«{q.trim()}» — جرّب كلمة أخرى</div>
-            )}
-            {results.branches.length > 0 && <div className={styles.searchHint}>مطاعم</div>}
-            {results.branches.map((b) => (
-              <Link key={b.id} href={`/r/${b.id}`} className={styles.searchRow} data-testid="search-branch">
-                <IStore size={18} />
-                <span>
-                  {b.brand_name_ar}
-                  {b.address_short ? ` — ${b.address_short}` : ""}
-                </span>
-                {b.distance_meters !== null && <span className={styles.price}>{(b.distance_meters / 1000).toFixed(1)} كم</span>}
-              </Link>
-            ))}
-            {results.products.length > 0 && <div className={styles.searchHint}>منتجات</div>}
-            {results.products.map((p) => (
-              <Link key={p.id} href={`/r/${p.branch_id}`} className={styles.searchRow} data-testid="search-product">
-                <ITag />
-                <span>
-                  {p.name_ar} <span style={{ color: "var(--pk-text-2)" }}>· {p.brand_name_ar}</span>
-                </span>
-                <span className={styles.price}>{fmtSar(p.price_halalas)}</span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </header>
+      <AppHead locLabel={locLabel} coords={coords} />
 
       <div className={styles.body}>
-        {/* حالة الخطأ */}
         {error && (
           <div className={styles.noteErr} role="alert">
-            <IAlert />
             <span>{error}</span>
           </div>
         )}
 
-        {/* حالة التحميل — هياكل كما في data-state="load" */}
+        {/* بانرات متحركة من السوبر أدمن (A-13) — تحت البحث مباشرة */}
+        <Banners />
+
+        {/* تصنيفات المطاعم */}
         {!branches && !error && (
           <div className={styles.col} aria-label="جارٍ التحميل" aria-busy="true">
             <div className={`${styles.skl} ${styles.sklH96}`} />
             <div className={`${styles.skl} ${styles.sklH64}`} />
-            <div className={`${styles.skl} ${styles.sklCard}`} />
-            <div className={`${styles.skl} ${styles.sklCard}`} />
             <div className={`${styles.skl} ${styles.sklH64}`} />
           </div>
         )}
@@ -345,92 +126,44 @@ export default function HomePage() {
         {branches && (
           <>
             <div className={styles.sech}>
-              <h2>قريبة منك</h2>
+              <h2>التصنيفات</h2>
             </div>
-
-            {/* الحالة الفارغة */}
-            {branches.length === 0 && (
+            {cats.size === 0 ? (
               <div className={styles.empty}>
                 <div className={styles.emptyIc}>
                   <IStore />
                 </div>
-                <b>ما فيه فروع قريبة منك الآن</b>
+                <b>ما فيه مطاعم قريبة منك الآن</b>
                 <p>بيكلي يتوسع — جرّب من موقع آخر أو عُد لاحقاً</p>
+              </div>
+            ) : (
+              <div className={styles.cats} data-testid="home-cats">
+                {[...cats.entries()].map(([name, count]) => (
+                  <Link
+                    key={name}
+                    href={`/restaurants?c=${encodeURIComponent(name)}`}
+                    className={styles.catCard}
+                    data-testid="cat-card"
+                  >
+                    <span className={styles.catIc}>{cuisineIcon(name)}</span>
+                    <b className={styles.catNm}>{name}</b>
+                    <span className={styles.catCt}>{count} {count === 1 ? "مطعم" : "مطاعم"}</span>
+                  </Link>
+                ))}
               </div>
             )}
 
-            {/* قائمة الفروع — بطاقة rcard كما في التصميم */}
-            {branches.map((b) => {
-              const st = statusBadge(b.status);
-              return (
-                <Link
-                  key={b.id}
-                  href={`/r/${b.id}`}
-                  className={styles.rcard}
-                  data-testid="branch-card"
-                >
-                  <div className={styles.img}>
-                    <IStore size={40} />
-                    <span className={`${styles.stBadge} ${st.cls}`}>{st.label}</span>
-                  </div>
-                  <div className={styles.bd}>
-                    <div className={styles.nm}>
-                      <b>
-                        {b.brand_name_ar}
-                        {b.address_short ? ` — ${b.address_short}` : ""}
-                      </b>
-                    </div>
-                    <div className={styles.metaR}>
-                      {b.distance_meters !== null && (
-                        <span>
-                          <IPin /> {(b.distance_meters / 1000).toFixed(1)} كم
-                        </span>
-                      )}
-                      {b.eta_minutes !== null && (
-                        <span>
-                          <ICar /> قيادة {b.eta_minutes} د
-                        </span>
-                      )}
-                    </div>
-                    <div className={styles.carLine}>
-                      <ICar size={15} /> يصل طلبك إلى سيارتك
-                    </div>
-                    {b.busy_message && (
-                      <div className={styles.busyLine}>
-                        <IAlert size={15} /> {b.busy_message}
-                      </div>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
+            {branches.length > 0 && (
+              <Link href="/restaurants" className={styles.allBtn} data-testid="all-restaurants">
+                <IStore size={20} />
+                كل المطاعم القريبة ({branches.length})
+              </Link>
+            )}
           </>
         )}
       </div>
 
-      {/* ===== التنقل السفلي — الرئيسية وحسابي فعّالان، البقية مؤجلة ===== */}
-      <nav className={styles.tabbar}>
-        <Link href="/" className={`${styles.tab} ${styles.tabOn}`}>
-          <IHome />
-          الرئيسية
-        </Link>
-        <span className={`${styles.tab} ${styles.tabOff}`} aria-disabled="true">
-          <ITag />
-          العروض
-        </span>
-        <span className={`${styles.tab} ${styles.tabOff}`} aria-disabled="true">
-          <IReceipt />
-          طلباتي
-        </span>
-        <span className={`${styles.tab} ${styles.tabOff}`} aria-disabled="true">
-          <IHeart />
-          المفضلة
-        </span>
-        <Link href="/auth" className={styles.tab} data-testid="nav-auth">
-          <IUser />
-          حسابي
-        </Link>
-      </nav>
+      <TabBar />
     </main>
   );
 }

@@ -120,7 +120,7 @@ export default function Cms() {
           {banners.length === 0 && <p className="muted" style={{ fontSize: 13 }}>لا بانرات — أضف أول بانر ليظهر في رئيسية العميل.</p>}
           <div style={{ display: "grid", gap: 10 }}>
             {banners.map((b, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, alignItems: "end" }} data-testid="banner-row">
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 8, alignItems: "end" }} data-testid="banner-row">
                 <div className="fld">
                   <label>العنوان</label>
                   <input className="inp" value={b.title_ar} onChange={(e) => setBanner(i, { title_ar: e.target.value })} />
@@ -128,6 +128,10 @@ export default function Cms() {
                 <div className="fld">
                   <label>نص فرعي</label>
                   <input className="inp" value={b.body_ar ?? ""} onChange={(e) => setBanner(i, { body_ar: e.target.value || null })} />
+                </div>
+                <div className="fld">
+                  <label>رابط صورة (اختياري)</label>
+                  <input className="inp mono" dir="ltr" placeholder="https://…" value={b.image_url ?? ""} onChange={(e) => setBanner(i, { image_url: e.target.value.trim() || null })} />
                 </div>
                 <div className="fld">
                   <label>رابط (اختياري)</label>

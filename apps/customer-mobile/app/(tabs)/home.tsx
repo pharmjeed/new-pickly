@@ -1,20 +1,33 @@
 /**
- * P3 · C-09: الرئيسية — الفروع القريبة عبر GET /v1/branches/nearby
- * + بحث C-11/C-12 عبر GET /v1/search (مطاعم ومنتجات).
+ * P3 · C-09: الرئيسية — الاستكشاف الموحد:
+ * بحث C-11 في الأعلى ← بانرات CMS متحركة (A-13، تُدار من السوبر أدمن)
+ * ← تصنيفات المطاعم (من brand.cuisine_ar) ← زر كل المطاعم (/restaurants).
  * الموقع عبر expo-location مع سقوط للرياض 24.7/46.68 (الموقع تحسين لا شرط — docs/14§8).
  */
 import { useEffect, useRef, useState } from "react";
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  FlatList,
+  ImageBackground,
+  Linking,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Location from "expo-location";
 import { api, fmtSar } from "../../src/api";
-import { Badge, ErrorNote, Loader, type BadgeTone } from "../../src/ui";
+import { Badge, ErrorNote, Loader } from "../../src/ui";
 import { colors, fs, light, radius, shadow1 } from "../../src/theme";
 
 interface BranchCard {
   id: string;
   brand_name_ar: string;
+  cuisine_ar: string | null;
   status: string;
   distance_meters: number | null;
   eta_minutes: number | null;
@@ -33,13 +46,15 @@ interface SearchResults {
   }>;
 }
 
-const RIYADH = { lat: 24.7, lng: 46.68 };
-
-function statusBadge(status: string): { label: string; tone: BadgeTone } {
-  if (status === "open") return { label: "مفتوح", tone: "lime" };
-  if (status === "busy") return { label: "ازدحام", tone: "warn" };
-  return { label: "مغلق", tone: "soft" };
+interface Banner {
+  title_ar: string;
+  body_ar: string | null;
+  image_url: string | null;
+  link: string | null;
 }
+
+const RIYADH = { lat: 24.7, lng: 46.68 };
+const BANNER_MS = 4000;
 
 async function currentCoords(): Promise<{ lat: number; lng: number; label: string }> {
   try {
@@ -52,6 +67,64 @@ async function currentCoords(): Promise<{ lat: number; lng: number; label: strin
   } catch {
     return { ...RIYADH, label: "الرياض" };
   }
+}
+
+/** بانرات CMS — تنقّل تلقائي كل 4 ثوانٍ مع نقاط تنقل يدوي */
+function Banners() {
+  const [banners, setBanners] = useState<Banner[] | null>(null);
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    api<Banner[]>("GET", "/v1/content/banners")
+      .then(setBanners)
+      .catch(() => setBanners([])); // البانرات ميزة تحسين — لا نُفشل الرئيسية
+  }, []);
+
+  useEffect(() => {
+    if (!banners || banners.length < 2) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % banners.length), BANNER_MS);
+    return () => clearInterval(t);
+  }, [banners]);
+
+  if (!banners || banners.length === 0) return null;
+  const current = banners[Math.min(idx, banners.length - 1)];
+  if (!current) return null;
+
+  const open = () => {
+    if (!current.link) return;
+    if (current.link.startsWith("/")) router.push(current.link as never);
+    else void Linking.openURL(current.link);
+  };
+
+  const txt = (
+    <View style={st.bTxt}>
+      <Text style={st.bTitle}>{current.title_ar}</Text>
+      {current.body_ar ? <Text style={st.bBody}>{current.body_ar}</Text> : null}
+    </View>
+  );
+
+  return (
+    <View>
+      <Pressable onPress={open} accessibilityRole={current.link ? "button" : undefined}>
+        {current.image_url ? (
+          <ImageBackground source={{ uri: current.image_url }} style={st.banner} imageStyle={{ borderRadius: radius }}>
+            {txt}
+          </ImageBackground>
+        ) : (
+          <View style={[st.banner, st.bannerFill]}>{txt}</View>
+        )}
+      </Pressable>
+      {banners.length > 1 && (
+        <View style={st.bDots}>
+          {banners.map((_, i) => (
+            <Pressable key={i} onPress={() => setIdx(i)} accessibilityRole="button" hitSlop={6}>
+              <View style={[st.bDot, i === idx ? st.bDotOn : null]} />
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
 }
 
 export default function HomeScreen() {
@@ -110,6 +183,12 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  // تصنيفات المطاعم — من مطابخ الفروع القريبة بعددها
+  const cats = new Map<string, number>();
+  for (const b of branches ?? []) {
+    if (b.cuisine_ar) cats.set(b.cuisine_ar, (cats.get(b.cuisine_ar) ?? 0) + 1);
+  }
+
   return (
     <SafeAreaView style={st.screen} edges={["top"]}>
       {/* رأس الرئيسية: موقع الاستلام + بحث C-11 */}
@@ -133,7 +212,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* نتائج البحث C-12 — تحل محل القائمة أثناء البحث */}
+      {/* نتائج البحث C-12 — تحل محل المحتوى أثناء البحث */}
       {results && (
         <FlatList
           data={[
@@ -193,47 +272,47 @@ export default function HomeScreen() {
       {!branches && !error && !results && <Loader />}
 
       {branches && !results && (
-        <FlatList
-          data={branches}
-          keyExtractor={(b) => b.id}
+        <ScrollView
           contentContainerStyle={st.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />
-          }
-          ListHeaderComponent={<Text style={st.section}>قريبة منك</Text>}
-          ListEmptyComponent={
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
+        >
+          {/* بانرات متحركة من السوبر أدمن (A-13) */}
+          <Banners />
+
+          <Text style={st.section}>التصنيفات</Text>
+          {cats.size === 0 ? (
             <View style={st.empty}>
-              <Text style={st.emptyTitle}>ما فيه فروع قريبة منك الآن</Text>
+              <Text style={st.emptyTitle}>ما فيه مطاعم قريبة منك الآن</Text>
               <Text style={st.emptyTxt}>بيكلي يتوسع — جرّب من موقع آخر أو عُد لاحقاً</Text>
             </View>
-          }
-          renderItem={({ item: b }) => {
-            const badge = statusBadge(b.status);
-            return (
-              <Pressable
-                style={({ pressed }) => [st.card, pressed ? { backgroundColor: colors.lime100 } : null]}
-                onPress={() => router.push(`/restaurant/${b.id}` as never)}
-                accessibilityRole="button"
-              >
-                <View style={st.cardTop}>
-                  <Text style={st.cardName} numberOfLines={1}>
-                    {b.brand_name_ar}
-                    {b.address_short ? ` — ${b.address_short}` : ""}
+          ) : (
+            <View style={st.cats}>
+              {[...cats.entries()].map(([name, count]) => (
+                <Pressable
+                  key={name}
+                  style={({ pressed }) => [st.catCard, pressed ? { backgroundColor: colors.lime100 } : null]}
+                  onPress={() => router.push(`/restaurants?c=${encodeURIComponent(name)}` as never)}
+                  accessibilityRole="button"
+                >
+                  <Text style={st.catNm}>{name}</Text>
+                  <Text style={st.catCt}>
+                    {count} {count === 1 ? "مطعم" : "مطاعم"}
                   </Text>
-                  <Badge label={badge.label} tone={badge.tone} />
-                </View>
-                <View style={st.metaRow}>
-                  {b.distance_meters !== null && (
-                    <Text style={st.meta}>{(b.distance_meters / 1000).toFixed(1)} كم</Text>
-                  )}
-                  {b.eta_minutes !== null && <Text style={st.meta}>قيادة {b.eta_minutes} د</Text>}
-                </View>
-                <Text style={st.carLine}>يصل طلبك إلى سيارتك</Text>
-                {b.busy_message && <Text style={st.busy}>{b.busy_message}</Text>}
-              </Pressable>
-            );
-          }}
-        />
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {branches.length > 0 && (
+            <Pressable
+              style={st.allBtn}
+              onPress={() => router.push("/restaurants" as never)}
+              accessibilityRole="button"
+            >
+              <Text style={st.allBtnTxt}>كل المطاعم القريبة ({branches.length})</Text>
+            </Pressable>
+          )}
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -263,8 +342,8 @@ const st = StyleSheet.create({
     justifyContent: "space-between"
   },
   searchInp: { flex: 1, color: light.text, fontSize: fs.fs14, textAlign: "right", paddingVertical: 8 },
-  list: { padding: 16, gap: 10, paddingBottom: 24 },
-  section: { color: light.text, fontSize: fs.fs20, fontWeight: "900", textAlign: "right", marginBottom: 4 },
+  list: { padding: 16, gap: 12, paddingBottom: 24 },
+  section: { color: light.text, fontSize: fs.fs20, fontWeight: "900", textAlign: "right", marginBottom: -2 },
   empty: { alignItems: "center", paddingVertical: 48, gap: 6 },
   emptyTitle: { color: light.text, fontSize: fs.fs16, fontWeight: "800" },
   emptyTxt: { color: light.text2, fontSize: fs.fs14 },
@@ -279,8 +358,38 @@ const st = StyleSheet.create({
   },
   cardTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
   cardName: { color: light.text, fontSize: fs.fs16, fontWeight: "800", flexShrink: 1, textAlign: "right" },
-  metaRow: { flexDirection: "row-reverse", gap: 12 },
   meta: { color: light.text2, fontSize: fs.fs13 },
-  carLine: { color: colors.lime900, fontSize: fs.fs13, fontWeight: "700", textAlign: "right" },
-  busy: { color: colors.warn, fontSize: fs.fs13, textAlign: "right" }
+  /* بانرات */
+  banner: { minHeight: 128, borderRadius: radius, overflow: "hidden", justifyContent: "flex-end" },
+  bannerFill: { backgroundColor: colors.ink900 },
+  bTxt: { padding: 16, gap: 3, backgroundColor: "rgba(20,24,15,0.35)" },
+  bTitle: { color: "#fff", fontSize: fs.fs17, fontWeight: "900", textAlign: "right" },
+  bBody: { color: "#fff", opacity: 0.9, fontSize: fs.fs13, textAlign: "right" },
+  bDots: { flexDirection: "row-reverse", justifyContent: "center", gap: 6, marginTop: 8 },
+  bDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: light.border },
+  bDotOn: { width: 18, backgroundColor: colors.lime500 },
+  /* التصنيفات */
+  cats: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 },
+  catCard: {
+    flexBasis: "30%",
+    flexGrow: 1,
+    backgroundColor: light.surface,
+    borderRadius: radius,
+    borderWidth: 1,
+    borderColor: light.border,
+    paddingVertical: 16,
+    alignItems: "center",
+    gap: 4,
+    ...shadow1
+  },
+  catNm: { color: light.text, fontSize: fs.fs15, fontWeight: "800" },
+  catCt: { color: light.text2, fontSize: fs.fs12 },
+  allBtn: {
+    backgroundColor: colors.ink900,
+    borderRadius: 999,
+    minHeight: 52,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  allBtnTxt: { color: colors.lime500, fontSize: fs.fs15, fontWeight: "800" }
 });
