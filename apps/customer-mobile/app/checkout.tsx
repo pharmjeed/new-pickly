@@ -13,9 +13,11 @@ import {
   AccessibilityInfo,
   Animated,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View
@@ -153,6 +155,21 @@ interface OrderCreated {
   total_halalas: number;
 }
 
+/* طرق الدفع من GET /v1/content/payment-methods — الفعّالة فقط بترتيب السوبر أدمن */
+type PayMethodKey = "apple_pay" | "card" | "stc_pay";
+interface PayMethod {
+  key: PayMethodKey;
+  name_ar: string;
+  desc_ar: string | null;
+  badge_ar: string | null;
+}
+interface WalletInfo {
+  balance_halalas: number;
+}
+
+/** علامة « Pay» — رمز التفاحة نص iOS، ونص كامل على أندرويد */
+const APPLE_PAY_LABEL = Platform.OS === "ios" ? " Pay" : "Apple Pay";
+
 interface Slot {
   id: string;
   slot_start: string;
@@ -274,17 +291,41 @@ export default function CheckoutScreen() {
   const [showSched, setShowSched] = useState(false);
   const [dayIdx, setDayIdx] = useState(0);
   const [timeIdx, setTimeIdx] = useState(0);
-  const [payMethod, setPayMethod] = useState<"card" | "wallet">("card");
+  // طريقة الدفع — القائمة يديرها السوبر أدمن (قرار المالك 2026-07-12) + محفظة بيكلي
+  const [methods, setMethods] = useState<PayMethod[]>([]);
+  const [payMethod, setPayMethod] = useState<PayMethodKey>("card");
+  const [showPay, setShowPay] = useState(false);
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [walletOn, setWalletOn] = useState(false);
 
   const cartId = getCartId();
   const quoteId = cart?.quote?.quote_id ?? getQuoteId();
   const total = cart?.quote?.total_halalas ?? null;
-  const shownTotal = useCountUp(total ?? 0);
+  // ما تغطيه المحفظة (كلياً أو جزئياً) — الحسم الفعلي خادمي عند إنشاء الـintent
+  const walletApplied = walletOn && wallet && total != null ? Math.min(wallet.balance_halalas, total) : 0;
+  const dueTotal = total != null ? total - walletApplied : null;
+  const selMethod = methods.find((m) => m.key === payMethod) ?? null;
+  const shownTotal = useCountUp(dueTotal ?? 0);
 
   useEffect(() => {
     api<Record<string, boolean>>("GET", "/v1/feature-flags")
-      .then(setFlags)
+      .then((f) => {
+        setFlags(f);
+        // محفظة بيكلي — الرصيد يظهر بمبدّل في تفاصيل الدفع (قرار المالك 2026-07-12)
+        if (f["in_app_wallet"]) {
+          api<WalletInfo>("GET", "/v1/customers/me/wallet")
+            .then(setWallet)
+            .catch(() => undefined);
+        }
+      })
       .catch(() => undefined); // الأعلام ميزة تكيف — الافتراضي إخفاء المؤجل
+    // طرق الدفع الفعّالة بترتيب السوبر أدمن — الأولى هي الافتراضية
+    api<PayMethod[]>("GET", "/v1/content/payment-methods")
+      .then((ms) => {
+        setMethods(ms);
+        if (ms.length > 0) setPayMethod(ms[0].key);
+      })
+      .catch(() => undefined);
     // كتالوج الماركات والموديلات — يغذي قوائم «أضف سيارة جديدة»
     api<VehicleCatalog>("GET", "/v1/vehicle-catalog")
       .then(setCatalog)
@@ -530,15 +571,23 @@ export default function CheckoutScreen() {
         },
         { idempotent: true }
       );
-      await api("POST", `/v1/orders/${order.id}/payment-intent`, { method: payMethod }, { idempotent: true });
-      // بوابة sandbox — نفس مسار الإنتاج: النتيجة عبر webhook موقع
-      const pay = await api<{ gateway_result: string }>(
+      const intent = await api<{ amount_halalas: number; status: string }>(
         "POST",
-        `/v1/dev/mock-gateway/by-order/${order.id}/pay`
+        `/v1/orders/${order.id}/payment-intent`,
+        { method: payMethod, use_wallet: walletOn },
+        { idempotent: true }
       );
-      if (pay.gateway_result !== "authorized") {
-        setError("ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
-        return;
+      // محفظة بيكلي غطت الطلب كاملاً → تفويض فوري بلا بوابة
+      if (intent.status !== "authorized" && intent.amount_halalas > 0) {
+        // بوابة sandbox — نفس مسار الإنتاج: النتيجة عبر webhook موقع
+        const pay = await api<{ gateway_result: string }>(
+          "POST",
+          `/v1/dev/mock-gateway/by-order/${order.id}/pay`
+        );
+        if (pay.gateway_result !== "authorized") {
+          setError("ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
+          return;
+        }
       }
       clearCart();
       await setLastOrderId(order.id);
@@ -761,44 +810,46 @@ export default function CheckoutScreen() {
         )}
         <Text style={st.privacy}>اللوحات مشفرة ولا تظهر كاملة إلا لموظف التسليم أثناء طلبك النشط فقط.</Text>
 
-        {/* ===== الدفع — C-33: بطاقة أو محفظة (بوابة sandbox بنفس مسار الإنتاج) ===== */}
-        <Text style={st.section}>الدفع</Text>
-        <Pressable
-          style={[st.optCard, payMethod === "card" ? st.optSel : null]}
-          onPress={() => setPayMethod("card")}
-          accessibilityRole="radio"
-          accessibilityState={{ selected: payMethod === "card" }}
-        >
-          <View style={[st.rdot, payMethod === "card" ? st.rdotOn : null]} />
-          <View style={{ flex: 1 }}>
-            <Text style={st.optTitle}>بطاقة — مدى وفيزا وماستركارد</Text>
-            <Text style={st.optDesc}>نفس مسار الإنتاج — النتيجة عبر Webhook موقّع</Text>
-          </View>
-          <Badge label="بيئة التطوير" tone="lime" />
-        </Pressable>
-        {flags["wallet_payments"] ? (
+        {/* ===== تفاصيل الدفع — الطريقة المختارة + «تغيير» + مبدّل محفظة بيكلي ===== */}
+        <Text style={st.section}>تفاصيل الدفع</Text>
+        <Card style={{ padding: 0 }}>
           <Pressable
-            style={[st.optCard, payMethod === "wallet" ? st.optSel : null]}
-            onPress={() => setPayMethod("wallet")}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: payMethod === "wallet" }}
+            style={st.paySel}
+            onPress={() => setShowPay(true)}
+            accessibilityRole="button"
+            accessibilityLabel="تغيير طريقة الدفع"
           >
-            <View style={[st.rdot, payMethod === "wallet" ? st.rdotOn : null]} />
-            <View style={{ flex: 1 }}>
-              <Text style={st.optTitle}>Apple Pay / STC Pay</Text>
-              <Text style={st.optDesc}>محافظ عبر بوابة الدفع — Tokenization فقط</Text>
+            <View style={st.pmMark}>
+              <Text style={st.pmMarkTxt}>
+                {payMethod === "apple_pay" ? APPLE_PAY_LABEL : payMethod === "stc_pay" ? "stc pay" : "💳"}
+              </Text>
             </View>
+            <View style={{ flex: 1 }}>
+              <Text style={st.optTitle}>{selMethod?.name_ar ?? "طريقة الدفع"}</Text>
+              <Text style={st.optDesc}>طرق الدفع</Text>
+            </View>
+            <Text style={st.changeLink}>تغيير</Text>
           </Pressable>
-        ) : (
-          <View style={[st.optCard, st.optDis]}>
-            <View style={st.rdot} />
-            <View style={{ flex: 1 }}>
-              <Text style={st.optTitle}>Apple Pay / STC Pay</Text>
-              <Text style={st.optDesc}>محافظ عبر بوابة الدفع</Text>
+          {flags["in_app_wallet"] && wallet && (
+            <View style={[st.walletRow, wallet.balance_halalas === 0 ? { opacity: 0.45 } : null]}>
+              <View style={st.walletIc}>
+                <Text style={{ fontSize: 18 }}>👛</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={st.optTitle}>{fmtSar(wallet.balance_halalas)}</Text>
+                <Text style={st.optDesc}>استخدم رصيدك في محفظة بيكلي</Text>
+              </View>
+              <Switch
+                value={walletOn}
+                disabled={wallet.balance_halalas === 0}
+                onValueChange={setWalletOn}
+                trackColor={{ false: colors.cloud, true: colors.lime500 }}
+                thumbColor={colors.white}
+                accessibilityLabel="استخدام رصيد المحفظة"
+              />
             </View>
-            <Badge label="قريباً" tone="soft" />
-          </View>
-        )}
+          )}
+        </Card>
         <Text style={st.privacy}>لا دفع نقدياً في الإصدار الحالي · Tokenization فقط — لا نخزن رقم بطاقتك أبداً.</Text>
 
         {/* ===== ملخص الفاتورة (C-35) — العناصر نفسها معروضة أعلى الصفحة ===== */}
@@ -828,6 +879,18 @@ export default function CheckoutScreen() {
                   <Text style={st.totK}>الإجمالي</Text>
                   <Text style={st.totV}>{fmtSar(cart.quote.total_halalas)}</Text>
                 </View>
+                {walletApplied > 0 && (
+                  <>
+                    <View style={st.kv}>
+                      <Text style={[st.k, { color: colors.success }]}>من محفظة بيكلي</Text>
+                      <Text style={[st.v, { color: colors.success }]}>−{fmtSar(walletApplied)}</Text>
+                    </View>
+                    <View style={[st.kv, st.totRow]}>
+                      <Text style={st.totK}>المتبقي للدفع</Text>
+                      <Text style={st.totV}>{fmtSar(dueTotal ?? 0)}</Text>
+                    </View>
+                  </>
+                )}
                 <Text style={{ fontSize: fs.fs12, color: light.text2, textAlign: "right" }}>
                   الأسعار شاملة ضريبة القيمة المضافة
                 </Text>
@@ -845,20 +908,95 @@ export default function CheckoutScreen() {
         )}
       </ScrollView>
 
-      {/* CTA الدفع — الزر الحيوي المدموم من السلة: نبض + سعر متحرك + سيارة بيكلي */}
+      {/* CTA الدفع — أسود بشعار Apple Pay عند اختياره، وإلا الزر الليموني الحيوي */}
       {!isEmpty && (
         <View style={st.footbar}>
-          <PulseRing />
-          <LimeButton
-            title={busy ? "جارٍ الدفع…" : "ادفع الآن"}
-            arrow
-            car
-            trailing={!busy && total != null ? fmtSar(shownTotal) : undefined}
-            disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
-            onPress={() => void payAndOrder()}
-          />
+          {payMethod === "apple_pay" && (dueTotal ?? 1) > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="ادفع عبر Apple Pay"
+              disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
+              onPress={() => void payAndOrder()}
+              style={({ pressed }) => [
+                st.appleBtn,
+                pressed ? { opacity: 0.85 } : null,
+                busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)
+                  ? { opacity: 0.5 }
+                  : null
+              ]}
+            >
+              <Text style={st.appleBtnTxt}>{busy ? "جارٍ الدفع…" : APPLE_PAY_LABEL}</Text>
+              {!busy && dueTotal != null && <Text style={st.appleBtnAmt}>{fmtSar(shownTotal)}</Text>}
+            </Pressable>
+          ) : (
+            <>
+              <PulseRing />
+              <LimeButton
+                title={busy ? "جارٍ الدفع…" : walletOn && dueTotal === 0 ? "ادفع من المحفظة" : "ادفع الآن"}
+                arrow
+                car
+                trailing={!busy && total != null ? fmtSar(shownTotal) : undefined}
+                disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
+                onPress={() => void payAndOrder()}
+              />
+            </>
+          )}
         </View>
       )}
+
+      {/* Sheet «اختر طريقة الدفع» — القائمة من السوبر أدمن (payments.methods) */}
+      <Modal visible={showPay} transparent animationType="slide" onRequestClose={() => setShowPay(false)}>
+        <View style={st.dim}>
+          <Pressable style={{ flex: 1 }} onPress={() => setShowPay(false)} />
+          <View style={st.sheet}>
+            <View style={st.grab} />
+            <View style={st.schedHead}>
+              <Text style={st.sheetTitle}>اختر طريقة الدفع</Text>
+              <Pressable
+                style={st.schedClose}
+                onPress={() => setShowPay(false)}
+                accessibilityRole="button"
+                accessibilityLabel="إغلاق"
+              >
+                <Text style={st.schedCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <Text style={st.paySechTitle}>خيارات الدفع</Text>
+            {methods.map((m) => {
+              const on = payMethod === m.key;
+              return (
+                <Pressable
+                  key={m.key}
+                  style={[st.optCard, on ? st.optSel : null]}
+                  onPress={() => {
+                    setPayMethod(m.key);
+                    setShowPay(false);
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                >
+                  <View style={[st.rdot, on ? st.rdotOn : null]} />
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, alignSelf: "flex-start" }}>
+                      <Text style={st.optTitle}>{m.name_ar}</Text>
+                      {m.badge_ar ? <Badge label={m.badge_ar} tone="lime" /> : null}
+                    </View>
+                    {m.desc_ar ? <Text style={st.optDesc}>{m.desc_ar}</Text> : null}
+                    {m.key === "card" && <Text style={st.netsTxt}>مدى · VISA · Mastercard</Text>}
+                  </View>
+                  <View style={st.pmMark}>
+                    <Text style={st.pmMarkTxt}>
+                      {m.key === "apple_pay" ? APPLE_PAY_LABEL : m.key === "stc_pay" ? "stc pay" : "💳"}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+            {methods.length === 0 && <ErrorNote text="لا طرق دفع مفعلة حالياً — جرّب لاحقاً" />}
+            <Text style={st.privacy}>الدفع الإلكتروني مؤمن — Tokenization فقط، لا نخزن رقم بطاقتك أبداً.</Text>
+          </View>
+        </View>
+      </Modal>
 
       {/* Sheet الجدولة — «حدد موعد طلبك»: عجلتا يوم/وقت (BR-5) */}
       <Modal visible={showSched} transparent animationType="slide" onRequestClose={closeSched}>
@@ -1117,6 +1255,68 @@ const st = StyleSheet.create({
     borderColor: light.border
   },
   rdotOn: { borderColor: colors.lime900, backgroundColor: colors.lime500 },
+  /* تفاصيل الدفع — الطريقة المختارة + محفظة بيكلي (قرار المالك 2026-07-12) */
+  paySel: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    minHeight: touch
+  },
+  pmMark: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: light.border,
+    borderRadius: 7,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    ...shadow2
+  },
+  pmMarkTxt: { color: light.text, fontSize: fs.fs13, fontWeight: "800", writingDirection: "ltr" },
+  changeLink: {
+    color: light.text,
+    fontSize: fs.fs14,
+    fontWeight: "800",
+    textDecorationLine: "underline"
+  },
+  walletRow: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    borderTopWidth: 1,
+    borderTopColor: light.border
+  },
+  walletIc: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#FFD54D",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  paySechTitle: {
+    color: light.text,
+    fontSize: fs.fs16,
+    fontWeight: "900",
+    textAlign: "right",
+    marginTop: 12,
+    marginBottom: 8
+  },
+  netsTxt: { color: light.text2, fontSize: fs.fs12, textAlign: "right", marginTop: 4 },
+  /* زر Apple Pay الأسود — بشعارهم كما في المرجع */
+  appleBtn: {
+    backgroundColor: "#000000",
+    borderRadius: radiusPill,
+    minHeight: touch,
+    paddingVertical: 14,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10
+  },
+  appleBtnTxt: { color: colors.white, fontSize: fs.fs20, fontWeight: "700", writingDirection: "ltr" },
+  appleBtnAmt: { color: colors.white, fontSize: fs.fs16, fontWeight: "800" },
   /* جدولة BR-5 — ورقة «حدد موعد طلبك»: عجلتا يوم/وقت */
   schedHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   schedClose: { width: touch, height: touch, alignItems: "center", justifyContent: "center" },

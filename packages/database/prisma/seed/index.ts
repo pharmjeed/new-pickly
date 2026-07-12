@@ -100,6 +100,7 @@ async function seedSystemDefaults() {
     ["scheduled_orders", true], // BR-5 — بُنيت في مرحلة 2
     ["coupons_full", true], // BR-7 — بُنيت في مرحلة 2
     ["wallet_payments", true], // Apple Pay/STC Pay عبر البوابة — sandbox حتى B1
+    ["in_app_wallet", true], // محفظة بيكلي — رصيد داخل التطبيق (قرار المالك 2026-07-12)
     ["search", true], // C-11/C-12
     ["support_tickets", true], // C-65/66 + A-15
     ["tips", false],
@@ -170,6 +171,15 @@ async function seedSystemDefaults() {
         { name_ar: "برجر", is_active: true },
         { name_ar: "شاورما", is_active: true },
         { name_ar: "مقهى", is_active: true }
+      ]
+    ],
+    // طرق الدفع الظاهرة للعميل — يديرها السوبر أدمن (قرار المالك 2026-07-12)
+    [
+      "payments.methods",
+      [
+        { key: "apple_pay", name_ar: "Apple Pay", desc_ar: null, badge_ar: null, is_active: true },
+        { key: "card", name_ar: "بطاقة — مدى وفيزا وماستركارد", desc_ar: "احفظ وادفع عبر البطاقة", badge_ar: null, is_active: true },
+        { key: "stc_pay", name_ar: "stc pay", desc_ar: "ادفع لطلبك باستخدام رقم الجوال المسجل في STC Pay", badge_ar: null, is_active: true }
       ]
     ]
   ];

@@ -2410,6 +2410,174 @@
         }
       }
     },
+    "/v1/content/payment-methods": {
+      "get": {
+        "summary": "طرق الدفع الظاهرة للعميل (يديرها السوبر أدمن — payments.methods)",
+        "tags": [
+          "discovery"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "enum": [
+                          "apple_pay",
+                          "card",
+                          "stc_pay"
+                        ]
+                      },
+                      "name_ar": {
+                        "type": "string"
+                      },
+                      "desc_ar": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "badge_ar": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "name_ar",
+                      "desc_ar",
+                      "badge_ar"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/carts": {
       "post": {
         "summary": "إنشاء سلة",
@@ -5001,7 +5169,7 @@
     },
     "/v1/orders/{id}/payment-intent": {
       "post": {
-        "summary": "إنشاء Payment Intent (method: card|wallet)",
+        "summary": "إنشاء Payment Intent (method: card|apple_pay|stc_pay + use_wallet لمحفظة بيكلي)",
         "tags": [
           "orders"
         ],
@@ -5032,9 +5200,15 @@
                     "type": "string",
                     "enum": [
                       "card",
+                      "apple_pay",
+                      "stc_pay",
                       "wallet"
                     ],
                     "default": "card"
+                  },
+                  "use_wallet": {
+                    "type": "boolean",
+                    "default": false
                   }
                 }
               }
@@ -5062,6 +5236,11 @@
                     "amount_halalas": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "wallet_applied_halalas": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 0
                     },
                     "currency": {
                       "type": "string",
@@ -10626,6 +10805,195 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customers/me/wallet": {
+      "get": {
+        "summary": "محفظة بيكلي — الرصيد وآخر الحركات",
+        "tags": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "balance_halalas": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "amount_halalas": {
+                            "type": "integer"
+                          },
+                          "entry_type": {
+                            "type": "string",
+                            "enum": [
+                              "credit",
+                              "debit",
+                              "expiry"
+                            ]
+                          },
+                          "reference": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "amount_halalas",
+                          "entry_type",
+                          "reference",
+                          "created_at"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "balance_halalas",
+                    "entries"
+                  ]
+                }
+              }
+            }
           },
           "400": {
             "description": "غلاف الخطأ الموحد",

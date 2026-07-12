@@ -2,7 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { MockPaymentAdapter } from "@pickly/payments";
-import { emitEvent, scheduleJob } from "../../lib/events.js";
+import { emitEvent } from "../../lib/events.js";
+import { proceedAfterAuthorization } from "../../lib/payment-flow.js";
 import { transitionOrder } from "../../lib/state-machine.js";
 import { payments } from "../orders/service.js";
 
@@ -136,72 +137,41 @@ async function handlePaymentEvent(
           provider_ref
         }
       });
-
-      // PAYMENT_PENDING → AUTHORIZED → ORDER_SUBMITTED → MERCHANT_PENDING (معاملة واحدة)
-      await transitionOrder(tx, order, "PAYMENT_AUTHORIZED", { actor_type: "system" });
-      await transitionOrder(
-        tx,
-        { ...order, order_status: "PAYMENT_AUTHORIZED" },
-        "ORDER_SUBMITTED",
-        { actor_type: "system" }
-      );
-      await emitEvent(tx, {
-        name: "payment.authorized",
-        aggregate_type: "payment_intent",
-        aggregate_id: intent.id,
-        merchant_id: order.merchant_id,
-        branch_id: order.branch_id,
-        payload: { amount_halalas }
-      });
-
-      // BR-5: المجدول المدفوع ينتظر عند ORDER_SUBMITTED — دخول الفترة يحوّله لمسار ASAP
-      const slot = order.scheduled_slot;
-      if (order.pickup_time === "scheduled" && slot && slot.slot_start > new Date()) {
-        await scheduleJob(
-          tx,
-          "scheduled_slot_entry",
-          { order_id: order.id },
-          slot.slot_start,
-          `slot_entry:${order.id}:${slot.slot_start.getTime()}`
-        );
-        // تذكير «حان وقت التوجه» قبل الفترة (J3 — docs/03)
-        const remindAt = new Date(slot.slot_start.getTime() - 15 * 60_000);
-        if (remindAt > new Date()) {
-          await scheduleJob(
-            tx,
-            "scheduled_reminder",
-            { order_id: order.id },
-            remindAt,
-            `scheduled_reminder:${order.id}:${slot.slot_start.getTime()}`
-          );
-        }
-        return;
+      // حصة محفظة بيكلي (خُصمت عند إنشاء الـintent) تدخل الـLedger عند التفويض
+      if (intent.wallet_applied_halalas > 0) {
+        await tx.paymentTransaction.create({
+          data: {
+            intent_id: intent.id,
+            type: "wallet_redemption",
+            debit_account: "customer_wallet",
+            credit_account: "merchant_payable",
+            amount_halalas: intent.wallet_applied_halalas,
+            idempotency_key: `wallet:${intent.idempotency_key}`
+          }
+        });
       }
 
-      // عداد قبول الفرع — BR-1
-      const settings = await tx.branchPickupSettings.findUnique({
-        where: { branch_id: order.branch_id }
-      });
-      const windowSec = settings?.accept_window_seconds ?? 180;
-      const deadline = new Date(Date.now() + windowSec * 1000);
-      await transitionOrder(
-        tx,
-        { ...order, order_status: "ORDER_SUBMITTED" },
-        "MERCHANT_PENDING",
-        { actor_type: "system" },
-        { data: { accept_deadline_at: deadline } }
-      );
-      await scheduleJob(
-        tx,
-        "accept_timeout",
-        { order_id: order.id },
-        deadline,
-        `accept_timeout:${order.id}`
-      );
+      // PAYMENT_PENDING → AUTHORIZED → ORDER_SUBMITTED → MERCHANT_PENDING (معاملة واحدة)
+      await proceedAfterAuthorization(tx, intent, order);
     });
   } else if (event_type === "payment.failed") {
     await prisma.$transaction(async (tx) => {
       await tx.paymentIntent.update({ where: { id: intent.id }, data: { status: "failed" } });
+      // فشل البوابة يرد حصة المحفظة المحجوزة — قيد إيداع مقابل
+      if (intent.wallet_applied_halalas > 0) {
+        await tx.customerWalletEntry.create({
+          data: {
+            user_id: order.user_id,
+            amount_halalas: intent.wallet_applied_halalas,
+            entry_type: "credit",
+            reference: `order:${order.display_code}:failed`
+          }
+        });
+        await tx.paymentIntent.update({
+          where: { id: intent.id },
+          data: { wallet_applied_halalas: 0 }
+        });
+      }
       await transitionOrder(tx, order, "PAYMENT_FAILED", { actor_type: "system" });
       await emitEvent(tx, {
         name: "payment.failed",

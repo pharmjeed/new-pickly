@@ -7,6 +7,7 @@ import { requireAuth } from "../../lib/auth-plugin.js";
 import { emitEvent } from "../../lib/events.js";
 import { invalidateFlagCache } from "../../lib/flags.js";
 import { notifyCustomer } from "../../lib/notify.js";
+import { paymentMethodsConfig } from "../../lib/payment-methods.js";
 
 /**
  * وحدة Super Admin — docs/16§2 RBAC، كل فعل حساس يدخل audit_logs بسبب (BR-15):
@@ -725,6 +726,122 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       merchant_share_halalas: body.merchant_share_halalas
     });
     return { ok: true };
+  });
+
+  // ===== طرق الدفع الظاهرة للعميل — system_settings:payments.methods (قرار المالك 2026-07-12) =====
+
+  app.get("/payments/methods", async (req) => {
+    requireAdmin(req, ALL_READ);
+    return { methods: await paymentMethodsConfig() };
+  });
+
+  /** تُحفظ صفاً جديداً — system_settings سجل تاريخي (key, effective_at) */
+  app.post("/payments/methods", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin", "finance"]);
+    const body = z
+      .object({
+        methods: z
+          .array(
+            z.object({
+              key: z.enum(["apple_pay", "card", "stc_pay"]),
+              name_ar: z.string().trim().min(1).max(60),
+              desc_ar: z.string().max(160).nullable().default(null),
+              badge_ar: z.string().max(20).nullable().default(null),
+              is_active: z.boolean().default(true)
+            })
+          )
+          .min(1)
+          .max(10)
+          .refine(
+            (ms) => new Set(ms.map((m) => m.key)).size === ms.length,
+            "لا تكرار لنفس الطريقة"
+          )
+          .refine((ms) => ms.some((m) => m.is_active), "طريقة واحدة فعالة على الأقل"),
+        reason: z.string().min(3)
+      })
+      .parse(req.body);
+    const setting = await prisma.systemSetting.create({
+      data: { key: "payments.methods", value: body.methods as never, created_by: sub }
+    });
+    await audit(sub, "payment_methods_saved", "system_setting", setting.id, body.reason, {
+      active: body.methods.filter((m) => m.is_active).map((m) => m.key)
+    });
+    return { ok: true };
+  });
+
+  // ===== محفظة بيكلي — رصيد العملاء: عرض + إيداع/خصم بسبب مُدقق (docs/01§1) =====
+
+  app.get("/wallet", async (req) => {
+    requireAdmin(req, ALL_READ);
+    const { phone } = z.object({ phone: z.string().min(9).max(15) }).parse(req.query);
+    const normalized = phone.startsWith("05") ? `+966${phone.slice(1)}` : phone;
+    const user = await prisma.user.findUnique({ where: { phone: normalized } });
+    if (!user) throw new AppError("SYS-9004", { hint: "لا عميل بهذا الجوال" });
+    const [agg, entries] = await Promise.all([
+      prisma.customerWalletEntry.aggregate({
+        where: { user_id: user.id },
+        _sum: { amount_halalas: true }
+      }),
+      prisma.customerWalletEntry.findMany({
+        where: { user_id: user.id },
+        orderBy: { created_at: "desc" },
+        take: 20
+      })
+    ]);
+    return {
+      user_id: user.id,
+      phone: user.phone,
+      full_name: user.full_name,
+      balance_halalas: agg._sum.amount_halalas ?? 0,
+      entries: entries.map((e) => ({
+        id: e.id,
+        amount_halalas: e.amount_halalas,
+        entry_type: e.entry_type,
+        reference: e.reference,
+        created_at: e.created_at.toISOString()
+      }))
+    };
+  });
+
+  /** إيداع (موجب) أو خصم (سالب) — الرصيد لا يهبط تحت الصفر؛ كل حركة بسبب في التدقيق */
+  app.post("/wallet/adjust", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin", "finance"]);
+    const body = z
+      .object({
+        user_id: UuidSchema,
+        amount_halalas: z
+          .number()
+          .int()
+          .refine((v) => v !== 0, "المبلغ لا يكون صفراً")
+          .refine((v) => Math.abs(v) <= 500_000, "الحد الأقصى للحركة 5000 ر.س"),
+        reason: z.string().min(3)
+      })
+      .parse(req.body);
+    const user = await prisma.user.findUnique({ where: { id: body.user_id } });
+    if (!user) throw new AppError("SYS-9004", { hint: "العميل غير موجود" });
+
+    const entry = await prisma.$transaction(async (tx) => {
+      const agg = await tx.customerWalletEntry.aggregate({
+        where: { user_id: body.user_id },
+        _sum: { amount_halalas: true }
+      });
+      const balance = agg._sum.amount_halalas ?? 0;
+      if (balance + body.amount_halalas < 0)
+        throw new AppError("PAY-5006", { hint: "الخصم يتجاوز رصيد المحفظة" });
+      return tx.customerWalletEntry.create({
+        data: {
+          user_id: body.user_id,
+          amount_halalas: body.amount_halalas,
+          entry_type: body.amount_halalas > 0 ? "credit" : "debit",
+          reference: "admin"
+        }
+      });
+    });
+    await audit(sub, "wallet_adjusted", "customer_wallet_entry", entry.id, body.reason, {
+      user_id: body.user_id,
+      amount_halalas: body.amount_halalas
+    });
+    return { ok: true, entry_id: entry.id };
   });
 
   // ===== العلامات: إسناد تصنيف كل مطعم (brand.cuisine_ar) — تصفية C-09 تعتمد عليه =====

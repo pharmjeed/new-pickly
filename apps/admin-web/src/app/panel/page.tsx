@@ -18,6 +18,7 @@ import Settlements from "@/components/modules/Settlements";
 import HealthOps from "@/components/modules/HealthOps";
 import AuditLogs from "@/components/modules/AuditLogs";
 import Cms from "@/components/modules/Cms";
+import Payments from "@/components/modules/Payments";
 import Pricing from "@/components/modules/Pricing";
 import Promos from "@/components/modules/Promos";
 import Support from "@/components/modules/Support";
@@ -47,6 +48,7 @@ type ModuleKey =
   | "refunds"
   | "settlements"
   | "pricing"
+  | "payments"
   | "merchants"
   | "customers"
   | "cms"
@@ -66,6 +68,7 @@ const NAV: readonly NavItem[] = [
   { key: "refunds", label: "الاسترجاعات" },
   { key: "settlements", label: "التسويات" },
   { key: "pricing", label: "رسوم الخدمة" },
+  { key: "payments", label: "طرق الدفع والمحفظة" },
   { gp: "الشركاء" },
   { key: "merchants", label: "التجار" },
   { gp: "العملاء والمحتوى" },
@@ -116,6 +119,11 @@ const MODULES: Record<ModuleKey, { title: string; crumb: string; render: () => R
     title: "رسوم الخدمة",
     crumb: "رسم خدمة بيكلي وحصة التاجر منه — التعديل بسبب يدخل التدقيق (BR-15)",
     render: () => <Pricing />
+  },
+  payments: {
+    title: "طرق الدفع والمحفظة",
+    crumb: "ما يظهر للعميل في «اختر طريقة الدفع» + أرصدة محفظة بيكلي — كل حركة بسبب تدخل التدقيق",
+    render: () => <Payments />
   },
   health: {
     title: "صحة النظام",

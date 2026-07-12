@@ -1,12 +1,13 @@
 /**
- * حسابي — الاسم، سياراتي، تسجيل خروج.
- * GET /v1/customers/me · GET /v1/customers/me/vehicles · POST /v1/auth/logout
+ * حسابي — الاسم، محفظة بيكلي (قرار المالك 2026-07-12)، سياراتي، تسجيل خروج.
+ * GET /v1/customers/me · GET /v1/customers/me/wallet · GET /v1/customers/me/vehicles · POST /v1/auth/logout
  */
 import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { api, clearTokens, getToken } from "../../src/api";
+import { fmtSar } from "../../src/api";
 import { clearCart } from "../../src/session";
 import { Badge, Card, GhostButton, LimeButton, Loader } from "../../src/ui";
 import { colors, fs, light } from "../../src/theme";
@@ -24,10 +25,30 @@ interface Vehicle {
   plate_short: string;
   is_default: boolean;
 }
+interface WalletEntry {
+  id: string;
+  amount_halalas: number;
+  entry_type: string;
+  reference: string | null;
+  created_at: string;
+}
+interface Wallet {
+  balance_halalas: number;
+  entries: WalletEntry[];
+}
+
+/** وصف قيد المحفظة بلغة العميل */
+const entryLabel = (e: WalletEntry): string => {
+  if (e.reference?.startsWith("order:")) return `دفع طلب ${e.reference.slice(6).split(":")[0]}`;
+  if (e.reference?.startsWith("refund:")) return "استرجاع لمحفظتك";
+  if (e.reference === "admin") return e.amount_halalas > 0 ? "إيداع من بيكلي" : "تسوية من بيكلي";
+  return e.amount_halalas > 0 ? "إيداع" : "خصم";
+};
 
 export default function AccountScreen() {
   const [me, setMe] = useState<Me | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const [state, setState] = useState<"loading" | "guest" | "ready">("loading");
 
   useFocusEffect(
@@ -48,6 +69,12 @@ export default function AccountScreen() {
           setMe(profile);
           setVehicles(vs);
           setState("ready");
+          // محفظة بيكلي — خلف علم in_app_wallet؛ فشلها لا يعطل الحساب
+          api<Wallet>("GET", "/v1/customers/me/wallet")
+            .then((w) => {
+              if (alive) setWallet(w);
+            })
+            .catch(() => undefined);
         } catch {
           if (alive) setState("guest");
         }
@@ -93,6 +120,35 @@ export default function AccountScreen() {
             <Text style={st.name}>{me.full_name ?? "بدون اسم"}</Text>
             <Text style={st.phone}>{me.phone}</Text>
           </Card>
+
+          {wallet && (
+            <>
+              <Text style={st.section}>محفظة بيكلي</Text>
+              <Card style={st.walletCard}>
+                <View style={st.walletTop}>
+                  <View style={st.walletIc}>
+                    <Text style={{ fontSize: 20 }}>👛</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.walletBal}>{fmtSar(wallet.balance_halalas)}</Text>
+                    <Text style={st.muted}>رصيدك — يُصرف تلقائياً عند تفعيله في الدفع</Text>
+                  </View>
+                </View>
+                {wallet.entries.slice(0, 5).map((e) => (
+                  <View key={e.id} style={st.walletEntry}>
+                    <Text style={st.entryLabel}>{entryLabel(e)}</Text>
+                    <Text style={[st.entryAmt, { color: e.amount_halalas > 0 ? colors.success : light.text }]}>
+                      {e.amount_halalas > 0 ? "+" : "−"}
+                      {fmtSar(Math.abs(e.amount_halalas))}
+                    </Text>
+                  </View>
+                ))}
+                {wallet.entries.length === 0 && (
+                  <Text style={st.muted}>لا حركات بعد — الاسترجاعات والتعويضات تصلك هنا</Text>
+                )}
+              </Card>
+            </>
+          )}
 
           <Text style={st.section}>سياراتي</Text>
           {vehicles && vehicles.length === 0 && (
@@ -160,5 +216,27 @@ const st = StyleSheet.create({
   },
   vehName: { color: light.text, fontSize: fs.fs15, fontWeight: "700", textAlign: "right", marginBottom: 4 },
   plate: { color: light.text, fontSize: fs.fs16, fontWeight: "800", fontVariant: ["tabular-nums"] },
-  privacy: { color: light.text2, fontSize: fs.fs12, textAlign: "right", lineHeight: 18 }
+  privacy: { color: light.text2, fontSize: fs.fs12, textAlign: "right", lineHeight: 18 },
+  /* محفظة بيكلي — رصيد + آخر الحركات */
+  walletCard: { gap: 10 },
+  walletTop: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  walletIc: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#FFD54D",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  walletBal: { color: light.text, fontSize: fs.fs20, fontWeight: "900", textAlign: "right" },
+  walletEntry: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: light.border,
+    paddingTop: 8
+  },
+  entryLabel: { color: light.text, fontSize: fs.fs13, textAlign: "right" },
+  entryAmt: { fontSize: fs.fs14, fontWeight: "800", fontVariant: ["tabular-nums"] }
 });

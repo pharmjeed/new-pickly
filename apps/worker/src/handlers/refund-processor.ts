@@ -28,12 +28,19 @@ export async function processPendingRefunds(): Promise<number> {
       });
       if (locked.count === 0) continue;
 
-      let provider_ref = "no-payment";
-      if (refund.intent?.provider_ref) {
+      // حصة محفظة بيكلي تعود للمحفظة أولاً، والباقي عبر البوابة (docs/01§1 — قرار المالك 2026-07-12)
+      const wallet_part = Math.min(
+        refund.amount_halalas,
+        refund.intent?.wallet_applied_halalas ?? 0
+      );
+      const gateway_part = refund.amount_halalas - wallet_part;
+
+      let provider_ref = wallet_part > 0 && gateway_part === 0 ? "pickly-wallet" : "no-payment";
+      if (refund.intent?.provider_ref && gateway_part > 0) {
         if (refund.intent.status === "captured") {
           const res = await payments.refund(
             refund.intent.provider_ref,
-            refund.amount_halalas,
+            gateway_part,
             refund.idempotency_key
           );
           if (!res.ok) throw new Error("gateway refund failed");
@@ -51,15 +58,36 @@ export async function processPendingRefunds(): Promise<number> {
           where: { id: refund.id },
           data: { status: "completed", completed_at: new Date(), provider_ref }
         });
-        if (refund.intent) {
+        if (refund.intent && gateway_part > 0) {
           await tx.paymentTransaction.create({
             data: {
               intent_id: refund.intent.id,
               type: "refund",
               debit_account: "merchant_payable",
               credit_account: "customer_receivable",
-              amount_halalas: refund.amount_halalas,
+              amount_halalas: gateway_part,
               idempotency_key: `ledger:${refund.idempotency_key}`
+            }
+          });
+        }
+        if (refund.intent && wallet_part > 0) {
+          // قيد إيداع للمحفظة + قيد Ledger مقابل — idempotent بمفتاح مشتق
+          await tx.customerWalletEntry.create({
+            data: {
+              user_id: refund.order.user_id,
+              amount_halalas: wallet_part,
+              entry_type: "credit",
+              reference: `refund:${refund.id}`
+            }
+          });
+          await tx.paymentTransaction.create({
+            data: {
+              intent_id: refund.intent.id,
+              type: "refund",
+              debit_account: "merchant_payable",
+              credit_account: "customer_wallet",
+              amount_halalas: wallet_part,
+              idempotency_key: `ledger-wallet:${refund.idempotency_key}`
             }
           });
         }

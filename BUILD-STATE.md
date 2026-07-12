@@ -3,6 +3,36 @@
 > نقطة الاستئناف لأي جلسة جديدة. حدِّث هذا الملف قبل كل commit.
 > آخر تحديث: 2026-07-12
 
+## طرق الدفع من السوبر أدمن + زر Apple Pay + محفظة بيكلي (قرار المالك 2026-07-12)
+
+المالك أدخل المحفظة للنطاق (عُدّل docs/01§1 + سطر «ممنوع بناء» في CLAUDE.md بموافقته الصريحة):
+
+- **طرق الدفع المدارة**: قائمة `system_settings:payments.methods` (سجل تاريخي كالبانرات) —
+  `GET/POST /admin/payments/methods` (super_admin+finance بتدقيق، طريقة فعالة واحدة على الأقل) +
+  عام `GET /v1/content/payment-methods` (الفعّالة فقط بترتيبها؛ fallback افتراضي في
+  `api/lib/payment-methods.ts`). عقد `ContentPaymentMethodSchema` و`PaymentMethodKeySchema`
+  (card|apple_pay|stc_pay + "wallet" القديمة للتوافق). intent بطريقة موقوفة يُرفض PAY-5001.
+- **واجهة الدفع بنمط HungerStation**: بطاقة «تفاصيل الدفع» (الطريقة المختارة + «تغيير») تفتح
+  Sheet «اختر طريقة الدفع» بشارات وأيقونات (ويب `checkout/page.tsx` + جوال `checkout.tsx`) —
+  الأولى الفعّالة هي الافتراضية. عند اختيار Apple Pay يصير زر الدفع **أسود بشعار  Pay**
+  (ويب: SVG شعار التفاحة `.appleBtn`؛ جوال: حرف التفاحة iOS/نص كامل أندرويد).
+- **محفظة بيكلي** (رصيد داخل التطبيق): الرصيد = مجموع قيود `customer_wallet_entries` حصراً.
+  `GET /v1/customers/me/wallet` (رصيد + آخر 50 حركة) · مبدّل «استخدم رصيدك» في الإتمام (يبهت عند 0) ·
+  `use_wallet` في payment-intent: خصم جزئي (حجز فوري + الباقي عبر البوابة، وقيد Ledger
+  `wallet_redemption` عند التفويض، ورد الحجز عند payment.failed) أو **تغطية كاملة**: provider
+  `pickly_wallet` بتفويض فوري بلا بوابة عبر `lib/payment-flow.ts:proceedAfterAuthorization`
+  (المستخرَج المشترك مع webhook). refund-processor يعيد حصة المحفظة **للمحفظة** (قيد credit +
+  Ledger merchant_payable→customer_wallet) والباقي للبوابة. أدوات أدمن: `GET /admin/wallet?phone` +
+  `POST /admin/wallet/adjust` (±، لا هبوط تحت الصفر PAY-5006، سقف 5000 ر.س، تدقيق بسبب) —
+  وحدة «طرق الدفع والمحفظة» في admin-web (ترتيب/تفعيل/شارة + بحث عميل وإيداع/خصم) ·
+  قسم محفظة في «حسابي» بالجوال. علم `in_app_wallet` (on).
+- **هجرة** `20260712100000_wallet_and_payment_methods`: عمود `payment_intents.wallet_applied_halalas`
+  (default 0) + قيمة enum `wallet_redemption` — آمنة. Seed: طرق الدفع الثلاث + العلم.
+- OpenAPI صار **50 مساراً** (payment-methods + wallet). اختبارات
+  `apps/api/src/payments-wallet.integration.test.ts`: إدارة القائمة وقراءتها العامة، رفض الموقوفة،
+  إيداع/خصم أدمن وعزل المحفظة، دفع جزئي (حجز + ledger + MERCHANT_PENDING)، تغطية كاملة
+  (تفويض فوري idempotent). lint/typecheck أخضران محلياً — الاختبارات تعمل في CI (لا DB محلياً).
+
 ## مواقف الاستلام يحددها المطعم + إذن الموقع أول فتح (2026-07-12)
 
 **مواقف السيارات (قرار المالك):** المطعم يحدد من بوابته المواقف التي يخدمها فرعه،

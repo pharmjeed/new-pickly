@@ -91,9 +91,17 @@ export const RescheduleOrderBodySchema = z.object({
   slot_id: UuidSchema
 });
 
-/** وسيلة الدفع C-33 — بطاقة أو محفظة (Apple Pay/STC Pay عبر البوابة، docs/13§2) */
+/**
+ * وسيلة الدفع — طرق يديرها السوبر أدمن (docs/01§1، قرار المالك 2026-07-12):
+ * apple_pay | card | stc_pay عبر البوابة، و"wallet" القديمة (C-33) تبقى للتوافق.
+ */
+export const PaymentMethodKeySchema = z.enum(["card", "apple_pay", "stc_pay", "wallet"]);
+export type PaymentMethodKey = z.infer<typeof PaymentMethodKeySchema>;
+
 export const CreatePaymentIntentBodySchema = z.object({
-  method: z.enum(["card", "wallet"]).default("card")
+  method: PaymentMethodKeySchema.default("card"),
+  /** محفظة بيكلي: صرف الرصيد من الإجمالي (كلياً أو جزئياً) قبل البوابة */
+  use_wallet: z.boolean().default(false)
 });
 export type CreatePaymentIntentBody = z.infer<typeof CreatePaymentIntentBodySchema>;
 
@@ -101,7 +109,9 @@ export const PaymentIntentResponseSchema = z.object({
   intent_id: UuidSchema,
   provider: z.string(),
   client_secret: z.string(),
+  /** المستحق عبر البوابة (الإجمالي − المطبق من المحفظة) — 0 يعني المحفظة غطت الطلب كاملاً */
   amount_halalas: HalalaSchema,
+  wallet_applied_halalas: HalalaSchema.default(0),
   currency: z.literal("SAR"),
   status: z.enum(["requires_payment", "processing", "authorized", "captured", "failed"])
 });

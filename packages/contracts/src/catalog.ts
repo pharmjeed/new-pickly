@@ -123,3 +123,16 @@ export const ContentCategorySchema = z.object({
   name_ar: z.string()
 });
 export type ContentCategory = z.infer<typeof ContentCategorySchema>;
+
+/**
+ * GET /v1/content/payment-methods — طرق الدفع الظاهرة للعميل بترتيب السوبر أدمن
+ * (system_settings:payments.methods — قرار المالك 2026-07-12). الفعّالة فقط.
+ */
+export const ContentPaymentMethodSchema = z.object({
+  key: z.enum(["apple_pay", "card", "stc_pay"]),
+  name_ar: z.string(),
+  desc_ar: z.string().nullable(),
+  /** شارة اختيارية بجانب الاسم — مثل «جديد» */
+  badge_ar: z.string().nullable()
+});
+export type ContentPaymentMethod = z.infer<typeof ContentPaymentMethodSchema>;

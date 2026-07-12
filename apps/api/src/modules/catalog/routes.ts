@@ -15,6 +15,7 @@ import { prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { createGeoAdapter, haversineMeters } from "@pickly/geo";
 import { requireFlag } from "../../lib/flags.js";
+import { activePaymentMethods } from "../../lib/payment-methods.js";
 
 /**
  * وحدة Discovery/Catalog:
@@ -184,6 +185,9 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
     const active: ContentCategory[] = stored.filter((c) => c.is_active).map((c) => ({ name_ar: c.name_ar }));
     return active;
   });
+
+  /** طرق الدفع الظاهرة للعميل — يديرها السوبر أدمن (payments.methods)؛ الفعّالة فقط بترتيبها */
+  app.get("/content/payment-methods", async () => activePaymentMethods());
 
   app.get("/branches/nearby", async (req) => {
     const q = NearbyQuerySchema.parse(req.query);

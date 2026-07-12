@@ -1,11 +1,19 @@
 import { prisma, type Prisma } from "@pickly/database";
-import type { CreateOrderBody, Order as OrderDto, OrderState, PickupTime } from "@pickly/contracts";
+import type {
+  CreateOrderBody,
+  Order as OrderDto,
+  OrderState,
+  PaymentMethodKey,
+  PickupTime
+} from "@pickly/contracts";
 import { CUSTOMER_DISPLAY_MAP } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
 import { createPaymentAdapter } from "@pickly/payments";
 import { generateDisplayCode, handoffCodeFor } from "../../lib/codes.js";
 import { emitEvent, scheduleJob } from "../../lib/events.js";
 import { requireFlag } from "../../lib/flags.js";
+import { proceedAfterAuthorization } from "../../lib/payment-flow.js";
+import { activePaymentMethods, walletBalance } from "../../lib/payment-methods.js";
 import { transitionOrder } from "../../lib/state-machine.js";
 
 /** وحدة Orders — رحلة J1 (docs/03) على آلة docs/05 وقواعد docs/06 + J3 المجدول (BR-5) */
@@ -276,11 +284,21 @@ export class OrderService {
     order_id: string,
     user_id: string,
     idempotency_key: string,
-    method: "card" | "wallet" = "card"
+    method: PaymentMethodKey = "card",
+    use_wallet = false
   ) {
-    const order = await prisma.order.findUnique({ where: { id: order_id } });
+    const order = await prisma.order.findUnique({
+      where: { id: order_id },
+      include: { scheduled_slot: true }
+    });
     if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
     if (method === "wallet") await requireFlag("wallet_payments");
+    // الطرق يديرها السوبر أدمن — طريقة موقوفة تُرفض خادمياً (قرار المالك 2026-07-12)
+    if (method !== "wallet") {
+      const active = await activePaymentMethods();
+      if (!active.some((m) => m.key === method))
+        throw new AppError("PAY-5001", { hint: "طريقة الدفع غير مفعلة حالياً" });
+    }
 
     const existingIntent = await prisma.paymentIntent.findUnique({ where: { order_id } });
     if (existingIntent && existingIntent.idempotency_key === idempotency_key) {
@@ -289,14 +307,86 @@ export class OrderService {
         provider: existingIntent.provider,
         client_secret: existingIntent.client_secret ?? "",
         amount_halalas: existingIntent.amount_halalas,
+        wallet_applied_halalas: existingIntent.wallet_applied_halalas,
         currency: "SAR" as const,
-        status: existingIntent.status === "requires_payment" ? ("requires_payment" as const) : ("processing" as const)
+        status:
+          existingIntent.status === "requires_payment"
+            ? ("requires_payment" as const)
+            : existingIntent.status === "authorized"
+              ? ("authorized" as const)
+              : ("processing" as const)
       };
     }
     if (existingIntent) throw new AppError("ORDER-4002", { hint: "intent موجود لهذا الطلب" });
 
+    // محفظة بيكلي: صرف الرصيد كلياً أو جزئياً قبل البوابة (docs/01§1)
+    let wallet_applied = 0;
+    if (use_wallet) {
+      await requireFlag("in_app_wallet");
+      const balance = await walletBalance(prisma, user_id);
+      wallet_applied = Math.min(Math.max(balance, 0), order.total_halalas);
+    }
+    const gateway_amount = order.total_halalas - wallet_applied;
+
+    // ===== تغطية كاملة من المحفظة — لا بوابة: تفويض فوري في معاملة واحدة =====
+    if (use_wallet && gateway_amount === 0 && order.total_halalas > 0) {
+      const intent = await prisma.$transaction(async (tx) => {
+        const created = await tx.paymentIntent.create({
+          data: {
+            order_id,
+            provider: "pickly_wallet",
+            method,
+            provider_ref: null,
+            amount_halalas: 0,
+            wallet_applied_halalas: wallet_applied,
+            status: "authorized",
+            supports_capture: false,
+            client_secret: null,
+            idempotency_key
+          }
+        });
+        // قيد صرف المحفظة (سالب) — الرصيد مصدره القيود حصراً
+        await tx.customerWalletEntry.create({
+          data: {
+            user_id,
+            amount_halalas: -wallet_applied,
+            entry_type: "debit",
+            reference: `order:${order.display_code}`
+          }
+        });
+        // Ledger: قيد مزدوج لحصة المحفظة — docs/13§4-6
+        await tx.paymentTransaction.create({
+          data: {
+            intent_id: created.id,
+            type: "wallet_redemption",
+            debit_account: "customer_wallet",
+            credit_account: "merchant_payable",
+            amount_halalas: wallet_applied,
+            idempotency_key: `wallet:${idempotency_key}`
+          }
+        });
+        if (order.order_status === "CHECKOUT_PENDING") {
+          await transitionOrder(tx, order, "PAYMENT_PENDING", { actor_type: "system" });
+        }
+        await proceedAfterAuthorization(tx, created, {
+          ...order,
+          order_status: "PAYMENT_PENDING"
+        });
+        return created;
+      });
+      return {
+        intent_id: intent.id,
+        provider: intent.provider,
+        client_secret: "",
+        amount_halalas: 0,
+        wallet_applied_halalas: wallet_applied,
+        currency: "SAR" as const,
+        status: "authorized" as const
+      };
+    }
+
     const providerIntent = await payments.createIntent({
-      amount_halalas: order.total_halalas,
+      amount_halalas: gateway_amount,
       currency: "SAR",
       order_ref: order.display_code,
       idempotency_key,
@@ -310,13 +400,25 @@ export class OrderService {
           provider: payments.provider,
           method,
           provider_ref: providerIntent.provider_ref,
-          amount_halalas: order.total_halalas,
+          amount_halalas: gateway_amount,
+          wallet_applied_halalas: wallet_applied,
           status: "requires_payment",
           supports_capture: providerIntent.supports_capture,
           client_secret: providerIntent.client_secret,
           idempotency_key
         }
       });
+      // حجز حصة المحفظة فوراً — يُرد القيد عند payment.failed (webhook)
+      if (wallet_applied > 0) {
+        await tx.customerWalletEntry.create({
+          data: {
+            user_id,
+            amount_halalas: -wallet_applied,
+            entry_type: "debit",
+            reference: `order:${order.display_code}`
+          }
+        });
+      }
       if (order.order_status === "CHECKOUT_PENDING") {
         await transitionOrder(tx, order, "PAYMENT_PENDING", {
           actor_type: "system"
@@ -330,6 +432,7 @@ export class OrderService {
       provider: intent.provider,
       client_secret: intent.client_secret ?? "",
       amount_halalas: intent.amount_halalas,
+      wallet_applied_halalas: intent.wallet_applied_halalas,
       currency: "SAR" as const,
       status: "requires_payment" as const
     };

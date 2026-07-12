@@ -12,6 +12,7 @@ import { prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { requireAuth, requireCustomer } from "../../lib/auth-plugin.js";
 import { requireFlag } from "../../lib/flags.js";
+import { walletBalance } from "../../lib/payment-methods.js";
 import { decryptPlate, encryptPlate } from "../../lib/plate-crypto.js";
 
 /** وحدة Customers: الملف + السيارات + صندوق الإشعارات (C-62) + تذاكر الدعم (C-65/66) */
@@ -189,6 +190,32 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
       }
     }
     return { ok: true };
+  });
+
+  // ===== محفظة بيكلي — رصيد داخل التطبيق (docs/01§1، قرار المالك 2026-07-12) =====
+
+  /** الرصيد + آخر الحركات — عزل صارم بمالك الجلسة */
+  app.get("/me/wallet", async (req) => {
+    await requireFlag("in_app_wallet");
+    const claims = requireCustomer(req);
+    const [balance, entries] = await Promise.all([
+      walletBalance(prisma, claims.sub),
+      prisma.customerWalletEntry.findMany({
+        where: { user_id: claims.sub },
+        orderBy: { created_at: "desc" },
+        take: 50
+      })
+    ]);
+    return {
+      balance_halalas: Math.max(balance, 0),
+      entries: entries.map((e) => ({
+        id: e.id,
+        amount_halalas: e.amount_halalas,
+        entry_type: e.entry_type,
+        reference: e.reference,
+        created_at: e.created_at.toISOString()
+      }))
+    };
   });
 
   // ===== صندوق الإشعارات C-62 — docs/15 =====

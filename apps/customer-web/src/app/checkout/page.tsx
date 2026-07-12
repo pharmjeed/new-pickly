@@ -103,6 +103,18 @@ interface OrderCreated {
   total_halalas: number;
 }
 
+/* طرق الدفع من GET /v1/content/payment-methods — الفعّالة فقط بترتيب السوبر أدمن */
+type PayMethodKey = "apple_pay" | "card" | "stc_pay";
+interface PayMethod {
+  key: PayMethodKey;
+  name_ar: string;
+  desc_ar: string | null;
+  badge_ar: string | null;
+}
+interface WalletInfo {
+  balance_halalas: number;
+}
+
 type PickupTime = "asap" | "scheduled";
 
 /* ===== جدولة BR-5: تسميات اليوم والفترة (كما في تصميم «حدد موعد طلبك») ===== */
@@ -225,6 +237,49 @@ function WalletIcon({ size = 20 }: { size?: number }) {
     </svg>
   );
 }
+/** شعار Apple — لعلامة Apple Pay (زر الدفع الأسود وصف الطريقة) */
+function AppleLogo({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size * (512 / 384)} viewBox="0 0 384 512" aria-hidden="true">
+      <path
+        fill={color}
+        d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"
+      />
+    </svg>
+  );
+}
+
+/** علامة «⌘ Pay» — شارة بيضاء بحدود كما في التصميم المرجعي */
+function ApplePayMark() {
+  return (
+    <span className={styles.apMark} aria-label="Apple Pay">
+      <AppleLogo size={12} />
+      <span>Pay</span>
+    </span>
+  );
+}
+
+/** شارات شبكات البطاقات — مدى / فيزا / ماستركارد */
+function CardNetworks() {
+  return (
+    <span className={styles.nets} aria-hidden="true">
+      <span className={styles.net}>مدى</span>
+      <span className={styles.net} style={{ color: "#1a1f71" }}>VISA</span>
+      <span className={styles.netMc}>
+        <i />
+        <i />
+      </span>
+    </span>
+  );
+}
+
+/** أيقونة الطريقة في صف الاختيار */
+function MethodIcon({ k }: { k: PayMethodKey }) {
+  if (k === "apple_pay") return <ApplePayMark />;
+  if (k === "stc_pay") return <span className={styles.stcMark}>stc<b>pay</b></span>;
+  return <CardIcon />;
+}
+
 function ShieldIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
@@ -298,7 +353,12 @@ export default function CheckoutPage() {
   const [showSched, setShowSched] = useState(false);
   const [dayIdx, setDayIdx] = useState(0);
   const [timeIdx, setTimeIdx] = useState(0);
-  const [payMethod, setPayMethod] = useState<"card" | "wallet">("card");
+  // طريقة الدفع — القائمة يديرها السوبر أدمن (قرار المالك 2026-07-12) + محفظة بيكلي
+  const [methods, setMethods] = useState<PayMethod[]>([]);
+  const [payMethod, setPayMethod] = useState<PayMethodKey>("card");
+  const [showPay, setShowPay] = useState(false);
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [walletOn, setWalletOn] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [couponBusy, setCouponBusy] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -306,11 +366,30 @@ export default function CheckoutPage() {
   const cartId = typeof window !== "undefined" ? sessionStorage.getItem("pk_cart") : null;
   const quoteId = cart?.quote?.quote_id ?? (typeof window !== "undefined" ? sessionStorage.getItem("pk_quote") : null);
   const total = cart?.quote?.total_halalas ?? null;
+  // ما تغطيه المحفظة (كلياً أو جزئياً) — الحسم الفعلي خادمي عند إنشاء الـintent
+  const walletApplied = walletOn && wallet && total != null ? Math.min(wallet.balance_halalas, total) : 0;
+  const dueTotal = total != null ? total - walletApplied : null;
+  const selMethod = methods.find((m) => m.key === payMethod) ?? null;
 
   useEffect(() => {
     api<Record<string, boolean>>("GET", "/v1/feature-flags")
-      .then(setFlags)
+      .then((f) => {
+        setFlags(f);
+        // محفظة بيكلي — الرصيد يظهر بمبدّل في تفاصيل الدفع (قرار المالك 2026-07-12)
+        if (f["in_app_wallet"]) {
+          api<WalletInfo>("GET", "/v1/customers/me/wallet")
+            .then(setWallet)
+            .catch(() => undefined);
+        }
+      })
       .catch(() => undefined); // الأعلام ميزة تكيف — الافتراضي إخفاء المؤجل
+    // طرق الدفع الفعّالة بترتيب السوبر أدمن — الأولى هي الافتراضية
+    api<PayMethod[]>("GET", "/v1/content/payment-methods")
+      .then((ms) => {
+        setMethods(ms);
+        if (ms.length > 0) setPayMethod(ms[0].key);
+      })
+      .catch(() => undefined);
     // كتالوج الماركات والموديلات — يغذي قوائم «أضف سيارة جديدة»
     api<VehicleCatalog>("GET", "/v1/vehicle-catalog")
       .then(setCatalog)
@@ -599,15 +678,23 @@ export default function CheckoutPage() {
         },
         { idempotent: true }
       );
-      await api("POST", `/v1/orders/${order.id}/payment-intent`, { method: payMethod }, { idempotent: true });
-      // بوابة sandbox — نفس مسار الإنتاج: النتيجة عبر webhook موقع
-      const pay = await api<{ gateway_result: string }>(
+      const intent = await api<{ amount_halalas: number; status: string }>(
         "POST",
-        `/v1/dev/mock-gateway/by-order/${order.id}/pay`
+        `/v1/orders/${order.id}/payment-intent`,
+        { method: payMethod, use_wallet: walletOn },
+        { idempotent: true }
       );
-      if (pay.gateway_result !== "authorized") {
-        setError("ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
-        return;
+      // محفظة بيكلي غطت الطلب كاملاً → تفويض فوري بلا بوابة
+      if (intent.status !== "authorized" && intent.amount_halalas > 0) {
+        // بوابة sandbox — نفس مسار الإنتاج: النتيجة عبر webhook موقع
+        const pay = await api<{ gateway_result: string }>(
+          "POST",
+          `/v1/dev/mock-gateway/by-order/${order.id}/pay`
+        );
+        if (pay.gateway_result !== "authorized") {
+          setError("ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
+          return;
+        }
       }
       sessionStorage.removeItem("pk_cart");
       sessionStorage.removeItem("pk_quote");
@@ -838,47 +925,47 @@ export default function CheckoutPage() {
       )}
       <p className={styles.privacy}>اللوحات مشفرة ولا تظهر كاملة إلا لموظف التسليم أثناء طلبك النشط فقط.</p>
 
-      {/* ===== الدفع — C-33: بطاقة أو محفظة (بوابة sandbox بنفس مسار الإنتاج) ===== */}
-      <div className={styles.sech}><h2>الدفع</h2></div>
-      <button
-        type="button"
-        className={payMethod === "card" ? `${styles.optCard} ${styles.optCardSel}` : styles.optCard}
-        data-testid="pay-card"
-        onClick={() => setPayMethod("card")}
-      >
-        <span className={payMethod === "card" ? `${styles.rdot} ${styles.rdotOn}` : styles.rdot} />
-        <span className={styles.vic}><CardIcon /></span>
-        <div className={styles.optBody}>
-          <b className={styles.optTitle}>بطاقة — مدى وفيزا وماستركارد</b>
-          <div className={styles.optDesc}>نفس مسار الإنتاج — النتيجة عبر Webhook موقّع</div>
-        </div>
-        <span className={`${styles.badge} ${styles.badgeLime}`}>بيئة التطوير</span>
-      </button>
-      {flags["wallet_payments"] ? (
+      {/* ===== تفاصيل الدفع — الطريقة المختارة + «تغيير» يفتح الاختيار + مبدّل المحفظة ===== */}
+      <div className={styles.sech}><h2>تفاصيل الدفع</h2></div>
+      <div className={styles.card} style={{ padding: 0 }}>
         <button
           type="button"
-          className={payMethod === "wallet" ? `${styles.optCard} ${styles.optCardSel}` : styles.optCard}
-          data-testid="pay-wallet"
-          onClick={() => setPayMethod("wallet")}
+          className={styles.paySel}
+          data-testid="pay-method"
+          onClick={() => setShowPay(true)}
         >
-          <span className={payMethod === "wallet" ? `${styles.rdot} ${styles.rdotOn}` : styles.rdot} />
-          <span className={styles.vic}><WalletIcon /></span>
-          <div className={styles.optBody}>
-            <b className={styles.optTitle}>Apple Pay / STC Pay</b>
-            <div className={styles.optDesc}>محافظ عبر بوابة الدفع — Tokenization فقط</div>
-          </div>
+          <span className={styles.pmIcon}><MethodIcon k={payMethod} /></span>
+          <span className={styles.paySelBody}>
+            <b className={styles.optTitle}>{selMethod?.name_ar ?? "طريقة الدفع"}</b>
+            <span className={styles.optDesc}>طرق الدفع</span>
+          </span>
+          <span className={styles.changeLink}>تغيير</span>
         </button>
-      ) : (
-        <div className={`${styles.optCard} ${styles.optCardDis}`} aria-disabled="true">
-          <span className={styles.rdot} />
-          <span className={styles.vic}><WalletIcon /></span>
-          <div className={styles.optBody}>
-            <b className={styles.optTitleR}>Apple Pay / STC Pay</b>
-            <div className={styles.optDesc}>محافظ عبر بوابة الدفع</div>
+        {flags["in_app_wallet"] && wallet && (
+          <div
+            className={wallet.balance_halalas === 0 ? `${styles.walletRow} ${styles.walletOff}` : styles.walletRow}
+            data-testid="wallet-row"
+          >
+            <span className={styles.walletIc}><WalletIcon /></span>
+            <span className={styles.paySelBody}>
+              <b className={styles.optTitle}>{fmtSar(wallet.balance_halalas)}</b>
+              <span className={styles.optDesc}>استخدم رصيدك في محفظة بيكلي</span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={walletOn}
+              aria-label="استخدام رصيد المحفظة"
+              className={walletOn ? `${styles.sw} ${styles.swOn}` : styles.sw}
+              disabled={wallet.balance_halalas === 0}
+              onClick={() => setWalletOn((v) => !v)}
+              data-testid="wallet-toggle"
+            >
+              <span className={styles.swKnob} />
+            </button>
           </div>
-          <span className={`${styles.badge} ${styles.badgeSoft}`}>قريباً</span>
-        </div>
-      )}
+        )}
+      </div>
       <div className={`${styles.note} ${styles.noteSoft}`}>
         <ShieldIcon />
         <span>لا دفع نقدياً في الإصدار الحالي · Tokenization فقط — لا نخزن رقم بطاقتك أبداً.</span>
@@ -933,6 +1020,18 @@ export default function CheckoutPage() {
               {/* رسم الخدمة مفصول وواضح دائماً — BR-6 */}
               <div className={styles.srow}><span>رسم خدمة بيكلي</span><span className={styles.sv}>{fmtSar(cart.quote.service_fee_halalas)}</span></div>
               <div className={`${styles.srow} ${styles.srowTot}`}><span>الإجمالي</span><span className={styles.sv}>{fmtSar(cart.quote.total_halalas)}</span></div>
+              {walletApplied > 0 && (
+                <>
+                  <div className={`${styles.srow} ${styles.srowOk}`} data-testid="wallet-applied">
+                    <span>من محفظة بيكلي</span>
+                    <span className={styles.sv}>−{fmtSar(walletApplied)}</span>
+                  </div>
+                  <div className={`${styles.srow} ${styles.srowTot}`}>
+                    <span>المتبقي للدفع</span>
+                    <span className={styles.sv}>{fmtSar(dueTotal ?? 0)}</span>
+                  </div>
+                </>
+              )}
               <p className={styles.srow} style={{ fontSize: 12, opacity: 0.7 }}>الأسعار شاملة ضريبة القيمة المضافة</p>
             </div>
           )}
@@ -945,8 +1044,28 @@ export default function CheckoutPage() {
 
       <p className={styles.sandNote}>دفع تجريبي آمن (sandbox) — لا بطاقة حقيقية في بيئة التطوير</p>
 
-      {/* ===== CTA الدفع — الزر الحيوي المدموم من السلة: نبض + سعر متحرك + سيارة بيكلي ===== */}
+      {/* ===== CTA الدفع — أسود بشعار Apple Pay عند اختياره، وإلا الزر الليموني الحيوي ===== */}
       <div className={styles.footbar}>
+        {payMethod === "apple_pay" && (dueTotal ?? 1) > 0 ? (
+          <button
+            className={`${styles.payBtn} ${styles.appleBtn}`}
+            data-testid="pay-button"
+            disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
+            onClick={payAndOrder}
+          >
+            {busy ? (
+              "جارٍ الدفع…"
+            ) : (
+              <>
+                <span className={styles.apLogo} aria-label="ادفع عبر Apple Pay">
+                  <AppleLogo size={17} color="currentColor" />
+                  <span>Pay</span>
+                </span>
+                {dueTotal != null && <AnimatedSar halalas={dueTotal} className={styles.payAmt} />}
+              </>
+            )}
+          </button>
+        ) : (
         <button
           className={busy || total == null ? `${styles.payBtn} ${styles.payBtnCenter}` : `${styles.payBtn} ${styles.cta}`}
           data-testid="pay-button"
@@ -958,14 +1077,14 @@ export default function CheckoutPage() {
           ) : total != null ? (
             <>
               <span className={styles.ctaLabel}>
-                ادفع الآن
+                {walletOn && dueTotal === 0 ? "ادفع من المحفظة" : "ادفع الآن"}
                 <span className={styles.ctaArrow} aria-hidden="true">
                   <span>←</span>
                   <span>←</span>
                   <span>←</span>
                 </span>
               </span>
-              <AnimatedSar halalas={total} className={styles.payAmt} />
+              <AnimatedSar halalas={dueTotal ?? total} className={styles.payAmt} />
               <span className={styles.carLane} aria-hidden="true">
                 <span className={styles.car}>
                   <span className={styles.carTrail}>
@@ -989,7 +1108,57 @@ export default function CheckoutPage() {
             "ادفع الآن"
           )}
         </button>
+        )}
       </div>
+
+      {/* ===== Sheet «اختر طريقة الدفع» — القائمة من السوبر أدمن (payments.methods) ===== */}
+      {showPay && (
+        <div className={styles.dim}>
+          <div className={styles.sheet} role="dialog" aria-label="اختر طريقة الدفع" data-testid="pay-sheet">
+            <div className={styles.grab} />
+            <div className={styles.sheetHead}>
+              <h2>اختر طريقة الدفع</h2>
+              <button className={styles.bk} onClick={() => setShowPay(false)} aria-label="إغلاق" data-testid="pay-sheet-close">
+                <XIcon />
+              </button>
+            </div>
+            <div className={`${styles.note} ${styles.noteSoft}`}>
+              <ShieldIcon />
+              <span>الدفع الإلكتروني مؤمن — Tokenization فقط، لا نخزن رقم بطاقتك أبداً.</span>
+            </div>
+            <div className={styles.paySechTitle}>خيارات الدفع</div>
+            {methods.map((m) => {
+              const on = payMethod === m.key;
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  className={on ? `${styles.optCard} ${styles.optCardSel}` : styles.optCard}
+                  data-testid={`pay-opt-${m.key}`}
+                  onClick={() => {
+                    setPayMethod(m.key);
+                    setShowPay(false);
+                  }}
+                >
+                  <span className={on ? `${styles.rdot} ${styles.rdotOn}` : styles.rdot} />
+                  <div className={styles.optBody}>
+                    <b className={styles.optTitle}>
+                      {m.name_ar}
+                      {m.badge_ar && <span className={`${styles.badge} ${styles.badgeLime}`} style={{ marginInlineStart: 6 }}>{m.badge_ar}</span>}
+                    </b>
+                    {m.desc_ar && <div className={styles.optDesc}>{m.desc_ar}</div>}
+                    {m.key === "card" && <CardNetworks />}
+                  </div>
+                  <span className={styles.pmIcon}><MethodIcon k={m.key} /></span>
+                </button>
+              );
+            })}
+            {methods.length === 0 && (
+              <div className={`${styles.note} ${styles.noteErr}`}>لا طرق دفع مفعلة حالياً — جرّب لاحقاً</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ===== Sheet الجدولة — «حدد موعد طلبك»: عجلتا يوم/وقت (BR-5) ===== */}
       {showSched && (

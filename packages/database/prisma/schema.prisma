@@ -91,6 +91,7 @@ enum TransactionType {
   tip
   payout
   adjustment
+  wallet_redemption
 }
 
 enum RefundStatus {
@@ -1322,11 +1323,14 @@ model PaymentIntent {
   id              String              @id @default(uuid()) @db.Uuid
   order_id        String              @unique @db.Uuid
   order           Order               @relation(fields: [order_id], references: [id])
-  provider        String // mock | hyperpay | moyasar | tap
-  /// وسيلة الدفع C-33: card | wallet (Apple Pay/STC Pay عبر البوابة)
+  provider        String // mock | hyperpay | moyasar | tap | pickly_wallet (تغطية محفظة كاملة)
+  /// وسيلة الدفع: card | apple_pay | stc_pay ("wallet" القديمة C-33 للتوافق)
   method          String              @default("card")
   provider_ref    String?
+  /// المستحق عبر البوابة (الإجمالي − المطبق من محفظة بيكلي)
   amount_halalas  Int
+  /// المصروف من محفظة بيكلي على هذا الطلب (قرار المالك 2026-07-12)
+  wallet_applied_halalas Int          @default(0)
   currency        String              @default("SAR")
   status          PaymentIntentStatus @default(requires_payment)
   /// Auth/Capture أم تحصيل فقط — docs/13§3

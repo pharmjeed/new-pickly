@@ -14,3 +14,4 @@ export * from "./pickup.js";
 export * from "./merchant.js";
 export * from "./notifications.js";
 export * from "./support.js";
+export * from "./wallet.js";

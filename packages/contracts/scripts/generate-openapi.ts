@@ -57,6 +57,7 @@ const routes: RouteDef[] = [
   { method: "get", path: "/v1/branches/{id}/parking-spots", summary: "مواقف الاستلام التي يخدمها الفرع", tags: ["discovery"], response: z.array(c.BranchParkingSpotSchema) },
   { method: "get", path: "/v1/content/banners", summary: "بانرات CMS (A-13)", tags: ["discovery"], response: z.array(c.ContentBannerSchema) },
   { method: "get", path: "/v1/content/categories", summary: "تصنيفات المطاعم C-09 (يديرها السوبر أدمن)", tags: ["discovery"], response: z.array(c.ContentCategorySchema) },
+  { method: "get", path: "/v1/content/payment-methods", summary: "طرق الدفع الظاهرة للعميل (يديرها السوبر أدمن — payments.methods)", tags: ["discovery"], response: z.array(c.ContentPaymentMethodSchema) },
   // §3 السلة
   { method: "post", path: "/v1/carts", summary: "إنشاء سلة", tags: ["carts"], auth: true, body: c.CreateCartBodySchema, response: c.CartSchema },
   { method: "get", path: "/v1/carts/{id}", summary: "قراءة السلة", tags: ["carts"], auth: true, response: c.CartSchema },
@@ -67,7 +68,7 @@ const routes: RouteDef[] = [
   // §4 الطلب والدفع
   { method: "post", path: "/v1/orders", summary: "إنشاء طلب — pickup_time: asap|later|scheduled (+slot_id للمجدول)", tags: ["orders"], auth: true, idempotent: true, body: c.CreateOrderBodySchema, response: c.OrderSchema },
   { method: "get", path: "/v1/orders/{id}", summary: "قراءة طلب", tags: ["orders"], auth: true, response: c.OrderSchema },
-  { method: "post", path: "/v1/orders/{id}/payment-intent", summary: "إنشاء Payment Intent (method: card|wallet)", tags: ["orders"], auth: true, idempotent: true, body: c.CreatePaymentIntentBodySchema, response: c.PaymentIntentResponseSchema },
+  { method: "post", path: "/v1/orders/{id}/payment-intent", summary: "إنشاء Payment Intent (method: card|apple_pay|stc_pay + use_wallet لمحفظة بيكلي)", tags: ["orders"], auth: true, idempotent: true, body: c.CreatePaymentIntentBodySchema, response: c.PaymentIntentResponseSchema },
   { method: "post", path: "/v1/orders/{id}/reschedule", summary: "تعديل فترة المجدول قبل مهلة التعديل المجاني (BR-5)", tags: ["orders"], auth: true, idempotent: true, body: c.RescheduleOrderBodySchema, response: c.OrderSchema },
   { method: "post", path: "/v1/orders/{id}/cancel", summary: "طلب إلغاء", tags: ["orders"], auth: true, idempotent: true, body: c.CancelOrderBodySchema, response: c.OrderSchema },
   { method: "post", path: "/v1/orders/{id}/change-response", summary: "رد العميل على تعديل الفرع (BR-4)", tags: ["orders"], auth: true, body: c.ChangeResponseBodySchema, response: c.OrderSchema },
@@ -91,6 +92,7 @@ const routes: RouteDef[] = [
   { method: "post", path: "/v1/merchant/branches/{id}/busy-mode", summary: "وضع الازدحام (BR-10)", tags: ["merchant"], auth: true, body: c.BusyModeBodySchema },
   { method: "post", path: "/v1/merchant/branches/{id}/prep-minutes", summary: "متوسط وقت تجهيز الطلب — يُختم على كل طلب عند قبوله ويظهر للعميل", tags: ["merchant"], auth: true, body: z.object({ prep_minutes: z.number().int().min(1).max(120) }) },
   // §7 العميل — الإشعارات والدعم (مرحلة 2)
+  { method: "get", path: "/v1/customers/me/wallet", summary: "محفظة بيكلي — الرصيد وآخر الحركات", tags: ["customers"], auth: true, response: c.CustomerWalletSchema },
   { method: "get", path: "/v1/customers/me/notifications", summary: "صندوق الإشعارات C-62", tags: ["customers"], auth: true, response: c.NotificationListResponseSchema },
   { method: "post", path: "/v1/customers/me/notifications/read", summary: "تعليم الكل مقروءاً", tags: ["customers"], auth: true },
   { method: "get", path: "/v1/customers/me/support-tickets", summary: "تذاكري", tags: ["support"], auth: true, response: z.array(c.SupportTicketSchema) },
