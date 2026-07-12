@@ -233,6 +233,17 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     expect(mine).toBeDefined();
     expect(mine!.accept_deadline_at).not.toBeNull(); // عداد BR-1
 
+    // شارات التبويبات: الطلب المنتظر محسوب في «جديدة»، و«مكتملة» مستثناة — ليست واجباً
+    const countsRes = await app.inject({
+      method: "GET",
+      url: `/v1/merchant/tab-counts?branch_id=${branchId}`,
+      headers: authed(staffToken)
+    });
+    expect(countsRes.statusCode).toBe(200);
+    const tabCounts = countsRes.json() as Record<string, number>;
+    expect(tabCounts.new).toBeGreaterThanOrEqual(1);
+    expect(tabCounts).not.toHaveProperty("completed");
+
     // «متوسط وقت تجهيز الطلب» يحرره المطعم من بوابته — يُختم على كل طلب عند قبوله
     // (توكن الفرع كاشير — التعديل عبر service مباشرة يعادل POST /v1/merchant/branches/:id/prep-minutes)
     await prisma.branchPickupSettings.upsert({

@@ -362,6 +362,18 @@ export class MerchantOrderService {
     return this.card(order_id);
   }
 
+  /**
+   * عدّادات التبويبات لشارات اللوحة — واجبات الموظف بنظرة واحدة دون تنقّل.
+   * «مكتملة» مستثناة: ليست واجباً منتظراً، وعدّها يكبر بلا سقف مع عمر الفرع.
+   */
+  async tabCounts(branch_id: string): Promise<Record<string, number>> {
+    const tabs = Object.keys(TAB_WHERE).filter((t) => t !== "completed");
+    const counts = await Promise.all(
+      tabs.map((t) => prisma.order.count({ where: { branch_id, ...TAB_WHERE[t] } }))
+    );
+    return Object.fromEntries(tabs.map((t, i) => [t, counts[i] ?? 0]));
+  }
+
   /** طابور الوصول — الترتيب BR-9 */
   async arrivalQueue(branch_id: string) {
     const settings = await prisma.branchPickupSettings.findUnique({ where: { branch_id } });

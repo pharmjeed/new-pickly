@@ -100,6 +100,14 @@ export async function merchantRoutes(app: FastifyInstance): Promise<void> {
     return service.reportItemIssue(orderId(req), branchIdsOf(req), claims.sub, body);
   });
 
+  /** شارات التبويبات — عدد الطلبات المنتظرة في كل خانة (ماعدا «مكتملة») */
+  app.get("/tab-counts", async (req) => {
+    const claims = requireStaff(req, VIEW_ROLES);
+    const q = z.object({ branch_id: UuidSchema }).parse(req.query);
+    assertBranchScope(claims, q.branch_id);
+    return service.tabCounts(q.branch_id);
+  });
+
   app.get("/arrival-queue", async (req) => {
     const claims = requireStaff(req, VIEW_ROLES);
     const q = z.object({ branch_id: UuidSchema }).parse(req.query);

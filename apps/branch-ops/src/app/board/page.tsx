@@ -2,8 +2,9 @@
 
 /**
  * B-03: لوحة التشغيل الجامعة (design/branch/B-03.html) — التبويبات = الحالات،
- * القبول/الرفض/التسليم على البطاقة، عداد قبول BR-1، طابور الوصول (BR-9)،
- * الترتيب حسب زمن الوصول (docs/21§1).
+ * القبول/الرفض على البطاقة، عداد قبول BR-1، الترتيب حسب زمن الوصول (docs/21§1).
+ * «وصلوا» ليست تبويباً بل عمود جانبي دائم الظهور (BR-9): الفرع يعمل على «جاهزة»
+ * ويرى الواصلين في اللحظة نفسها — والتسليم كله من العمود.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -35,8 +36,8 @@ interface Card {
   created_at: string;
 }
 
-/** رحلة العميل — التجهيز يستمر موازياً لها بالحقائق (preparing_at/ready_at) */
-const JOURNEY_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY", "CUSTOMER_ARRIVED"];
+/** رحلة العميل قبل الوصول — التجهيز يستمر موازياً لها بالحقائق (preparing_at/ready_at) */
+const EN_ROUTE = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
 
 interface QueueEntry {
   order_id: string;
@@ -58,12 +59,12 @@ interface OrderDetails {
   vehicle_summary: string | null;
 }
 
+// «وصلوا» ليست هنا عمداً — عمود جانبي دائم لا تبويب يحجب «جاهزة»
 const TABS = [
   ["scheduled", "مجدولة"],
   ["new", "جديدة"],
   ["preparing", "قيد التحضير"],
   ["ready", "جاهزة"],
-  ["arrived", "وصلوا"],
   ["completed", "مكتملة"]
 ] as const;
 
@@ -117,7 +118,13 @@ export default function BoardPage() {
   const [branchId, setBranchId] = useState<string | null>(null);
   const [tab, setTab] = useState<string>("new");
   const [cards, setCards] = useState<Card[]>([]);
+  // العمود الجانبي «وصلوا» — استطلاع مستقل عن التبويب المعروض
+  const [arrived, setArrived] = useState<Card[]>([]);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
+  // شارات التبويبات — عدد ما ينتظر الموظف في كل خانة (ماعدا «مكتملة»)، ظاهرة دائماً
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  // null = أول جلب — نزرع بصمت كي لا نصفّر عند فتح اللوحة على واصلين قدامى
+  const arrSeen = useRef<Set<string> | null>(null);
   // BR-5: المجدولة القادمة — استطلاع مستقل عن التبويب لشارة العدّ الدائمة وتنبيه اقتراب الموعد
   const [sched, setSched] = useState<Card[]>([]);
   const schedSeen = useRef<Set<string>>(new Set());
@@ -184,13 +191,13 @@ export default function BoardPage() {
       setError((e as Error).message);
       return;
     }
-    // طابور الوصول (B-11 / BR-9) — تحسين عرض لتبويب «وصلوا» فقط
-    if (tab === "arrived") {
-      try {
-        setQueue(await call<QueueEntry[]>("GET", `/v1/merchant/arrival-queue?branch_id=${branchId}`));
-      } catch {
-        setQueue([]);
-      }
+    // العمود الجانبي «وصلوا» + طابور الوصول (B-11 / BR-9) + شارات التبويبات — حيّة مهما كان التبويب
+    try {
+      setArrived(await call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=arrived`));
+      setQueue(await call<QueueEntry[]>("GET", `/v1/merchant/arrival-queue?branch_id=${branchId}`));
+      setCounts(await call<Record<string, number>>("GET", `/v1/merchant/tab-counts?branch_id=${branchId}`));
+    } catch {
+      /* تحسين عرض — لا يوقف اللوحة */
     }
   }, [branchId, tab, call]);
 
@@ -248,6 +255,22 @@ export default function BoardPage() {
     };
   }, [branchId, call, beep]);
 
+  // وصول عميل جديد للعمود الجانبي — نغمة تلفت الموظف ولو كان على تبويب آخر
+  useEffect(() => {
+    if (arrSeen.current === null) {
+      arrSeen.current = new Set(arrived.map((c) => c.id));
+      return;
+    }
+    let fresh = false;
+    for (const c of arrived) {
+      if (!arrSeen.current.has(c.id)) {
+        arrSeen.current.add(c.id);
+        fresh = true;
+      }
+    }
+    if (fresh) beep();
+  }, [arrived, beep]);
+
   const act = async (path: string, body?: unknown, idem = false) => {
     try {
       await call("POST", path, body, idem);
@@ -279,24 +302,26 @@ export default function BoardPage() {
 
   const queueByOrder = useMemo(() => new Map(queue.map((q) => [q.order_id, q])), [queue]);
 
-  // الترتيب حسب زمن الوصول: تبويب «وصلوا» بترتيب الطابور (BR-9)، والبقية بزمن إنشاء الطلب
+  // ترتيب التبويبات: المجدولة بالأقرب موعداً (BR-5)، والبقية بزمن إنشاء الطلب
   const sorted = useMemo(() => {
     const list = [...cards];
-    if (tab === "arrived") {
-      list.sort((a, b) => {
-        const pa = queueByOrder.get(a.id)?.position ?? Number.MAX_SAFE_INTEGER;
-        const pb = queueByOrder.get(b.id)?.position ?? Number.MAX_SAFE_INTEGER;
-        if (pa !== pb) return pa - pb;
-        return (a.arrived_at ?? a.created_at).localeCompare(b.arrived_at ?? b.created_at);
-      });
-    } else if (tab === "scheduled") {
-      // الأقرب موعداً أولاً (BR-5)
+    if (tab === "scheduled") {
       list.sort((a, b) => (a.scheduled_slot_start ?? "").localeCompare(b.scheduled_slot_start ?? ""));
     } else {
       list.sort((a, b) => a.created_at.localeCompare(b.created_at));
     }
     return list;
-  }, [cards, tab, queueByOrder]);
+  }, [cards, tab]);
+
+  // العمود الجانبي بترتيب طابور الوصول (BR-9) — الأسبق وصولاً أولاً
+  const arrivedSorted = useMemo(() => {
+    return [...arrived].sort((a, b) => {
+      const pa = queueByOrder.get(a.id)?.position ?? Number.MAX_SAFE_INTEGER;
+      const pb = queueByOrder.get(b.id)?.position ?? Number.MAX_SAFE_INTEGER;
+      if (pa !== pb) return pa - pb;
+      return (a.arrived_at ?? a.created_at).localeCompare(b.arrived_at ?? b.created_at);
+    });
+  }, [arrived, queueByOrder]);
 
   // BR-5: المجدولة التي اقترب موعدها (≤ 30 د) — شريط تنبيه دائم فوق اللوحة
   const schedSoon = useMemo(
@@ -345,44 +370,34 @@ export default function BoardPage() {
         </div>
       </header>
 
-      {/* التبويبات = الحالات (بعداد التبويب النشط) */}
+      {/* التبويبات = الحالات — شارة عدد دائمة على كل تبويب (ماعدا «مكتملة»: ليست واجباً منتظراً)
+          كي يعرف الموظف ما عليه في كل خانة دون تنقّل */}
       <nav className={s.btabs} role="tablist">
-        {TABS.map(([key, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            className={`${s.btab} ${tab === key ? s.btabOn : ""}`}
-            data-testid={`tab-${key}`}
-            onClick={() => setTab(key)}
-          >
-            {/* شارة «مجدولة» دائمة الظهور — كي لا يغيب القادم عن العين ولو كان التبويب آخر */}
-            {key === "scheduled"
-              ? sched.length > 0 && (
-                  <span className={`${s.n} ${s.nSched}`} data-testid="scheduled-count">
-                    {sched.length}
-                  </span>
-                )
-              : tab === key && (
-                  <span
-                    className={`${s.n} ${
-                      key === "new"
-                        ? s.nNew
-                        : key === "preparing"
-                          ? s.nPrep
-                          : key === "ready"
-                            ? s.nNear
-                            : key === "arrived"
-                              ? s.nArr
-                              : s.nDone
-                    }`}
-                  >
-                    {cards.length}
-                  </span>
-                )}
-            {label}
-          </button>
-        ))}
+        {TABS.map(([key, label]) => {
+          const n = key === "scheduled" ? Math.max(sched.length, counts[key] ?? 0) : counts[key] ?? 0;
+          return (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={tab === key}
+              className={`${s.btab} ${tab === key ? s.btabOn : ""}`}
+              data-testid={`tab-${key}`}
+              onClick={() => setTab(key)}
+            >
+              {key !== "completed" && n > 0 && (
+                <span
+                  className={`${s.n} ${
+                    key === "scheduled" ? s.nSched : key === "new" ? s.nNew : key === "preparing" ? s.nPrep : s.nNear
+                  }`}
+                  data-testid={key === "scheduled" ? "scheduled-count" : `tab-count-${key}`}
+                >
+                  {n}
+                </span>
+              )}
+              {label}
+            </button>
+          );
+        })}
       </nav>
 
       <section className={s.bmain}>
@@ -402,9 +417,10 @@ export default function BoardPage() {
           </div>
         )}
 
-        <div className={s.grid}>
+        <div className={s.bcols}>
+          <div className={s.bcontent}>
+            <div className={s.grid}>
           {sorted.map((c) => {
-            const q = tab === "arrived" ? queueByOrder.get(c.id) : undefined;
             const deadline = c.accept_deadline_at ? Date.parse(c.accept_deadline_at) : null;
             const remainMs =
               c.order_status === "MERCHANT_PENDING" && deadline !== null && now !== null
@@ -415,12 +431,11 @@ export default function BoardPage() {
             return (
               <article
                 key={c.id}
-                className={`${s.ocard} ${q?.service_target_exceeded ? s.over : ""}`}
+                className={s.ocard}
                 data-state={cardState(c.order_status)}
                 data-testid="order-card"
               >
                 <div className={s.hd}>
-                  {q && <span className={s.pos}>{q.position}</span>}
                   <span className={s.oid}>{c.display_code}</span>
                   <div className={s.grow}>
                     {/* بطاقة السيارة أكبر عنصر — كتاب الهوية §11 */}
@@ -443,16 +458,6 @@ export default function BoardPage() {
                         <>
                           {" "}
                           · ETA <span className={s.mono}>{c.eta_minutes}</span> د
-                        </>
-                      )}
-                      {q && (
-                        <>
-                          {" "}
-                          · انتظار{" "}
-                          <b className={`${s.mono} ${q.service_target_exceeded ? s.waitOver : ""}`}>
-                            {mmss(q.waiting_seconds)}
-                          </b>
-                          {q.service_target_exceeded && <b className={s.waitOver}> — تجاوز المستهدف</b>}
                         </>
                       )}
                     </div>
@@ -585,16 +590,12 @@ export default function BoardPage() {
                       جاهز
                     </button>
                   )}
-                  {/* العميل سبق التجهيز (docs/05§3): التحضير يستمر موازياً — لا بطاقة بلا زر */}
-                  {JOURNEY_STATES.includes(c.order_status) && !c.ready_at && (
+                  {/* العميل سبق التجهيز (docs/05§3): التحضير يستمر موازياً — لا بطاقة بلا زر.
+                      الواصلون لا يظهرون هنا — بطاقاتهم في العمود الجانبي «وصلوا» بأزرار التسليم */}
+                  {EN_ROUTE.includes(c.order_status) && !c.ready_at && (
                     <>
-                      <span
-                        className={c.order_status === "CUSTOMER_ARRIVED" ? s.prepWait : s.prepOk}
-                        data-testid="journey-badge"
-                      >
-                        {c.order_status === "CUSTOMER_ARRIVED"
-                          ? "🚘 العميل واصل — طلبه لم يجهز بعد"
-                          : "🚗 العميل في الطريق — جهّزوا على وصوله"}
+                      <span className={s.prepOk} data-testid="journey-badge">
+                        🚗 العميل في الطريق — جهّزوا على وصوله
                       </span>
                       {/* زر واحد «جاهز» — الخدمة تختم preparing_at آلياً إن لم يسبق تسجيله */}
                       <button
@@ -606,79 +607,147 @@ export default function BoardPage() {
                       </button>
                     </>
                   )}
-                  {["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"].includes(c.order_status) && c.ready_at && (
+                  {EN_ROUTE.includes(c.order_status) && c.ready_at && (
                     <span className={s.prepOk} data-testid="ready-en-route">
                       ✓ جاهز — العميل في الطريق
                     </span>
-                  )}
-                  {c.order_status === "CUSTOMER_ARRIVED" && c.ready_at && (
-                    <button
-                      className={`${s.bbtn} ${s.orange}`}
-                      data-testid="handoff-start"
-                      onClick={() => act(`/v1/merchant/orders/${c.id}/handoff/start`)}
-                    >
-                      خرج الموظف
-                    </button>
-                  )}
-                  {c.order_status === "HANDOFF_IN_PROGRESS" && codeFor !== c.id && (
-                    <button
-                      className={`${s.bbtn} ${s.green}`}
-                      data-testid="handoff-open-code"
-                      onClick={() => {
-                        setCodeFor(c.id);
-                        setCodeVal("");
-                      }}
-                    >
-                      تحقق وسلّم
-                    </button>
-                  )}
-                  {codeFor === c.id && (
-                    <div className={s.codeRow}>
-                      <input
-                        className={s.codeInput}
-                        data-testid="handoff-code-input"
-                        placeholder="رمز العميل"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={codeVal}
-                        onChange={(e) => setCodeVal(e.target.value)}
-                      />
-                      <button
-                        className={`${s.bbtn} ${s.green}`}
-                        data-testid="handoff-complete"
-                        disabled={codeVal.length !== 4}
-                        onClick={() =>
-                          act(`/v1/merchant/orders/${c.id}/handoff/complete`, {
-                            verification: { method: "code", code: codeVal }
-                          })
-                        }
-                      >
-                        سلّمت
-                      </button>
-                    </div>
                   )}
                   {c.order_status === "COMPLETED" && <span className={s.done}>تم التسليم ✓</span>}
                 </div>
               </article>
             );
           })}
-        </div>
+            </div>
 
-        {cards.length === 0 && (
-          <div className={s.empty}>
-            {tab === "scheduled" ? (
-              <>
-                <b>لا طلبات مجدولة قادمة</b>
-                <p>حين يحجز عميل موعد استلام، يظهر طلبه هنا قبل موعده — وينتقل إلى «جديدة» تلقائياً عند حلوله.</p>
-              </>
-            ) : (
-              <>
-                <b>لا طلبات في هذا التبويب</b>
-                <p>البطاقات تظهر هنا فور تغيّر حالتها — التحديث كل ثوانٍ.</p>
-              </>
+            {cards.length === 0 && (
+              <div className={s.empty}>
+                {tab === "scheduled" ? (
+                  <>
+                    <b>لا طلبات مجدولة قادمة</b>
+                    <p>حين يحجز عميل موعد استلام، يظهر طلبه هنا قبل موعده — وينتقل إلى «جديدة» تلقائياً عند حلوله.</p>
+                  </>
+                ) : (
+                  <>
+                    <b>لا طلبات في هذا التبويب</b>
+                    <p>البطاقات تظهر هنا فور تغيّر حالتها — التحديث كل ثوانٍ.</p>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
+
+          {/* العمود الجانبي «وصلوا» — حي بجانب كل التبويبات: الموظف على «جاهزة»
+              ويرى الواصل لحظتها، والتسليم كله من هنا (BR-9) */}
+          <aside className={s.arrPanel} data-testid="arrived-panel">
+            <div className={s.arrHd}>
+              🚘 وصلوا
+              {arrived.length > 0 && (
+                <span className={`${s.n} ${s.nArr}`} data-testid="arrived-count">
+                  {arrived.length}
+                </span>
+              )}
+            </div>
+
+            {arrivedSorted.map((c) => {
+              const q = queueByOrder.get(c.id);
+              return (
+                <article
+                  key={c.id}
+                  className={`${s.acard} ${q?.service_target_exceeded ? s.acardOver : ""}`}
+                  data-testid="arrived-card"
+                >
+                  <div className={s.acardHd}>
+                    {q && <span className={s.aPos}>{q.position}</span>}
+                    <span className={s.oid}>{c.display_code}</span>
+                    {q && (
+                      <span className={`${s.mono} ${s.aWait} ${q.service_target_exceeded ? s.waitOver : ""}`}>
+                        {mmss(q.waiting_seconds)}
+                        {q.service_target_exceeded && " ⚠"}
+                      </span>
+                    )}
+                  </div>
+                  {c.vehicle_summary && <div className={s.aVehicle}>{c.vehicle_summary}</div>}
+                  <div className={s.aMeta}>
+                    {c.customer_first_name}
+                    {c.parking_spot &&
+                      (c.at_spot_at ? (
+                        <span className={`${s.slot} ${s.slotLive} ${s.aSlot}`} data-testid="at-spot-badge">
+                          🅿 عند الموقف {c.parking_spot} ✓
+                        </span>
+                      ) : (
+                        <span className={`${s.slot} ${s.aSlot}`}>موقف {c.parking_spot}</span>
+                      ))}
+                  </div>
+                  <div className={s.aActions}>
+                    {/* واصل وطلبه لم يجهز (docs/05§3) — «جاهز» من هنا مباشرة ثم يخرج الموظف */}
+                    {!c.ready_at ? (
+                      <>
+                        <span className={s.prepWait} data-testid="journey-badge">
+                          لم يجهز بعد
+                        </span>
+                        <button
+                          className={`${s.bbtn} ${s.abtn}`}
+                          data-testid="mark-ready"
+                          onClick={() => act(`/v1/merchant/orders/${c.id}/ready`, {})}
+                        >
+                          جاهز
+                        </button>
+                      </>
+                    ) : c.order_status === "CUSTOMER_ARRIVED" ? (
+                      <button
+                        className={`${s.bbtn} ${s.orange} ${s.abtn}`}
+                        data-testid="handoff-start"
+                        onClick={() => act(`/v1/merchant/orders/${c.id}/handoff/start`)}
+                      >
+                        خرج الموظف
+                      </button>
+                    ) : codeFor !== c.id ? (
+                      <button
+                        className={`${s.bbtn} ${s.green} ${s.abtn}`}
+                        data-testid="handoff-open-code"
+                        onClick={() => {
+                          setCodeFor(c.id);
+                          setCodeVal("");
+                        }}
+                      >
+                        تحقق وسلّم
+                      </button>
+                    ) : null}
+                    {codeFor === c.id && c.order_status === "HANDOFF_IN_PROGRESS" && (
+                      <div className={s.codeRow}>
+                        <input
+                          className={s.codeInput}
+                          data-testid="handoff-code-input"
+                          placeholder="رمز العميل"
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={codeVal}
+                          onChange={(e) => setCodeVal(e.target.value)}
+                        />
+                        <button
+                          className={`${s.bbtn} ${s.green}`}
+                          data-testid="handoff-complete"
+                          disabled={codeVal.length !== 4}
+                          onClick={() =>
+                            act(`/v1/merchant/orders/${c.id}/handoff/complete`, {
+                              verification: { method: "code", code: codeVal }
+                            })
+                          }
+                        >
+                          سلّمت
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+
+            {arrived.length === 0 && (
+              <p className={s.arrEmpty}>لا عملاء واصلين الآن — أول واصل يظهر هنا فوراً مع تنبيه صوتي.</p>
+            )}
+          </aside>
+        </div>
       </section>
     </main>
   );

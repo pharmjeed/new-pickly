@@ -103,15 +103,18 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   const handoffCode = (await c.getByTestId("handoff-code").textContent())?.trim() ?? "";
   expect(handoffCode).toMatch(/^\d{4}$/);
 
-  // ===== 8. الفرع: وصلوا ← خرج الموظف ← تحقق بالرمز ← سلّمت =====
-  await b.getByTestId("tab-arrived").click();
-  await expect(orderCard).toBeVisible();
-  await orderCard.getByTestId("handoff-start").click();
+  // ===== 8. الفرع: الواصل يظهر في العمود الجانبي «وصلوا» (بلا تنقّل عن «جاهزة»)
+  //          ← خرج الموظف ← تحقق بالرمز ← سلّمت =====
+  const arrivedCard = b.getByTestId("arrived-card").filter({ hasText: orderCode });
+  await expect(arrivedCard).toBeVisible();
+  // التبويب المعروض ما زال «جاهزة» — العمود حي بجانبه
+  await expect(b.getByTestId("tab-ready")).toHaveAttribute("aria-selected", "true");
+  await arrivedCard.getByTestId("handoff-start").click();
   await expect(c.getByTestId("track-title")).toContainText("الموظف متجه إليك");
 
-  await orderCard.getByTestId("handoff-open-code").click();
-  await orderCard.getByTestId("handoff-code-input").fill(handoffCode);
-  await orderCard.getByTestId("handoff-complete").click();
+  await arrivedCard.getByTestId("handoff-open-code").click();
+  await arrivedCard.getByTestId("handoff-code-input").fill(handoffCode);
+  await arrivedCard.getByTestId("handoff-complete").click();
 
   // ===== 9. الاكتمال عند الطرفين =====
   await expect(c.getByTestId("track-title")).toContainText("بالعافية!");
