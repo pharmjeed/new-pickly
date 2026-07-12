@@ -4,12 +4,12 @@
  * P6: الإتمام — صفحة تمرير واحدة: وقت + سيارة + مراجعة (C-28→C-37)
  * الدفع بعد القبول (docs/05§3 — قرار المالك 2026-07-11): الإرسال هنا **بلا دفع**؛
  * الفرع يقبل بوقت تجهيز، والعميل يوافق ويدفع من صفحة التتبع خلال مهلتي 5 دقائق.
- * - وقت الاستلام FR-C06: أقرب وقت / «سأتحرك لاحقاً» / مجدول بفترات وسعة (BR-5)
+ * - وقت الاستلام FR-C06: أقرب وقت / مجدول بفترات وسعة (BR-5)
  * - السيارة كشرائح + إضافة سيارة مصغرة عبر Sheet (S3: لون + آخر 4 أرقام)
  * - كوبون BR-7: التحقق والخصم خادميان
  * - النجاح حالة ختامية (C-37) ثم الانتقال للتتبع /track/{id}
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, fmtSar } from "@/lib/api";
 import styles from "./checkout.module.css";
@@ -57,10 +57,93 @@ interface OrderCreated {
   total_halalas: number;
 }
 
-type PickupTime = "asap" | "later" | "scheduled";
+type PickupTime = "asap" | "scheduled";
 
-const slotLabel = (iso: string): string =>
-  new Date(iso).toLocaleString("ar-SA", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+/* ===== جدولة BR-5: تسميات اليوم والفترة (كما في تصميم «حدد موعد طلبك») ===== */
+const pad2 = (n: number): string => String(n).padStart(2, "0");
+const clock12 = (d: Date): string => `${pad2(d.getHours() % 12 || 12)}:${pad2(d.getMinutes())}`;
+/** «06:30 - 07:00 م» — المدى ثم ص/م بنهاية الفترة */
+const slotRangeLabel = (s: Slot): string => {
+  const a = new Date(s.slot_start);
+  const b = new Date(s.slot_end);
+  return `${clock12(a)} - ${clock12(b)} ${b.getHours() >= 12 ? "م" : "ص"}`;
+};
+const dayKeyOf = (iso: string): string => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+};
+const dayLabelOf = (iso: string): string => {
+  const d = new Date(iso);
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startThat = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((startThat - startToday) / 86400000);
+  if (diff === 0) return "اليوم";
+  if (diff === 1) return "غدًا";
+  return d.toLocaleDateString("ar-SA", { weekday: "long" });
+};
+
+interface DayGroup {
+  key: string;
+  label: string;
+  slots: Slot[];
+}
+
+/* عجلة اختيار (يوم/وقت): المحدد كبير أعلى القائمة والبقية تتلاشى تحته */
+const WHEEL_ITEM_H = 46;
+const WHEEL_H = 230;
+function Wheel({
+  items,
+  index,
+  onChange,
+  itemTestId
+}: {
+  items: string[];
+  index: number;
+  onChange: (i: number) => void;
+  itemTestId?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const settleTimer = useRef<number | null>(null);
+  // عند الفتح: العجلة تقف على العنصر المحدد مسبقاً
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollTop = index * WHEEL_ITEM_H;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const onScroll = () => {
+    const el = ref.current;
+    if (!el) return;
+    if (settleTimer.current) window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(() => {
+      const i = Math.min(items.length - 1, Math.max(0, Math.round(el.scrollTop / WHEEL_ITEM_H)));
+      if (i !== index) onChange(i);
+    }, 90);
+  };
+  const pick = (i: number) => {
+    onChange(i);
+    ref.current?.scrollTo({ top: i * WHEEL_ITEM_H, behavior: "smooth" });
+  };
+  return (
+    <div className={styles.wheel} ref={ref} onScroll={onScroll}>
+      {items.map((t, i) => {
+        const d = Math.min(Math.abs(i - index), 3);
+        return (
+          <button
+            key={i}
+            type="button"
+            className={`${styles.wItem} ${styles[`w${d}` as "w0" | "w1" | "w2" | "w3"]}`}
+            data-testid={itemTestId}
+            aria-selected={i === index}
+            onClick={() => pick(i)}
+          >
+            {t}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /* ===== أيقونات الهوية (من رموز P6.html) ===== */
 function CarIcon({ size = 26 }: { size?: number }) {
@@ -146,6 +229,9 @@ export default function CheckoutPage() {
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [slotId, setSlotId] = useState<string | null>(null);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [showSched, setShowSched] = useState(false);
+  const [dayIdx, setDayIdx] = useState(0);
+  const [timeIdx, setTimeIdx] = useState(0);
   const [couponCode, setCouponCode] = useState("");
   const [couponBusy, setCouponBusy] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -168,10 +254,57 @@ export default function CheckoutPage() {
     api<Slot[]>("GET", `/v1/branches/${cart.branch_id}/slots`)
       .then((s) => {
         setSlots(s);
+        setDayIdx(0);
+        setTimeIdx(0);
         if (s.length === 0) setSlotsError("لا فترات متاحة حالياً — جرّب لاحقاً أو اختر أقرب وقت");
       })
       .catch((e: Error) => setSlotsError(e.message));
   }, [pickupTime, cart]);
+
+  // فترات الأيام مجمعة لعجلتي «اليوم/الوقت»
+  const dayGroups = useMemo<DayGroup[]>(() => {
+    const map = new Map<string, DayGroup>();
+    for (const s of slots ?? []) {
+      if (s.remaining <= 0) continue;
+      const key = dayKeyOf(s.slot_start);
+      const g = map.get(key) ?? { key, label: dayLabelOf(s.slot_start), slots: [] };
+      g.slots.push(s);
+      map.set(key, g);
+    }
+    return [...map.values()];
+  }, [slots]);
+
+  const chosenSlot = useMemo(
+    () => (slotId ? (slots ?? []).find((s) => s.id === slotId) ?? null : null),
+    [slots, slotId]
+  );
+
+  /** فتح ورقة «حدد موعد طلبك» — لو سبق الاختيار نُعيد العجلتين لموضعه */
+  const openSched = () => {
+    setPickupTime("scheduled");
+    if (chosenSlot) {
+      const di = dayGroups.findIndex((g) => g.key === dayKeyOf(chosenSlot.slot_start));
+      if (di >= 0) {
+        setDayIdx(di);
+        const ti = dayGroups[di].slots.findIndex((s) => s.id === chosenSlot.id);
+        setTimeIdx(ti >= 0 ? ti : 0);
+      }
+    }
+    setShowSched(true);
+  };
+
+  /** إغلاق بلا حفظ: بلا فترة مختارة نرجع لأقرب وقت حتى لا يعلق الإرسال */
+  const closeSched = () => {
+    setShowSched(false);
+    if (!slotId) setPickupTime("asap");
+  };
+
+  const saveSched = () => {
+    const s = dayGroups[dayIdx]?.slots[timeIdx];
+    if (!s) return;
+    setSlotId(s.id);
+    setShowSched(false);
+  };
 
   useEffect(() => {
     api<Vehicle[]>("GET", "/v1/customers/me/vehicles")
@@ -328,7 +461,7 @@ export default function CheckoutPage() {
 
       {!showAdd && errorNote}
 
-      {/* ===== وقت الاستلام — FR-C06: أقرب وقت / سأتحرك لاحقاً / مجدول (C-28) ===== */}
+      {/* ===== وقت الاستلام — FR-C06: أقرب وقت / مجدول (C-28) ===== */}
       <div className={styles.sech}><h2>وقت الاستلام</h2></div>
       <button
         type="button"
@@ -343,29 +476,21 @@ export default function CheckoutPage() {
         </div>
         <span className={`${styles.badge} ${styles.badgeLime}`}>موصى به</span>
       </button>
-      <button
-        type="button"
-        className={pickupTime === "later" ? `${styles.optCard} ${styles.optCardSel}` : styles.optCard}
-        data-testid="pickup-later"
-        onClick={() => setPickupTime("later")}
-      >
-        <span className={pickupTime === "later" ? `${styles.rdot} ${styles.rdotOn}` : styles.rdot} />
-        <div className={styles.optBody}>
-          <b className={styles.optTitle}>سأتحرك لاحقاً</b>
-          <div className={styles.optDesc}>نجهّز طلبك ونرسل لك «وقت التحرك الأنسب» — انطلق وقت ما تبغى</div>
-        </div>
-      </button>
       {flags["scheduled_orders"] ? (
         <button
           type="button"
           className={pickupTime === "scheduled" ? `${styles.optCard} ${styles.optCardSel}` : styles.optCard}
           data-testid="pickup-scheduled"
-          onClick={() => setPickupTime("scheduled")}
+          onClick={openSched}
         >
           <span className={pickupTime === "scheduled" ? `${styles.rdot} ${styles.rdotOn}` : styles.rdot} />
           <div className={styles.optBody}>
             <b className={styles.optTitle}>جدولة لوقت لاحق</b>
-            <div className={styles.optDesc}>فترات بسعة يحددها الفرع (BR-5) — الدفع يؤكد الحجز</div>
+            <div className={styles.optDesc}>
+              {pickupTime === "scheduled" && chosenSlot
+                ? `${dayLabelOf(chosenSlot.slot_start)} ${slotRangeLabel(chosenSlot)} — اضغط للتغيير`
+                : "فترات بسعة يحددها الفرع (BR-5) — الدفع يؤكد الحجز"}
+            </div>
           </div>
         </button>
       ) : (
@@ -379,31 +504,9 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {/* فترات BR-5 — تظهر عند اختيار الجدولة */}
-      {pickupTime === "scheduled" && (
-        <div className={styles.slotsWrap} data-testid="slots">
-          {!slots && !slotsError && <div className="pk-loader"><span /><span /><span /></div>}
-          {slotsError && <div className={`${styles.note} ${styles.noteErr}`}>{slotsError}</div>}
-          {slots && slots.length > 0 && (
-            <>
-              <div className={styles.slotsGrid}>
-                {slots.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    className={slotId === s.id ? `${styles.slotChip} ${styles.slotChipSel}` : styles.slotChip}
-                    data-testid="slot-chip"
-                    onClick={() => setSlotId(s.id)}
-                  >
-                    {slotLabel(s.slot_start)}
-                    <small>{s.remaining} متاح</small>
-                  </button>
-                ))}
-              </div>
-              <p className={styles.privacy}>آخر تعديل أو إلغاء مجاني: قبل ساعة من الفترة (BR-5).</p>
-            </>
-          )}
-        </div>
+      {/* خطأ الفترات (BR-5) — يظهر تحت الخيار لو تعذر الجلب أو لا فترات */}
+      {pickupTime === "scheduled" && slotsError && (
+        <div className={`${styles.note} ${styles.noteErr}`}>{slotsError}</div>
       )}
 
       {/* ===== السيارة — شرائح + إضافة عبر Sheet (C-30 · S3) ===== */}
@@ -546,6 +649,58 @@ export default function CheckoutPage() {
           )}
         </button>
       </div>
+
+      {/* ===== Sheet الجدولة — «حدد موعد طلبك»: عجلتا يوم/وقت (BR-5) ===== */}
+      {showSched && (
+        <div className={styles.dim}>
+          <div className={styles.sheet} role="dialog" aria-label="حدد موعد طلبك" data-testid="slots">
+            <div className={styles.grab} />
+            <div className={styles.sheetHead}>
+              <h2>حدد موعد طلبك</h2>
+              <button className={styles.bk} onClick={closeSched} aria-label="إغلاق" data-testid="sched-close">
+                <XIcon />
+              </button>
+            </div>
+            {!slots && !slotsError && <div className="pk-loader"><span /><span /><span /></div>}
+            {slotsError && <div className={`${styles.note} ${styles.noteErr}`}>{slotsError}</div>}
+            {dayGroups.length > 0 && (
+              <>
+                <div className={styles.wheels}>
+                  <span className={styles.selLine} aria-hidden="true" />
+                  <div className={styles.wheelDay}>
+                    <Wheel
+                      items={dayGroups.map((g) => g.label)}
+                      index={dayIdx}
+                      onChange={(i) => {
+                        setDayIdx(i);
+                        setTimeIdx(0);
+                      }}
+                      itemTestId="day-item"
+                    />
+                  </div>
+                  <div className={styles.wheelTime}>
+                    <Wheel
+                      key={dayGroups[dayIdx]?.key ?? "d0"}
+                      items={(dayGroups[dayIdx] ?? dayGroups[0]).slots.map(slotRangeLabel)}
+                      index={timeIdx}
+                      onChange={setTimeIdx}
+                      itemTestId="slot-chip"
+                    />
+                  </div>
+                </div>
+                <p className={styles.privacy}>آخر تعديل أو إلغاء مجاني: قبل ساعة من الفترة (BR-5).</p>
+                <button
+                  className={`${styles.payBtn} ${styles.payBtnCenter}`}
+                  data-testid="sched-save"
+                  onClick={saveSched}
+                >
+                  حفظ
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ===== Sheet إضافة سيارة (C-30 · S3: حقلان) ===== */}
       {showAdd && (

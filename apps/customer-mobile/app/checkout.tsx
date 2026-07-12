@@ -2,7 +2,7 @@
  * P6: الإتمام — صفحة تمرير واحدة: وقت + سيارة + مراجعة (C-28→C-37).
  * الدفع بعد القبول (docs/05§3): الإرسال هنا **بلا دفع** — الفرع يقبل بوقت تجهيز،
  * والعميل يوافق ويدفع من صفحة التتبع خلال مهلتي 5 دقائق.
- * وقت الاستلام FR-C06: أقرب وقت / «سأتحرك لاحقاً» / مجدول بفترات وسعة (BR-5).
+ * وقت الاستلام FR-C06: أقرب وقت / مجدول بفترات وسعة (BR-5).
  * GET/POST /v1/customers/me/vehicles (S3: لون + آخر 4)
  * POST /v1/orders (idempotent) → /track/{id}
  */
@@ -55,7 +55,7 @@ interface Slot {
   remaining: number;
 }
 
-type PickupTime = "asap" | "later" | "scheduled";
+type PickupTime = "asap" | "scheduled";
 
 const slotLabel = (iso: string): string =>
   new Date(iso).toLocaleString("ar-SA", { weekday: "short", hour: "2-digit", minute: "2-digit" });
@@ -222,7 +222,7 @@ export default function CheckoutScreen() {
       <ScrollView contentContainerStyle={st.body}>
         {!showAdd && error && <ErrorNote text={error} />}
 
-        {/* ===== وقت الاستلام — FR-C06: أقرب وقت / سأتحرك لاحقاً / مجدول (C-28) ===== */}
+        {/* ===== وقت الاستلام — FR-C06: أقرب وقت / مجدول (C-28) ===== */}
         <Text style={st.section}>وقت الاستلام</Text>
         <Pressable
           style={[st.optCard, pickupTime === "asap" ? st.optSel : null]}
@@ -236,18 +236,6 @@ export default function CheckoutScreen() {
             <Text style={st.optDesc}>المطعم يجهّز طلبك على وقت وصولك</Text>
           </View>
           <Badge label="موصى به" tone="lime" />
-        </Pressable>
-        <Pressable
-          style={[st.optCard, pickupTime === "later" ? st.optSel : null]}
-          onPress={() => setPickupTime("later")}
-          accessibilityRole="radio"
-          accessibilityState={{ selected: pickupTime === "later" }}
-        >
-          <View style={[st.rdot, pickupTime === "later" ? st.rdotOn : null]} />
-          <View style={{ flex: 1 }}>
-            <Text style={st.optTitle}>سأتحرك لاحقاً</Text>
-            <Text style={st.optDesc}>نجهّز طلبك ونرسل لك «وقت التحرك الأنسب» — انطلق وقت ما تبغى</Text>
-          </View>
         </Pressable>
         {flags["scheduled_orders"] ? (
           <Pressable
