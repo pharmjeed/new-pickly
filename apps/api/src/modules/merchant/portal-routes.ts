@@ -200,6 +200,9 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
       status: b.status,
       busy_message: b.busy_message,
       address_short: b.address_short,
+      // مركز خريطة تثبيت المواقف في بوابة التاجر
+      lat: b.lat,
+      lng: b.lng,
       default_prep_minutes: b.pickup_settings?.default_prep_minutes ?? 15,
       service_target_seconds: b.pickup_settings?.service_target_seconds ?? 120
     }));
@@ -265,14 +268,24 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
       where: { branch_id },
       orderBy: [{ sort: "asc" }, { label: "asc" }]
     });
-    return spots.map((s) => ({ id: s.id, label: s.label, is_active: s.is_active }));
+    return spots.map((s) => ({ id: s.id, label: s.label, lat: s.lat, lng: s.lng, is_active: s.is_active }));
   });
 
   app.post("/branches/:id/parking-spots", async (req) => {
     const claims = requireStaff(req, MANAGER_ROLES);
     const branch_id = UuidSchema.parse((req.params as { id: string }).id);
     assertBranchScope(claims, branch_id);
-    const body = z.object({ label: z.string().trim().min(1).max(40) }).parse(req.body);
+    const body = z
+      .object({
+        label: z.string().trim().min(1).max(40),
+        // نقطة الموقف على الخريطة (اختيارية) — العميل يتوجه إليها مباشرة
+        lat: z.number().min(-90).max(90).optional(),
+        lng: z.number().min(-180).max(180).optional()
+      })
+      .refine((v) => (v.lat === undefined) === (v.lng === undefined), {
+        message: "الإحداثيات تُمرر معاً (lat + lng)"
+      })
+      .parse(req.body);
     await ownedBranch(merchantIdOf(req), branch_id);
 
     const dup = await prisma.parkingSpot.findUnique({
@@ -283,7 +296,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
     const spot = await prisma.$transaction(async (tx) => {
       const sort = await tx.parkingSpot.count({ where: { branch_id } });
       const created = await tx.parkingSpot.create({
-        data: { branch_id, label: body.label, sort }
+        data: { branch_id, label: body.label, lat: body.lat ?? null, lng: body.lng ?? null, sort }
       });
       await tx.auditLog.create({
         data: {
@@ -294,12 +307,12 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
           entity_id: created.id,
           merchant_id: claims.merchant_id ?? null,
           branch_id,
-          after: { label: body.label } as never
+          after: { label: body.label, lat: body.lat ?? null, lng: body.lng ?? null } as never
         }
       });
       return created;
     });
-    return { id: spot.id, label: spot.label, is_active: spot.is_active };
+    return { id: spot.id, label: spot.label, lat: spot.lat, lng: spot.lng, is_active: spot.is_active };
   });
 
   app.patch("/parking-spots/:id", async (req) => {
@@ -308,7 +321,13 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
     const body = z
       .object({
         label: z.string().trim().min(1).max(40).optional(),
-        is_active: z.boolean().optional()
+        is_active: z.boolean().optional(),
+        // تحريك نقطة الموقف على الخريطة — تُمرر معاً؛ null لإزالة التثبيت
+        lat: z.number().min(-90).max(90).nullable().optional(),
+        lng: z.number().min(-180).max(180).nullable().optional()
+      })
+      .refine((v) => (v.lat === undefined) === (v.lng === undefined), {
+        message: "الإحداثيات تُمرر معاً (lat + lng)"
       })
       .parse(req.body);
     const spot = await ownedSpot(req, claims, id);

@@ -171,7 +171,7 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
       where: { branch_id, is_active: true },
       orderBy: [{ sort: "asc" }, { label: "asc" }]
     });
-    return spots.map((s): BranchParkingSpot => ({ id: s.id, label: s.label }));
+    return spots.map((s): BranchParkingSpot => ({ id: s.id, label: s.label, lat: s.lat, lng: s.lng }));
   });
 
   /** بانرات CMS (A-13) — أحدث قيمة سارية للمفتاح cms.banners */

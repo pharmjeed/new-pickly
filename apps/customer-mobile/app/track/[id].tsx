@@ -9,7 +9,7 @@
  * - بطاقة رمز الاستلام الليمونية · عند COMPLETED تقييم بنجوم (P8)
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -70,11 +70,17 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
 const DRIVE_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
 const ARRIVED_STATES = ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"];
 
-/** موقف استلام يخدمه الفرع — يحدده المطعم من بوابته */
+/** موقف استلام يخدمه الفرع — يحدده المطعم من بوابته (مع نقطته على الخريطة إن ثُبتت) */
 interface BranchSpot {
   id: string;
   label: string;
+  lat: number | null;
+  lng: number | null;
 }
+
+/** ملاحة خارجية لنقطة الموقف — خرائط قوقل بالاتجاهات (نمط أوبر: المتوجه يقصد النقطة المحددة) */
+const navUrl = (lat: number, lng: number) =>
+  `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
 
 export default function TrackScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -89,6 +95,8 @@ export default function TrackScreen() {
   const [spotSel, setSpotSel] = useState<string | null>(null);
   const [freeText, setFreeText] = useState("");
   const [parkingLabel, setParkingLabel] = useState<string | null>(null);
+  // الموقف المؤكد بنقطته — يقود زر «التوجه لموقفك»
+  const [chosenSpot, setChosenSpot] = useState<BranchSpot | null>(null);
   const [savingSpot, setSavingSpot] = useState(false);
   const [spotErr, setSpotErr] = useState<string | null>(null);
 
@@ -196,6 +204,7 @@ export default function TrackScreen() {
       // موقف معرف من الفرع → spot_id (الخادم يتحقق أنه يخص فرع الطلب)؛ وإلا وصف حر
       await api("POST", `/v1/orders/${id}/parking-spot`, chosen ? { spot_id: chosen.id } : { free_text: text });
       setParkingLabel(chosen ? chosen.label : text);
+      setChosenSpot(chosen);
       setSheetOpen(false);
     } catch (e) {
       setSpotErr((e as Error).message);
@@ -375,6 +384,29 @@ export default function TrackScreen() {
           </View>
         )}
 
+        {/* التوجه لنقطة الموقف التي ثبتها المطعم — نمط أوبر: المتوجه يقصد النقطة المحددة */}
+        {chosenSpot && chosenSpot.lat !== null && chosenSpot.lng !== null && !completed && (
+          <GhostButton
+            title={`🧭 التوجه لموقفك — ${chosenSpot.label}`}
+            onPress={() => void Linking.openURL(navUrl(chosenSpot.lat!, chosenSpot.lng!))}
+            style={{ marginTop: 8, backgroundColor: T.surface, borderColor: T.border }}
+            textStyle={{ color: T.text }}
+          />
+        )}
+
+        {/* اختيار الموقف مسبقاً — قبل الوصول، ليتوجه العميل لنقطته مباشرة */}
+        {(canStart || canArrive) && !parkingLabel && branchSpots && branchSpots.length > 0 && (
+          <GhostButton
+            title="اختر موقفك مسبقاً — نوجهك لنقطته"
+            onPress={() => {
+              setSpotErr(null);
+              setSheetOpen(true);
+            }}
+            style={{ marginTop: 8, backgroundColor: T.surface, borderColor: T.border }}
+            textStyle={{ color: T.text }}
+          />
+        )}
+
         {/* الموقف — يفتح Sheet «وين وقفت؟» (C-48) */}
         {arrived && !parkingLabel && (
           <GhostButton
@@ -438,8 +470,12 @@ export default function TrackScreen() {
           <Pressable style={{ flex: 1 }} onPress={() => setSheetOpen(false)} />
           <View style={st.sheet}>
             <View style={st.grab} />
-            <Text style={st.sheetTitle}>وين وقفت؟</Text>
-            <Text style={st.sheetHint}>تحديد موقفك يوصل راشد لسيارتك مباشرة — بلا لف ولا اتصال.</Text>
+            <Text style={st.sheetTitle}>{arrived ? "وين وقفت؟" : "اختر موقفك"}</Text>
+            <Text style={st.sheetHint}>
+              {arrived
+                ? "تحديد موقفك يوصل راشد لسيارتك مباشرة — بلا لف ولا اتصال."
+                : "اختر موقفك الآن ونوجهك لنقطته على الخريطة — والمطعم يعرف وين تقف."}
+            </Text>
             {branchSpots && branchSpots.length > 0 && (
               <>
                 <View style={st.spotGrid}>

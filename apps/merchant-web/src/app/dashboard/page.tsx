@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
+import SpotMap from "@/components/SpotMap";
 import { clearToken, ApiError, apiDelete, apiGet, apiPatch, apiPost, minSec, sar } from "@/lib/api";
 import s from "./dashboard.module.css";
 
@@ -25,11 +26,13 @@ type BranchSettings = {
   id: string;
   name_ar: string;
   branch_code: string;
+  lat: number;
+  lng: number;
   default_prep_minutes: number;
 };
 
-/** موقف استلام يخدمه الفرع — العميل يختار من هذه القائمة فقط عند «وين وقفت؟» */
-type ParkingSpot = { id: string; label: string; is_active: boolean };
+/** موقف استلام يخدمه الفرع — العميل يختار من هذه القائمة فقط ويتوجه لنقطته على الخريطة */
+type ParkingSpot = { id: string; label: string; lat: number | null; lng: number | null; is_active: boolean };
 
 const BRANCH_STATUS: Record<string, { label: string; cls: string }> = {
   open: { label: "مفتوح", cls: "b-ok" },
@@ -51,6 +54,30 @@ export default function DashboardPage() {
   const [spots, setSpots] = useState<Record<string, ParkingSpot[]>>({});
   const [spotDraft, setSpotDraft] = useState<Record<string, string>>({});
   const [spotBusy, setSpotBusy] = useState<string | null>(null);
+  // نقطة الموقف الجديد على الخريطة (نقرة) + موقف محدد لتحريك نقطته
+  const [pinDraft, setPinDraft] = useState<Record<string, { lat: number; lng: number } | null>>({});
+  const [spotSelected, setSpotSelected] = useState<Record<string, string | null>>({});
+
+  /** نقرة الخريطة: موقف محدد → تحريك نقطته؛ وإلا → نقطة الموقف الجديد */
+  const onMapClick = async (branch_id: string, lat: number, lng: number) => {
+    const sel = spotSelected[branch_id];
+    if (sel) {
+      setSpotBusy(sel);
+      try {
+        await apiPatch(`/api/v1/merchant/parking-spots/${sel}`, { lat, lng });
+        setSpots((s) => ({
+          ...s,
+          [branch_id]: (s[branch_id] ?? []).map((p) => (p.id === sel ? { ...p, lat, lng } : p))
+        }));
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setSpotBusy(null);
+      }
+      return;
+    }
+    setPinDraft((d) => ({ ...d, [branch_id]: { lat, lng } }));
+  };
 
   useEffect(() => {
     apiGet<BranchSettings[]>("/api/v1/merchant/branches")
@@ -71,9 +98,14 @@ export default function DashboardPage() {
     if (!label) return;
     setSpotBusy(branch_id);
     try {
-      const created = await apiPost<ParkingSpot>(`/api/v1/merchant/branches/${branch_id}/parking-spots`, { label });
+      const pin = pinDraft[branch_id] ?? null;
+      const created = await apiPost<ParkingSpot>(`/api/v1/merchant/branches/${branch_id}/parking-spots`, {
+        label,
+        ...(pin ? { lat: pin.lat, lng: pin.lng } : {})
+      });
       setSpots((s) => ({ ...s, [branch_id]: [...(s[branch_id] ?? []), created] }));
       setSpotDraft((d) => ({ ...d, [branch_id]: "" }));
+      setPinDraft((d) => ({ ...d, [branch_id]: null }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -280,8 +312,23 @@ export default function DashboardPage() {
               </p>
               {!prepBranches && <div className="skl" style={{ height: 44 }} />}
               {prepBranches?.map((b) => (
-                <div key={b.id} style={{ marginBottom: 14 }} data-testid="parking-spots-branch">
+                <div key={b.id} style={{ marginBottom: 18 }} data-testid="parking-spots-branch">
                   <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{b.name_ar}</div>
+
+                  {/* الخريطة: نقرة = نقطة موقف جديد · اختر موقفاً ثم انقر = تحريك نقطته */}
+                  <SpotMap
+                    center={{ lat: b.lat, lng: b.lng }}
+                    spots={spots[b.id] ?? []}
+                    selectedId={spotSelected[b.id] ?? null}
+                    draft={pinDraft[b.id] ?? null}
+                    onMapClick={(lat, lng) => void onMapClick(b.id, lat, lng)}
+                  />
+                  <p className="muted" style={{ fontSize: 11.5, margin: "6px 0 8px" }}>
+                    {spotSelected[b.id]
+                      ? "انقر على الخريطة لنقل نقطة الموقف المحدد — أو اضغط الموقف مجدداً لإلغاء التحديد."
+                      : "انقر على الخريطة لتثبيت نقطة الموقف الجديد ثم سمّه وأضفه — العميل يتوجه لهذه النقطة مباشرة."}
+                  </p>
+
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
                     {(spots[b.id] ?? []).length === 0 && (
                       <span className="muted" style={{ fontSize: 12 }}>
@@ -297,10 +344,20 @@ export default function DashboardPage() {
                           display: "inline-flex",
                           alignItems: "center",
                           gap: 6,
-                          opacity: p.is_active ? 1 : 0.45
+                          opacity: p.is_active ? 1 : 0.45,
+                          outline: spotSelected[b.id] === p.id ? "2px solid var(--m-ink, #10241B)" : "none"
                         }}
                       >
-                        {p.label}
+                        <button
+                          type="button"
+                          title={p.lat !== null ? "منقّط على الخريطة — اضغط للتحديد ثم انقر الخريطة لنقله" : "بلا نقطة — اضغط للتحديد ثم انقر الخريطة لتثبيته"}
+                          onClick={() =>
+                            setSpotSelected((s) => ({ ...s, [b.id]: s[b.id] === p.id ? null : p.id }))
+                          }
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit", fontWeight: 700 }}
+                        >
+                          {p.lat !== null ? "📍" : "○"} {p.label}
+                        </button>
                         <button
                           type="button"
                           title={p.is_active ? "إيقاف الموقف مؤقتاً" : "إعادة تفعيل الموقف"}
@@ -325,7 +382,7 @@ export default function DashboardPage() {
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
                       value={spotDraft[b.id] ?? ""}
-                      placeholder="مثال: 6 أو «أمام المدخل»"
+                      placeholder={pinDraft[b.id] ? "سمّ النقطة المثبتة — مثال: 6 أو «أمام المدخل»" : "مثال: 6 أو «أمام المدخل»"}
                       maxLength={40}
                       data-testid="parking-spot-input"
                       onChange={(e) => setSpotDraft((d) => ({ ...d, [b.id]: e.target.value }))}
@@ -340,7 +397,7 @@ export default function DashboardPage() {
                       disabled={spotBusy === b.id || !(spotDraft[b.id] ?? "").trim()}
                       onClick={() => void addSpot(b.id)}
                     >
-                      {spotBusy === b.id ? "…" : "إضافة"}
+                      {spotBusy === b.id ? "…" : pinDraft[b.id] ? "إضافة النقطة 📍" : "إضافة"}
                     </button>
                   </div>
                 </div>

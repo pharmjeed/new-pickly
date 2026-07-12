@@ -21,10 +21,15 @@ export const PickupSessionSchema = z.object({
 });
 export type PickupSession = z.infer<typeof PickupSessionSchema>;
 
-/** موقف استلام معرَّف من الفرع (parking_spots) — يعرضه العميل عند «وين وقفت؟» */
+/**
+ * موقف استلام معرَّف من الفرع (parking_spots) — يعرضه العميل عند «وين وقفت؟».
+ * lat/lng: نقطة الموقف على الخريطة يثبتها التاجر فيتوجه العميل إليها مباشرة (نمط أوبر).
+ */
 export const BranchParkingSpotSchema = z.object({
   id: UuidSchema,
-  label: z.string()
+  label: z.string(),
+  lat: z.number().min(-90).max(90).nullable(),
+  lng: z.number().min(-180).max(180).nullable()
 });
 export type BranchParkingSpot = z.infer<typeof BranchParkingSpotSchema>;
 

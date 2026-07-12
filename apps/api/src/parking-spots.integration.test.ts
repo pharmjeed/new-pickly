@@ -58,23 +58,36 @@ describe.skipIf(!hasDb)("Parking Spots — مواقف الفرع", async () => {
     expect(spots[0]).toHaveProperty("label");
   });
 
-  it("إضافة موقف → يظهر للعميل في المسار العام؛ التكرار مرفوض", async () => {
+  it("إضافة موقف بنقطة خريطة → يظهر للعميل بإحداثياته؛ التكرار مرفوض", async () => {
     const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
     const created = await app.inject({
       method: "POST",
       url: `/v1/merchant/branches/${branchId}/parking-spots`,
       headers: authed(manager),
-      payload: { label: LABEL }
+      payload: { label: LABEL, lat: 24.6951, lng: 46.6855 }
     });
     expect(created.statusCode).toBe(200);
-    const spot = created.json() as { id: string; label: string };
+    const spot = created.json() as { id: string; label: string; lat: number | null; lng: number | null };
     expect(spot.label).toBe(LABEL);
+    expect(spot.lat).toBeCloseTo(24.6951);
 
-    // العميل يرى الموقف الجديد بلا مصادقة (اكتشاف عام)
+    // العميل يرى الموقف الجديد بنقطته بلا مصادقة (اكتشاف عام) — يتوجه إليها مباشرة
     const publicRes = await app.inject({ method: "GET", url: `/v1/branches/${branchId}/parking-spots` });
     expect(publicRes.statusCode).toBe(200);
-    const publicSpots = publicRes.json() as Array<{ id: string; label: string }>;
-    expect(publicSpots.some((s) => s.id === spot.id)).toBe(true);
+    const publicSpots = publicRes.json() as Array<{ id: string; label: string; lat: number | null; lng: number | null }>;
+    const mine = publicSpots.find((s) => s.id === spot.id);
+    expect(mine).toBeDefined();
+    expect(mine?.lat).toBeCloseTo(24.6951);
+    expect(mine?.lng).toBeCloseTo(46.6855);
+
+    // إحداثية واحدة بلا الثانية → رفض (تُمرران معاً)
+    const half = await app.inject({
+      method: "POST",
+      url: `/v1/merchant/branches/${branchId}/parking-spots`,
+      headers: authed(manager),
+      payload: { label: "نصف-نقطة", lat: 24.7 }
+    });
+    expect(half.statusCode).toBeGreaterThanOrEqual(400);
 
     // نفس التسمية مرة ثانية → رفض
     const dup = await app.inject({
@@ -84,6 +97,23 @@ describe.skipIf(!hasDb)("Parking Spots — مواقف الفرع", async () => {
       payload: { label: LABEL }
     });
     expect(dup.statusCode).toBeGreaterThanOrEqual(400);
+  });
+
+  it("تحريك نقطة الموقف على الخريطة (PATCH lat/lng)", async () => {
+    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
+    const spot = await prisma.parkingSpot.findUniqueOrThrow({
+      where: { branch_id_label: { branch_id: branchId, label: LABEL } }
+    });
+    const moved = await app.inject({
+      method: "PATCH",
+      url: `/v1/merchant/parking-spots/${spot.id}`,
+      headers: authed(manager),
+      payload: { lat: 24.696, lng: 46.6849 }
+    });
+    expect(moved.statusCode).toBe(200);
+    const fresh = await prisma.parkingSpot.findUniqueOrThrow({ where: { id: spot.id } });
+    expect(fresh.lat).toBeCloseTo(24.696);
+    expect(fresh.lng).toBeCloseTo(46.6849);
   });
 
   it("إيقاف الموقف يخفيه عن العميل، وإعادة تفعيله تعيده", async () => {

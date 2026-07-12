@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
+import SpotsMap from "./SpotsMap";
 import s from "./track.module.css";
 
 interface Order {
@@ -72,11 +73,16 @@ const WAIT_MSGS = [
   "فور القبول يبدأ عدّاد التجهيز"
 ];
 
-/** موقف استلام يخدمه الفرع — يحدده المطعم من بوابته والعميل يختار منها فقط */
+/** موقف استلام يخدمه الفرع — يحدده المطعم من بوابته (مع نقطته على الخريطة) والعميل يختار منها فقط */
 interface BranchSpot {
   id: string;
   label: string;
+  lat: number | null;
+  lng: number | null;
 }
+
+/** رابط ملاحة خارجي للنقطة — يفتح خرائط قوقل بالاتجاهات (نمط أوبر: المتوجه يقصد النقطة) */
+const navUrl = (lat: number, lng: number) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 
 /* أيقونات خطية من رموز P7.html — currentColor فقط */
 const IconCar = ({ size = 24 }: { size?: number }) => (
@@ -139,6 +145,8 @@ export default function TrackPage() {
   const [spotSel, setSpotSel] = useState<string | null>(null);
   const [freeText, setFreeText] = useState("");
   const [parkingLabel, setParkingLabel] = useState<string | null>(null);
+  // الموقف المؤكد بنقطته — يقود الخريطة وزر «التوجه للموقف»
+  const [chosenSpot, setChosenSpot] = useState<BranchSpot | null>(null);
   const [savingSpot, setSavingSpot] = useState(false);
   const [spotErr, setSpotErr] = useState<string | null>(null);
 
@@ -267,6 +275,7 @@ export default function TrackPage() {
       // موقف معرف من الفرع → spot_id (الخادم يتحقق أنه يخص فرع الطلب)؛ وإلا وصف حر
       await api("POST", `/v1/orders/${id}/parking-spot`, chosen ? { spot_id: chosen.id } : { free_text: text });
       setParkingLabel(chosen ? chosen.label : text);
+      setChosenSpot(chosen);
       setSheetOpen(false);
     } catch (e) {
       setSpotErr((e as Error).message);
@@ -409,19 +418,45 @@ export default function TrackPage() {
           </div>
         ) : null}
 
-        {/* «الاتجاه للمطعم» — يفتح خرائط Google بإحداثيات الفرع، متاح من القبول وحتى الوصول */}
+        {/* خريطة نقاط المواقف التي ثبتها المطعم — الموقف المختار مميز 🏁 (نمط أوبر) */}
+        {(canStart || driveMode || arrived) && branchSpots && (
+          <SpotsMap spots={branchSpots} chosenId={chosenSpot?.id ?? null} />
+        )}
+
+        {/*
+         * «الاتجاه» — يفتح خرائط Google بالاتجاهات، متاح من القبول وحتى الوصول:
+         * اختار العميل موقفاً بنقطة مثبتة → الوجهة نقطة الموقف نفسها؛ وإلا → الفرع.
+         */}
         {(canStart || driveMode) && (
           <a
             className={s.mapsBtn}
             data-testid="maps-directions"
-            href={`https://www.google.com/maps/dir/?api=1&destination=${order.branch_lat},${order.branch_lng}&travelmode=driving`}
+            href={
+              chosenSpot && chosenSpot.lat !== null && chosenSpot.lng !== null
+                ? `${navUrl(chosenSpot.lat, chosenSpot.lng)}&travelmode=driving`
+                : `https://www.google.com/maps/dir/?api=1&destination=${order.branch_lat},${order.branch_lng}&travelmode=driving`
+            }
             target="_blank"
             rel="noopener noreferrer"
           >
             <IconNav />
-            الاتجاه للمطعم
-            <span className={s.mapsBtnHint}>{order.branch_address_short}</span>
+            {chosenSpot && chosenSpot.lat !== null ? `الاتجاه لموقفك — ${chosenSpot.label}` : "الاتجاه للمطعم"}
+            <span className={s.mapsBtnHint}>
+              {chosenSpot && chosenSpot.lat !== null ? "نقطة الموقف كما ثبتها المطعم" : order.branch_address_short}
+            </span>
           </a>
+        )}
+
+        {/* اختيار الموقف مسبقاً — قبل الوصول، ليتوجه العميل لنقطته مباشرة */}
+        {(canStart || driveMode) && !parkingLabel && branchSpots && branchSpots.length > 0 && (
+          <button
+            type="button"
+            className={s.parkingBtn}
+            data-testid="pre-parking-btn"
+            onClick={() => { setSpotErr(null); setSheetOpen(true); }}
+          >
+            اختر موقفك مسبقاً — نوجهك لنقطته
+          </button>
         )}
 
         {/* بطاقة ETA الكبيرة — وضع القيادة (C-45) */}
@@ -519,8 +554,12 @@ export default function TrackPage() {
         <div className={s.dim} role="dialog" aria-modal="true" aria-label="وين وقفت؟" onClick={() => setSheetOpen(false)}>
           <div className={s.sheet} onClick={(e) => e.stopPropagation()}>
             <div className={s.grab} />
-            <b className={s.sheetTitle}>وين وقفت؟</b>
-            <p className={s.sheetHint}>تحديد موقفك يوصل راشد لسيارتك مباشرة — بلا لف ولا اتصال.</p>
+            <b className={s.sheetTitle}>{arrived ? "وين وقفت؟" : "اختر موقفك"}</b>
+            <p className={s.sheetHint}>
+              {arrived
+                ? "تحديد موقفك يوصل راشد لسيارتك مباشرة — بلا لف ولا اتصال."
+                : "اختر موقفك الآن ونوجهك لنقطته على الخريطة — والمطعم يعرف وين تقف."}
+            </p>
             {branchSpots && branchSpots.length > 0 && (
               <>
                 <div className={s.spotGrid}>

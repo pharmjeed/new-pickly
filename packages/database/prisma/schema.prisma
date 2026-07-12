@@ -650,6 +650,9 @@ model ParkingSpot {
   branch_id String  @db.Uuid
   branch    Branch  @relation(fields: [branch_id], references: [id])
   label     String // "3" أو "أمام المدخل"
+  /// نقطة الموقف على الخريطة — يثبتها التاجر فيتوجه العميل إليها مباشرة (نمط أوبر)
+  lat       Float?
+  lng       Float?
   sort      Int     @default(0)
   is_active Boolean @default(true)
 
