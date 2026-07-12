@@ -249,9 +249,22 @@ export class MerchantOrderService {
         });
         return;
       }
+      // زر «جاهز» الواحد: من MERCHANT_ACCEPTED نمرّ بـPREPARING في نفس المعاملة —
+      // آلة الحالات لا تعرف قفزة مباشرة، والسجل يبقى كاملاً (docs/05§4)
+      let current = order;
+      if (status === "MERCHANT_ACCEPTED") {
+        await transitionOrder(
+          tx,
+          current,
+          "PREPARING",
+          { actor_type: "merchant_staff", actor_id: staff_user_id },
+          { data: { preparing_at: new Date() } }
+        );
+        current = { ...order, order_status: "PREPARING" };
+      }
       await transitionOrder(
         tx,
-        order,
+        current,
         "READY",
         { actor_type: "merchant_staff", actor_id: staff_user_id },
         { data: { ready_at: new Date() } }

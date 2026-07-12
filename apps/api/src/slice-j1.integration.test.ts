@@ -260,19 +260,21 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     });
     expect(orderView.json().prep_minutes).toBe(10);
 
-    // التجهيز يبدأ مباشرة — لا حارس موافقة
-    const prep = await app.inject({
-      method: "POST",
-      url: `/v1/merchant/orders/${orderId}/preparing`,
-      headers: authed(staffToken)
-    });
-    expect(prep.statusCode).toBe(200);
+    // زر واحد «جاهز» من MERCHANT_ACCEPTED — الخدمة تمرّ بـPREPARING داخلياً في نفس المعاملة
     const ready = await app.inject({
       method: "POST",
       url: `/v1/merchant/orders/${orderId}/ready`,
       headers: authed(staffToken)
     });
+    expect(ready.statusCode).toBe(200);
     expect(ready.json().order_status).toBe("CUSTOMER_NOTIFIED");
+    expect(ready.json().preparing_at).not.toBeNull();
+    expect(ready.json().ready_at).not.toBeNull();
+    // السجل append-only يحتفظ بالانتقالين — لا قفزة خارج آلة الحالات
+    const history = await prisma.orderStatusHistory.findMany({
+      where: { order_id: orderId, to_status: { in: ["PREPARING", "READY"] } }
+    });
+    expect(history.map((h) => h.to_status).sort()).toEqual(["PREPARING", "READY"]);
   });
 
   it("7. أنا في الطريق ← محاكي رحلة ← NEARBY + «وصل لنقطة الموقف» للفرع", async () => {

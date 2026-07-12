@@ -566,12 +566,13 @@ export default function BoardPage() {
                           ⏱ الوقت المتوقع <b className={s.mono}>{c.prep_minutes}</b> د — متوسط المطعم
                         </span>
                       )}
+                      {/* زر واحد «جاهز» — ينقل البطاقة إلى «جاهزة» ويُشعر العميل فوراً */}
                       <button
-                        className={`${s.bbtn} ${s.gray}`}
-                        data-testid="start-preparing"
-                        onClick={() => act(`/v1/merchant/orders/${c.id}/preparing`)}
+                        className={s.bbtn}
+                        data-testid="mark-ready"
+                        onClick={() => act(`/v1/merchant/orders/${c.id}/ready`, {})}
                       >
-                        بدء التجهيز
+                        جاهز
                       </button>
                     </>
                   )}
@@ -595,23 +596,14 @@ export default function BoardPage() {
                           ? "🚘 العميل واصل — طلبه لم يجهز بعد"
                           : "🚗 العميل في الطريق — جهّزوا على وصوله"}
                       </span>
-                      {!c.preparing_at ? (
-                        <button
-                          className={`${s.bbtn} ${s.gray}`}
-                          data-testid="start-preparing"
-                          onClick={() => act(`/v1/merchant/orders/${c.id}/preparing`)}
-                        >
-                          بدء التجهيز
-                        </button>
-                      ) : (
-                        <button
-                          className={s.bbtn}
-                          data-testid="mark-ready"
-                          onClick={() => act(`/v1/merchant/orders/${c.id}/ready`, {})}
-                        >
-                          جاهز
-                        </button>
-                      )}
+                      {/* زر واحد «جاهز» — الخدمة تختم preparing_at آلياً إن لم يسبق تسجيله */}
+                      <button
+                        className={s.bbtn}
+                        data-testid="mark-ready"
+                        onClick={() => act(`/v1/merchant/orders/${c.id}/ready`, {})}
+                      >
+                        جاهز
+                      </button>
                     </>
                   )}
                   {["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"].includes(c.order_status) && c.ready_at && (
