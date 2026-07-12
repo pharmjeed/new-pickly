@@ -52,6 +52,27 @@ export function buildWeeklySlots(opts: {
 }
 
 /**
+ * هل الفترة [start, end] تقع كاملة داخل إحدى نوافذ دوام الأسبوع؟
+ * تُفحص نافذتا يوم الفترة واليوم السابق (بتوقيت الرياض) لتغطية دوام يمتد بعد منتصف الليل.
+ * تُستخدم لقصّ الفترات المعروضة للعميل على دوام الفرع الحالي حتى لو بقيت
+ * فترات مولّدة من دوام قديم في branch_capacity_slots.
+ */
+export function slotWithinWeeklyWindows(start: Date, end: Date, windows: WeeklyWindow[]): boolean {
+  for (const dayOffset of [0, -1]) {
+    const dateISO = riyadhDateISO(new Date(start.getTime() + dayOffset * DAY_MS));
+    const dow = new Date(`${dateISO}T00:00:00Z`).getUTCDay(); // 0=الأحد كما في branch_hours
+    for (const w of windows) {
+      if (w.day_of_week !== dow) continue;
+      const opens = new Date(`${dateISO}T${w.opens_at}:00+03:00`);
+      let closes = new Date(`${dateISO}T${w.closes_at}:00+03:00`);
+      if (closes <= opens) closes = new Date(closes.getTime() + DAY_MS);
+      if (start >= opens && end <= closes) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * upsert فترات الفرع من القالب — (branch_id, slot_start) فريد:
  * القائمة تُحدَّث سعتها دون مساس بالمحجوز، والجديدة تُنشأ. يعيد عدد الفترات المعالجة.
  */

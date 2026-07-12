@@ -11,7 +11,7 @@ import {
   type Menu,
   type SearchResponse
 } from "@pickly/contracts";
-import { prisma } from "@pickly/database";
+import { prisma, slotWithinWeeklyWindows } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { createGeoAdapter, haversineMeters } from "@pickly/geo";
 import { requireFlag } from "../../lib/flags.js";
@@ -132,13 +132,21 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
     const settings = await prisma.branchPickupSettings.findUnique({ where: { branch_id } });
     if (!settings?.scheduled_enabled) throw new AppError("ORDER-4007");
 
-    const slots = await prisma.branchCapacitySlot.findMany({
-      where: { branch_id, slot_start: { gte: new Date() } },
-      orderBy: { slot_start: "asc" },
-      take: 60
-    });
+    const [slots, hours, closures] = await Promise.all([
+      prisma.branchCapacitySlot.findMany({
+        where: { branch_id, slot_start: { gte: new Date() } },
+        orderBy: { slot_start: "asc" },
+        take: 60
+      }),
+      prisma.branchHour.findMany({ where: { branch_id } }),
+      prisma.branchClosure.findMany({ where: { branch_id, ends_at: { gte: new Date() } } })
+    ]);
     return slots
       .filter((s) => s.booked < s.capacity)
+      // ما يُعرض للعميل يتبع دوام الفرع الحالي — فترات دوام قديم لا تظهر
+      .filter((s) => hours.length === 0 || slotWithinWeeklyWindows(s.slot_start, s.slot_end, hours))
+      // ولا فترات تتقاطع مع إغلاق مؤقت معلن (BranchClosure)
+      .filter((s) => !closures.some((c) => s.slot_start < c.ends_at && s.slot_end > c.starts_at))
       .map(
         (s): CapacitySlot => ({
           id: s.id,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWeeklySlots, riyadhDateISO } from "@pickly/database";
+import { buildWeeklySlots, riyadhDateISO, slotWithinWeeklyWindows } from "@pickly/database";
 
 /**
  * BR-5 — دالة توليد الفترات من دوام الأسبوع (صرفة — بلا قاعدة بيانات):
@@ -64,5 +64,68 @@ describe("BR-5 — buildWeeklySlots", () => {
   it("riyadhDateISO يعيد تاريخ الرياض لا UTC", () => {
     expect(riyadhDateISO(new Date("2026-07-11T22:30:00Z"))).toBe("2026-07-12");
     expect(riyadhDateISO(new Date("2026-07-11T20:59:00Z"))).toBe("2026-07-11");
+  });
+});
+
+/**
+ * قصّ الفترات المعروضة للعميل على دوام الفرع الحالي (GET /v1/branches/:id/slots):
+ * فترة من دوام قديم خارج النوافذ الحالية لا تظهر.
+ */
+describe("BR-5 — slotWithinWeeklyWindows", () => {
+  const sat = [{ day_of_week: 6, opens_at: "08:00", closes_at: "23:30" }]; // 2026-07-11 سبت
+
+  it("فترة داخل الدوام تُقبل وأخرى قبله تُرفض", () => {
+    expect(
+      slotWithinWeeklyWindows(
+        new Date("2026-07-11T08:00:00+03:00"),
+        new Date("2026-07-11T08:30:00+03:00"),
+        sat
+      )
+    ).toBe(true);
+    expect(
+      slotWithinWeeklyWindows(
+        new Date("2026-07-11T07:00:00+03:00"),
+        new Date("2026-07-11T07:30:00+03:00"),
+        sat
+      )
+    ).toBe(false);
+  });
+
+  it("فترة تنتهي بعد الإغلاق تُرفض ولو بدأت داخله", () => {
+    expect(
+      slotWithinWeeklyWindows(
+        new Date("2026-07-11T23:15:00+03:00"),
+        new Date("2026-07-11T23:45:00+03:00"),
+        sat
+      )
+    ).toBe(false);
+  });
+
+  it("يوم بلا نافذة دوام = لا فترات", () => {
+    expect(
+      slotWithinWeeklyWindows(
+        new Date("2026-07-12T09:00:00+03:00"), // أحد — النافذة للسبت فقط
+        new Date("2026-07-12T09:30:00+03:00"),
+        sat
+      )
+    ).toBe(false);
+  });
+
+  it("دوام يمتد بعد منتصف الليل يقبل فترات ما بعده من نافذة اليوم السابق", () => {
+    const overnight = [{ day_of_week: 6, opens_at: "18:00", closes_at: "02:00" }];
+    expect(
+      slotWithinWeeklyWindows(
+        new Date("2026-07-12T01:00:00+03:00"), // فجر الأحد — ضمن نافذة السبت الممتدة
+        new Date("2026-07-12T01:30:00+03:00"),
+        overnight
+      )
+    ).toBe(true);
+    expect(
+      slotWithinWeeklyWindows(
+        new Date("2026-07-12T02:30:00+03:00"),
+        new Date("2026-07-12T03:00:00+03:00"),
+        overnight
+      )
+    ).toBe(false);
   });
 });
