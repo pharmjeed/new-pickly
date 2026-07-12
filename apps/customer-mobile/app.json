@@ -27,7 +27,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "نستخدم موقعك أثناء رحلة استلام نشطة فقط"
+          "locationWhenInUsePermission": "نستخدم موقعك لعرض أقرب المطاعم ولمتابعة وصولك أثناء طلبك النشط حتى يجهّز المطعم طلبك على وقت وصولك"
         }
       ]
     ],

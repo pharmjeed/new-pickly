@@ -1949,6 +1949,156 @@
         }
       }
     },
+    "/v1/branches/{id}/parking-spots": {
+      "get": {
+        "summary": "مواقف الاستلام التي يخدمها الفرع",
+        "tags": [
+          "discovery"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/content/banners": {
       "get": {
         "summary": "بانرات CMS (A-13)",
@@ -4272,14 +4422,6 @@
                         "null"
                       ]
                     },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -4662,14 +4804,6 @@
                         "integer",
                         "null"
                       ]
-                    },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
                     },
                     "preparing_at": {
                       "type": [
@@ -5294,14 +5428,6 @@
                         "null"
                       ]
                     },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -5724,14 +5850,6 @@
                         "null"
                       ]
                     },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -6141,405 +6259,6 @@
                         "integer",
                         "null"
                       ]
-                    },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "preparing_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "ready_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "pickup_time": {
-                      "type": "string",
-                      "enum": [
-                        "asap",
-                        "later",
-                        "scheduled"
-                      ]
-                    },
-                    "scheduled_slot": {
-                      "type": [
-                        "object",
-                        "null"
-                      ],
-                      "properties": {
-                        "slot_start": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "slot_end": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "free_change_until": {
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      },
-                      "required": [
-                        "slot_start",
-                        "slot_end",
-                        "free_change_until"
-                      ]
-                    },
-                    "created_at": {
-                      "type": "string",
-                      "format": "date-time"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "display_code",
-                    "order_status",
-                    "branch_id",
-                    "brand_name_ar",
-                    "items",
-                    "subtotal_halalas",
-                    "discount_halalas",
-                    "vat_halalas",
-                    "service_fee_halalas",
-                    "total_halalas",
-                    "vehicle",
-                    "handoff_code",
-                    "prep_minutes",
-                    "pickup_time",
-                    "scheduled_slot",
-                    "created_at"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "غلاف الخطأ الموحد",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message_ar": {
-                          "type": "string"
-                        },
-                        "message_en": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message_ar",
-                        "message_en"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "غلاف الخطأ الموحد",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message_ar": {
-                          "type": "string"
-                        },
-                        "message_en": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message_ar",
-                        "message_en"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "غلاف الخطأ الموحد",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "object",
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "message_ar": {
-                          "type": "string"
-                        },
-                        "message_en": {
-                          "type": "string"
-                        },
-                        "details": {
-                          "type": "object",
-                          "additionalProperties": {}
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "message_ar",
-                        "message_en"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/orders/{id}/confirm-prep-time": {
-      "post": {
-        "summary": "موافقة العميل على وقت التجهيز المتوقع الذي حدده الفرع عند القبول",
-        "tags": [
-          "orders"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "display_code": {
-                      "type": "string"
-                    },
-                    "order_status": {
-                      "type": "string",
-                      "enum": [
-                        "DRAFT",
-                        "CART_ACTIVE",
-                        "CHECKOUT_PENDING",
-                        "PAYMENT_PENDING",
-                        "PAYMENT_AUTHORIZED",
-                        "PAYMENT_FAILED",
-                        "ORDER_SUBMITTED",
-                        "MERCHANT_PENDING",
-                        "MERCHANT_ACCEPTED",
-                        "MERCHANT_REJECTED",
-                        "PREPARING",
-                        "READY",
-                        "CUSTOMER_NOTIFIED",
-                        "CUSTOMER_ON_THE_WAY",
-                        "CUSTOMER_NEARBY",
-                        "CUSTOMER_ARRIVED",
-                        "HANDOFF_IN_PROGRESS",
-                        "COMPLETED",
-                        "CANCELLATION_REQUESTED",
-                        "CANCELLED",
-                        "NO_SHOW",
-                        "EXPIRED",
-                        "REFUND_PENDING",
-                        "PARTIALLY_REFUNDED",
-                        "REFUNDED"
-                      ]
-                    },
-                    "branch_id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "brand_name_ar": {
-                      "type": "string"
-                    },
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "format": "uuid"
-                          },
-                          "name_ar_snapshot": {
-                            "type": "string"
-                          },
-                          "quantity": {
-                            "type": "integer"
-                          },
-                          "unit_price_halalas_snapshot": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
-                          "modifiers_snapshot": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "name_ar": {
-                                  "type": "string"
-                                },
-                                "price_halalas": {
-                                  "type": "integer",
-                                  "minimum": 0
-                                }
-                              },
-                              "required": [
-                                "name_ar",
-                                "price_halalas"
-                              ]
-                            }
-                          },
-                          "line_total_halalas": {
-                            "type": "integer",
-                            "minimum": 0
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name_ar_snapshot",
-                          "quantity",
-                          "unit_price_halalas_snapshot",
-                          "modifiers_snapshot",
-                          "line_total_halalas"
-                        ]
-                      }
-                    },
-                    "subtotal_halalas": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "discount_halalas": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "vat_halalas": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "service_fee_halalas": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "total_halalas": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "vehicle": {
-                      "type": [
-                        "object",
-                        "null"
-                      ],
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "make_ar": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "model_ar": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "color_ar": {
-                          "type": "string"
-                        },
-                        "plate_short": {
-                          "type": "string"
-                        },
-                        "is_default": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "make_ar",
-                        "model_ar",
-                        "color_ar",
-                        "plate_short",
-                        "is_default"
-                      ]
-                    },
-                    "handoff_code": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "prep_minutes": {
-                      "type": [
-                        "integer",
-                        "null"
-                      ]
-                    },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
                     },
                     "preparing_at": {
                       "type": [
@@ -7410,14 +7129,6 @@
                         "null"
                       ]
                     },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -7982,14 +7693,6 @@
                         "null"
                       ]
                     },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -8244,6 +7947,7 @@
             "schema": {
               "type": "string",
               "enum": [
+                "scheduled",
                 "new",
                 "preparing",
                 "ready",
@@ -8391,14 +8095,6 @@
                           "integer",
                           "null"
                         ],
-                        "default": null
-                      },
-                      "prep_time_confirmed_at": {
-                        "type": [
-                          "string",
-                          "null"
-                        ],
-                        "format": "date-time",
                         "default": null
                       },
                       "preparing_at": {
@@ -8710,14 +8406,6 @@
                         "integer",
                         "null"
                       ],
-                      "default": null
-                    },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
                       "default": null
                     },
                     "preparing_at": {
@@ -9042,14 +8730,6 @@
                       ],
                       "default": null
                     },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -9330,14 +9010,6 @@
                         "integer",
                         "null"
                       ],
-                      "default": null
-                    },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
                       "default": null
                     },
                     "preparing_at": {
@@ -9637,14 +9309,6 @@
                       ],
                       "default": null
                     },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -9925,14 +9589,6 @@
                         "integer",
                         "null"
                       ],
-                      "default": null
-                    },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
                       "default": null
                     },
                     "preparing_at": {
@@ -10250,14 +9906,6 @@
                         "integer",
                         "null"
                       ],
-                      "default": null
-                    },
-                    "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
                       "default": null
                     },
                     "preparing_at": {
@@ -10820,6 +10468,157 @@
                     "maxLength": 140
                   }
                 }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/merchant/branches/{id}/prep-minutes": {
+      "post": {
+        "summary": "متوسط وقت تجهيز الطلب — يُختم على كل طلب عند قبوله ويظهر للعميل",
+        "tags": [
+          "merchant"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prep_minutes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 120
+                  }
+                },
+                "required": [
+                  "prep_minutes"
+                ]
               }
             }
           }

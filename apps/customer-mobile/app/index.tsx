@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import * as Location from "expo-location";
 import { LimeButton, GhostButton } from "../src/ui";
 import { colors, fs, light, radius, radiusPill } from "../src/theme";
 import { markOnboarded, wasOnboarded } from "../src/session";
@@ -44,6 +45,9 @@ export default function Onboarding() {
   const [splashDone, setSplashDone] = useState(false);
   const [seen, setSeen] = useState<boolean | null>(null);
   const [slide, setSlide] = useState(0);
+  // خطوة إذن الموقع — تظهر مرة واحدة بعد الشرائح عند أول فتح
+  const [locStep, setLocStep] = useState(false);
+  const [locBusy, setLocBusy] = useState(false);
 
   // اللوقو يظهر سريعاً ثم نُكمل — التحقق من التهيئة يجري بالتوازي
   useEffect(() => {
@@ -70,10 +74,51 @@ export default function Onboarding() {
   const last = slide === SLIDES.length - 1;
   const s = SLIDES[slide]!;
 
-  const start = async () => {
+  const finish = async () => {
     await markOnboarded();
     router.replace("/(tabs)/home");
   };
+
+  // «ابدأ»/«تخطي» → خطوة الموقع أولاً — نطلب الإذن مرة واحدة عند أول فتح
+  const start = () => setLocStep(true);
+
+  const allowLocation = async () => {
+    setLocBusy(true);
+    try {
+      await Location.requestForegroundPermissionsAsync();
+    } catch {
+      /* الموقع تحسين لا شرط — docs/14§8 */
+    }
+    await finish();
+  };
+
+  // شاشة إذن الموقع (أول فتح): نعرف مكانك لنعرض الأقرب ونتابع وصولك للفرع
+  if (locStep) {
+    return (
+      <SafeAreaView style={st.screen}>
+        <View style={st.body}>
+          <View style={st.badge}>
+            <Text style={st.badgeTxt}>بيكلي</Text>
+          </View>
+          <Text style={st.locIcon}>📍</Text>
+          <Text style={st.title}>خلّنا نعرف وين أنت</Text>
+          <Text style={st.sub}>
+            بموقعك نعرض لك أقرب المطاعم، ونتابع وصولك أثناء طلبك النشط —{"\n"}
+            فيجهّز المطعم طلبك على وقت وصولك ويطلع لك لباب سيارتك.
+          </Text>
+          <Text style={[st.sub, st.locNote]}>موقعك يُستخدم أثناء الطلب النشط فقط ولا يُحتفظ بخامه.</Text>
+        </View>
+        <View style={st.foot}>
+          <LimeButton
+            title="السماح بمتابعة موقعي"
+            disabled={locBusy}
+            onPress={() => void allowLocation()}
+          />
+          <GhostButton title="ليس الآن" onPress={() => void finish()} style={{ marginTop: 8 }} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={st.screen}>
@@ -160,6 +205,8 @@ const st = StyleSheet.create({
     marginBottom: 10
   },
   sub: { color: light.text2, fontSize: fs.fs16, textAlign: "center", lineHeight: 26 },
+  locIcon: { fontSize: 44, marginBottom: 12 },
+  locNote: { fontSize: fs.fs13, marginTop: 14, opacity: 0.8 },
   dots: { flexDirection: "row", gap: 6, marginTop: 28 },
   dot: {
     width: 8,

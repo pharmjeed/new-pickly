@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
-import {clearToken,  ApiError, apiGet, minSec, sar } from "@/lib/api";
+import { clearToken, ApiError, apiDelete, apiGet, apiPatch, apiPost, minSec, sar } from "@/lib/api";
 import s from "./dashboard.module.css";
 
 type Dashboard = {
@@ -20,6 +20,17 @@ type Dashboard = {
   branches: { id: string; name_ar: string; status: string }[];
 };
 
+/** M-03: الفرع بإعداداته — «متوسط وقت تجهيز الطلب» هو الوقت المتوقع المختوم على كل طلب مقبول */
+type BranchSettings = {
+  id: string;
+  name_ar: string;
+  branch_code: string;
+  default_prep_minutes: number;
+};
+
+/** موقف استلام يخدمه الفرع — العميل يختار من هذه القائمة فقط عند «وين وقفت؟» */
+type ParkingSpot = { id: string; label: string; is_active: boolean };
+
 const BRANCH_STATUS: Record<string, { label: string; cls: string }> = {
   open: { label: "مفتوح", cls: "b-ok" },
   busy: { label: "ازدحام", cls: "b-warn" },
@@ -30,6 +41,89 @@ export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // «متوسط وقت تجهيز الطلب» لكل فرع — تحرير مباشر (قرار المالك 2026-07-12)
+  const [prepBranches, setPrepBranches] = useState<BranchSettings[] | null>(null);
+  const [prepDraft, setPrepDraft] = useState<Record<string, number>>({});
+  const [prepSaving, setPrepSaving] = useState<string | null>(null);
+  const [prepSaved, setPrepSaved] = useState<string | null>(null);
+
+  // مواقف الاستلام لكل فرع — العميل لا يرى إلا ما يُدار هنا
+  const [spots, setSpots] = useState<Record<string, ParkingSpot[]>>({});
+  const [spotDraft, setSpotDraft] = useState<Record<string, string>>({});
+  const [spotBusy, setSpotBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiGet<BranchSettings[]>("/api/v1/merchant/branches")
+      .then((bs) => {
+        setPrepBranches(bs);
+        setPrepDraft(Object.fromEntries(bs.map((b) => [b.id, b.default_prep_minutes])));
+        for (const b of bs) {
+          apiGet<ParkingSpot[]>(`/api/v1/merchant/branches/${b.id}/parking-spots`)
+            .then((list) => setSpots((s) => ({ ...s, [b.id]: list })))
+            .catch(() => setSpots((s) => ({ ...s, [b.id]: [] })));
+        }
+      })
+      .catch(() => setPrepBranches([]));
+  }, []);
+
+  const addSpot = async (branch_id: string) => {
+    const label = (spotDraft[branch_id] ?? "").trim();
+    if (!label) return;
+    setSpotBusy(branch_id);
+    try {
+      const created = await apiPost<ParkingSpot>(`/api/v1/merchant/branches/${branch_id}/parking-spots`, { label });
+      setSpots((s) => ({ ...s, [branch_id]: [...(s[branch_id] ?? []), created] }));
+      setSpotDraft((d) => ({ ...d, [branch_id]: "" }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSpotBusy(null);
+    }
+  };
+
+  const toggleSpot = async (branch_id: string, spot: ParkingSpot) => {
+    setSpotBusy(spot.id);
+    try {
+      await apiPatch(`/api/v1/merchant/parking-spots/${spot.id}`, { is_active: !spot.is_active });
+      setSpots((s) => ({
+        ...s,
+        [branch_id]: (s[branch_id] ?? []).map((p) => (p.id === spot.id ? { ...p, is_active: !spot.is_active } : p))
+      }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSpotBusy(null);
+    }
+  };
+
+  const deleteSpot = async (branch_id: string, spot: ParkingSpot) => {
+    setSpotBusy(spot.id);
+    try {
+      await apiDelete(`/api/v1/merchant/parking-spots/${spot.id}`);
+      setSpots((s) => ({ ...s, [branch_id]: (s[branch_id] ?? []).filter((p) => p.id !== spot.id) }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSpotBusy(null);
+    }
+  };
+
+  const savePrep = async (branch_id: string) => {
+    const minutes = prepDraft[branch_id];
+    if (!minutes || minutes < 1) return;
+    setPrepSaving(branch_id);
+    setPrepSaved(null);
+    try {
+      await apiPost(`/api/v1/merchant/branches/${branch_id}/prep-minutes`, { prep_minutes: minutes });
+      setPrepBranches((bs) => bs?.map((b) => (b.id === branch_id ? { ...b, default_prep_minutes: minutes } : b)) ?? null);
+      setPrepSaved(branch_id);
+      setTimeout(() => setPrepSaved(null), 2500);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPrepSaving(null);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -139,6 +233,118 @@ export default function DashboardPage() {
                   );
                 })
               )}
+            </div>
+
+            {/* «متوسط وقت تجهيز الطلب» — يُختم على كل طلب عند قبوله ويظهر للعميل كوقت متوقع */}
+            <div className="pcardx" data-testid="prep-minutes-card">
+              <h3>متوسط وقت تجهيز الطلب</h3>
+              <p className="muted" style={{ fontSize: 12, margin: "0 0 10px" }}>
+                هذا الرقم يظهر للعميل كوقت متوقع فور قبول طلبه — حدّثه بحسب واقع مطبخك.
+              </p>
+              {!prepBranches && <div className="skl" style={{ height: 44 }} />}
+              {prepBranches?.map((b) => (
+                <div key={b.id} className="kv" data-testid="prep-minutes-row">
+                  <span className="k">{b.name_ar}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={prepDraft[b.id] ?? b.default_prep_minutes}
+                      onChange={(e) =>
+                        setPrepDraft((d) => ({ ...d, [b.id]: Number(e.target.value) }))
+                      }
+                      data-testid="prep-minutes-input"
+                      style={{ width: 64, padding: "4px 8px", textAlign: "center" }}
+                    />
+                    <span className="muted" style={{ fontSize: 12 }}>دقيقة</span>
+                    <button
+                      className="btn"
+                      data-testid="prep-minutes-save"
+                      disabled={prepSaving === b.id || (prepDraft[b.id] ?? b.default_prep_minutes) === b.default_prep_minutes}
+                      onClick={() => void savePrep(b.id)}
+                    >
+                      {prepSaving === b.id ? "…" : prepSaved === b.id ? "✓ حُفظ" : "حفظ"}
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* مواقف الاستلام أمام كل فرع — يختار العميل موقفه من هذه القائمة فقط */}
+            <div className="pcardx" data-testid="parking-spots-card">
+              <h3>مواقف الاستلام</h3>
+              <p className="muted" style={{ fontSize: 12, margin: "0 0 10px" }}>
+                حدّد المواقف التي يخدمها فرعك — العميل يختار موقفه منها فقط، فلا يقف في مكان
+                لا يعرفه فريقك.
+              </p>
+              {!prepBranches && <div className="skl" style={{ height: 44 }} />}
+              {prepBranches?.map((b) => (
+                <div key={b.id} style={{ marginBottom: 14 }} data-testid="parking-spots-branch">
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{b.name_ar}</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                    {(spots[b.id] ?? []).length === 0 && (
+                      <span className="muted" style={{ fontSize: 12 }}>
+                        لا مواقف بعد — العميل سيصف مكانه نصياً
+                      </span>
+                    )}
+                    {(spots[b.id] ?? []).map((p) => (
+                      <span
+                        key={p.id}
+                        className="badge"
+                        data-testid="parking-spot-chip"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          opacity: p.is_active ? 1 : 0.45
+                        }}
+                      >
+                        {p.label}
+                        <button
+                          type="button"
+                          title={p.is_active ? "إيقاف الموقف مؤقتاً" : "إعادة تفعيل الموقف"}
+                          disabled={spotBusy === p.id}
+                          onClick={() => void toggleSpot(b.id, p)}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                        >
+                          {p.is_active ? "⏸" : "▶"}
+                        </button>
+                        <button
+                          type="button"
+                          title="حذف الموقف"
+                          disabled={spotBusy === p.id}
+                          onClick={() => void deleteSpot(b.id, p)}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--m-danger, #c0392b)" }}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      value={spotDraft[b.id] ?? ""}
+                      placeholder="مثال: 6 أو «أمام المدخل»"
+                      maxLength={40}
+                      data-testid="parking-spot-input"
+                      onChange={(e) => setSpotDraft((d) => ({ ...d, [b.id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void addSpot(b.id);
+                      }}
+                      style={{ flex: 1, padding: "4px 8px" }}
+                    />
+                    <button
+                      className="btn"
+                      data-testid="parking-spot-add"
+                      disabled={spotBusy === b.id || !(spotDraft[b.id] ?? "").trim()}
+                      onClick={() => void addSpot(b.id)}
+                    >
+                      {spotBusy === b.id ? "…" : "إضافة"}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="pcardx">

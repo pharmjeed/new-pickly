@@ -254,24 +254,28 @@
   font-size: var(--pk-fs-13);
   margin-top: -6px;
 }
+/* مواقف الفرع عددها متغير وأسماؤها قد تطول («أمام المدخل») — صف ملتف لا شبكة ثابتة */
 .spotGrid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 .spotBtn {
+  flex: 1 0 56px;
   min-height: 64px;
+  padding: 0 14px;
   border: 1.5px solid var(--pk-border);
   background: var(--pk-surface);
   color: var(--pk-text);
   border-radius: 16px;
   font-family: var(--pk-font-display);
-  font-size: var(--pk-fs-24);
+  font-size: var(--pk-fs-20);
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  white-space: nowrap;
 }
 .spotBtnOn {
   background: var(--pk-ink-900);

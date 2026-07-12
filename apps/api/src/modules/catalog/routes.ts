@@ -4,6 +4,7 @@ import {
   SearchQuerySchema,
   UuidSchema,
   type BranchCard,
+  type BranchParkingSpot,
   type CapacitySlot,
   type ContentBanner,
   type ContentCategory,
@@ -147,6 +148,21 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
           remaining: s.capacity - s.booked
         })
       );
+  });
+
+  /**
+   * مواقف الاستلام التي يخدمها الفرع — يحددها المطعم من بوابته ويختار العميل
+   * منها عند «وين وقفت؟» حتى لا يقف في مكان لا يعرفه المطعم (docs/14§5).
+   */
+  app.get("/branches/:id/parking-spots", async (req) => {
+    const branch_id = UuidSchema.parse((req.params as { id: string }).id);
+    const branch = await prisma.branch.findUnique({ where: { id: branch_id } });
+    if (!branch || !branch.is_active) throw new AppError("CATALOG-2001");
+    const spots = await prisma.parkingSpot.findMany({
+      where: { branch_id, is_active: true },
+      orderBy: [{ sort: "asc" }, { label: "asc" }]
+    });
+    return spots.map((s): BranchParkingSpot => ({ id: s.id, label: s.label }));
   });
 
   /** بانرات CMS (A-13) — أحدث قيمة سارية للمفتاح cms.banners */

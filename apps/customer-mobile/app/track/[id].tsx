@@ -22,11 +22,11 @@ interface Order {
   id: string;
   display_code: string;
   order_status: string;
+  branch_id: string;
   brand_name_ar: string;
   handoff_code: string | null;
+  /** الوقت المتوقع — «متوسط وقت التجهيز» المختوم عند القبول من إعدادات المطعم */
   prep_minutes: number | null;
-  /** موافقة العميل على وقت التجهيز المتوقع — null حتى يؤكد */
-  prep_time_confirmed_at: string | null;
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة الرحلة */
   preparing_at: string | null;
   ready_at: string | null;
@@ -69,7 +69,12 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
 
 const DRIVE_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
 const ARRIVED_STATES = ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"];
-const PARKING_SPOTS = [1, 2, 3, 4, 5];
+
+/** موقف استلام يخدمه الفرع — يحدده المطعم من بوابته */
+interface BranchSpot {
+  id: string;
+  label: string;
+}
 
 export default function TrackScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -78,9 +83,10 @@ export default function TrackScreen() {
   const [eta, setEta] = useState<number | null>(null);
   const tripTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Sheet الموقف (C-48)
+  // Sheet الموقف (C-48) — المواقف من تعريف الفرع لا قائمة ثابتة
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [spotSel, setSpotSel] = useState<number | null>(null);
+  const [branchSpots, setBranchSpots] = useState<BranchSpot[] | null>(null);
+  const [spotSel, setSpotSel] = useState<string | null>(null);
   const [freeText, setFreeText] = useState("");
   const [parkingLabel, setParkingLabel] = useState<string | null>(null);
   const [savingSpot, setSavingSpot] = useState(false);
@@ -89,22 +95,6 @@ export default function TrackScreen() {
   // P8: التقييم بضغطة (BR-11)
   const [reviewDone, setReviewDone] = useState(false);
   const [savingReview, setSavingReview] = useState(false);
-
-  // موافقة العميل على وقت التجهيز المتوقع الذي حدده المطعم عند القبول
-  const [confirmingPrep, setConfirmingPrep] = useState(false);
-  const [prepErr, setPrepErr] = useState<string | null>(null);
-  const confirmPrep = async () => {
-    setConfirmingPrep(true);
-    setPrepErr(null);
-    try {
-      await api("POST", `/v1/orders/${id}/confirm-prep-time`);
-      await refresh();
-    } catch (e) {
-      setPrepErr((e as Error).message);
-    } finally {
-      setConfirmingPrep(false);
-    }
-  };
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -131,6 +121,15 @@ export default function TrackScreen() {
     },
     []
   );
+
+  // مواقف الفرع المعرفة من المطعم — موقف واحد أو أكثر والعميل يختار منها
+  const branchId = order?.branch_id;
+  useEffect(() => {
+    if (!branchId) return;
+    api<BranchSpot[]>("GET", `/v1/branches/${branchId}/parking-spots`)
+      .then(setBranchSpots)
+      .catch(() => setBranchSpots([])); // لا مواقف معرفة → الوصف النصي يكفي
+  }, [branchId]);
 
   const sendLocation = useCallback(async () => {
     try {
@@ -188,13 +187,15 @@ export default function TrackScreen() {
   };
 
   const submitParking = async () => {
-    const text = spotSel !== null ? `الموقف ${spotSel}` : freeText.trim();
-    if (!text) return;
+    const chosen = branchSpots?.find((s) => s.id === spotSel) ?? null;
+    const text = freeText.trim();
+    if (!chosen && !text) return;
     setSavingSpot(true);
     setSpotErr(null);
     try {
-      await api("POST", `/v1/orders/${id}/parking-spot`, { free_text: text });
-      setParkingLabel(text);
+      // موقف معرف من الفرع → spot_id (الخادم يتحقق أنه يخص فرع الطلب)؛ وإلا وصف حر
+      await api("POST", `/v1/orders/${id}/parking-spot`, chosen ? { spot_id: chosen.id } : { free_text: text });
+      setParkingLabel(chosen ? chosen.label : text);
       setSheetOpen(false);
     } catch (e) {
       setSpotErr((e as Error).message);
@@ -319,30 +320,19 @@ export default function TrackScreen() {
         </Text>
         <Text style={[st.sub, { color: T.text2 }]}>{view.sub}</Text>
 
-        {/* موافقة العميل على وقت التجهيز المتوقع — قبل بدء التجهيز */}
-        {order.order_status === "MERCHANT_ACCEPTED" && order.prep_minutes !== null && !order.prep_time_confirmed_at && (
-          <View style={[st.card, { backgroundColor: T.surface, borderColor: T.border, alignItems: "center" }]}>
+        {/* الوقت المتوقع — من «متوسط وقت التجهيز» الذي يحدده المطعم في صفحته (قرار المالك 2026-07-12) */}
+        {["MERCHANT_ACCEPTED", "PREPARING"].includes(order.order_status) && order.prep_minutes !== null && !order.ready_at && (
+          <View
+            style={[st.card, { backgroundColor: T.surface, borderColor: T.border, alignItems: "center" }]}
+            testID="prep-expected"
+          >
             <Text style={{ color: T.text, fontSize: fs.fs15, fontWeight: "800", textAlign: "center" }}>
-              المطعم حدّد الوقت المتوقع لتجهيز طلبك
+              الوقت المتوقع لتجهيز طلبك
             </Text>
-            <Text style={st.prepMinutes}>{order.prep_minutes} دقيقة</Text>
-            <Text style={{ color: T.text2, fontSize: fs.fs13, textAlign: "center", marginBottom: 8 }}>
-              بموافقتك يبدأ المطعم التجهيز فوراً
+            <Text style={st.prepMinutes}>~{order.prep_minutes} دقيقة</Text>
+            <Text style={{ color: T.text2, fontSize: fs.fs13, textAlign: "center" }}>
+              متوسط وقت التجهيز لدى المطعم — انطلق بحسبه
             </Text>
-            {prepErr && <ErrorNote text={prepErr} />}
-            <LimeButton
-              title="موافق — ابدؤوا التجهيز"
-              disabled={confirmingPrep}
-              onPress={() => void confirmPrep()}
-              style={{ alignSelf: "stretch" }}
-            />
-          </View>
-        )}
-        {order.order_status === "MERCHANT_ACCEPTED" && order.prep_minutes !== null && order.prep_time_confirmed_at && (
-          <View style={[st.card, { backgroundColor: T.surface, borderColor: T.border, alignItems: "center" }]}>
-            <View style={st.okBadge}>
-              <Text style={st.okBadgeTxt}>✓ وافقت على وقت التجهيز — {order.prep_minutes} دقيقة</Text>
-            </View>
           </View>
         )}
 
@@ -450,27 +440,37 @@ export default function TrackScreen() {
             <View style={st.grab} />
             <Text style={st.sheetTitle}>وين وقفت؟</Text>
             <Text style={st.sheetHint}>تحديد موقفك يوصل راشد لسيارتك مباشرة — بلا لف ولا اتصال.</Text>
-            <View style={st.spotGrid}>
-              {PARKING_SPOTS.map((n) => {
-                const on = spotSel === n;
-                return (
-                  <Pressable
-                    key={n}
-                    style={[st.spotBtn, on ? st.spotBtnOn : null]}
-                    onPress={() => {
-                      setSpotSel(on ? null : n);
-                      setFreeText("");
-                    }}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                  >
-                    <Text style={[st.spotBtnTxt, on ? { color: colors.ink900 } : null]}>{n}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={st.spotGridHint}>مواقف «استلام بيكلي» المرقمة — خلف الواجهة</Text>
-            <Text style={st.label}>صف مكان سيارتك للموظف</Text>
+            {branchSpots && branchSpots.length > 0 && (
+              <>
+                <View style={st.spotGrid}>
+                  {branchSpots.map((sp) => {
+                    const on = spotSel === sp.id;
+                    return (
+                      <Pressable
+                        key={sp.id}
+                        style={[st.spotBtn, on ? st.spotBtnOn : null]}
+                        onPress={() => {
+                          setSpotSel(on ? null : sp.id);
+                          setFreeText("");
+                        }}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                      >
+                        <Text style={[st.spotBtnTxt, on ? { color: colors.ink900 } : null]}>{sp.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={st.spotGridHint}>
+                  {branchSpots.length === 1
+                    ? "المطعم يخدم هذا الموقف — اختره ليصلك طلبك مباشرة"
+                    : "المواقف التي يخدمها المطعم — اختر موقفك منها"}
+                </Text>
+              </>
+            )}
+            <Text style={st.label}>
+              {branchSpots && branchSpots.length > 0 ? "أو صف مكان سيارتك للموظف" : "صف مكان سيارتك للموظف"}
+            </Text>
             <TextInput
               style={st.inp}
               value={freeText}
@@ -588,16 +588,18 @@ const st = StyleSheet.create({
   },
   sheetTitle: { color: light.text, fontSize: fs.fs20, fontWeight: "900", textAlign: "right" },
   sheetHint: { color: light.text2, fontSize: fs.fs13, textAlign: "right", marginTop: 4, marginBottom: 12 },
-  spotGrid: { flexDirection: "row-reverse", gap: 8 },
+  spotGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
   spotBtn: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: 56,
     minHeight: touch + 4,
     borderRadius: radius,
     borderWidth: 1,
     borderColor: light.border,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: light.bg
+    backgroundColor: light.bg,
+    paddingHorizontal: 12
   },
   spotBtnOn: { backgroundColor: colors.lime500, borderColor: colors.lime500 },
   spotBtnTxt: { color: light.text, fontSize: fs.fs17, fontWeight: "800", fontVariant: ["tabular-nums"] },

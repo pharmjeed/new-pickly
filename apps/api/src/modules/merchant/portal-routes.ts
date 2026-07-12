@@ -206,6 +206,170 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
   });
 
   /**
+   * «متوسط وقت تجهيز الطلب» — قرار المالك 2026-07-12: هذا الرقم هو الوقت المتوقع
+   * الذي يُختم على كل طلب عند قبوله ويظهر للعميل — لا اختيار وقتٍ عند كل قبول.
+   */
+  app.post("/branches/:id/prep-minutes", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const branch_id = UuidSchema.parse((req.params as { id: string }).id);
+    assertBranchScope(claims, branch_id);
+    const body = z.object({ prep_minutes: z.number().int().min(1).max(120) }).parse(req.body);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.branchPickupSettings.upsert({
+        where: { branch_id },
+        create: { branch_id, default_prep_minutes: body.prep_minutes },
+        update: { default_prep_minutes: body.prep_minutes }
+      });
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "default_prep_minutes_set",
+          entity_type: "branch",
+          entity_id: branch_id,
+          merchant_id: claims.merchant_id ?? null,
+          branch_id,
+          after: { prep_minutes: body.prep_minutes } as never
+        }
+      });
+    });
+    return { branch_id, default_prep_minutes: body.prep_minutes };
+  });
+
+  // ===== مواقف الاستلام (parking_spots) — يحددها المطعم فيختار العميل منها فقط =====
+
+  const ownedBranch = async (merchant_id: string, branch_id: string) => {
+    const branch = await prisma.branch.findFirst({ where: { id: branch_id, merchant_id } });
+    if (!branch) throw new AppError("MERCHANT-7003");
+    return branch;
+  };
+
+  /** موقف ضمن ملكية التاجر ونطاق الفاعل — وإلا MERCHANT-7003 */
+  const ownedSpot = async (req: Parameters<typeof requireStaff>[0], claims: JwtClaims, id: string) => {
+    const spot = await prisma.parkingSpot.findUnique({
+      where: { id },
+      include: { branch: { select: { merchant_id: true } } }
+    });
+    if (!spot || spot.branch.merchant_id !== merchantIdOf(req)) throw new AppError("MERCHANT-7003");
+    assertBranchScope(claims, spot.branch_id);
+    return spot;
+  };
+
+  app.get("/branches/:id/parking-spots", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const branch_id = UuidSchema.parse((req.params as { id: string }).id);
+    assertBranchScope(claims, branch_id);
+    await ownedBranch(merchantIdOf(req), branch_id);
+    const spots = await prisma.parkingSpot.findMany({
+      where: { branch_id },
+      orderBy: [{ sort: "asc" }, { label: "asc" }]
+    });
+    return spots.map((s) => ({ id: s.id, label: s.label, is_active: s.is_active }));
+  });
+
+  app.post("/branches/:id/parking-spots", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const branch_id = UuidSchema.parse((req.params as { id: string }).id);
+    assertBranchScope(claims, branch_id);
+    const body = z.object({ label: z.string().trim().min(1).max(40) }).parse(req.body);
+    await ownedBranch(merchantIdOf(req), branch_id);
+
+    const dup = await prisma.parkingSpot.findUnique({
+      where: { branch_id_label: { branch_id, label: body.label } }
+    });
+    if (dup) throw new AppError("SYS-9004", { label: "هذا الموقف مضاف مسبقاً" });
+
+    const spot = await prisma.$transaction(async (tx) => {
+      const sort = await tx.parkingSpot.count({ where: { branch_id } });
+      const created = await tx.parkingSpot.create({
+        data: { branch_id, label: body.label, sort }
+      });
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "parking_spot_added",
+          entity_type: "parking_spot",
+          entity_id: created.id,
+          merchant_id: claims.merchant_id ?? null,
+          branch_id,
+          after: { label: body.label } as never
+        }
+      });
+      return created;
+    });
+    return { id: spot.id, label: spot.label, is_active: spot.is_active };
+  });
+
+  app.patch("/parking-spots/:id", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = z
+      .object({
+        label: z.string().trim().min(1).max(40).optional(),
+        is_active: z.boolean().optional()
+      })
+      .parse(req.body);
+    const spot = await ownedSpot(req, claims, id);
+
+    if (body.label && body.label !== spot.label) {
+      const dup = await prisma.parkingSpot.findUnique({
+        where: { branch_id_label: { branch_id: spot.branch_id, label: body.label } }
+      });
+      if (dup) throw new AppError("SYS-9004", { label: "هذا الموقف مضاف مسبقاً" });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.parkingSpot.update({
+        where: { id },
+        data: {
+          ...(body.label !== undefined ? { label: body.label } : {}),
+          ...(body.is_active !== undefined ? { is_active: body.is_active } : {})
+        }
+      });
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "parking_spot_updated",
+          entity_type: "parking_spot",
+          entity_id: id,
+          merchant_id: claims.merchant_id ?? null,
+          branch_id: spot.branch_id,
+          before: { label: spot.label, is_active: spot.is_active } as never,
+          after: body as never
+        }
+      });
+    });
+    return { id, ok: true };
+  });
+
+  /** حذف موقف — parking_spot_label على الطلبات لقطة نصية فلا يتأثر تاريخها */
+  app.delete("/parking-spots/:id", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const spot = await ownedSpot(req, claims, id);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.parkingSpot.delete({ where: { id } });
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "parking_spot_deleted",
+          entity_type: "parking_spot",
+          entity_id: id,
+          merchant_id: claims.merchant_id ?? null,
+          branch_id: spot.branch_id,
+          before: { label: spot.label } as never
+        }
+      });
+    });
+    return { id, deleted: true };
+  });
+
+  /**
    * M-02: الملف التعريفي — هوية المطعم كما يراها العميل في Discovery
    * (الشعار logo_url، الغلاف cover_url، الاسم، نوع المطبخ).
    */

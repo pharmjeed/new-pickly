@@ -14,11 +14,11 @@ interface Order {
   id: string;
   display_code: string;
   order_status: string;
+  branch_id: string;
   brand_name_ar: string;
   handoff_code: string | null;
+  /** الوقت المتوقع — «متوسط وقت التجهيز» المختوم عند القبول من إعدادات المطعم */
   prep_minutes: number | null;
-  /** موافقة العميل على وقت التجهيز المتوقع — null حتى يؤكد */
-  prep_time_confirmed_at: string | null;
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة الرحلة */
   preparing_at: string | null;
   ready_at: string | null;
@@ -57,7 +57,12 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
 
 const DRIVE_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
 const ARRIVED_STATES = ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"];
-const PARKING_SPOTS = [1, 2, 3, 4, 5];
+
+/** موقف استلام يخدمه الفرع — يحدده المطعم من بوابته والعميل يختار منها فقط */
+interface BranchSpot {
+  id: string;
+  label: string;
+}
 
 /* أيقونات خطية من رموز P7.html — currentColor فقط */
 const IconCar = ({ size = 24 }: { size?: number }) => (
@@ -88,13 +93,23 @@ export default function TrackPage() {
   const [eta, setEta] = useState<number | null>(null);
   const tripTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Sheet الموقف (C-48): موقف مرقم أو وصف حر — POST /v1/orders/{id}/parking-spot
+  // Sheet الموقف (C-48): مواقف الفرع المعرفة من المطعم أو وصف حر — POST /v1/orders/{id}/parking-spot
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [spotSel, setSpotSel] = useState<number | null>(null);
+  const [branchSpots, setBranchSpots] = useState<BranchSpot[] | null>(null);
+  const [spotSel, setSpotSel] = useState<string | null>(null);
   const [freeText, setFreeText] = useState("");
   const [parkingLabel, setParkingLabel] = useState<string | null>(null);
   const [savingSpot, setSavingSpot] = useState(false);
   const [spotErr, setSpotErr] = useState<string | null>(null);
+
+  // مواقف الفرع — موقف واحد أو أكثر والعميل يختار منها
+  const branchId = order?.branch_id;
+  useEffect(() => {
+    if (!branchId) return;
+    api<BranchSpot[]>("GET", `/v1/branches/${branchId}/parking-spots`)
+      .then(setBranchSpots)
+      .catch(() => setBranchSpots([])); // لا مواقف معرفة → الوصف النصي يكفي
+  }, [branchId]);
 
   const refresh = useCallback(async () => {
     try {
@@ -154,22 +169,6 @@ export default function TrackPage() {
     setSheetOpen(true);
   };
 
-  // موافقة العميل على وقت التجهيز المتوقع الذي حدده المطعم عند القبول
-  const [confirmingPrep, setConfirmingPrep] = useState(false);
-  const [prepErr, setPrepErr] = useState<string | null>(null);
-  const confirmPrep = async () => {
-    setConfirmingPrep(true);
-    setPrepErr(null);
-    try {
-      await api("POST", `/v1/orders/${id}/confirm-prep-time`);
-      await refresh();
-    } catch (e) {
-      setPrepErr((e as Error).message);
-    } finally {
-      setConfirmingPrep(false);
-    }
-  };
-
   // P8: تقييم بضغطة (BR-11)
   const [reviewDone, setReviewDone] = useState(false);
   const [savingReview, setSavingReview] = useState(false);
@@ -187,13 +186,15 @@ export default function TrackPage() {
   };
 
   const submitParking = async () => {
-    const text = spotSel !== null ? `الموقف ${spotSel}` : freeText.trim();
-    if (!text) return;
+    const chosen = branchSpots?.find((s) => s.id === spotSel) ?? null;
+    const text = freeText.trim();
+    if (!chosen && !text) return;
     setSavingSpot(true);
     setSpotErr(null);
     try {
-      await api("POST", `/v1/orders/${id}/parking-spot`, { free_text: text });
-      setParkingLabel(text);
+      // موقف معرف من الفرع → spot_id (الخادم يتحقق أنه يخص فرع الطلب)؛ وإلا وصف حر
+      await api("POST", `/v1/orders/${id}/parking-spot`, chosen ? { spot_id: chosen.id } : { free_text: text });
+      setParkingLabel(chosen ? chosen.label : text);
       setSheetOpen(false);
     } catch (e) {
       setSpotErr((e as Error).message);
@@ -276,22 +277,14 @@ export default function TrackPage() {
         <p className="pk-muted" style={{ marginBottom: 16 }}>{view.sub}</p>
 
         {/* موافقة العميل على وقت التجهيز المتوقع — قبل بدء التجهيز */}
-        {order.order_status === "MERCHANT_ACCEPTED" && order.prep_minutes !== null && !order.prep_time_confirmed_at && (
-          <div className="pk-card" data-testid="prep-confirm-card" style={{ textAlign: "center", marginBottom: 12 }}>
-            <p style={{ fontWeight: 700, marginBottom: 4 }}>المطعم حدّد الوقت المتوقع لتجهيز طلبك</p>
+        {/* الوقت المتوقع — من «متوسط وقت التجهيز» الذي يحدده المطعم في صفحته (قرار المالك 2026-07-12) */}
+        {["MERCHANT_ACCEPTED", "PREPARING"].includes(order.order_status) && order.prep_minutes !== null && !order.ready_at && (
+          <div className="pk-card" data-testid="prep-expected" style={{ textAlign: "center", marginBottom: 12 }}>
+            <p style={{ fontWeight: 700, marginBottom: 4 }}>الوقت المتوقع لتجهيز طلبك</p>
             <p className="pk-display" style={{ fontSize: "var(--pk-fs-34)", margin: "4px 0" }}>
-              <span className="pk-mono">{order.prep_minutes}</span> دقيقة
+              ~<span className="pk-mono">{order.prep_minutes}</span> دقيقة
             </p>
-            <p className="pk-muted" style={{ marginBottom: 10 }}>بموافقتك يبدأ المطعم التجهيز فوراً</p>
-            {prepErr && <p style={{ color: "var(--pk-error)", marginBottom: 8 }}>{prepErr}</p>}
-            <button className="pk-btn" data-testid="confirm-prep-time" disabled={confirmingPrep} onClick={confirmPrep}>
-              موافق — ابدؤوا التجهيز
-            </button>
-          </div>
-        )}
-        {order.order_status === "MERCHANT_ACCEPTED" && order.prep_minutes !== null && order.prep_time_confirmed_at && (
-          <div className="pk-card" data-testid="prep-confirmed-note" style={{ textAlign: "center", marginBottom: 12 }}>
-            <span className="pk-badge ok">✓ وافقت على وقت التجهيز — <span className="pk-mono">{order.prep_minutes}</span> دقيقة</span>
+            <p className="pk-muted">متوسط وقت التجهيز لدى المطعم — انطلق بحسبه</p>
           </div>
         )}
 
@@ -392,21 +385,32 @@ export default function TrackPage() {
             <div className={s.grab} />
             <b className={s.sheetTitle}>وين وقفت؟</b>
             <p className={s.sheetHint}>تحديد موقفك يوصل راشد لسيارتك مباشرة — بلا لف ولا اتصال.</p>
-            <div className={s.spotGrid}>
-              {PARKING_SPOTS.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  className={`${s.spotBtn} ${spotSel === n ? s.spotBtnOn : ""}`}
-                  onClick={() => { setSpotSel(spotSel === n ? null : n); setFreeText(""); }}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-            <p className={s.spotGridHint}>مواقف «استلام بيكلي» المرقمة — خلف الواجهة</p>
+            {branchSpots && branchSpots.length > 0 && (
+              <>
+                <div className={s.spotGrid}>
+                  {branchSpots.map((sp) => (
+                    <button
+                      key={sp.id}
+                      type="button"
+                      data-testid="parking-spot-option"
+                      className={`${s.spotBtn} ${spotSel === sp.id ? s.spotBtnOn : ""}`}
+                      onClick={() => { setSpotSel(spotSel === sp.id ? null : sp.id); setFreeText(""); }}
+                    >
+                      {sp.label}
+                    </button>
+                  ))}
+                </div>
+                <p className={s.spotGridHint}>
+                  {branchSpots.length === 1
+                    ? "المطعم يخدم هذا الموقف — اختره ليصلك طلبك مباشرة"
+                    : "المواقف التي يخدمها المطعم — اختر موقفك منها"}
+                </p>
+              </>
+            )}
             <div>
-              <label className={s.fldLabel} htmlFor="parking-free-text">صف مكان سيارتك للموظف</label>
+              <label className={s.fldLabel} htmlFor="parking-free-text">
+                {branchSpots && branchSpots.length > 0 ? "أو صف مكان سيارتك للموظف" : "صف مكان سيارتك للموظف"}
+              </label>
               <input
                 id="parking-free-text"
                 className="pk-input"
