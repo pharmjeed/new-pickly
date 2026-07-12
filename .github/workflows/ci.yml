@@ -48,6 +48,8 @@ jobs:
       - run: pnpm test
         env:
           OTP_DEV_FIXED_CODE: "1234"
+          # جوال الأدمن واحد عبر كل ملفات الاختبار — حد الإنتاج (5/ساعة) يسقطها زوراً
+          OTP_RATE_MAX_PER_WINDOW: "1000"
           SMS_PROVIDER: mock
           PAYMENT_PROVIDER: mock
           GEO_PROVIDER: mock

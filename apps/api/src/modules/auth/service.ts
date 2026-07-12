@@ -15,9 +15,9 @@ import type { TokenPair } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
 import { authRepository, type AuthRepository } from "./repository.js";
 
-/** حدود BR-13: OTP بحد محاولات وRate Limiting */
+/** حدود BR-13: OTP بحد محاولات وRate Limiting — الحد قابل للرفع في بيئة الاختبار فقط */
 const OTP_RATE_WINDOW_SECONDS = 3600;
-const OTP_RATE_MAX_PER_WINDOW = 5;
+const OTP_RATE_MAX_PER_WINDOW = Number(process.env.OTP_RATE_MAX_PER_WINDOW ?? 5);
 
 const REFRESH_TTL_MS = 30 * 24 * 3600 * 1000;
 
