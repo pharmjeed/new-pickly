@@ -2,9 +2,11 @@
  * مكوّنات مشتركة صغيرة — الألوان من theme.ts حصراً.
  * قاعدة: زر ليموني واحد لكل شاشة (LimeButton) · هدف لمس ≥ 44.
  */
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  Animated,
   Pressable,
   StyleSheet,
   Text,
@@ -15,15 +17,48 @@ import {
 } from "react-native";
 import { colors, fs, light, radius, radiusPill, shadow1, touch } from "./theme";
 
+/** السهم الموجّه — يتحرك باتجاه الإتمام (يسار في RTL) ويحترم «تقليل الحركة» */
+function NudgeArrow() {
+  const x = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    let cancelled = false;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (reduce || cancelled) return;
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(x, { toValue: -5, duration: 700, useNativeDriver: true }),
+          Animated.timing(x, { toValue: 0, duration: 700, useNativeDriver: true })
+        ])
+      );
+      loop.start();
+    });
+    return () => {
+      cancelled = true;
+      loop?.stop();
+    };
+  }, [x]);
+  return (
+    <Animated.Text
+      accessibilityElementsHidden
+      style={[st.limeArrow, { transform: [{ translateX: x }] }]}
+    >
+      ←
+    </Animated.Text>
+  );
+}
+
 export function LimeButton({
   title,
   trailing,
+  arrow,
   onPress,
   disabled,
   style
 }: {
   title: string;
   trailing?: string;
+  arrow?: boolean;
   onPress: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -35,12 +70,15 @@ export function LimeButton({
       disabled={disabled}
       style={({ pressed }) => [
         st.lime,
-        pressed && !disabled ? { backgroundColor: colors.lime300 } : null,
+        pressed && !disabled
+          ? { backgroundColor: colors.lime300, transform: [{ scale: 0.98 }] }
+          : null,
         disabled ? { opacity: 0.45 } : null,
         style
       ]}
     >
       <Text style={st.limeTxt}>{title}</Text>
+      {arrow === true && <NudgeArrow />}
       {trailing !== undefined && <Text style={st.limeTrail}>{trailing}</Text>}
     </Pressable>
   );
@@ -120,6 +158,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 18
   },
   limeTxt: { color: colors.ink900, fontSize: fs.fs16, fontWeight: "800" },
+  limeArrow: { color: colors.ink900, fontSize: fs.fs16, fontWeight: "800" },
   limeTrail: { color: colors.lime900, fontSize: fs.fs15, fontWeight: "700" },
   ghost: {
     minHeight: touch,

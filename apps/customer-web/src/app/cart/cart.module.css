@@ -189,6 +189,7 @@
   background: var(--pk-surface);
 }
 .checkout {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -206,16 +207,37 @@
   cursor: pointer;
   transition:
     background var(--pk-dur) var(--pk-ease),
-    transform var(--pk-dur) var(--pk-ease);
+    transform var(--pk-dur) var(--pk-ease),
+    box-shadow var(--pk-dur) var(--pk-ease);
+}
+/* النبض الحي على طبقة مستقلة حتى لا يزاحم ظل الارتفاع عند التمرير */
+.checkout::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--pk-radius);
+  pointer-events: none;
   animation: checkoutPulse 2.2s var(--pk-ease) infinite;
 }
 .checkout:hover {
   background: var(--pk-lime-300);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 36, 27, 0.18);
 }
 .checkout:active {
-  transform: scale(0.98);
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
 }
-/* النبض الحي — هالة ليمونية تتمدد وتتلاشى حول الزر */
+.checkoutLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* السهم الموجّه — يتحرك باتجاه الإتمام (يسار في RTL) */
+.checkoutArrow {
+  display: inline-flex;
+  animation: arrowNudge 1.4s var(--pk-ease) infinite;
+}
 @keyframes checkoutPulse {
   0% {
     box-shadow: 0 0 0 0 rgba(201, 243, 57, 0.55);
@@ -227,8 +249,18 @@
     box-shadow: 0 0 0 0 rgba(201, 243, 57, 0);
   }
 }
+@keyframes arrowNudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-5px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .checkout {
+  .checkout::after,
+  .checkoutArrow {
     animation: none;
   }
 }

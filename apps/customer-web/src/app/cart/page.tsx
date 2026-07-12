@@ -218,7 +218,12 @@ export default function CartPage() {
             data-testid="go-checkout"
             onClick={() => router.push("/checkout")}
           >
-            <span>متابعة الإتمام</span>
+            <span className={styles.checkoutLabel}>
+              متابعة الإتمام
+              <span className={styles.checkoutArrow} aria-hidden="true">
+                ←
+              </span>
+            </span>
             <AnimatedSar halalas={cart.quote.total_halalas} className={styles.checkoutTotal} />
           </button>
         </div>

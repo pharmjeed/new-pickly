@@ -266,6 +266,7 @@ export default function CartScreen() {
           <PulseRing />
           <LimeButton
             title="متابعة الإتمام"
+            arrow
             trailing={fmtSar(shownTotal)}
             onPress={() => router.push("/checkout")}
           />
