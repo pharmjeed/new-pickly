@@ -47,6 +47,7 @@ export default function RestaurantsScreen() {
   const { c } = useLocalSearchParams<{ c?: string }>();
   const [cuisine, setCuisine] = useState<string | null>(typeof c === "string" && c ? c : null);
   const [branches, setBranches] = useState<BranchCard[] | null>(null);
+  const [adminCats, setAdminCats] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -69,16 +70,25 @@ export default function RestaurantsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // تصنيفات C-09 من السوبر أدمن — ميزة تحسين، السقوط للاشتقاق التلقائي
+  useEffect(() => {
+    api<Array<{ name_ar: string }>>("GET", "/v1/content/categories")
+      .then((list) => setAdminCats(list.map((x) => x.name_ar)))
+      .catch(() => setAdminCats([]));
+  }, []);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await load();
     setRefreshing(false);
   };
 
-  const cats = new Map<string, number>();
+  const counts = new Map<string, number>();
   for (const b of branches ?? []) {
-    if (b.cuisine_ar) cats.set(b.cuisine_ar, (cats.get(b.cuisine_ar) ?? 0) + 1);
+    if (b.cuisine_ar) counts.set(b.cuisine_ar, (counts.get(b.cuisine_ar) ?? 0) + 1);
   }
+  const cats: string[] =
+    adminCats && adminCats.length > 0 ? adminCats : [...counts.keys()];
   const filtered = (branches ?? []).filter((b) => !cuisine || b.cuisine_ar === cuisine);
 
   return (
@@ -106,7 +116,7 @@ export default function RestaurantsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />
           }
           ListHeaderComponent={
-            cats.size > 0 ? (
+            cats.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.chips}>
                 <Pressable
                   onPress={() => setCuisine(null)}
@@ -115,7 +125,7 @@ export default function RestaurantsScreen() {
                 >
                   <Text style={[st.chipTxt, cuisine === null ? st.chipTxtOn : null]}>الكل</Text>
                 </Pressable>
-                {[...cats.keys()].map((name) => (
+                {cats.map((name) => (
                   <Pressable
                     key={name}
                     onPress={() => setCuisine(name)}

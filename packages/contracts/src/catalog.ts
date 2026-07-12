@@ -117,3 +117,9 @@ export const ContentBannerSchema = z.object({
   link: z.string().nullable()
 });
 export type ContentBanner = z.infer<typeof ContentBannerSchema>;
+
+/** GET /v1/content/categories — تصنيفات المطاعم (C-09) بترتيب السوبر أدمن (cms.categories) */
+export const ContentCategorySchema = z.object({
+  name_ar: z.string()
+});
+export type ContentCategory = z.infer<typeof ContentCategorySchema>;

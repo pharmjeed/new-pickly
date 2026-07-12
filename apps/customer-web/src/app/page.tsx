@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { AppHead, IStore, TabBar, cuisineIcon, useNearby } from "./shell";
+import { AppHead, IStore, TabBar, cuisineIcon, useCategories, useNearby } from "./shell";
 import styles from "./page.module.css";
 
 interface Banner {
@@ -93,12 +93,8 @@ function Banners() {
 
 export default function HomePage() {
   const { branches, error, locLabel, coords } = useNearby();
-
-  // تصنيفات المطاعم — تُشتق من مطابخ الفروع القريبة (brand.cuisine_ar) بعددها
-  const cats = new Map<string, number>();
-  for (const b of branches ?? []) {
-    if (b.cuisine_ar) cats.set(b.cuisine_ar, (cats.get(b.cuisine_ar) ?? 0) + 1);
-  }
+  // تصنيفات C-09 — قائمة السوبر أدمن بترتيبها، أو الاشتقاق من الفروع القريبة
+  const cats = useCategories(branches);
 
   return (
     <main className={styles.page}>
@@ -115,7 +111,7 @@ export default function HomePage() {
         <Banners />
 
         {/* تصنيفات المطاعم */}
-        {!branches && !error && (
+        {(!branches || cats === null) && !error && (
           <div className={styles.col} aria-label="جارٍ التحميل" aria-busy="true">
             <div className={`${styles.skl} ${styles.sklH96}`} />
             <div className={`${styles.skl} ${styles.sklH64}`} />
@@ -123,12 +119,12 @@ export default function HomePage() {
           </div>
         )}
 
-        {branches && (
+        {branches && cats !== null && (
           <>
             <div className={styles.sech}>
               <h2>التصنيفات</h2>
             </div>
-            {cats.size === 0 ? (
+            {cats.length === 0 ? (
               <div className={styles.empty}>
                 <div className={styles.emptyIc}>
                   <IStore />
@@ -138,7 +134,7 @@ export default function HomePage() {
               </div>
             ) : (
               <div className={styles.cats} data-testid="home-cats">
-                {[...cats.entries()].map(([name, count]) => (
+                {cats.map(({ name, count }) => (
                   <Link
                     key={name}
                     href={`/restaurants?c=${encodeURIComponent(name)}`}

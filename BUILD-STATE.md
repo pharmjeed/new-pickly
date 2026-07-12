@@ -21,6 +21,14 @@
 `apps/customer-web/src/app/shell.tsx`. بانران افتراضيان في seed، وPlaywright j1 يمر عبر
 زر «كل المطاعم».
 
+**إدارة كاملة من السوبر أدمن (CMS):** التصنيفات صارت قائمة يديرها الأدمن في
+`system_settings:cms.categories` (إضافة/حذف/ترتيب ↑↓/تفعيل، سجل تاريخي كالبانرات) عبر
+`GET/POST /admin/cms/categories` + عام `GET /v1/content/categories` (47 مساراً OpenAPI) ·
+جدول «تصنيف كل مطعم» في CMS يسند `brand.cuisine_ar` عبر `GET /admin/brands` +
+`POST /admin/brands/:id/cuisine` (تدقيق بسبب) · واجهات العميل (ويب `useCategories` في shell +
+جوال) تعرض قائمة الأدمن بترتيبها (تشمل عدّ 0) وتسقط للاشتقاق التلقائي إن كانت فارغة ·
+seed: 3 تصنيفات افتراضية.
+
 ## قرار جذري (المالك 2026-07-11): الدفع بعد القبول — مطبق end-to-end
 
 الرحلة الجديدة (docs/03 J1 + docs/05§2-3 + docs/06 BR-2 + docs/13§3 محدثة كلها):

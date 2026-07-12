@@ -129,6 +129,7 @@ function Banners() {
 
 export default function HomeScreen() {
   const [branches, setBranches] = useState<BranchCard[] | null>(null);
+  const [adminCats, setAdminCats] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [locLabel, setLocLabel] = useState("الرياض");
   const [refreshing, setRefreshing] = useState(false);
@@ -158,6 +159,13 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // تصنيفات C-09 من السوبر أدمن — ميزة تحسين، السقوط للاشتقاق التلقائي
+  useEffect(() => {
+    api<Array<{ name_ar: string }>>("GET", "/v1/content/categories")
+      .then((c) => setAdminCats(c.map((x) => x.name_ar)))
+      .catch(() => setAdminCats([]));
+  }, []);
+
   // بحث C-11 بتهدئة 300ms — النتائج من الخادم حصراً
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -183,11 +191,15 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  // تصنيفات المطاعم — من مطابخ الفروع القريبة بعددها
-  const cats = new Map<string, number>();
+  // تصنيفات المطاعم — قائمة السوبر أدمن بترتيبها إن وُجدت، وإلا من مطابخ الفروع القريبة
+  const counts = new Map<string, number>();
   for (const b of branches ?? []) {
-    if (b.cuisine_ar) cats.set(b.cuisine_ar, (cats.get(b.cuisine_ar) ?? 0) + 1);
+    if (b.cuisine_ar) counts.set(b.cuisine_ar, (counts.get(b.cuisine_ar) ?? 0) + 1);
   }
+  const cats: Array<{ name: string; count: number }> =
+    adminCats && adminCats.length > 0
+      ? adminCats.map((name) => ({ name, count: counts.get(name) ?? 0 }))
+      : [...counts.entries()].map(([name, count]) => ({ name, count }));
 
   return (
     <SafeAreaView style={st.screen} edges={["top"]}>
@@ -280,14 +292,14 @@ export default function HomeScreen() {
           <Banners />
 
           <Text style={st.section}>التصنيفات</Text>
-          {cats.size === 0 ? (
+          {cats.length === 0 ? (
             <View style={st.empty}>
               <Text style={st.emptyTitle}>ما فيه مطاعم قريبة منك الآن</Text>
               <Text style={st.emptyTxt}>بيكلي يتوسع — جرّب من موقع آخر أو عُد لاحقاً</Text>
             </View>
           ) : (
             <View style={st.cats}>
-              {[...cats.entries()].map(([name, count]) => (
+              {cats.map(({ name, count }) => (
                 <Pressable
                   key={name}
                   style={({ pressed }) => [st.catCard, pressed ? { backgroundColor: colors.lime100 } : null]}

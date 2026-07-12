@@ -6,6 +6,7 @@ import {
   type BranchCard,
   type CapacitySlot,
   type ContentBanner,
+  type ContentCategory,
   type Menu,
   type SearchResponse
 } from "@pickly/contracts";
@@ -155,6 +156,17 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
       orderBy: { effective_at: "desc" }
     });
     return (setting?.value ?? []) as ContentBanner[];
+  });
+
+  /** تصنيفات المطاعم C-09 — قائمة يديرها السوبر أدمن (cms.categories) بترتيبها؛ الفعّالة فقط */
+  app.get("/content/categories", async () => {
+    const setting = await prisma.systemSetting.findFirst({
+      where: { key: "cms.categories", effective_at: { lte: new Date() } },
+      orderBy: { effective_at: "desc" }
+    });
+    const stored = (setting?.value ?? []) as Array<{ name_ar: string; is_active: boolean }>;
+    const active: ContentCategory[] = stored.filter((c) => c.is_active).map((c) => ({ name_ar: c.name_ar }));
+    return active;
   });
 
   app.get("/branches/nearby", async (req) => {

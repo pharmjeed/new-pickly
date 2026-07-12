@@ -2,8 +2,10 @@
 
 /**
  * A-13: CMS (مرحلة 2) — FR-A10:
- * قوالب الإشعارات (notification_templates — docs/15§48) تحرير نص + تفعيل،
- * وبانرات التطبيق (system_settings: cms.banners — سجل تاريخي بالتاريخ الساري).
+ * بانرات رئيسية العميل (system_settings: cms.banners — سجل تاريخي بالتاريخ الساري)،
+ * تصنيفات المطاعم C-09 (cms.categories: إضافة/حذف/ترتيب/تفعيل)،
+ * إسناد تصنيف كل مطعم (brand.cuisine_ar)،
+ * وقوالب الإشعارات (notification_templates — docs/15§48).
  */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -25,26 +27,56 @@ type Banner = {
   link: string | null;
 };
 
+type Category = {
+  name_ar: string;
+  is_active: boolean;
+};
+
+type BrandRow = {
+  id: string;
+  name_ar: string;
+  merchant_name_ar: string;
+  cuisine_ar: string | null;
+  is_active: boolean;
+};
+
+type PendingSave =
+  | { kind: "template" }
+  | { kind: "banners" }
+  | { kind: "categories" }
+  | { kind: "brand"; brand: BrandRow; cuisine: string | null };
+
 export default function Cms() {
   const router = useRouter();
   const [templates, setTemplates] = useState<Template[] | null>(null);
   const [banners, setBanners] = useState<Banner[] | null>(null);
+  const [categories, setCategories] = useState<Category[] | null>(null);
+  const [brands, setBrands] = useState<BrandRow[] | null>(null);
   const [editing, setEditing] = useState<Template | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [pendingSave, setPendingSave] = useState<"template" | "banners" | null>(null);
+  const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
   const [bannersDirty, setBannersDirty] = useState(false);
+  const [categoriesDirty, setCategoriesDirty] = useState(false);
+  // اختيار التصنيف لكل مطعم قبل الحفظ (brand_id → cuisine)
+  const [brandCuisine, setBrandCuisine] = useState<Record<string, string>>({});
 
   const load = useCallback(() => {
     Promise.all([
       apiGet<Template[]>("/api/v1/admin/cms/templates"),
-      apiGet<{ banners: Banner[] }>("/api/v1/admin/cms/banners")
+      apiGet<{ banners: Banner[] }>("/api/v1/admin/cms/banners"),
+      apiGet<{ categories: Category[] }>("/api/v1/admin/cms/categories"),
+      apiGet<BrandRow[]>("/api/v1/admin/brands")
     ])
-      .then(([tpls, b]) => {
+      .then(([tpls, b, cats, br]) => {
         setTemplates(tpls);
         setBanners(b.banners);
+        setCategories(cats.categories);
+        setBrands(br);
+        setBrandCuisine(Object.fromEntries(br.map((x) => [x.id, x.cuisine_ar ?? ""])));
         setBannersDirty(false);
+        setCategoriesDirty(false);
       })
       .catch((e: unknown) => {
         if (e instanceof ApiError && e.status === 401) {
@@ -58,10 +90,11 @@ export default function Cms() {
   useEffect(load, [load]);
 
   const confirmSave = async (reason: string) => {
+    if (!pendingSave) return;
     setBusy(true);
     setError(null);
     try {
-      if (pendingSave === "template" && editing) {
+      if (pendingSave.kind === "template" && editing) {
         await apiPost(`/api/v1/admin/cms/templates/${editing.key}`, {
           title_ar: editing.title_ar,
           body_ar: editing.body_ar,
@@ -70,9 +103,18 @@ export default function Cms() {
         });
         setNotice(`حُفظ القالب ${editing.key}`);
         setEditing(null);
-      } else if (pendingSave === "banners" && banners) {
+      } else if (pendingSave.kind === "banners" && banners) {
         await apiPost("/api/v1/admin/cms/banners", { banners, reason });
         setNotice("حُفظت البانرات — تسري فوراً في التطبيق");
+      } else if (pendingSave.kind === "categories" && categories) {
+        await apiPost("/api/v1/admin/cms/categories", { categories, reason });
+        setNotice("حُفظت التصنيفات — تسري فوراً في رئيسية العميل");
+      } else if (pendingSave.kind === "brand") {
+        await apiPost(`/api/v1/admin/brands/${pendingSave.brand.id}/cuisine`, {
+          cuisine_ar: pendingSave.cuisine,
+          reason
+        });
+        setNotice(`حُفظ تصنيف ${pendingSave.brand.name_ar}`);
       }
       setPendingSave(null);
       load();
@@ -88,6 +130,37 @@ export default function Cms() {
     setBanners(banners.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
     setBannersDirty(true);
   };
+
+  const setCategory = (i: number, patch: Partial<Category>) => {
+    if (!categories) return;
+    setCategories(categories.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+    setCategoriesDirty(true);
+  };
+
+  const moveCategory = (i: number, dir: -1 | 1) => {
+    if (!categories) return;
+    const j = i + dir;
+    if (j < 0 || j >= categories.length) return;
+    const next = [...categories];
+    const a = next[i];
+    const b = next[j];
+    if (!a || !b) return;
+    next[i] = b;
+    next[j] = a;
+    setCategories(next);
+    setCategoriesDirty(true);
+  };
+
+  const modalTitle =
+    pendingSave?.kind === "template"
+      ? `حفظ القالب ${editing?.key ?? ""}`
+      : pendingSave?.kind === "banners"
+        ? "حفظ بانرات التطبيق"
+        : pendingSave?.kind === "categories"
+          ? "حفظ تصنيفات المطاعم"
+          : pendingSave?.kind === "brand"
+            ? `حفظ تصنيف ${pendingSave.brand.name_ar}`
+            : "";
 
   return (
     <>
@@ -112,7 +185,7 @@ export default function Cms() {
               >
                 + بانر
               </button>
-              <button type="button" className="btn sm" disabled={!bannersDirty || busy} data-testid="banners-save" onClick={() => setPendingSave("banners")}>
+              <button type="button" className="btn sm" disabled={!bannersDirty || busy} data-testid="banners-save" onClick={() => setPendingSave({ kind: "banners" })}>
                 حفظ البانرات
               </button>
             </span>
@@ -149,6 +222,139 @@ export default function Cms() {
                 </button>
               </div>
             ))}
+          </div>
+          <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+            بلا صورة يظهر البانر بخلفية داكنة بالعنوان والنص · مع رابط صورة تظهر الصورة خلفية كاملة · تتحرك تلقائياً كل 4 ثوانٍ.
+          </p>
+        </div>
+      )}
+
+      {categories && (
+        <div className="pcardx" style={{ marginTop: 14 }} data-testid="cms-categories">
+          <h3>
+            تصنيفات المطاعم (C-09)
+            <span className="sp">
+              <button
+                type="button"
+                className="btn sm"
+                style={{ marginInlineEnd: 6 }}
+                data-testid="category-add"
+                onClick={() => {
+                  setCategories([...categories, { name_ar: "", is_active: true }]);
+                  setCategoriesDirty(true);
+                }}
+              >
+                + تصنيف
+              </button>
+              <button
+                type="button"
+                className="btn sm"
+                disabled={!categoriesDirty || busy}
+                data-testid="categories-save"
+                onClick={() => setPendingSave({ kind: "categories" })}
+              >
+                حفظ التصنيفات
+              </button>
+            </span>
+          </h3>
+          {categories.length === 0 && (
+            <p className="muted" style={{ fontSize: 13 }}>
+              لا تصنيفات — بلا قائمة هنا تُشتق التصنيفات تلقائياً من المطاعم القريبة للعميل.
+            </p>
+          )}
+          <div style={{ display: "grid", gap: 8 }}>
+            {categories.map((c, i) => (
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "auto auto 1fr auto auto", gap: 8, alignItems: "center" }} data-testid="category-row">
+                <button type="button" className="btn sm" disabled={i === 0} aria-label="أعلى" onClick={() => moveCategory(i, -1)}>
+                  ↑
+                </button>
+                <button type="button" className="btn sm" disabled={i === categories.length - 1} aria-label="أسفل" onClick={() => moveCategory(i, 1)}>
+                  ↓
+                </button>
+                <input
+                  className="inp"
+                  placeholder="اسم التصنيف — برجر، شاورما، مقهى…"
+                  value={c.name_ar}
+                  onChange={(e) => setCategory(i, { name_ar: e.target.value })}
+                  data-testid="category-name"
+                />
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, whiteSpace: "nowrap" }}>
+                  <input type="checkbox" checked={c.is_active} onChange={(e) => setCategory(i, { is_active: e.target.checked })} />
+                  فعال
+                </label>
+                <button
+                  type="button"
+                  className="btn sm dgh"
+                  onClick={() => {
+                    setCategories(categories.filter((_, idx) => idx !== i));
+                    setCategoriesDirty(true);
+                  }}
+                >
+                  حذف
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+            الترتيب هنا هو ترتيب الظهور في رئيسية العميل · المعطل يختفي فوراً · اربط كل مطعم بتصنيفه من الجدول أدناه.
+          </p>
+        </div>
+      )}
+
+      {brands && (
+        <div className="pcardx" style={{ marginTop: 14 }} data-testid="cms-brands">
+          <h3>تصنيف كل مطعم</h3>
+          <div className="tblwrap">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>المطعم</th>
+                  <th>التاجر</th>
+                  <th>التصنيف</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {brands.map((b) => (
+                  <tr key={b.id} data-testid="brand-row">
+                    <td><b>{b.name_ar}</b></td>
+                    <td>{b.merchant_name_ar}</td>
+                    <td>
+                      <select
+                        className="inp"
+                        value={brandCuisine[b.id] ?? ""}
+                        onChange={(e) => setBrandCuisine({ ...brandCuisine, [b.id]: e.target.value })}
+                        data-testid="brand-cuisine"
+                      >
+                        <option value="">— بدون تصنيف —</option>
+                        {(categories ?? []).map((c) => (
+                          <option key={c.name_ar} value={c.name_ar}>
+                            {c.name_ar}
+                          </option>
+                        ))}
+                        {/* تصنيف حالي غير موجود في القائمة — يبقى قابلاً للعرض */}
+                        {b.cuisine_ar && !(categories ?? []).some((c) => c.name_ar === b.cuisine_ar) && (
+                          <option value={b.cuisine_ar}>{b.cuisine_ar}</option>
+                        )}
+                      </select>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        disabled={busy || (brandCuisine[b.id] ?? "") === (b.cuisine_ar ?? "")}
+                        data-testid="brand-cuisine-save"
+                        onClick={() =>
+                          setPendingSave({ kind: "brand", brand: b, cuisine: (brandCuisine[b.id] ?? "").trim() || null })
+                        }
+                      >
+                        حفظ
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -203,7 +409,7 @@ export default function Cms() {
               القالب فعال
             </label>
             <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" className="btn sm" disabled={busy} onClick={() => setPendingSave("template")} data-testid="template-save">
+              <button type="button" className="btn sm" disabled={busy} onClick={() => setPendingSave({ kind: "template" })} data-testid="template-save">
                 حفظ القالب
               </button>
               <button type="button" className="btn sm dgh" onClick={() => setEditing(null)}>إلغاء</button>
@@ -218,7 +424,7 @@ export default function Cms() {
 
       {pendingSave && (
         <ReasonModal
-          title={pendingSave === "template" ? `حفظ القالب ${editing?.key ?? ""}` : "حفظ بانرات التطبيق"}
+          title={modalTitle}
           confirmLabel="حفظ"
           busy={busy}
           onConfirm={confirmSave}

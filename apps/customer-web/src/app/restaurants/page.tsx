@@ -7,7 +7,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AppHead, IStore, RestaurantCard, TabBar, useNearby } from "../shell";
+import { AppHead, IStore, RestaurantCard, TabBar, useCategories, useNearby } from "../shell";
 import styles from "../page.module.css";
 
 function RestaurantsList() {
@@ -15,10 +15,8 @@ function RestaurantsList() {
   const params = useSearchParams();
   const cuisine = params.get("c");
 
-  const cats = new Map<string, number>();
-  for (const b of branches ?? []) {
-    if (b.cuisine_ar) cats.set(b.cuisine_ar, (cats.get(b.cuisine_ar) ?? 0) + 1);
-  }
+  // تصنيفات C-09 — قائمة السوبر أدمن بترتيبها، أو الاشتقاق من الفروع القريبة
+  const cats = useCategories(branches) ?? [];
   const filtered = (branches ?? []).filter((b) => !cuisine || b.cuisine_ar === cuisine);
 
   return (
@@ -47,12 +45,12 @@ function RestaurantsList() {
             </div>
 
             {/* chips التصنيفات — «الكل» + المطابخ المتوفرة قريباً */}
-            {cats.size > 0 && (
+            {cats.length > 0 && (
               <div className={styles.chips} data-testid="cuisine-chips">
                 <Link href="/restaurants" className={cuisine ? styles.chip : `${styles.chip} ${styles.chipOn}`}>
                   الكل
                 </Link>
-                {[...cats.keys()].map((name) => (
+                {cats.map(({ name }) => (
                   <Link
                     key={name}
                     href={`/restaurants?c=${encodeURIComponent(name)}`}

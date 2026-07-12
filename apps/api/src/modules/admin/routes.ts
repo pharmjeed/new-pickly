@@ -638,6 +638,82 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
+  // ===== تصنيفات المطاعم C-09 — قائمة بترتيبها في system_settings:cms.categories =====
+
+  app.get("/cms/categories", async (req) => {
+    requireAdmin(req, ALL_READ);
+    const setting = await prisma.systemSetting.findFirst({
+      where: { key: "cms.categories" },
+      orderBy: { effective_at: "desc" }
+    });
+    return { categories: setting?.value ?? [] };
+  });
+
+  /** تُحفظ صفاً جديداً — system_settings سجل تاريخي (key, effective_at) */
+  app.post("/cms/categories", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin", "operations"]);
+    const body = z
+      .object({
+        categories: z
+          .array(
+            z.object({
+              name_ar: z.string().trim().min(1).max(40),
+              is_active: z.boolean().default(true)
+            })
+          )
+          .max(30)
+          .refine(
+            (cats) => new Set(cats.map((c) => c.name_ar)).size === cats.length,
+            "أسماء التصنيفات يجب أن تكون فريدة"
+          ),
+        reason: z.string().min(3)
+      })
+      .parse(req.body);
+    const setting = await prisma.systemSetting.create({
+      data: { key: "cms.categories", value: body.categories as never, created_by: sub }
+    });
+    await audit(sub, "cms_categories_saved", "system_setting", setting.id, body.reason, {
+      count: body.categories.length
+    });
+    return { ok: true };
+  });
+
+  // ===== العلامات: إسناد تصنيف كل مطعم (brand.cuisine_ar) — تصفية C-09 تعتمد عليه =====
+
+  app.get("/brands", async (req) => {
+    requireAdmin(req, ALL_READ);
+    const brands = await prisma.brand.findMany({
+      include: { merchant: { select: { name_ar: true } } },
+      orderBy: { created_at: "asc" }
+    });
+    return brands.map((b) => ({
+      id: b.id,
+      name_ar: b.name_ar,
+      merchant_name_ar: b.merchant.name_ar,
+      cuisine_ar: b.cuisine_ar,
+      is_active: b.is_active
+    }));
+  });
+
+  app.post("/brands/:id/cuisine", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin", "operations"]);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = z
+      .object({
+        cuisine_ar: z.string().trim().max(40).nullable(),
+        reason: z.string().min(3)
+      })
+      .parse(req.body);
+    const brand = await prisma.brand.update({
+      where: { id },
+      data: { cuisine_ar: body.cuisine_ar || null }
+    });
+    await audit(sub, "brand_cuisine_set", "brand", brand.id, body.reason, {
+      cuisine_ar: body.cuisine_ar
+    });
+    return { ok: true };
+  });
+
   // ===== A-16: المخاطر — إشارات docs/17§6 محسوبة من البيانات القائمة =====
 
   app.get("/risk/alerts", async (req) => {

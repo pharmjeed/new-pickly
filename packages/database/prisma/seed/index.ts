@@ -152,6 +152,15 @@ async function seedSystemDefaults() {
         { title_ar: "خليك في السيارة وطلبك يجيك", body_ar: "اطلب وادفع وقُد — نجهّز طلبك موقوتاً بوصولك", image_url: null, link: "/restaurants" },
         { title_ar: "بلا طوابير وبلا نزول", body_ar: "رمز تحقق واحد ويوصل طلبك لشباك سيارتك", image_url: null, link: null }
       ]
+    ],
+    // تصنيفات المطاعم C-09 — يديرها السوبر أدمن (إضافة/حذف/ترتيب/تفعيل)
+    [
+      "cms.categories",
+      [
+        { name_ar: "برجر", is_active: true },
+        { name_ar: "شاورما", is_active: true },
+        { name_ar: "مقهى", is_active: true }
+      ]
     ]
   ];
   for (const [key, value] of settings) {

@@ -2115,6 +2115,151 @@
         }
       }
     },
+    "/v1/content/categories": {
+      "get": {
+        "summary": "تصنيفات المطاعم C-09 (يديرها السوبر أدمن)",
+        "tags": [
+          "discovery"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name_ar": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name_ar"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/carts": {
       "post": {
         "summary": "إنشاء سلة",

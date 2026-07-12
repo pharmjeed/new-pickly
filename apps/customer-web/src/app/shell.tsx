@@ -225,6 +225,31 @@ export function useNearby(): {
   return { branches, error, locLabel, coords };
 }
 
+/**
+ * تصنيفات C-09 مرتبةً: قائمة السوبر أدمن (cms.categories) إن وُجدت — بعدد المطاعم القريبة
+ * لكل تصنيف (وقد يكون صفراً)؛ وإلا تُشتق من مطابخ الفروع القريبة.
+ */
+export function useCategories(branches: BranchCard[] | null): Array<{ name: string; count: number }> | null {
+  const [adminCats, setAdminCats] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    api<Array<{ name_ar: string }>>("GET", "/v1/content/categories")
+      .then((cats) => setAdminCats(cats.map((c) => c.name_ar)))
+      .catch(() => setAdminCats([])); // ميزة تحسين — السقوط للاشتقاق التلقائي
+  }, []);
+
+  if (branches === null || adminCats === null) return null;
+
+  const counts = new Map<string, number>();
+  for (const b of branches) {
+    if (b.cuisine_ar) counts.set(b.cuisine_ar, (counts.get(b.cuisine_ar) ?? 0) + 1);
+  }
+  if (adminCats.length > 0) {
+    return adminCats.map((name) => ({ name, count: counts.get(name) ?? 0 }));
+  }
+  return [...counts.entries()].map(([name, count]) => ({ name, count }));
+}
+
 /** رأس التطبيق: موقع الاستلام + جرس C-62 + بحث C-11/C-12 بنتائجه */
 export function AppHead({ locLabel, coords }: { locLabel: string; coords: { lat: number; lng: number } }) {
   const [q, setQ] = useState("");

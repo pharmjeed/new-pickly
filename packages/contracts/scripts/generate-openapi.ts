@@ -55,6 +55,7 @@ const routes: RouteDef[] = [
   { method: "get", path: "/v1/search", summary: "بحث C-11 — مطاعم ومنتجات", tags: ["discovery"], query: c.SearchQuerySchema, response: c.SearchResponseSchema },
   { method: "get", path: "/v1/branches/{id}/slots", summary: "فترات BR-5 المتاحة بسعتها", tags: ["discovery"], response: z.array(c.CapacitySlotSchema) },
   { method: "get", path: "/v1/content/banners", summary: "بانرات CMS (A-13)", tags: ["discovery"], response: z.array(c.ContentBannerSchema) },
+  { method: "get", path: "/v1/content/categories", summary: "تصنيفات المطاعم C-09 (يديرها السوبر أدمن)", tags: ["discovery"], response: z.array(c.ContentCategorySchema) },
   // §3 السلة
   { method: "post", path: "/v1/carts", summary: "إنشاء سلة", tags: ["carts"], auth: true, body: c.CreateCartBodySchema, response: c.CartSchema },
   { method: "get", path: "/v1/carts/{id}", summary: "قراءة السلة", tags: ["carts"], auth: true, response: c.CartSchema },
