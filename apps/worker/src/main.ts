@@ -14,17 +14,11 @@ const { writeCustomerNotifications } = await import("./handlers/notifications.js
 const { handleScheduledSlotEntry, handleScheduledReminder, handleScheduledExpire, startWeeklySlotRoll } = await import(
   "./handlers/scheduled.js"
 );
-const { handlePrepConfirmTimeout, handlePaymentTimeout } = await import(
-  "./handlers/post-accept-timeouts.js"
-);
 const { registerEventHandler } = await import("./outbox-publisher.js");
 
 registerEventHandler(publishToRealtime);
 registerEventHandler(writeCustomerNotifications);
 registerJobHandler("accept_timeout", handleAcceptTimeout);
-// مهلتا ما بعد القبول (5 د لكلٍّ) — docs/06 BR-2
-registerJobHandler("prep_confirm_timeout", handlePrepConfirmTimeout);
-registerJobHandler("payment_timeout", handlePaymentTimeout);
 registerJobHandler("no_show_reminder", handleNoShowReminder);
 registerJobHandler("no_show_check", handleNoShowCheck);
 registerJobHandler("scheduled_slot_entry", handleScheduledSlotEntry);

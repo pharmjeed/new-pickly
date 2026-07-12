@@ -107,14 +107,6 @@ export async function merchantRoutes(app: FastifyInstance): Promise<void> {
     return service.arrivalQueue(q.branch_id);
   });
 
-  /** رادار الوصول — docs/14§5-مكرر: ETA لكل عميل متجه مقابل تقدم التجهيز */
-  app.get("/radar", async (req) => {
-    const claims = requireStaff(req, VIEW_ROLES);
-    const q = z.object({ branch_id: UuidSchema }).parse(req.query);
-    assertBranchScope(claims, q.branch_id);
-    return service.radar(q.branch_id);
-  });
-
   /** رمز التسليم لبطاقة الفرع — للتحقق البصري في KDS (يظهر للطلب النشط فقط) */
   app.get("/orders/:id/details", async (req) => {
     const claims = requireStaff(req, VIEW_ROLES);

@@ -54,8 +54,6 @@ const EVENT_TEMPLATES: Record<string, string> = {
   "order.created": "order_submitted",
   "merchant.order_accepted": "order_accepted",
   "merchant.order_rejected": "order_rejected",
-  // الدفع بعد القبول: نجاح الدفع يبدأ التحضير — نطمئن العميل وننطلقه (CN-04)
-  "order.preparing": "order_preparing",
   "handoff.started": "handoff_started",
   "order.completed": "order_completed",
   "refund.completed": "refund_completed"
@@ -91,11 +89,7 @@ export async function writeCustomerNotifications(raw: unknown): Promise<void> {
       user_id: order.user_id,
       order_id,
       template_key,
-      vars: {
-        display_code: order.display_code,
-        // قالب القبول يعرض الوقت المتوقع ويطلب الموافقة والدفع (CN-02)
-        prep_minutes: order.prep_minutes !== null ? String(order.prep_minutes) : ""
-      },
+      vars: { display_code: order.display_code },
       dedupe_key: envelope.event_id
     });
   });

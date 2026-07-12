@@ -79,7 +79,7 @@ export default function () {
   const quoted = http.post(`${BASE}/v1/carts/${cartId}/quote`, null, { headers: authNoBody });
   const quote = json(quoted).quote;
 
-  // الطلب — الدفع بعد القبول (docs/05§3): الإرسال بلا دفع يصل الفرع مباشرة
+  // الطلب + الدفع
   const order = http.post(
     `${BASE}/v1/orders`,
     JSON.stringify({
@@ -91,10 +91,16 @@ export default function () {
     { headers: { ...auth, "Idempotency-Key": `${phone}-${Date.now()}` } }
   );
   const orderId = json(order).id;
-  check(order, {
-    "order created": (r) => r.status === 200 && orderId,
-    "submitted to merchant": (r) => json(r).order_status === "MERCHANT_PENDING"
+  const ok = check(order, { "order created": (r) => r.status === 200 && orderId });
+  if (!ok) return;
+
+  http.post(`${BASE}/v1/orders/${orderId}/payment-intent`, null, {
+    headers: { Authorization: auth.Authorization, "Idempotency-Key": `pi-${phone}-${Date.now()}` }
   });
+  const pay = http.post(`${BASE}/v1/dev/mock-gateway/by-order/${orderId}/pay`, "{}", {
+    headers: h
+  });
+  check(pay, { "paid": (r) => r.status === 200 });
 
   sleep(1);
 }

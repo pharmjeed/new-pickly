@@ -8,11 +8,11 @@ export const MerchantOrdersQuerySchema = z.object({
   branch_id: UuidSchema,
   status: OrderStateSchema.optional(),
   /**
-   * تبويبات لوحة التشغيل B-03 — awaiting_payment: بين القبول والدفع (معلوماتي، لا تحضير)
+   * تبويبات لوحة التشغيل B-03 —
    * scheduled: المجدولة القادمة الراقدة في ORDER_SUBMITTED حتى موعد فترتها (BR-5)
    */
   tab: z
-    .enum(["scheduled", "new", "awaiting_payment", "preparing", "ready", "arrived", "completed", "all"])
+    .enum(["scheduled", "new", "preparing", "ready", "arrived", "completed", "all"])
     .default("all"),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50)
@@ -37,11 +37,8 @@ export const BranchOrderCardSchema = z.object({
   scheduled_slot_start: z.string().datetime().nullable().default(null),
   /** وقت التجهيز المتوقع الذي حدده الفرع عند القبول (10/15/20/25 د) */
   prep_minutes: z.number().int().nullable().default(null),
-  /** موافقة العميل على الوقت — شرط الانتقال للدفع؛ التحضير يبدأ آلياً عند الدفع */
+  /** موافقة العميل على الوقت — «بدء التجهيز» محظور قبلها */
   prep_time_confirmed_at: z.string().datetime().nullable().default(null),
-  /** مهلتا ما بعد القبول (5 د لكلٍّ — docs/06 BR-2) لعرض عداد «بانتظار الدفع» */
-  prep_confirm_deadline_at: z.string().datetime().nullable().default(null),
-  payment_deadline_at: z.string().datetime().nullable().default(null),
   /** مسار التجهيز الموازي (docs/05§3) — يتقدم ولو كانت order_status في مسار رحلة العميل */
   preparing_at: z.string().datetime().nullable().default(null),
   ready_at: z.string().datetime().nullable().default(null),
@@ -102,29 +99,6 @@ export const BusyModeBodySchema = z
       v.close_pickup_only !== undefined,
     { message: "حدد إجراء ازدحام واحداً على الأقل" }
   );
-
-/**
- * رادار الوصول — docs/14§5-مكرر: لكل طلب مدفوع نشط سطر يقارن
- * المتبقي لوصول العميل (ETA) بما مضى من دقائق التجهيز المتفق عليها.
- * اللون يُحسب في الواجهة: أحمر عند eta ≤ 1 أو الوصول؛ رمادي عند غياب الرحلة.
- */
-export const BranchRadarEntrySchema = z.object({
-  order_id: UuidSchema,
-  display_code: z.string(),
-  order_status: OrderStateSchema,
-  customer_first_name: z.string(),
-  vehicle_summary: z.string().nullable(),
-  prep_minutes: z.number().int().nullable(),
-  /** بدء عداد التجهيز = لحظة نجاح الدفع (docs/05§3) */
-  preparing_at: z.string().datetime().nullable(),
-  ready_at: z.string().datetime().nullable(),
-  arrived_at: z.string().datetime().nullable(),
-  /** رحلة نشطة (شارك موقعه) — false = «لم ينطلق بعد» */
-  trip_active: z.boolean(),
-  eta_minutes: z.number().int().nullable(),
-  eta_updated_at: z.string().datetime().nullable()
-});
-export type BranchRadarEntry = z.infer<typeof BranchRadarEntrySchema>;
 
 export const ArrivalQueueEntrySchema = z.object({
   order_id: UuidSchema,

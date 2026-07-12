@@ -28,33 +28,11 @@ interface Card {
   /** وقت التجهيز المتوقع المحدد عند القبول + موافقة العميل عليه */
   prep_minutes: number | null;
   prep_time_confirmed_at: string | null;
-  /** مهلتا ما بعد القبول (5 د لكلٍّ — BR-2) لعداد «بانتظار الدفع» */
-  prep_confirm_deadline_at: string | null;
-  payment_deadline_at: string | null;
   /** مسار التجهيز الموازي (docs/05§3) — يتقدم ولو كان العميل في الطريق أو واصلاً */
   preparing_at: string | null;
   ready_at: string | null;
   created_at: string;
 }
-
-/** رادار الوصول — docs/14§5-مكرر */
-interface RadarEntry {
-  order_id: string;
-  display_code: string;
-  order_status: string;
-  customer_first_name: string;
-  vehicle_summary: string | null;
-  prep_minutes: number | null;
-  preparing_at: string | null;
-  ready_at: string | null;
-  arrived_at: string | null;
-  trip_active: boolean;
-  eta_minutes: number | null;
-  eta_updated_at: string | null;
-}
-
-/** بين القبول والدفع — معلوماتي فقط، التحضير يبدأ آلياً عند الدفع */
-const AWAITING_PAYMENT_STATES = ["MERCHANT_ACCEPTED", "PAYMENT_PENDING", "PAYMENT_FAILED"];
 
 /** خيارات وقت التجهيز المتوقع عند القبول — بالدقائق */
 const PREP_CHOICES = [10, 15, 20, 25] as const;
@@ -85,7 +63,6 @@ interface OrderDetails {
 const TABS = [
   ["scheduled", "مجدولة"],
   ["new", "جديدة"],
-  ["awaiting_payment", "بانتظار الدفع"],
   ["preparing", "قيد التحضير"],
   ["ready", "جاهزة"],
   ["arrived", "وصلوا"],
@@ -98,8 +75,7 @@ const SCHED_SOON_MS = 30 * 60_000;
 function cardState(status: string): string {
   if (status === "ORDER_SUBMITTED") return "scheduled";
   if (status === "MERCHANT_PENDING") return "new";
-  if (AWAITING_PAYMENT_STATES.includes(status)) return "new";
-  if (status === "PREPARING") return "prep";
+  if (["MERCHANT_ACCEPTED", "PREPARING"].includes(status)) return "prep";
   if (["CUSTOMER_NEARBY", "CUSTOMER_ON_THE_WAY"].includes(status)) return "near";
   if (["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"].includes(status)) return "arrived";
   if (status === "COMPLETED") return "done";
@@ -144,9 +120,6 @@ export default function BoardPage() {
   const [tab, setTab] = useState<string>("new");
   const [cards, setCards] = useState<Card[]>([]);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
-  // رادار الوصول — docs/14§5-مكرر: مستقل عن التبويب، يتحدث دائماً
-  const [radar, setRadar] = useState<RadarEntry[]>([]);
-  const redSeen = useRef<Set<string>>(new Set());
   // BR-5: المجدولة القادمة — استطلاع مستقل عن التبويب لشارة العدّ الدائمة وتنبيه اقتراب الموعد
   const [sched, setSched] = useState<Card[]>([]);
   const schedSeen = useRef<Set<string>>(new Set());
@@ -233,7 +206,7 @@ export default function BoardPage() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  /** تنبيه صوتي — BN-05أ: العميل على بعد دقيقة أو وصل (بلا ملفات صوت — WebAudio) */
+  /** تنبيه صوتي بسيط (بلا ملفات صوت — WebAudio) */
   const beep = useCallback(() => {
     try {
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -248,39 +221,11 @@ export default function BoardPage() {
       osc.start();
       osc.stop(ctx.currentTime + 0.5);
     } catch {
-      /* الصوت تحسين — الرادار المرئي يكفي */
+      /* الصوت تحسين — الشارة المرئية تكفي */
     }
   }, []);
 
-  // رادار الوصول — تحديث مستمر مستقل عن التبويب + صوت عند دخول طلب النطاق الأحمر
-  useEffect(() => {
-    if (!branchId) return;
-    let stopped = false;
-    const tick = async () => {
-      try {
-        const entries = await call<RadarEntry[]>("GET", `/v1/merchant/radar?branch_id=${branchId}`);
-        if (stopped) return;
-        setRadar(entries);
-        for (const e of entries) {
-          const red = e.arrived_at !== null || (e.trip_active && e.eta_minutes !== null && e.eta_minutes <= 1);
-          if (red && !redSeen.current.has(e.order_id)) {
-            redSeen.current.add(e.order_id);
-            beep();
-          }
-        }
-      } catch {
-        /* الرادار تحسين عرض — لا يوقف اللوحة */
-      }
-    };
-    void tick();
-    const t = setInterval(tick, 2500);
-    return () => {
-      stopped = true;
-      clearInterval(t);
-    };
-  }, [branchId, call, beep]);
-
-  // BR-5: المجدولة القادمة — كل 15 ث؛ عند دخول طلبٍ نطاق الثلاثين دقيقة: نغمتان (تمييزاً عن نغمة الرادار)
+  // BR-5: المجدولة القادمة — كل 15 ث؛ عند دخول طلبٍ نطاق الثلاثين دقيقة: نغمتان
   useEffect(() => {
     if (!branchId) return;
     let stopped = false;
@@ -387,29 +332,6 @@ export default function BoardPage() {
   const clock =
     now === null ? "--:--" : `${pad2(new Date(now).getHours())}:${pad2(new Date(now).getMinutes())}`;
 
-  // ===== رادار الوصول: مقارنة المتبقي للوصول بما مضى من دقائق التجهيز (docs/14§5-مكرر) =====
-  const prepElapsedMin = (e: RadarEntry): number | null =>
-    e.preparing_at && now !== null ? Math.max(0, Math.floor((now - Date.parse(e.preparing_at)) / 60_000)) : null;
-  const prepRemainingMin = (e: RadarEntry): number | null => {
-    if (e.ready_at || e.prep_minutes === null) return null;
-    const elapsed = prepElapsedMin(e);
-    return elapsed === null ? null : e.prep_minutes - elapsed;
-  };
-  const radarTone = (e: RadarEntry): "red" | "amber" | "green" | "gray" => {
-    if (e.arrived_at || (e.trip_active && e.eta_minutes !== null && e.eta_minutes <= 1)) return "red";
-    if (!e.trip_active || e.eta_minutes === null) return "gray";
-    if (e.ready_at) return "green";
-    const remaining = prepRemainingMin(e);
-    if (remaining !== null && e.eta_minutes < remaining) return "amber";
-    return "green";
-  };
-  const TONE_ORDER = { red: 0, amber: 1, green: 2, gray: 3 } as const;
-  const radarSorted = [...radar].sort((a, b) => {
-    const d = TONE_ORDER[radarTone(a)] - TONE_ORDER[radarTone(b)];
-    if (d !== 0) return d;
-    return (a.eta_minutes ?? 999) - (b.eta_minutes ?? 999);
-  });
-
   return (
     <main className={s.board}>
       {/* ترويسة اللوحة */}
@@ -469,7 +391,6 @@ export default function BoardPage() {
         ))}
       </nav>
 
-      <div className={s.workRow}>
       <section className={s.bmain}>
         {/* BR-5: موعد مجدول على الأبواب — شريط نابض يقود للتبويب مهما كان المعروض */}
         {schedSoon.length > 0 && tab !== "scheduled" && (
@@ -497,21 +418,13 @@ export default function BoardPage() {
                 : null;
             const windowMs =
               deadline !== null ? Math.max(1000, deadline - Date.parse(c.created_at)) : null;
-            // العلامة الحمراء: العميل على بعد دقيقة أو وصل (docs/14§5-مكرر)
-            const redAlert =
-              c.arrived_at !== null || (c.eta_minutes !== null && c.eta_minutes <= 1);
             return (
               <article
                 key={c.id}
-                className={`${s.ocard} ${q?.service_target_exceeded ? s.over : ""} ${redAlert ? s.redCard : ""}`}
+                className={`${s.ocard} ${q?.service_target_exceeded ? s.over : ""}`}
                 data-state={cardState(c.order_status)}
                 data-testid="order-card"
               >
-                {redAlert && (
-                  <span className={s.redFlag} data-testid="red-flag">
-                    🔴 {c.arrived_at ? "العميل واصل" : "يصل خلال دقيقة"}
-                  </span>
-                )}
                 <div className={s.hd}>
                   {q && <span className={s.pos}>{q.position}</span>}
                   <span className={s.oid}>{c.display_code}</span>
@@ -690,39 +603,26 @@ export default function BoardPage() {
                       </div>
                     </div>
                   )}
-                  {/* بين القبول والدفع — معلوماتي فقط؛ التحضير يبدأ آلياً عند نجاح الدفع (BR-2) */}
-                  {AWAITING_PAYMENT_STATES.includes(c.order_status) && (
+                  {c.order_status === "MERCHANT_ACCEPTED" && (
                     <>
-                      {c.order_status === "MERCHANT_ACCEPTED" && !c.prep_time_confirmed_at && (
+                      {c.prep_minutes !== null && !c.prep_time_confirmed_at && (
                         <span className={s.prepWait} data-testid="prep-waiting">
-                          ⏳ بانتظار موافقة العميل على الوقت (<b className={s.mono}>{c.prep_minutes ?? "—"}</b> د)
-                          {c.prep_confirm_deadline_at && now !== null && (
-                            <b className={s.mono}>
-                              {" "}
-                              {mmss(Math.floor(Math.max(0, Date.parse(c.prep_confirm_deadline_at) - now) / 1000))}
-                            </b>
-                          )}
+                          ⏳ بانتظار موافقة العميل على الوقت (<b className={s.mono}>{c.prep_minutes}</b> د)
                         </span>
                       )}
-                      {c.order_status === "PAYMENT_FAILED" && (
-                        <span className={s.prepWait} data-testid="payment-failed">
-                          ⚠ فشل الدفع — بانتظار إعادة محاولة العميل
+                      {c.prep_minutes !== null && c.prep_time_confirmed_at && (
+                        <span className={s.prepOk} data-testid="prep-confirmed">
+                          ✓ وافق العميل — <b className={s.mono}>{c.prep_minutes}</b> د
                         </span>
                       )}
-                      {c.order_status !== "PAYMENT_FAILED" && c.prep_time_confirmed_at && (
-                        <span className={s.prepOk} data-testid="awaiting-payment">
-                          ✓ وافق على <b className={s.mono}>{c.prep_minutes ?? "—"}</b> د — بانتظار الدفع
-                          {c.payment_deadline_at && now !== null && (
-                            <b className={s.mono}>
-                              {" "}
-                              {mmss(Math.floor(Math.max(0, Date.parse(c.payment_deadline_at) - now) / 1000))}
-                            </b>
-                          )}
-                        </span>
-                      )}
-                      <span className={s.mono} style={{ fontSize: 12, color: "var(--pk-text-2)" }}>
-                        التحضير يبدأ تلقائياً فور الدفع
-                      </span>
+                      <button
+                        className={`${s.bbtn} ${s.gray}`}
+                        data-testid="start-preparing"
+                        disabled={c.prep_minutes !== null && !c.prep_time_confirmed_at}
+                        onClick={() => act(`/v1/merchant/orders/${c.id}/preparing`)}
+                      >
+                        بدء التجهيز
+                      </button>
                     </>
                   )}
                   {c.order_status === "PREPARING" && (
@@ -838,63 +738,6 @@ export default function BoardPage() {
           </div>
         )}
       </section>
-
-      {/* رادار الوصول — docs/14§5-مكرر: لكل عميل متجه، المتبقي لوصوله × ما مضى من التجهيز */}
-      <aside className={s.radar} data-testid="radar">
-        <div className={s.radarHd}>
-          رادار الوصول
-          {radarSorted.some((e) => radarTone(e) === "red") && <span className={s.radarRedDot} />}
-        </div>
-        {radarSorted.length === 0 && (
-          <p className={s.radarEmpty}>لا طلبات مدفوعة نشطة — تظهر هنا فور الدفع.</p>
-        )}
-        {radarSorted.map((e) => {
-          const tone = radarTone(e);
-          const elapsed = prepElapsedMin(e);
-          return (
-            <div key={e.order_id} className={s.rRow} data-tone={tone} data-testid="radar-row">
-              <div className={s.rTop}>
-                <span className={s.oid}>{e.display_code}</span>
-                <b className={s.rName}>{e.customer_first_name}</b>
-                {tone === "red" && (
-                  <span className={s.rRed} data-testid="radar-red">
-                    {e.arrived_at ? "🔴 واصل" : "🔴 ≤ دقيقة"}
-                  </span>
-                )}
-              </div>
-              {e.vehicle_summary && <div className={s.rVeh}>{e.vehicle_summary}</div>}
-              <div className={s.rMeta}>
-                {e.trip_active && e.eta_minutes !== null ? (
-                  <span>
-                    وصوله خلال <b className={s.mono}>{e.eta_minutes}</b> د
-                  </span>
-                ) : e.arrived_at ? (
-                  <span>واصل — بانتظار التسليم</span>
-                ) : (
-                  <span className={s.rGray}>لم ينطلق بعد</span>
-                )}
-                {e.prep_minutes !== null && (
-                  <span>
-                    {e.ready_at ? (
-                      "✓ جاهز"
-                    ) : elapsed !== null ? (
-                      <>
-                        تجهيز <b className={s.mono}>{Math.min(elapsed, e.prep_minutes)}</b>/
-                        <b className={s.mono}>{e.prep_minutes}</b> د
-                      </>
-                    ) : (
-                      <>
-                        تجهيز <b className={s.mono}>{e.prep_minutes}</b> د
-                      </>
-                    )}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </aside>
-      </div>
     </main>
   );
 }

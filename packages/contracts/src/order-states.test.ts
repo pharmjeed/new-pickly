@@ -39,43 +39,4 @@ describe("آلة حالات الطلب — docs/05", () => {
     expect(canTransition("HANDOFF_IN_PROGRESS", "CANCELLATION_REQUESTED")).toBe(false);
     expect(canTransition("COMPLETED", "CANCELLATION_REQUESTED")).toBe(false);
   });
-
-  describe("الدفع بعد القبول — قرار المالك 2026-07-11 (docs/05§2)", () => {
-    it("الإرسال للفرع بلا دفع: CHECKOUT → SUBMITTED → MERCHANT_PENDING", () => {
-      expect(canTransition("CHECKOUT_PENDING", "ORDER_SUBMITTED")).toBe(true);
-      expect(canTransition("CHECKOUT_PENDING", "PAYMENT_PENDING")).toBe(false);
-      expect(canTransition("ORDER_SUBMITTED", "MERCHANT_PENDING")).toBe(true);
-    });
-
-    it("الدفع لا يبدأ إلا بعد قبول الفرع (ACCEPTED → PAYMENT_PENDING)", () => {
-      expect(canTransition("MERCHANT_ACCEPTED", "PAYMENT_PENDING")).toBe(true);
-      expect(canTransition("MERCHANT_ACCEPTED", "PREPARING")).toBe(false);
-    });
-
-    it("نجاح الدفع = لحظة الصفر: AUTHORIZED → PREPARING مباشرة", () => {
-      expect(canTransition("PAYMENT_AUTHORIZED", "PREPARING")).toBe(true);
-      expect(canTransition("PAYMENT_AUTHORIZED", "ORDER_SUBMITTED")).toBe(false);
-    });
-
-    it("فشل الدفع يسمح بإعادة المحاولة ضمن المهلة أو الانتهاء — لا استرجاع لأن لا مال قُبض", () => {
-      expect(canTransition("PAYMENT_FAILED", "PAYMENT_PENDING")).toBe(true);
-      expect(canTransition("PAYMENT_FAILED", "EXPIRED")).toBe(true);
-      expect(canTransition("PAYMENT_FAILED", "REFUND_PENDING")).toBe(false);
-    });
-
-    it("مهلتا الموافقة والدفع (5 د) تنتهيان بـ EXPIRED", () => {
-      expect(canTransition("MERCHANT_ACCEPTED", "EXPIRED")).toBe(true);
-      expect(canTransition("PAYMENT_PENDING", "EXPIRED")).toBe(true);
-    });
-
-    it("الرحلة بعد الدفع حصراً — لا «انطلقت الآن» من MERCHANT_ACCEPTED", () => {
-      expect(canTransition("MERCHANT_ACCEPTED", "CUSTOMER_ON_THE_WAY")).toBe(false);
-      expect(canTransition("PREPARING", "CUSTOMER_ON_THE_WAY")).toBe(true);
-    });
-
-    it("حالات الدفع تُعرض للعميل ضمن مرحلة «قبله المطعم»", () => {
-      expect(CUSTOMER_DISPLAY_MAP.PAYMENT_PENDING).toBe("ACCEPTED");
-      expect(CUSTOMER_DISPLAY_MAP.PAYMENT_FAILED).toBe("ACCEPTED");
-    });
-  });
 });

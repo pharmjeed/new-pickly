@@ -24,13 +24,9 @@ interface Order {
   order_status: string;
   brand_name_ar: string;
   handoff_code: string | null;
-  total_halalas: number;
   prep_minutes: number | null;
-  /** موافقة العميل على وقت التجهيز المتوقع — شرط الانتقال للدفع (docs/05§3) */
+  /** موافقة العميل على وقت التجهيز المتوقع — null حتى يؤكد */
   prep_time_confirmed_at: string | null;
-  /** مهلتا 5 دقائق: الموافقة على الوقت ثم الدفع (docs/06 BR-2) */
-  prep_confirm_deadline_at: string | null;
-  payment_deadline_at: string | null;
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة الرحلة */
   preparing_at: string | null;
   ready_at: string | null;
@@ -49,19 +45,18 @@ const STEP_LABELS = [
   "تم التسليم"
 ];
 const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
-  CHECKOUT_PENDING: { step: "SUBMITTED", title: "لحظات…", sub: "نرسل طلبك للمطعم" },
-  PAYMENT_PENDING: { step: "ACCEPTED", title: "أكمل الدفع ليبدأ التجهيز", sub: "المطعم بانتظار دفعك — المهلة 5 دقائق" },
-  PAYMENT_FAILED: { step: "ACCEPTED", title: "ما تمّ الدفع", sub: "جرّب مرة ثانية خلال المهلة — طلبك محفوظ" },
-  ORDER_SUBMITTED: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم — لا دفع حتى الآن" },
-  MERCHANT_PENDING: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم — لا دفع حتى الآن" },
-  MERCHANT_ACCEPTED: { step: "ACCEPTED", title: "قبل المطعم طلبك", sub: "وافق على وقت التجهيز وادفع ليبدأ المطعم" },
+  CHECKOUT_PENDING: { step: "SUBMITTED", title: "لحظات…", sub: "نجهّز طلبك للدفع" },
+  PAYMENT_PENDING: { step: "SUBMITTED", title: "جارٍ الدفع…", sub: "لا تغلق الصفحة" },
+  PAYMENT_FAILED: { step: "SUBMITTED", title: "ما تمّ الدفع", sub: "جرّب بطاقة ثانية — طلبك محفوظ" },
+  ORDER_SUBMITTED: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم" },
+  MERCHANT_PENDING: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم" },
+  MERCHANT_ACCEPTED: { step: "ACCEPTED", title: "قبل المطعم طلبك", sub: "المطعم يجهّز طلبك على وقت وصولك" },
   MERCHANT_REJECTED: {
     step: "SUBMITTED",
     title: "نعتذر — ما قدر المطعم يستقبل طلبك",
-    sub: "لم يُدفع أي مبلغ — أعد الطلب من مطعم آخر"
+    sub: "مبلغك يرجع لك كاملاً"
   },
-  EXPIRED: { step: "SUBMITTED", title: "انتهت مهلة الطلب", sub: "لم يُدفع أي مبلغ — أعد الطلب متى شئت" },
-  PREPARING: { step: "PREPARING", title: "قيد التجهيز", sub: "تم دفعك — انطلق بحسب الوقت المتفق" },
+  PREPARING: { step: "PREPARING", title: "قيد التجهيز", sub: "خلّك مستعد للانطلاق" },
   READY: { step: "READY", title: "طلبك جاهز", sub: "خلّك في سيارتك، الباقي علينا" },
   CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "اضغط «انطلقت الآن» حين تتحرك" },
   CUSTOMER_ON_THE_WAY: { step: "ON_THE_WAY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
@@ -69,7 +64,7 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   CUSTOMER_ARRIVED: { step: "ARRIVED", title: "وصلت؟ إحنا عرفنا.", sub: "الموظف في طريقه إليك" },
   HANDOFF_IN_PROGRESS: { step: "ARRIVED", title: "الموظف متجه إليك", sub: "يحمل طلبك — جهّز الرمز" },
   COMPLETED: { step: "COMPLETED", title: "بالعافية!", sub: "قيّم استلامك بضغطة" },
-  CANCELLED: { step: "SUBMITTED", title: "أُلغي الطلب", sub: "إن كان دُفع مبلغ فسيرجع حسب السياسة" }
+  CANCELLED: { step: "SUBMITTED", title: "أُلغي الطلب", sub: "مبلغك يرجع لك حسب السياسة" }
 };
 
 const DRIVE_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
@@ -95,20 +90,7 @@ export default function TrackScreen() {
   const [reviewDone, setReviewDone] = useState(false);
   const [savingReview, setSavingReview] = useState(false);
 
-  // ساعة العدادات التنازلية (مهلتا 5 د — BR-2)
-  const [now, setNow] = useState<number | null>(null);
-  useEffect(() => {
-    setNow(Date.now());
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const countdown = (deadline: string | null): string | null => {
-    if (!deadline || now === null) return null;
-    const s = Math.max(0, Math.floor((Date.parse(deadline) - now) / 1000));
-    return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-  };
-
-  // موافقة العميل على وقت التجهيز — تفتح الدفع (docs/05§3)، أو رفض الوقت = إلغاء بلا رسوم
+  // موافقة العميل على وقت التجهيز المتوقع الذي حدده المطعم عند القبول
   const [confirmingPrep, setConfirmingPrep] = useState(false);
   const [prepErr, setPrepErr] = useState<string | null>(null);
   const confirmPrep = async () => {
@@ -121,38 +103,6 @@ export default function TrackScreen() {
       setPrepErr((e as Error).message);
     } finally {
       setConfirmingPrep(false);
-    }
-  };
-  const declinePrep = async () => {
-    setConfirmingPrep(true);
-    setPrepErr(null);
-    try {
-      await api("POST", `/v1/orders/${id}/cancel`, { reason: "wait_too_long" }, { idempotent: true });
-      await refresh();
-    } catch (e) {
-      setPrepErr((e as Error).message);
-    } finally {
-      setConfirmingPrep(false);
-    }
-  };
-
-  // الدفع — لا يبدأ التجهيز قبله؛ بوابة sandbox بنفس مسار الإنتاج (webhook موقع)
-  const [paying, setPaying] = useState(false);
-  const [payErr, setPayErr] = useState<string | null>(null);
-  const payNow = async () => {
-    setPaying(true);
-    setPayErr(null);
-    try {
-      await api("POST", `/v1/orders/${id}/payment-intent`, { method: "card" }, { idempotent: true });
-      const pay = await api<{ gateway_result: string }>("POST", `/v1/dev/mock-gateway/by-order/${id}/pay`);
-      if (pay.gateway_result !== "authorized") {
-        setPayErr("ما تمّ الدفع. جرّب مرة ثانية — طلبك محفوظ ضمن المهلة");
-      }
-      await refresh();
-    } catch (e) {
-      setPayErr((e as Error).message);
-    } finally {
-      setPaying(false);
     }
   };
 
@@ -309,8 +259,9 @@ export default function TrackScreen() {
   };
   const driveMode = DRIVE_STATES.includes(order.order_status); // وضع القيادة الداكن
   const arrived = ARRIVED_STATES.includes(order.order_status);
-  // الرحلة بعد الدفع حصراً (docs/05§4-1) — PREPARING تعني أن الدفع تم
-  const canStart = ["PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(order.order_status);
+  const canStart = ["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(
+    order.order_status
+  );
   const canArrive = DRIVE_STATES.includes(order.order_status);
 
   // رموز دلالية بحسب الوضع — القيادة: ink-900 (08§7)
@@ -368,7 +319,7 @@ export default function TrackScreen() {
         </Text>
         <Text style={[st.sub, { color: T.text2 }]}>{view.sub}</Text>
 
-        {/* 1) موافقة العميل على وقت التجهيز — مهلة 5 د، والدفع بعدها (docs/05§3) */}
+        {/* موافقة العميل على وقت التجهيز المتوقع — قبل بدء التجهيز */}
         {order.order_status === "MERCHANT_ACCEPTED" && order.prep_minutes !== null && !order.prep_time_confirmed_at && (
           <View style={[st.card, { backgroundColor: T.surface, borderColor: T.border, alignItems: "center" }]}>
             <Text style={{ color: T.text, fontSize: fs.fs15, fontWeight: "800", textAlign: "center" }}>
@@ -376,50 +327,22 @@ export default function TrackScreen() {
             </Text>
             <Text style={st.prepMinutes}>{order.prep_minutes} دقيقة</Text>
             <Text style={{ color: T.text2, fontSize: fs.fs13, textAlign: "center", marginBottom: 8 }}>
-              يناسبك؟ وافق وادفع ليبدأ التجهيز
-              {countdown(order.prep_confirm_deadline_at) ? ` — المهلة ${countdown(order.prep_confirm_deadline_at)}` : ""}
+              بموافقتك يبدأ المطعم التجهيز فوراً
             </Text>
             {prepErr && <ErrorNote text={prepErr} />}
             <LimeButton
-              title="يناسبني — أكمل للدفع"
+              title="موافق — ابدؤوا التجهيز"
               disabled={confirmingPrep}
               onPress={() => void confirmPrep()}
               style={{ alignSelf: "stretch" }}
             />
-            <Pressable
-              disabled={confirmingPrep}
-              onPress={() => void declinePrep()}
-              accessibilityRole="button"
-              style={{ marginTop: 10, minHeight: touch, justifyContent: "center" }}
-            >
-              <Text style={{ color: colors.error, fontSize: fs.fs14, textAlign: "center" }}>
-                لا يناسبني — إلغاء الطلب بلا رسوم
-              </Text>
-            </Pressable>
           </View>
         )}
-
-        {/* 2) الدفع — بعد الموافقة، مهلة 5 د؛ نجاحه يبدأ التجهيز فوراً */}
-        {((order.order_status === "MERCHANT_ACCEPTED" && order.prep_time_confirmed_at) ||
-          ["PAYMENT_PENDING", "PAYMENT_FAILED"].includes(order.order_status)) && (
+        {order.order_status === "MERCHANT_ACCEPTED" && order.prep_minutes !== null && order.prep_time_confirmed_at && (
           <View style={[st.card, { backgroundColor: T.surface, borderColor: T.border, alignItems: "center" }]}>
             <View style={st.okBadge}>
-              <Text style={st.okBadgeTxt}>✓ وافقت على {order.prep_minutes} دقيقة</Text>
+              <Text style={st.okBadgeTxt}>✓ وافقت على وقت التجهيز — {order.prep_minutes} دقيقة</Text>
             </View>
-            <Text style={{ color: T.text, fontSize: fs.fs15, fontWeight: "800", textAlign: "center", marginTop: 8 }}>
-              ادفع الآن ليبدأ المطعم التجهيز
-            </Text>
-            <Text style={{ color: T.text2, fontSize: fs.fs13, textAlign: "center", marginVertical: 6 }}>
-              {order.order_status === "PAYMENT_FAILED" ? "ما تمّ الدفع — جرّب مرة ثانية" : "التجهيز لا يبدأ قبل دفعك"}
-              {countdown(order.payment_deadline_at) ? ` — المهلة ${countdown(order.payment_deadline_at)}` : ""}
-            </Text>
-            {payErr && <ErrorNote text={payErr} />}
-            <LimeButton
-              title={paying ? "جارٍ الدفع…" : `ادفع الآن — ${(order.total_halalas / 100).toFixed(2)} ر.س`}
-              disabled={paying}
-              onPress={() => void payNow()}
-              style={{ alignSelf: "stretch" }}
-            />
           </View>
         )}
 

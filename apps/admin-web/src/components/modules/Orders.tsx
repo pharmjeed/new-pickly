@@ -31,9 +31,8 @@ type TimelineEvent = {
 /** فئة شارة الحالة الداخلية — ألوان حالات الطلب (08§2) */
 function statusCls(st: string): string {
   if (["COMPLETED", "REFUNDED", "PARTIALLY_REFUNDED"].includes(st)) return "p-done";
-  // الدفع بعد القبول: MERCHANT_ACCEPTED وPAYMENT_PENDING = بانتظار موافقة العميل/دفعه
-  if (["ORDER_SUBMITTED", "MERCHANT_PENDING", "MERCHANT_ACCEPTED", "PAYMENT_PENDING"].includes(st)) return "p-new";
-  if (["PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(st)) return "p-prep";
+  if (["ORDER_SUBMITTED", "MERCHANT_PENDING"].includes(st)) return "p-new";
+  if (["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(st)) return "p-prep";
   if (["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"].includes(st)) return "p-near";
   if (["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"].includes(st)) return "p-arr";
   if (["CANCELLED", "NO_SHOW", "EXPIRED", "PAYMENT_FAILED", "MERCHANT_REJECTED"].includes(st)) return "p-over";

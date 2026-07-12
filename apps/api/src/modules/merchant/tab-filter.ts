@@ -6,8 +6,6 @@ import type { OrderState } from "@pickly/contracts";
 export const ACTIVE_STATES: OrderState[] = [
   "MERCHANT_PENDING",
   "MERCHANT_ACCEPTED",
-  "PAYMENT_PENDING",
-  "PAYMENT_FAILED",
   "PREPARING",
   "READY",
   "CUSTOMER_NOTIFIED",
@@ -16,9 +14,6 @@ export const ACTIVE_STATES: OrderState[] = [
   "CUSTOMER_ARRIVED",
   "HANDOFF_IN_PROGRESS"
 ];
-
-/** بين القبول والدفع — يظهر معلوماتياً في عمود «بانتظار الدفع» مع منع التحضير (docs/06 BR-2) */
-export const AWAITING_PAYMENT_STATES: OrderState[] = ["MERCHANT_ACCEPTED", "PAYMENT_PENDING", "PAYMENT_FAILED"];
 
 /**
  * مسار التجهيز الموازي (docs/05§3): رحلة العميل يجوز أن تسبق READY،
@@ -30,16 +25,14 @@ export const JOURNEY_STATES: OrderState[] = [...JOURNEY_EN_ROUTE, "CUSTOMER_ARRI
 
 export const TAB_WHERE: Record<string, Prisma.OrderWhereInput> = {
   /**
-   * BR-5 — الطلبات المجدولة القادمة: مدفوعة الالتزام لكنها راقدة في ORDER_SUBMITTED
+   * BR-5 — الطلبات المجدولة القادمة: مدفوعة لكنها راقدة في ORDER_SUBMITTED
    * حتى موعد فترتها؛ بدونها الفرع أعمى عمّا سيهبط عليه (docs/06 BR-5).
    */
   scheduled: { order_status: "ORDER_SUBMITTED", pickup_time: "scheduled" },
   new: { order_status: "MERCHANT_PENDING" },
-  // بين القبول والدفع — معلوماتي فقط، التحضير يبدأ آلياً عند نجاح الدفع
-  awaiting_payment: { order_status: { in: AWAITING_PAYMENT_STATES } },
   preparing: {
     OR: [
-      { order_status: "PREPARING" },
+      { order_status: { in: ["MERCHANT_ACCEPTED", "PREPARING"] } },
       { order_status: { in: JOURNEY_EN_ROUTE }, ready_at: null }
     ]
   },

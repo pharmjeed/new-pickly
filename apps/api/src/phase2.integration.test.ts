@@ -166,7 +166,7 @@ describe.skipIf(!hasDb)("Phase 2 — الميزات المؤجلة", async () =>
       expect(fullRes.json().error.code).toBe("ORDER-4006");
     });
 
-    it("المجدول ينتظر عند ORDER_SUBMITTED بلا دفع وتُجدول وظيفة دخول الفترة", async () => {
+    it("المجدول المدفوع ينتظر عند ORDER_SUBMITTED وتُجدول وظيفة دخول الفترة", async () => {
       const token = await customerLogin();
       const c = await readyCart(token);
       const slot = await makeSlot(c.branch.id, 5, 7);
@@ -184,18 +184,21 @@ describe.skipIf(!hasDb)("Phase 2 — الميزات المؤجلة", async () =>
         }
       });
       const orderId = orderRes.json().id as string;
-
-      const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
-      expect(order.order_status).toBe("ORDER_SUBMITTED"); // لا MERCHANT_PENDING قبل الفترة
-
-      // الدفع بعد القبول: لا intent قبل دخول الفترة وقبول الفرع وموافقة العميل
-      const early = await app.inject({
+      await app.inject({
         method: "POST",
         url: `/v1/orders/${orderId}/payment-intent`,
         headers: { ...authed(token), "idempotency-key": randomUUID() },
         payload: { method: "card" }
       });
-      expect(early.statusCode).toBe(409);
+      await app.inject({
+        method: "POST",
+        url: `/v1/dev/mock-gateway/by-order/${orderId}/pay`,
+        headers: { "content-type": "application/json" },
+        payload: "{}"
+      });
+
+      const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+      expect(order.order_status).toBe("ORDER_SUBMITTED"); // لا MERCHANT_PENDING قبل الفترة
 
       const entryJob = await prisma.backgroundJob.findFirst({
         where: { job_type: "scheduled_slot_entry", dedupe_key: { contains: orderId } }
@@ -547,31 +550,6 @@ describe.skipIf(!hasDb)("Phase 2 — الميزات المؤجلة", async () =>
         }
       });
       const orderId = orderRes.json().id as string;
-
-      // الدفع بعد القبول: قبول الفرع ثم موافقة العميل على الوقت قبل أي intent
-      const staffRes = await app.inject({
-        method: "POST",
-        url: "/v1/auth/branch/login",
-        payload: {
-          branch_code: c.branch.branch_code,
-          username: `${c.branch.branch_code}-cashier`,
-          pin: "1234",
-          device_name: "اختبار"
-        }
-      });
-      const staff = staffRes.json().access_token as string;
-      await app.inject({
-        method: "POST",
-        url: `/v1/merchant/orders/${orderId}/accept`,
-        headers: { ...authed(staff), "idempotency-key": randomUUID() },
-        payload: { prep_time_override_minutes: 10 }
-      });
-      await app.inject({
-        method: "POST",
-        url: `/v1/orders/${orderId}/confirm-prep-time`,
-        headers: authed(token)
-      });
-
       const intentRes = await app.inject({
         method: "POST",
         url: `/v1/orders/${orderId}/payment-intent`,

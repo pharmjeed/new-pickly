@@ -1,11 +1,10 @@
 "use client";
 
 /**
- * P6: الإتمام — صفحة تمرير واحدة: وقت + سيارة + مراجعة (C-28→C-37)
- * الدفع بعد القبول (docs/05§3 — قرار المالك 2026-07-11): الإرسال هنا **بلا دفع**؛
- * الفرع يقبل بوقت تجهيز، والعميل يوافق ويدفع من صفحة التتبع خلال مهلتي 5 دقائق.
+ * P6: الإتمام — صفحة تمرير واحدة: وقت + سيارة + دفع + مراجعة (C-28→C-37)
  * - وقت الاستلام FR-C06: أقرب وقت / مجدول بفترات وسعة (BR-5)
  * - السيارة كشرائح + إضافة سيارة مصغرة عبر Sheet (S3: لون + آخر 4 أرقام)
+ * - الدفع C-33: بطاقة أو محفظة (Apple Pay/STC Pay) — بوابة sandbox بنفس مسار الإنتاج
  * - كوبون BR-7: التحقق والخصم خادميان
  * - النجاح حالة ختامية (C-37) ثم الانتقال للتتبع /track/{id}
  */
@@ -168,6 +167,17 @@ function CardIcon({ size = 20 }: { size?: number }) {
     </svg>
   );
 }
+function WalletIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeWidth="7" strokeLinejoin="round">
+        <path d="M18,32 C18,26 22,22 28,22 H74 V32" />
+        <rect x="18" y="32" width="66" height="46" rx="8" />
+        <circle cx="66" cy="55" r="5" fill="currentColor" stroke="none" />
+      </g>
+    </svg>
+  );
+}
 function ShieldIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
@@ -231,6 +241,7 @@ export default function CheckoutPage() {
   const [showSched, setShowSched] = useState(false);
   const [dayIdx, setDayIdx] = useState(0);
   const [timeIdx, setTimeIdx] = useState(0);
+  const [payMethod, setPayMethod] = useState<"card" | "wallet">("card");
   const [couponCode, setCouponCode] = useState("");
   const [couponBusy, setCouponBusy] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -381,8 +392,7 @@ export default function CheckoutPage() {
     }
   };
 
-  /** الإرسال بلا دفع — الدفع يأتي بعد قبول الفرع وموافقتك على الوقت (docs/05§3) */
-  const submitOrder = async () => {
+  const payAndOrder = async () => {
     if (!cartId || !quoteId || !vehicleId) return;
     if (pickupTime === "scheduled" && !slotId) return;
     setBusy(true);
@@ -400,10 +410,20 @@ export default function CheckoutPage() {
         },
         { idempotent: true }
       );
+      await api("POST", `/v1/orders/${order.id}/payment-intent`, { method: payMethod }, { idempotent: true });
+      // بوابة sandbox — نفس مسار الإنتاج: النتيجة عبر webhook موقع
+      const pay = await api<{ gateway_result: string }>(
+        "POST",
+        `/v1/dev/mock-gateway/by-order/${order.id}/pay`
+      );
+      if (pay.gateway_result !== "authorized") {
+        setError("ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
+        return;
+      }
       sessionStorage.removeItem("pk_cart");
       sessionStorage.removeItem("pk_quote");
       setDonePickup(pickupTime);
-      setDone(order); // C-37: نجاح الإرسال
+      setDone(order); // C-37: نجاح الطلب
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -421,7 +441,7 @@ export default function CheckoutPage() {
       <main className={styles.page}>
         <div className={styles.success}>
           <div className={styles.bigic}><CheckIcon /></div>
-          <h1 className={styles.bigTitle}>أُرسل طلبك — بلا دفع حتى الآن</h1>
+          <h1 className={styles.bigTitle}>تم إنشاء طلبك</h1>
           <div className={`${styles.card} ${styles.successCard}`}>
             <div className={styles.kv}>
               <span className={styles.k}>رقم الطلب</span>
@@ -436,7 +456,7 @@ export default function CheckoutPage() {
               </span>
             </div>
             <div className={styles.kv}>
-              <span className={styles.k}>الإجمالي — يُدفع بعد قبول المطعم وموافقتك على الوقت</span>
+              <span className={styles.k}>القيمة المدفوعة</span>
               <span className={styles.kvv}>{fmtSar(done.total_halalas)}</span>
             </div>
           </div>
@@ -537,22 +557,50 @@ export default function CheckoutPage() {
       })}
       <p className={styles.privacy}>اللوحات مشفرة ولا تظهر كاملة إلا لموظف التسليم أثناء طلبك النشط فقط.</p>
 
-      {/* ===== الدفع بعد القبول (docs/05§3) — لا دفع في هذه الخطوة ===== */}
+      {/* ===== الدفع — C-33: بطاقة أو محفظة (بوابة sandbox بنفس مسار الإنتاج) ===== */}
       <div className={styles.sech}><h2>الدفع</h2></div>
-      <div className={`${styles.optCard} ${styles.optCardSel}`} data-testid="pay-after-accept">
+      <button
+        type="button"
+        className={payMethod === "card" ? `${styles.optCard} ${styles.optCardSel}` : styles.optCard}
+        data-testid="pay-card"
+        onClick={() => setPayMethod("card")}
+      >
+        <span className={payMethod === "card" ? `${styles.rdot} ${styles.rdotOn}` : styles.rdot} />
         <span className={styles.vic}><CardIcon /></span>
         <div className={styles.optBody}>
-          <b className={styles.optTitle}>الدفع بعد قبول المطعم</b>
-          <div className={styles.optDesc}>
-            المطعم يحدد وقت التجهيز المتوقع — توافق عليه ثم تدفع من صفحة المتابعة، ولا يبدأ التجهيز قبل
-            دفعك
-          </div>
+          <b className={styles.optTitle}>بطاقة — مدى وفيزا وماستركارد</b>
+          <div className={styles.optDesc}>نفس مسار الإنتاج — النتيجة عبر Webhook موقّع</div>
         </div>
-        <span className={`${styles.badge} ${styles.badgeLime}`}>بلا دفع الآن</span>
-      </div>
+        <span className={`${styles.badge} ${styles.badgeLime}`}>بيئة التطوير</span>
+      </button>
+      {flags["wallet_payments"] ? (
+        <button
+          type="button"
+          className={payMethod === "wallet" ? `${styles.optCard} ${styles.optCardSel}` : styles.optCard}
+          data-testid="pay-wallet"
+          onClick={() => setPayMethod("wallet")}
+        >
+          <span className={payMethod === "wallet" ? `${styles.rdot} ${styles.rdotOn}` : styles.rdot} />
+          <span className={styles.vic}><WalletIcon /></span>
+          <div className={styles.optBody}>
+            <b className={styles.optTitle}>Apple Pay / STC Pay</b>
+            <div className={styles.optDesc}>محافظ عبر بوابة الدفع — Tokenization فقط</div>
+          </div>
+        </button>
+      ) : (
+        <div className={`${styles.optCard} ${styles.optCardDis}`} aria-disabled="true">
+          <span className={styles.rdot} />
+          <span className={styles.vic}><WalletIcon /></span>
+          <div className={styles.optBody}>
+            <b className={styles.optTitleR}>Apple Pay / STC Pay</b>
+            <div className={styles.optDesc}>محافظ عبر بوابة الدفع</div>
+          </div>
+          <span className={`${styles.badge} ${styles.badgeSoft}`}>قريباً</span>
+        </div>
+      )}
       <div className={`${styles.note} ${styles.noteSoft}`}>
         <ShieldIcon />
-        <span>لا دفع نقدياً · Tokenization فقط — لا نخزن رقم بطاقتك أبداً.</span>
+        <span>لا دفع نقدياً في الإصدار الحالي · Tokenization فقط — لا نخزن رقم بطاقتك أبداً.</span>
       </div>
 
       {/* ===== مراجعة الطلب (C-35) ===== */}
@@ -621,30 +669,30 @@ export default function CheckoutPage() {
           )}
           <div className={`${styles.note} ${styles.noteSoft}`}>
             <DocIcon />
-            <span><b>سياسة الإلغاء:</b> كل ما قبل الدفع بلا أي رسوم (لم يُدفع شيء) · بعد الدفع وبدء التحضير لا يُسترجع ثمن الطلب · رسوم الخدمة تُسترجع وفق المصفوفة.</span>
+            <span><b>سياسة الإلغاء:</b> مجاني قبل قبول الفرع · بعد بدء التحضير لا يُسترجع ثمن الطلب · رسوم الخدمة تُسترجع وفق المصفوفة.</span>
           </div>
         </>
       )}
 
-      <p className={styles.sandNote}>لا دفع في هذه الخطوة — الدفع بعد قبول المطعم وموافقتك على وقت التجهيز</p>
+      <p className={styles.sandNote}>دفع تجريبي آمن (sandbox) — لا بطاقة حقيقية في بيئة التطوير</p>
 
-      {/* ===== CTA الإرسال ===== */}
+      {/* ===== CTA الدفع ===== */}
       <div className={styles.footbar}>
         <button
           className={busy || total == null ? `${styles.payBtn} ${styles.payBtnCenter}` : styles.payBtn}
           data-testid="pay-button"
           disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
-          onClick={submitOrder}
+          onClick={payAndOrder}
         >
           {busy ? (
-            "جارٍ الإرسال…"
+            "جارٍ الدفع…"
           ) : total != null ? (
             <>
-              <span>أرسل الطلب — الدفع بعد القبول</span>
+              <span>ادفع الآن</span>
               <span className={styles.payAmt}>{fmtSar(total)}</span>
             </>
           ) : (
-            "أرسل الطلب"
+            "ادفع الآن"
           )}
         </button>
       </div>

@@ -4280,22 +4280,6 @@
                       "format": "date-time",
                       "default": null
                     },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -4680,22 +4664,6 @@
                       ]
                     },
                     "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
                       "type": [
                         "string",
                         "null"
@@ -5334,22 +5302,6 @@
                       "format": "date-time",
                       "default": null
                     },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -5780,22 +5732,6 @@
                       "format": "date-time",
                       "default": null
                     },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -6214,22 +6150,6 @@
                       "format": "date-time",
                       "default": null
                     },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -6614,22 +6534,6 @@
                       ]
                     },
                     "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
                       "type": [
                         "string",
                         "null"
@@ -7514,22 +7418,6 @@
                       "format": "date-time",
                       "default": null
                     },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -8102,22 +7990,6 @@
                       "format": "date-time",
                       "default": null
                     },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -8373,7 +8245,6 @@
               "type": "string",
               "enum": [
                 "new",
-                "awaiting_payment",
                 "preparing",
                 "ready",
                 "arrived",
@@ -8523,22 +8394,6 @@
                         "default": null
                       },
                       "prep_time_confirmed_at": {
-                        "type": [
-                          "string",
-                          "null"
-                        ],
-                        "format": "date-time",
-                        "default": null
-                      },
-                      "prep_confirm_deadline_at": {
-                        "type": [
-                          "string",
-                          "null"
-                        ],
-                        "format": "date-time",
-                        "default": null
-                      },
-                      "payment_deadline_at": {
                         "type": [
                           "string",
                           "null"
@@ -8858,22 +8713,6 @@
                       "default": null
                     },
                     "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
                       "type": [
                         "string",
                         "null"
@@ -9211,22 +9050,6 @@
                       "format": "date-time",
                       "default": null
                     },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -9510,22 +9333,6 @@
                       "default": null
                     },
                     "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
                       "type": [
                         "string",
                         "null"
@@ -9838,22 +9645,6 @@
                       "format": "date-time",
                       "default": null
                     },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -10137,22 +9928,6 @@
                       "default": null
                     },
                     "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
                       "type": [
                         "string",
                         "null"
@@ -10478,22 +10253,6 @@
                       "default": null
                     },
                     "prep_time_confirmed_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "prep_confirm_deadline_at": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "format": "date-time",
-                      "default": null
-                    },
-                    "payment_deadline_at": {
                       "type": [
                         "string",
                         "null"

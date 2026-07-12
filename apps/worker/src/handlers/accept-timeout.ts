@@ -5,8 +5,6 @@ import { createLogger } from "@pickly/observability";
 /**
  * BR-1: انتهاء عداد القبول دون رد = رفض آلي بسبب timeout،
  * ويُحتسب على الفرع في تقييمه التشغيلي.
- * الدفع بعد القبول (docs/05§3): الرفض يسبق قبض أي مبلغ — لا استرجاع
- * إلا لطلب قديم دُفع بالمسار السابق (حارس توافق خلفي).
  * idempotent: إن لم يعد الطلب MERCHANT_PENDING فلا شيء يُفعل.
  */
 const logger = createLogger("accept-timeout");
@@ -20,7 +18,6 @@ export async function handleAcceptTimeout(payload: unknown): Promise<void> {
   if (!order || order.order_status !== "MERCHANT_PENDING") return; // رُدّ عليه — لا شيء
 
   const intent = await prisma.paymentIntent.findUnique({ where: { order_id } });
-  const paid = intent !== null && ["authorized", "captured"].includes(intent.status);
 
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
@@ -36,36 +33,34 @@ export async function handleAcceptTimeout(payload: unknown): Promise<void> {
         reason: "timeout"
       }
     });
-    if (paid) {
-      await tx.order.update({
-        where: { id: order_id },
-        data: { order_status: "REFUND_PENDING" }
-      });
-      await tx.orderStatusHistory.create({
-        data: {
-          order_id,
-          from_status: "MERCHANT_REJECTED",
-          to_status: "REFUND_PENDING",
-          actor_type: "system",
-          reason: "timeout"
-        }
-      });
-      // الاسترجاع الكامل — التنفيذ عند البوابة تتم متابعته بمعالج refunds (مرحلة 5)
-      await tx.refund.upsert({
-        where: { idempotency_key: `timeout:${order_id}` },
-        create: {
-          order_id,
-          intent_id: intent?.id ?? null,
-          amount_halalas: order.total_halalas,
-          includes_service_fee: true,
-          reason: "merchant_timeout",
-          status: "pending",
-          requested_by: "system",
-          idempotency_key: `timeout:${order_id}`
-        },
-        update: {}
-      });
-    }
+    await tx.order.update({
+      where: { id: order_id },
+      data: { order_status: "REFUND_PENDING" }
+    });
+    await tx.orderStatusHistory.create({
+      data: {
+        order_id,
+        from_status: "MERCHANT_REJECTED",
+        to_status: "REFUND_PENDING",
+        actor_type: "system",
+        reason: "timeout"
+      }
+    });
+    // الاسترجاع الكامل — التنفيذ عند البوابة تتم متابعته بمعالج refunds (مرحلة 5)
+    await tx.refund.upsert({
+      where: { idempotency_key: `timeout:${order_id}` },
+      create: {
+        order_id,
+        intent_id: intent?.id ?? null,
+        amount_halalas: order.total_halalas,
+        includes_service_fee: true,
+        reason: "merchant_timeout",
+        status: "pending",
+        requested_by: "system",
+        idempotency_key: `timeout:${order_id}`
+      },
+      update: {}
+    });
     await tx.backgroundJob.create({
       data: {
         job_type: "domain_event",
