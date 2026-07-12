@@ -259,6 +259,58 @@
     box-shadow: 0 0 0 0 rgba(201, 243, 57, 0);
   }
 }
+/* سيارة بيكلي — تنطلق عبر الزر يساراً (اتجاه السير في RTL) وخلفها خطوط السرعة.
+   طبقة قصّ مستقلة حتى لا يقصّ overflow هالة النبض */
+.carLane {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--pk-radius);
+  overflow: hidden;
+  pointer-events: none;
+}
+.car {
+  position: absolute;
+  bottom: 3px;
+  right: -64px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: carDrive 6s linear infinite;
+}
+.carTrail {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.carTrail i {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--pk-ink-900);
+  transform: skewX(var(--pk-skew));
+}
+.carTrail i:nth-child(1) {
+  width: 14px;
+  opacity: var(--pk-fade-1);
+}
+.carTrail i:nth-child(2) {
+  width: 10px;
+  opacity: var(--pk-fade-2);
+}
+.carTrail i:nth-child(3) {
+  width: 6px;
+  opacity: var(--pk-fade-3);
+}
+@keyframes carDrive {
+  0%,
+  32% {
+    right: -64px;
+  }
+  72%,
+  100% {
+    right: 108%;
+  }
+}
 @keyframes arrowWave {
   0%,
   100% {
@@ -275,6 +327,10 @@
   .checkoutArrow span {
     animation: none;
     opacity: var(--pk-fade-2);
+  }
+  /* السيارة تبقى خارج الإطار (right:-64px) فلا تظهر إطلاقاً */
+  .car {
+    animation: none;
   }
 }
 .checkoutTotal {

@@ -227,6 +227,24 @@ export default function CartPage() {
               </span>
             </span>
             <AnimatedSar halalas={cart.quote.total_halalas} className={styles.checkoutTotal} />
+            <span className={styles.carLane} aria-hidden="true">
+              <span className={styles.car}>
+                <span className={styles.carTrail}>
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                {/* المقدمة لليسار — اتجاه السير؛ الكبوت منخفض أماماً والمقصورة للخلف */}
+                <svg width="38" height="18" viewBox="0 0 38 18">
+                  <path
+                    d="M2.5 13 L3.5 10 Q4 8.5 6.5 8.2 L16 8 L19.5 4.2 Q20.5 3 22.5 3 L29.5 3 Q33.5 3 34.8 8.5 L35.5 12 Q35.6 13 34.5 13 Z"
+                    fill="var(--pk-ink-900)"
+                  />
+                  <circle cx="9.5" cy="14" r="3" fill="var(--pk-ink-900)" stroke="var(--pk-lime-500)" strokeWidth="1.4" />
+                  <circle cx="28.5" cy="14" r="3" fill="var(--pk-ink-900)" stroke="var(--pk-lime-500)" strokeWidth="1.4" />
+                </svg>
+              </span>
+            </span>
           </button>
         </div>
       )}

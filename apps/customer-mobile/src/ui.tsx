@@ -2,11 +2,12 @@
  * مكوّنات مشتركة صغيرة — الألوان من theme.ts حصراً.
  * قاعدة: زر ليموني واحد لكل شاشة (LimeButton) · هدف لمس ≥ 44.
  */
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   ActivityIndicator,
   Animated,
+  Easing,
   Pressable,
   StyleSheet,
   Text,
@@ -58,10 +59,82 @@ function ArrowWave() {
   );
 }
 
+const CAR_W = 64; // عرض السيارة مع خطوط السرعة
+
+/** سيارة بيكلي — تنطلق عبر الزر يساراً (اتجاه السير) وخلفها خطوط السرعة الثلاثة.
+ *  المقدمة لليسار: الكبوت منخفض أماماً والمقصورة للخلف. تختفي مع «تقليل الحركة». */
+function CarDrive() {
+  const [laneW, setLaneW] = useState(0);
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (laneW <= 0) return;
+    let loop: Animated.CompositeAnimation | null = null;
+    let cancelled = false;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (reduce || cancelled) return;
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.delay(1900),
+          Animated.timing(t, {
+            toValue: 1,
+            duration: 2400,
+            easing: Easing.linear,
+            useNativeDriver: true
+          }),
+          Animated.timing(t, { toValue: 0, duration: 0, useNativeDriver: true })
+        ])
+      );
+      loop.start();
+    });
+    return () => {
+      cancelled = true;
+      loop?.stop();
+    };
+  }, [t, laneW]);
+  return (
+    <View
+      pointerEvents="none"
+      style={st.carLane}
+      onLayout={(e) => setLaneW(e.nativeEvent.layout.width)}
+    >
+      {laneW > 0 && (
+        <Animated.View
+          style={[
+            st.car,
+            {
+              transform: [
+                {
+                  translateX: t.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, -(laneW + CAR_W * 2)]
+                  })
+                }
+              ]
+            }
+          ]}
+        >
+          <View style={st.carShape}>
+            <View style={st.carRoof} />
+            <View style={st.carBody} />
+            <View style={[st.carWheel, { left: 5 }]} />
+            <View style={[st.carWheel, { right: 5 }]} />
+          </View>
+          <View style={st.carTrail}>
+            <View style={[st.trailLine, { width: 14, opacity: motion.fade1 }]} />
+            <View style={[st.trailLine, { width: 10, opacity: motion.fade2 }]} />
+            <View style={[st.trailLine, { width: 6, opacity: motion.fade3 }]} />
+          </View>
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+
 export function LimeButton({
   title,
   trailing,
   arrow,
+  car,
   onPress,
   disabled,
   style
@@ -69,6 +142,7 @@ export function LimeButton({
   title: string;
   trailing?: string;
   arrow?: boolean;
+  car?: boolean;
   onPress: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -90,6 +164,7 @@ export function LimeButton({
       <Text style={st.limeTxt}>{title}</Text>
       {arrow === true && <ArrowWave />}
       {trailing !== undefined && <Text style={st.limeTrail}>{trailing}</Text>}
+      {car === true && <CarDrive />}
     </Pressable>
   );
 }
@@ -170,6 +245,53 @@ const st = StyleSheet.create({
   limeTxt: { color: colors.ink900, fontSize: fs.fs16, fontWeight: "800" },
   limeArrows: { flexDirection: "row", alignItems: "center" },
   limeArrow: { color: colors.ink900, fontSize: fs.fs16, fontWeight: "800" },
+  carLane: { ...StyleSheet.absoluteFillObject, borderRadius: radius, overflow: "hidden" },
+  car: {
+    position: "absolute",
+    bottom: 3,
+    right: -CAR_W,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4
+  },
+  carShape: { width: 38, height: 18 },
+  carBody: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 7,
+    height: 6,
+    borderRadius: 3,
+    borderTopLeftRadius: 5, // الكبوت المنخفض — المقدمة لليسار
+    backgroundColor: colors.ink900
+  },
+  carRoof: {
+    position: "absolute",
+    top: 2,
+    right: 5,
+    width: 16,
+    height: 7,
+    borderTopLeftRadius: 7, // الزجاج الأمامي المائل نحو المقدمة
+    borderTopRightRadius: 3,
+    backgroundColor: colors.ink900
+  },
+  carWheel: {
+    position: "absolute",
+    bottom: 0,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.ink900,
+    borderWidth: 1.5,
+    borderColor: colors.lime500
+  },
+  carTrail: { flexDirection: "column", gap: 3 },
+  trailLine: {
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.ink900,
+    transform: [{ skewX: motion.skew }]
+  },
   limeTrail: { color: colors.lime900, fontSize: fs.fs15, fontWeight: "700" },
   ghost: {
     minHeight: touch,

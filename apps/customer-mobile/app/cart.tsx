@@ -267,6 +267,7 @@ export default function CartScreen() {
           <LimeButton
             title="متابعة الإتمام"
             arrow
+            car
             trailing={fmtSar(shownTotal)}
             onPress={() => router.push("/checkout")}
           />
