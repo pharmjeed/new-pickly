@@ -2,9 +2,11 @@
  * P4: المطعم الشامل — المنيو داخل الصفحة (C-19→C-25).
  * GET /v1/branches/{id}/menu · POST /v1/carts · POST /v1/carts/{id}/items
  * المُعدِّلات الإلزامية تُحدد مسبقاً بأول خيار (min_select من كل مجموعة).
+ * الضغط على البطاقة يفتح الورقة دائماً؛ بلا مُعدِّلات تظهر الإضافات والكمية فقط.
  */
 import { useMemo, useState, useEffect } from "react";
 import {
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -38,6 +40,7 @@ interface Product {
   name_ar: string;
   description_ar: string | null;
   price_halalas: number;
+  image_url?: string | null;
   is_available: boolean;
   modifier_groups: ModifierGroup[];
 }
@@ -120,7 +123,6 @@ export default function RestaurantScreen() {
     }
   };
 
-  const addDirect = (p: Product) => void postItem(p, 1, []);
   const openSheet = (p: Product) => setSheet({ product: p, qty: 1, sel: defaultSelection(p), note: "" });
 
   const toggleModifier = (g: ModifierGroup, modId: string) => {
@@ -196,7 +198,13 @@ export default function RestaurantScreen() {
           renderItem={({ item: p }) => {
             const customizable = p.modifier_groups.length > 0;
             return (
-              <View style={[st.pcard, !p.is_available ? { opacity: 0.5 } : null]}>
+              <Pressable
+                style={[st.pcard, !p.is_available ? { opacity: 0.5 } : null]}
+                disabled={!p.is_available}
+                accessibilityRole="button"
+                accessibilityLabel={customizable ? `خصّص ${p.name_ar}` : `أضف ${p.name_ar}`}
+                onPress={() => openSheet(p)}
+              >
                 <View style={{ flex: 1, gap: 4 }}>
                   <View style={st.ptitleRow}>
                     <Text style={st.ptitle} numberOfLines={1}>
@@ -215,19 +223,13 @@ export default function RestaurantScreen() {
                   </Text>
                 </View>
                 {p.is_available ? (
-                  <Pressable
-                    style={st.addBtn}
-                    disabled={adding}
-                    accessibilityRole="button"
-                    accessibilityLabel={customizable ? `خصّص ${p.name_ar}` : `أضف ${p.name_ar}`}
-                    onPress={() => (customizable ? openSheet(p) : addDirect(p))}
-                  >
+                  <View style={st.addBtn} pointerEvents="none">
                     <Text style={st.addTxt}>+</Text>
-                  </Pressable>
+                  </View>
                 ) : (
                   <Badge label="غير متوفر" tone="soft" />
                 )}
-              </View>
+              </Pressable>
             );
           }}
         />
@@ -251,6 +253,14 @@ export default function RestaurantScreen() {
           {sheet && (
             <View style={st.sheet}>
               <View style={st.grab} />
+              {sheet.product.image_url ? (
+                <Image
+                  source={{ uri: sheet.product.image_url }}
+                  style={st.sheetImg}
+                  resizeMode="cover"
+                  accessibilityLabel={sheet.product.name_ar}
+                />
+              ) : null}
               <View style={st.sheetHead}>
                 <Text style={st.sheetTitle}>{sheet.product.name_ar}</Text>
                 <Pressable onPress={() => setSheet(null)} style={st.close} accessibilityRole="button">
@@ -258,6 +268,9 @@ export default function RestaurantScreen() {
                 </Pressable>
               </View>
               <Text style={st.sheetPrice}>{fmtSar(sheet.product.price_halalas)}</Text>
+              {sheet.product.description_ar ? (
+                <Text style={[st.pdesc, { marginBottom: 10 }]}>{sheet.product.description_ar}</Text>
+              ) : null}
 
               <ScrollView style={{ maxHeight: 340 }}>
                 {sheet.product.modifier_groups.map((g) => {
@@ -301,10 +314,10 @@ export default function RestaurantScreen() {
                   );
                 })}
 
-                <Text style={st.label}>ملاحظة للمطبخ (اختياري)</Text>
+                <Text style={st.label}>إضافاتك على الصنف (اختياري)</Text>
                 <TextInput
                   style={st.inp}
-                  placeholder="مثال: الصوص على جنب"
+                  placeholder="مثال: بدون بصل، الصوص على جنب"
                   placeholderTextColor={colors.gray}
                   maxLength={280}
                   value={sheet.note}
@@ -419,6 +432,7 @@ const st = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 10
   },
+  sheetImg: { width: "100%", height: 160, borderRadius: radius, marginBottom: 10, backgroundColor: light.bg },
   sheetHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   sheetTitle: { color: light.text, fontSize: fs.fs20, fontWeight: "900", flexShrink: 1, textAlign: "right" },
   close: { width: touch, height: touch, alignItems: "center", justifyContent: "center" },

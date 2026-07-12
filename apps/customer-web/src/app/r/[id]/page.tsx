@@ -3,8 +3,8 @@
 /**
  * P4: المطعم الشامل — المنيو داخل الصفحة (C-19 → C-25)
  * غلاف المطعم + بطاقة الفرع + شرائح التصنيفات + بطاقات المنتجات (C-23)
- * + ورقة التخصيص السفلية (C-25): مجموعات المُعدِّلات ضمن min/max + الكمية + ملاحظة المطبخ.
- * منتج بلا مُعدِّلات يُضاف مباشرة؛ منتج بمجموعات يفتح الورقة بخيار أول محدد مسبقاً.
+ * + ورقة التخصيص السفلية (C-25): مجموعات المُعدِّلات ضمن min/max + الكمية + إضافات العميل.
+ * الضغط على البطاقة يفتح الورقة دائماً؛ بلا مُعدِّلات تظهر الإضافات والكمية فقط.
  */
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -150,10 +150,7 @@ export default function RestaurantPage() {
     }
   };
 
-  /** منتج بلا مُعدِّلات — إضافة مباشرة */
-  const addDirect = (p: Product) => void postItem(p, 1, []);
-
-  /** منتج بمجموعات — افتح ورقة التخصيص بخيار أول محدد مسبقاً */
+  /** الضغط على البطاقة أو + يفتح الورقة دائماً — خيارات إن وُجدت، وإلا إضافات العميل + الكمية */
   const openSheet = (p: Product) =>
     setSheet({ product: p, qty: 1, sel: defaultSelection(p), note: "" });
 
@@ -318,6 +315,15 @@ export default function RestaurantPage() {
                     key={p.id}
                     className={`${styles.pcard} ${!p.is_available ? styles.pcardNa : ""}`}
                     data-testid="product-card"
+                    role={p.is_available ? "button" : undefined}
+                    tabIndex={p.is_available ? 0 : undefined}
+                    onClick={() => p.is_available && openSheet(p)}
+                    onKeyDown={(e) => {
+                      if (p.is_available && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        openSheet(p);
+                      }
+                    }}
                   >
                     <div className={styles.pbody}>
                       <div className={styles.ptitle}>
@@ -337,26 +343,17 @@ export default function RestaurantPage() {
                         {p.image_url ? <img src={p.image_url} alt={p.name_ar} /> : "product"}
                       </div>
                       {p.is_available ? (
-                        customizable ? (
-                          <button
-                            className={styles.addBtn}
-                            data-testid="customize-product"
-                            onClick={() => openSheet(p)}
-                            aria-label={`خصّص ${p.name_ar}`}
-                          >
-                            +
-                          </button>
-                        ) : (
-                          <button
-                            className={styles.addBtn}
-                            data-testid="add-product"
-                            disabled={adding}
-                            onClick={() => addDirect(p)}
-                            aria-label={`أضف ${p.name_ar}`}
-                          >
-                            +
-                          </button>
-                        )
+                        <button
+                          className={styles.addBtn}
+                          data-testid="customize-product"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openSheet(p);
+                          }}
+                          aria-label={customizable ? `خصّص ${p.name_ar}` : `أضف ${p.name_ar}`}
+                        >
+                          +
+                        </button>
                       ) : (
                         <span className={`${styles.badgeSoft} ${styles.naBadge}`}>غير متوفر</span>
                       )}
@@ -389,6 +386,11 @@ export default function RestaurantPage() {
         >
           <div className={styles.sheet} role="dialog" aria-modal="true" aria-label={`تخصيص ${sheet.product.name_ar}`}>
             <div className={styles.grab} />
+            {sheet.product.image_url && (
+              <div className={styles.sheetImg}>
+                <img src={sheet.product.image_url} alt={sheet.product.name_ar} />
+              </div>
+            )}
             <div className={styles.sheetHead}>
               <h2 className={styles.sheetTitle}>{sheet.product.name_ar}</h2>
               <button className={styles.sheetClose} onClick={() => setSheet(null)} aria-label="إغلاق">
@@ -396,6 +398,9 @@ export default function RestaurantPage() {
               </button>
             </div>
             <span className={styles.sheetPrice}>{fmtSar(sheet.product.price_halalas)}</span>
+            {sheet.product.description_ar && (
+              <p className={styles.pdesc}>{sheet.product.description_ar}</p>
+            )}
 
             {sheet.product.modifier_groups.map((g) => {
               const selected = sheet.sel[g.id] ?? [];
@@ -447,10 +452,11 @@ export default function RestaurantPage() {
             })}
 
             <div className={styles.noteFld}>
-              <label htmlFor="kitchen-note">ملاحظة للمطبخ (اختياري)</label>
+              <label htmlFor="kitchen-note">إضافاتك على الصنف (اختياري)</label>
               <input
                 id="kitchen-note"
-                placeholder="مثال: الصوص على جنب"
+                data-testid="item-note"
+                placeholder="مثال: بدون بصل، الصوص على جنب"
                 maxLength={280}
                 value={sheet.note}
                 onChange={(e) => setSheet((s) => (s ? { ...s, note: e.target.value } : s))}

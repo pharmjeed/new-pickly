@@ -249,9 +249,11 @@
   padding: 10px;
   display: flex;
   gap: 11px;
+  cursor: pointer;
 }
 .pcardNa {
   opacity: 0.55;
+  cursor: default;
 }
 .pmedia {
   position: relative;
@@ -406,6 +408,21 @@
   border-radius: var(--pk-radius-pill);
   background: var(--pk-line);
   margin: 2px auto 12px;
+}
+.sheetImg {
+  width: 100%;
+  height: 170px;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  background: var(--pk-cloud);
+  flex-shrink: 0;
+}
+.sheetImg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .sheetHead {
   display: flex;
