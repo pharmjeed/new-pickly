@@ -50,17 +50,35 @@
   font-family: var(--pk-font-body); font-size: inherit; color: inherit;
 }
 
-/* فترات BR-5 */
-.slotsWrap { display: flex; flex-direction: column; gap: 8px; }
-.slotsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; }
-.slotChip {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  background: var(--pk-surface); border: 1.5px solid var(--pk-border);
-  border-radius: 12px; padding: 9px 8px; cursor: pointer;
-  font-family: var(--pk-font-body); font-size: var(--pk-fs-13); color: var(--pk-text);
+/* ===== جدولة BR-5 — ورقة «حدد موعد طلبك»: عجلتا يوم/وقت ===== */
+.wheels {
+  position: relative; display: flex; align-items: stretch;
+  border-top: 1px solid var(--pk-line);
+  margin-top: 40px;
 }
-.slotChip small { color: var(--pk-text-2); font-size: var(--pk-fs-12); }
-.slotChipSel { border-color: var(--pk-lime-900); background: var(--pk-lime-100); font-weight: 700; }
+/* خط أسفل الصف المحدد (سطر الاختيار) */
+.selLine { position: absolute; top: 47px; left: 0; right: 0; height: 1px; background: var(--pk-line); opacity: 0.6; pointer-events: none; }
+.wheelDay { flex: 0 0 38%; min-width: 0; }
+.wheelTime { flex: 1; min-width: 0; }
+.wheel {
+  height: 230px; overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  padding-bottom: 184px; /* 230 − 46: آخر عنصر يصل لسطر الاختيار */
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+.wheel::-webkit-scrollbar { display: none; }
+.wItem {
+  display: flex; align-items: center; justify-content: center;
+  height: 46px; width: 100%; scroll-snap-align: start;
+  border: none; background: transparent; cursor: pointer;
+  font-family: var(--pk-font-body); white-space: nowrap;
+  transition: font-size var(--pk-dur) var(--pk-ease), opacity var(--pk-dur) var(--pk-ease), color var(--pk-dur) var(--pk-ease);
+}
+.w0 { font-size: var(--pk-fs-24); font-weight: 700; color: var(--pk-text); }
+.w1 { font-size: var(--pk-fs-20); font-weight: 700; color: var(--pk-gray); opacity: 0.75; }
+.w2 { font-size: var(--pk-fs-17); font-weight: 700; color: var(--pk-gray); opacity: 0.5; }
+.w3 { font-size: var(--pk-fs-14); font-weight: 700; color: var(--pk-gray); opacity: 0.35; }
 .optCardSel { border: 2px solid var(--pk-ink-900); }
 .optCardDis { opacity: 0.55; }
 .optBody { flex: 1; min-width: 0; }

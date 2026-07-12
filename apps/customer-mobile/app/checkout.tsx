@@ -6,7 +6,7 @@
  * GET/POST /v1/customers/me/vehicles (S3: لون + آخر 4)
  * POST /v1/orders (idempotent) → /track/{id}
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -57,8 +57,88 @@ interface Slot {
 
 type PickupTime = "asap" | "scheduled";
 
-const slotLabel = (iso: string): string =>
-  new Date(iso).toLocaleString("ar-SA", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+/* ===== جدولة BR-5: تسميات اليوم والفترة (كما في تصميم «حدد موعد طلبك») ===== */
+const pad2 = (n: number): string => String(n).padStart(2, "0");
+const clock12 = (d: Date): string => `${pad2(d.getHours() % 12 || 12)}:${pad2(d.getMinutes())}`;
+/** «06:30 - 07:00 م» — المدى ثم ص/م بنهاية الفترة */
+const slotRangeLabel = (s: Slot): string => {
+  const a = new Date(s.slot_start);
+  const b = new Date(s.slot_end);
+  return `${clock12(a)} - ${clock12(b)} ${b.getHours() >= 12 ? "م" : "ص"}`;
+};
+const dayKeyOf = (iso: string): string => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+};
+const dayLabelOf = (iso: string): string => {
+  const d = new Date(iso);
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startThat = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((startThat - startToday) / 86400000);
+  if (diff === 0) return "اليوم";
+  if (diff === 1) return "غدًا";
+  return d.toLocaleDateString("ar-SA", { weekday: "long" });
+};
+
+interface DayGroup {
+  key: string;
+  label: string;
+  slots: Slot[];
+}
+
+/* عجلة اختيار (يوم/وقت): المحدد كبير أعلى القائمة والبقية تتلاشى تحته */
+const WHEEL_ITEM_H = 46;
+const WHEEL_H = 230;
+function Wheel({
+  items,
+  index,
+  onChange,
+  style
+}: {
+  items: string[];
+  index: number;
+  onChange: (i: number) => void;
+  style?: object;
+}) {
+  const ref = useRef<ScrollView>(null);
+  const settle = (y: number) => {
+    const i = Math.min(items.length - 1, Math.max(0, Math.round(y / WHEEL_ITEM_H)));
+    if (i !== index) onChange(i);
+  };
+  return (
+    <ScrollView
+      ref={ref}
+      style={[st.wheel, style]}
+      contentContainerStyle={{ paddingBottom: WHEEL_H - WHEEL_ITEM_H }}
+      showsVerticalScrollIndicator={false}
+      snapToInterval={WHEEL_ITEM_H}
+      decelerationRate="fast"
+      contentOffset={{ x: 0, y: index * WHEEL_ITEM_H }}
+      onMomentumScrollEnd={(e) => settle(e.nativeEvent.contentOffset.y)}
+      onScrollEndDrag={(e) => settle(e.nativeEvent.contentOffset.y)}
+      nestedScrollEnabled
+    >
+      {items.map((t, i) => {
+        const d = Math.min(Math.abs(i - index), 3);
+        return (
+          <Pressable
+            key={i}
+            style={st.wItem}
+            onPress={() => {
+              onChange(i);
+              ref.current?.scrollTo({ y: i * WHEEL_ITEM_H, animated: true });
+            }}
+            accessibilityRole="button"
+            accessibilityState={{ selected: i === index }}
+          >
+            <Text style={[st.wTxt, d === 0 ? st.w0 : d === 1 ? st.w1 : d === 2 ? st.w2 : st.w3]}>{t}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
 
 export default function CheckoutScreen() {
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
@@ -76,6 +156,9 @@ export default function CheckoutScreen() {
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [slotId, setSlotId] = useState<string | null>(null);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [showSched, setShowSched] = useState(false);
+  const [dayIdx, setDayIdx] = useState(0);
+  const [timeIdx, setTimeIdx] = useState(0);
 
   const cartId = getCartId();
   const quoteId = getQuoteId();
@@ -95,10 +178,57 @@ export default function CheckoutScreen() {
     api<Slot[]>("GET", `/v1/branches/${cart.branch_id}/slots`)
       .then((s) => {
         setSlots(s);
+        setDayIdx(0);
+        setTimeIdx(0);
         if (s.length === 0) setSlotsError("لا فترات متاحة حالياً — جرّب لاحقاً أو اختر أقرب وقت");
       })
       .catch((e: Error) => setSlotsError(e.message));
   }, [pickupTime, cart]);
+
+  // فترات الأيام مجمعة لعجلتي «اليوم/الوقت»
+  const dayGroups = useMemo<DayGroup[]>(() => {
+    const map = new Map<string, DayGroup>();
+    for (const s of slots ?? []) {
+      if (s.remaining <= 0) continue;
+      const key = dayKeyOf(s.slot_start);
+      const g = map.get(key) ?? { key, label: dayLabelOf(s.slot_start), slots: [] };
+      g.slots.push(s);
+      map.set(key, g);
+    }
+    return [...map.values()];
+  }, [slots]);
+
+  const chosenSlot = useMemo(
+    () => (slotId ? (slots ?? []).find((s) => s.id === slotId) ?? null : null),
+    [slots, slotId]
+  );
+
+  /** فتح ورقة «حدد موعد طلبك» — لو سبق الاختيار نُعيد العجلتين لموضعه */
+  const openSched = () => {
+    setPickupTime("scheduled");
+    if (chosenSlot) {
+      const di = dayGroups.findIndex((g) => g.key === dayKeyOf(chosenSlot.slot_start));
+      if (di >= 0) {
+        setDayIdx(di);
+        const ti = dayGroups[di].slots.findIndex((s) => s.id === chosenSlot.id);
+        setTimeIdx(ti >= 0 ? ti : 0);
+      }
+    }
+    setShowSched(true);
+  };
+
+  /** إغلاق بلا حفظ: بلا فترة مختارة نرجع لأقرب وقت حتى لا يعلق الإرسال */
+  const closeSched = () => {
+    setShowSched(false);
+    if (!slotId) setPickupTime("asap");
+  };
+
+  const saveSched = () => {
+    const s = dayGroups[dayIdx]?.slots[timeIdx];
+    if (!s) return;
+    setSlotId(s.id);
+    setShowSched(false);
+  };
 
   useEffect(() => {
     api<Vehicle[]>("GET", "/v1/customers/me/vehicles")
@@ -240,14 +370,18 @@ export default function CheckoutScreen() {
         {flags["scheduled_orders"] ? (
           <Pressable
             style={[st.optCard, pickupTime === "scheduled" ? st.optSel : null]}
-            onPress={() => setPickupTime("scheduled")}
+            onPress={openSched}
             accessibilityRole="radio"
             accessibilityState={{ selected: pickupTime === "scheduled" }}
           >
             <View style={[st.rdot, pickupTime === "scheduled" ? st.rdotOn : null]} />
             <View style={{ flex: 1 }}>
               <Text style={st.optTitle}>جدولة لوقت لاحق</Text>
-              <Text style={st.optDesc}>فترات بسعة يحددها الفرع (BR-5) — الدفع يؤكد الحجز</Text>
+              <Text style={st.optDesc}>
+                {pickupTime === "scheduled" && chosenSlot
+                  ? `${dayLabelOf(chosenSlot.slot_start)} ${slotRangeLabel(chosenSlot)} — اضغط للتغيير`
+                  : "فترات بسعة يحددها الفرع (BR-5) — الدفع يؤكد الحجز"}
+              </Text>
             </View>
           </Pressable>
         ) : (
@@ -261,35 +395,8 @@ export default function CheckoutScreen() {
           </View>
         )}
 
-        {/* فترات BR-5 — تظهر عند اختيار الجدولة */}
-        {pickupTime === "scheduled" && (
-          <View style={{ gap: 8 }}>
-            {!slots && !slotsError && <Loader />}
-            {slotsError && <ErrorNote text={slotsError} />}
-            {slots && slots.length > 0 && (
-              <>
-                <View style={st.slotGrid}>
-                  {slots.map((s) => {
-                    const on = slotId === s.id;
-                    return (
-                      <Pressable
-                        key={s.id}
-                        style={[st.slotChip, on ? st.slotChipSel : null]}
-                        onPress={() => setSlotId(s.id)}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: on }}
-                      >
-                        <Text style={[st.slotTxt, on ? st.slotTxtSel : null]}>{slotLabel(s.slot_start)}</Text>
-                        <Text style={st.slotSub}>{s.remaining} متاح</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <Text style={st.privacy}>آخر تعديل أو إلغاء مجاني: قبل ساعة من الفترة (BR-5).</Text>
-              </>
-            )}
-          </View>
-        )}
+        {/* خطأ الفترات (BR-5) — يظهر تحت الخيار لو تعذر الجلب أو لا فترات */}
+        {pickupTime === "scheduled" && slotsError && <ErrorNote text={slotsError} />}
 
         {/* ===== السيارة — شرائح + إضافة عبر Sheet (C-30 · S3) ===== */}
         <View style={st.sectionRow}>
@@ -399,6 +506,49 @@ export default function CheckoutScreen() {
         />
       </View>
 
+      {/* Sheet الجدولة — «حدد موعد طلبك»: عجلتا يوم/وقت (BR-5) */}
+      <Modal visible={showSched} transparent animationType="slide" onRequestClose={closeSched}>
+        <View style={st.dim}>
+          <Pressable style={{ flex: 1 }} onPress={closeSched} />
+          <View style={st.sheet}>
+            <View style={st.grab} />
+            <View style={st.schedHead}>
+              <Text style={st.sheetTitle}>حدد موعد طلبك</Text>
+              <Pressable style={st.schedClose} onPress={closeSched} accessibilityRole="button" accessibilityLabel="إغلاق">
+                <Text style={st.schedCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            {!slots && !slotsError && <Loader />}
+            {slotsError && <ErrorNote text={slotsError} />}
+            {dayGroups.length > 0 && (
+              <>
+                <View style={st.wheels}>
+                  <View style={st.selLine} pointerEvents="none" />
+                  <Wheel
+                    items={dayGroups.map((g) => g.label)}
+                    index={dayIdx}
+                    onChange={(i) => {
+                      setDayIdx(i);
+                      setTimeIdx(0);
+                    }}
+                    style={st.wheelDay}
+                  />
+                  <Wheel
+                    key={dayGroups[dayIdx]?.key ?? "d0"}
+                    items={(dayGroups[dayIdx] ?? dayGroups[0]).slots.map(slotRangeLabel)}
+                    index={timeIdx}
+                    onChange={setTimeIdx}
+                    style={st.wheelTime}
+                  />
+                </View>
+                <Text style={st.privacy}>آخر تعديل أو إلغاء مجاني: قبل ساعة من الفترة (BR-5).</Text>
+                <LimeButton title="حفظ" onPress={saveSched} style={{ marginTop: 10 }} />
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* Sheet إضافة سيارة (C-30 · S3: حقلان) */}
       <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
         <View style={st.dim}>
@@ -484,23 +634,35 @@ const st = StyleSheet.create({
     borderColor: light.border
   },
   rdotOn: { borderColor: colors.lime900, backgroundColor: colors.lime500 },
-  /* فترات BR-5 */
-  slotGrid: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 },
-  slotChip: {
-    alignItems: "center",
-    gap: 2,
-    backgroundColor: light.surface,
-    borderWidth: 1.5,
-    borderColor: light.border,
-    borderRadius: 12,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    minWidth: 104
+  /* جدولة BR-5 — ورقة «حدد موعد طلبك»: عجلتا يوم/وقت */
+  schedHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
+  schedClose: { width: touch, height: touch, alignItems: "center", justifyContent: "center" },
+  schedCloseTxt: { color: colors.error, fontSize: fs.fs17, fontWeight: "800" },
+  wheels: {
+    position: "relative",
+    flexDirection: "row-reverse",
+    borderTopWidth: 1,
+    borderTopColor: light.border,
+    marginTop: 24
   },
-  slotChipSel: { borderColor: colors.lime900, backgroundColor: colors.lime100 },
-  slotTxt: { color: light.text, fontSize: fs.fs13, textAlign: "center" },
-  slotTxtSel: { fontWeight: "800" },
-  slotSub: { color: light.text2, fontSize: fs.fs12 },
+  selLine: {
+    position: "absolute",
+    top: WHEEL_ITEM_H + 1,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: light.border,
+    opacity: 0.6
+  },
+  wheel: { height: WHEEL_H },
+  wheelDay: { flexGrow: 0, flexShrink: 0, flexBasis: "38%" },
+  wheelTime: { flex: 1 },
+  wItem: { height: WHEEL_ITEM_H, alignItems: "center", justifyContent: "center" },
+  wTxt: { fontWeight: "700", textAlign: "center" },
+  w0: { color: light.text, fontSize: fs.fs24 },
+  w1: { color: light.text2, fontSize: fs.fs20, opacity: 0.75 },
+  w2: { color: light.text2, fontSize: fs.fs17, opacity: 0.5 },
+  w3: { color: light.text2, fontSize: fs.fs14, opacity: 0.35 },
   plate: { color: light.text, fontSize: fs.fs15, fontWeight: "800", fontVariant: ["tabular-nums"] },
   privacy: { color: light.text2, fontSize: fs.fs12, textAlign: "right", lineHeight: 18 },
   itemsTitle: { color: light.text, fontSize: fs.fs15, fontWeight: "900", textAlign: "right" },

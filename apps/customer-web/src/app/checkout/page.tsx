@@ -91,7 +91,6 @@ interface DayGroup {
 
 /* عجلة اختيار (يوم/وقت): المحدد كبير أعلى القائمة والبقية تتلاشى تحته */
 const WHEEL_ITEM_H = 46;
-const WHEEL_H = 230;
 function Wheel({
   items,
   index,
