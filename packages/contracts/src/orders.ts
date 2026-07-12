@@ -81,6 +81,26 @@ export const OrderSchema = z.object({
 });
 export type Order = z.infer<typeof OrderSchema>;
 
+/** GET /v1/customers/me/orders — بطاقة ملخص في «طلباتي» (C-56 / W-09) */
+export const CustomerOrderSummarySchema = z.object({
+  id: UuidSchema,
+  display_code: z.string(),
+  order_status: OrderStateSchema,
+  branch_id: UuidSchema,
+  brand_name_ar: z.string(),
+  logo_url: z.string().nullable(),
+  /** مجموع الكميات — «3 أصناف» */
+  items_count: z.number().int(),
+  /** أول صنفين للعرض السريع — «برجر دجاج، بطاطس» */
+  items_preview_ar: z.string().nullable(),
+  total_halalas: HalalaSchema,
+  pickup_time: PickupTimeSchema,
+  /** بداية فترة BR-5 للمجدول — null لغير المجدول */
+  scheduled_start: z.string().datetime().nullable(),
+  created_at: z.string().datetime()
+});
+export type CustomerOrderSummary = z.infer<typeof CustomerOrderSummarySchema>;
+
 export const CancelOrderBodySchema = z.object({
   reason: z.enum(["changed_mind", "ordered_by_mistake", "wait_too_long", "other"]),
   note: z.string().max(280).optional()

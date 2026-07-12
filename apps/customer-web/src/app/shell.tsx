@@ -7,6 +7,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { api, fmtSar, getToken } from "@/lib/api";
 import styles from "./page.module.css";
 
@@ -401,31 +402,49 @@ export function AppHead({ locLabel, coords }: { locLabel: string; coords: { lat:
   );
 }
 
-/** التنقل السفلي — الرئيسية وحسابي فعّالان، البقية مؤجلة */
+/** التنقل السفلي — التبويبات الخمس فعّالة والتمييز حسب المسار الحالي */
 export function TabBar() {
+  const path = usePathname();
+  const cls = (on: boolean) => (on ? `${styles.tab} ${styles.tabOn}` : styles.tab);
   return (
     <nav className={styles.tabbar}>
-      <Link href="/" className={`${styles.tab} ${styles.tabOn}`}>
+      <Link href="/" className={cls(path === "/" || path.startsWith("/restaurants") || path.startsWith("/r/"))}>
         <IHome />
         الرئيسية
       </Link>
-      <span className={`${styles.tab} ${styles.tabOff}`} aria-disabled="true">
+      <Link href="/offers" className={cls(path.startsWith("/offers"))} data-testid="nav-offers">
         <ITag />
         العروض
-      </span>
-      <span className={`${styles.tab} ${styles.tabOff}`} aria-disabled="true">
+      </Link>
+      <Link href="/orders" className={cls(path.startsWith("/orders"))} data-testid="nav-orders">
         <IReceipt />
         طلباتي
-      </span>
-      <span className={`${styles.tab} ${styles.tabOff}`} aria-disabled="true">
+      </Link>
+      <Link href="/favorites" className={cls(path.startsWith("/favorites"))} data-testid="nav-favorites">
         <IHeart />
         المفضلة
-      </span>
-      <Link href="/auth" className={styles.tab} data-testid="nav-auth">
+      </Link>
+      <Link href="/account" className={cls(path.startsWith("/account"))} data-testid="nav-auth">
         <IUser />
         حسابي
       </Link>
     </nav>
+  );
+}
+
+/** رأس صفحة داخلية موحّد + دعوة تسجيل الدخول للزائر — تستخدمه صفحات التبويبات */
+export function GuestGate({ next, message }: { next: string; message: string }) {
+  return (
+    <div className={styles.empty}>
+      <div className={styles.emptyIc}>
+        <IUser />
+      </div>
+      <b>سجّل دخولك أولاً</b>
+      <p>{message}</p>
+      <Link href={`/auth?next=${encodeURIComponent(next)}`} className={styles.gateBtn} data-testid="gate-login">
+        تسجيل الدخول
+      </Link>
+    </div>
   );
 }
 

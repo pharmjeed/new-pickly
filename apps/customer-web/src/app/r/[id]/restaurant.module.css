@@ -664,3 +664,23 @@
   justify-content: center;
   padding: 40px 0;
 }
+
+/* ===== قلب المفضلة (C-18) في رأس المطعم ===== */
+.heartBtn {
+  background: var(--pk-surface);
+  border: 1px solid var(--pk-border);
+  border-radius: 999px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--pk-gray);
+  flex-shrink: 0;
+}
+.heartOn {
+  color: var(--pk-error);
+  border-color: var(--pk-error);
+  background: var(--pk-st-overdue-bg);
+}

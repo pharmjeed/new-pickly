@@ -7,11 +7,16 @@ import {
   UuidSchema,
   type CardBrand,
   type CustomerCard as CustomerCardDto,
+  type CustomerOrderSummary,
+  type FavoriteBrand,
   type NotificationListResponse,
+  type OrderState,
+  type PickupTime,
   type SupportTicket as SupportTicketDto,
   type TicketStatus
 } from "@pickly/contracts";
 import { prisma } from "@pickly/database";
+import { haversineMeters } from "@pickly/geo";
 import { AppError } from "@pickly/observability";
 import { requireAuth, requireCustomer } from "../../lib/auth-plugin.js";
 import { requireFlag } from "../../lib/flags.js";
@@ -37,6 +42,125 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
       data: { full_name: body.full_name }
     });
     return { id: user.id, phone: user.phone, full_name: user.full_name };
+  });
+
+  // ===== طلباتي C-56 / W-09 — قائمة طلبات العميل =====
+
+  /** مسودات ما قبل إتمام الدفع لا تظهر في «طلباتي» — تظهر أول ما يصبح الطلب حقيقياً */
+  const PRE_SUBMIT_STATES = [
+    "DRAFT",
+    "CART_ACTIVE",
+    "CHECKOUT_PENDING",
+    "PAYMENT_PENDING",
+    "PAYMENT_AUTHORIZED",
+    "PAYMENT_FAILED",
+    "EXPIRED"
+  ] as const;
+
+  app.get("/me/orders", async (req) => {
+    const claims = requireCustomer(req);
+    const orders = await prisma.order.findMany({
+      where: { user_id: claims.sub, order_status: { notIn: [...PRE_SUBMIT_STATES] } },
+      orderBy: { created_at: "desc" },
+      take: 50,
+      include: {
+        branch: { include: { brand: true } },
+        items: true,
+        scheduled_slot: true
+      }
+    });
+    return orders.map(
+      (o): CustomerOrderSummary => ({
+        id: o.id,
+        display_code: o.display_code,
+        order_status: o.order_status as OrderState,
+        branch_id: o.branch_id,
+        brand_name_ar: o.branch.brand.name_ar,
+        logo_url: o.branch.brand.logo_url,
+        items_count: o.items.reduce((n, it) => n + it.quantity, 0),
+        items_preview_ar:
+          o.items
+            .slice(0, 2)
+            .map((it) => it.name_ar_snapshot)
+            .join("، ") || null,
+        total_halalas: o.total_halalas,
+        pickup_time: o.pickup_time as PickupTime,
+        scheduled_start: o.scheduled_slot?.slot_start.toISOString() ?? null,
+        created_at: o.created_at.toISOString()
+      })
+    );
+  });
+
+  // ===== المفضلة C-18 / C-64 — علامات يحفظها العميل (favorites) =====
+
+  app.get("/me/favorites", async (req) => {
+    const claims = requireCustomer(req);
+    const q = z
+      .object({ lat: z.coerce.number().optional(), lng: z.coerce.number().optional() })
+      .parse(req.query ?? {});
+
+    const favs = await prisma.favorite.findMany({
+      where: { user_id: claims.sub },
+      orderBy: { created_at: "desc" }
+    });
+    if (favs.length === 0) return [];
+
+    const brands = await prisma.brand.findMany({
+      where: { id: { in: favs.map((f) => f.brand_id) } },
+      include: { branches: { where: { is_active: true } } }
+    });
+    const byId = new Map(brands.map((b) => [b.id, b]));
+
+    return favs.flatMap((f): FavoriteBrand[] => {
+      const brand = byId.get(f.brand_id);
+      if (!brand) return []; // علامة حُذفت — لا نكسر القائمة
+      // أقرب فرع نشط إن توفر موقع العميل — وإلا أول فرع
+      let branch = brand.branches[0] ?? null;
+      let distance: number | null = null;
+      if (q.lat != null && q.lng != null) {
+        for (const b of brand.branches) {
+          const d = haversineMeters({ lat: q.lat, lng: q.lng }, { lat: b.lat, lng: b.lng });
+          if (distance === null || d < distance) {
+            distance = d;
+            branch = b;
+          }
+        }
+      }
+      return [
+        {
+          brand_id: brand.id,
+          name_ar: brand.name_ar,
+          cuisine_ar: brand.cuisine_ar,
+          logo_url: brand.logo_url,
+          cover_url: brand.cover_url,
+          branch_id: branch?.id ?? null,
+          branch_status: (branch?.status as FavoriteBrand["branch_status"]) ?? null,
+          distance_meters: distance === null ? null : Math.round(distance),
+          created_at: f.created_at.toISOString()
+        }
+      ];
+    });
+  });
+
+  /** إضافة للمفضلة — upsert: الضغط المكرر على القلب لا يفشل */
+  app.put("/me/favorites/:brandId", async (req) => {
+    const claims = requireCustomer(req);
+    const brand_id = UuidSchema.parse((req.params as { brandId: string }).brandId);
+    const brand = await prisma.brand.findUnique({ where: { id: brand_id } });
+    if (!brand || !brand.is_active) throw new AppError("CATALOG-2001");
+    await prisma.favorite.upsert({
+      where: { user_id_brand_id: { user_id: claims.sub, brand_id } },
+      create: { user_id: claims.sub, brand_id },
+      update: {}
+    });
+    return { ok: true };
+  });
+
+  app.delete("/me/favorites/:brandId", async (req) => {
+    const claims = requireCustomer(req);
+    const brand_id = UuidSchema.parse((req.params as { brandId: string }).brandId);
+    await prisma.favorite.deleteMany({ where: { user_id: claims.sub, brand_id } });
+    return { ok: true };
   });
 
   // ===== السيارات — لوحة سعودية كاملة (حروف + أرقام) مشفرة AES-GCM =====

@@ -39,6 +39,7 @@ interface Menu {
 }
 interface BranchCard {
   id: string;
+  brand_id: string;
   brand_name_ar: string;
   logo_url: string | null;
   cover_url: string | null;
@@ -82,6 +83,7 @@ export default function RestaurantPage() {
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [adding, setAdding] = useState(false);
+  const [isFav, setIsFav] = useState(false);
 
   useEffect(() => {
     api<Menu>("GET", `/v1/branches/${id}/menu`).then(setMenu).catch((e: Error) => setError(e.message));
@@ -103,6 +105,25 @@ export default function RestaurantPage() {
       void find(RIYADH.lat, RIYADH.lng);
     }
   }, [id]);
+
+  // حالة القلب (C-18) — للمسجلين فقط؛ فشلها لا يعطل الصفحة
+  useEffect(() => {
+    if (!branch || !getToken()) return;
+    api<Array<{ brand_id: string }>>("GET", "/v1/customers/me/favorites")
+      .then((favs) => setIsFav(favs.some((f) => f.brand_id === branch.brand_id)))
+      .catch(() => undefined);
+  }, [branch]);
+
+  const toggleFav = () => {
+    if (!branch) return;
+    if (!getToken()) {
+      router.push(`/auth?next=/r/${id}`);
+      return;
+    }
+    const next = !isFav;
+    setIsFav(next); // تفاؤلي — الفشل يرجع الحالة
+    api(next ? "PUT" : "DELETE", `/v1/customers/me/favorites/${branch.brand_id}`).catch(() => setIsFav(!next));
+  };
 
   // قفل تمرير الخلفية عند فتح الورقة
   useEffect(() => {
@@ -258,6 +279,20 @@ export default function RestaurantPage() {
             <h1 className={styles.brandName}>{branch?.brand_name_ar ?? "قائمة المطعم"}</h1>
             {branch && <div className={styles.brandSub}>{branch.address_short}</div>}
           </div>
+          {branch && (
+            <button
+              type="button"
+              className={isFav ? `${styles.heartBtn} ${styles.heartOn}` : styles.heartBtn}
+              onClick={toggleFav}
+              aria-pressed={isFav}
+              aria-label={isFav ? "إزالة من المفضلة" : "إضافة للمفضلة"}
+              data-testid="fav-toggle"
+            >
+              <svg width="19" height="19" viewBox="0 0 100 100" fill={isFav ? "currentColor" : "none"} stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M50,80 C20,60 14,40 26,28 C36,18 50,26 50,36 C50,26 64,18 74,28 C86,40 80,60 50,80 Z" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {branch && (

@@ -109,6 +109,39 @@ export const CapacitySlotSchema = z.object({
 });
 export type CapacitySlot = z.infer<typeof CapacitySlotSchema>;
 
+/**
+ * GET /v1/customers/me/favorites — المفضلة C-18/C-64:
+ * العلامة المحفوظة + أقرب فرع نشط للانتقال إليه (حسب lat/lng إن أُرسلا).
+ */
+export const FavoriteBrandSchema = z.object({
+  brand_id: UuidSchema,
+  name_ar: z.string(),
+  cuisine_ar: z.string().nullable(),
+  logo_url: z.string().nullable(),
+  cover_url: z.string().nullable(),
+  branch_id: UuidSchema.nullable(),
+  branch_status: BranchStatusSchema.nullable(),
+  distance_meters: z.number().int().nullable(),
+  created_at: z.string().datetime()
+});
+export type FavoriteBrand = z.infer<typeof FavoriteBrandSchema>;
+
+/** GET /v1/offers — بطاقة عرض C-17: كوبونات بيكلي العامة وعروض المطاعم السارية */
+export const OfferCardSchema = z.object({
+  id: UuidSchema,
+  code: z.string(),
+  type: z.enum(["amount", "percent", "free_product"]),
+  /** هللات لـ amount، نقاط أساس لـ percent (كما في جدول coupons) */
+  value: z.number().int(),
+  min_order_halalas: HalalaSchema.nullable(),
+  new_users_only: z.boolean(),
+  /** null = كوبون بيكلي عام على كل المطاعم */
+  merchant_name_ar: z.string().nullable(),
+  brand_logo_url: z.string().nullable(),
+  ends_at: z.string().datetime().nullable()
+});
+export type OfferCard = z.infer<typeof OfferCardSchema>;
+
 /** GET /v1/content/banners — بانرات CMS (A-13) */
 export const ContentBannerSchema = z.object({
   title_ar: z.string(),

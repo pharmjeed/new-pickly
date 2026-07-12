@@ -9,6 +9,7 @@ import {
   type ContentBanner,
   type ContentCategory,
   type Menu,
+  type OfferCard,
   type SearchResponse
 } from "@pickly/contracts";
 import { prisma, slotWithinWeeklyWindows } from "@pickly/database";
@@ -172,6 +173,52 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
       orderBy: [{ sort: "asc" }, { label: "asc" }]
     });
     return spots.map((s): BranchParkingSpot => ({ id: s.id, label: s.label, lat: s.lat, lng: s.lng }));
+  });
+
+  /**
+   * العروض C-17 — الكوبونات السارية المعلنة للعميل: كوبونات بيكلي العامة
+   * (merchant_id فارغ) وعروض المطاعم. الصلاحية النهائية تُتحقق عند تطبيق
+   * الكوبون على السلة (docs/06 BR-7) — هنا عرض فقط.
+   */
+  app.get("/offers", async () => {
+    const now = new Date();
+    const coupons = await prisma.coupon.findMany({
+      where: {
+        is_active: true,
+        AND: [
+          { OR: [{ starts_at: null }, { starts_at: { lte: now } }] },
+          { OR: [{ ends_at: null }, { ends_at: { gte: now } }] }
+        ]
+      },
+      include: { merchant: { include: { brands: { where: { is_active: true }, take: 1 } } } },
+      orderBy: { created_at: "desc" },
+      take: 50
+    });
+    if (coupons.length === 0) return [];
+
+    // المستنفدة كلياً (max_uses_total) لا تُعرض
+    const counts = await prisma.couponRedemption.groupBy({
+      by: ["coupon_id"],
+      where: { coupon_id: { in: coupons.map((c) => c.id) } },
+      _count: { _all: true }
+    });
+    const used = new Map(counts.map((c) => [c.coupon_id, c._count._all]));
+
+    return coupons
+      .filter((c) => c.max_uses_total == null || (used.get(c.id) ?? 0) < c.max_uses_total)
+      .map(
+        (c): OfferCard => ({
+          id: c.id,
+          code: c.code,
+          type: c.type,
+          value: c.value,
+          min_order_halalas: c.min_order_halalas,
+          new_users_only: c.new_users_only,
+          merchant_name_ar: c.merchant ? (c.merchant.brands[0]?.name_ar ?? c.merchant.name_ar) : null,
+          brand_logo_url: c.merchant?.brands[0]?.logo_url ?? null,
+          ends_at: c.ends_at?.toISOString() ?? null
+        })
+      );
   });
 
   /** بانرات CMS (A-13) — أحدث قيمة سارية للمفتاح cms.banners */
