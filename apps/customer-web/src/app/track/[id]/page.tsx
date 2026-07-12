@@ -85,16 +85,6 @@ interface BranchSpot {
 const navUrl = (lat: number, lng: number) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 
 /* أيقونات خطية من رموز P7.html — currentColor فقط */
-const IconCar = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
-    <g fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round">
-      <path d="M30,56 Q35,40 50,40 Q65,40 70,56" />
-      <rect x="18" y="54" width="64" height="18" rx="9" />
-      <circle cx="34" cy="78" r="6" strokeWidth="6" />
-      <circle cx="66" cy="78" r="6" strokeWidth="6" />
-    </g>
-  </svg>
-);
 /** شعار بيكلي — الشارة الليمونية بخطوط السرعة (هوية الحركة skew -8°) */
 const PicklyBadge = ({ size = 96 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
@@ -213,6 +203,9 @@ export default function TrackPage() {
     return () => clearInterval(t);
   }, [prepCountdownOn]);
 
+  // GPS رصدك عند نقطة موقفك المثبتة — تذكير بزر «وصلت» (التحول يبقى يدوياً)
+  const [atSpotHint, setAtSpotHint] = useState(false);
+
   const startTrip = async () => {
     await api("POST", `/v1/orders/${id}/trip/start`);
     // إرسال الموقع الفعلي إن توفر — والرحلة تعمل يدوياً بدونه (docs/14§8)
@@ -220,7 +213,7 @@ export default function TrackPage() {
       tripTimer.current = setInterval(() => {
         navigator.geolocation.getCurrentPosition(async (pos) => {
           try {
-            const res = await api<{ eta_minutes: number | null }>(
+            const res = await api<{ eta_minutes: number | null; at_spot?: boolean }>(
               "POST",
               `/v1/orders/${id}/trip/location`,
               {
@@ -232,6 +225,7 @@ export default function TrackPage() {
               }
             );
             if (res.eta_minutes !== null) setEta(res.eta_minutes);
+            if (res.at_spot) setAtSpotHint(true);
           } catch {
             /* التتبع تحسين لا شرط */
           }
@@ -467,20 +461,6 @@ export default function TrackPage() {
           </div>
         )}
 
-        {/* بطاقة السيارة (C-42/C-49) */}
-        {order.vehicle && (
-          <div className={`pk-card ${s.vehicleCard}`}>
-            <span className={s.vehicleIcon}><IconCar /></span>
-            <span className={s.parkingGrow}>
-              <span className={s.vehicleName}>
-                {[order.vehicle.model_ar, order.vehicle.color_ar, order.vehicle.plate_short].filter(Boolean).join(" · ")}
-              </span>
-              <span className="pk-muted">الموظف يعرف سيارتك مسبقًا</span>
-            </span>
-            {parkingLabel && <span className={s.spotBadge}>{parkingLabel}</span>}
-          </div>
-        )}
-
         {/* بطاقة الرمز الليمونية (C-50/C-51) */}
         {order.handoff_code && arrived && (
           <div className={s.codeCard}>
@@ -501,6 +481,11 @@ export default function TrackPage() {
         )}
         {canArrive && (
           <>
+            {atSpotHint && (
+              <p className={s.footNote} data-testid="at-spot-hint" style={{ fontWeight: 700 }}>
+                وصلت لنقطة موقفك{parkingLabel ? ` — ${parkingLabel}` : ""} 🅿 — اضغط «وصلت» ليطلع لك الموظف
+              </p>
+            )}
             <button className="pk-btn" data-testid="confirm-arrival" onClick={confirmArrival} style={{ marginTop: 8 }}>
               وصلت
             </button>
