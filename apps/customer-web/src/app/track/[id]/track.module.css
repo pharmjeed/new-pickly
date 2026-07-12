@@ -308,3 +308,149 @@
 :global(.pk-drive) .footNote {
   color: var(--pk-gray-2);
 }
+
+/* ===== شاشة انتظار القبول — الشعار الحي (ترسيخ العلامة أثناء الترقب) ===== */
+.waitHero {
+  position: relative;
+  width: 168px;
+  height: 168px;
+  margin: 18px auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.waitRing {
+  position: absolute;
+  inset: 34px;
+  border-radius: 32px;
+  border: 2.5px solid var(--pk-lime-500);
+  opacity: 0;
+  animation: pk-wait-ripple 2.4s var(--pk-ease) infinite;
+}
+.waitRing:nth-child(2) { animation-delay: 0.8s; }
+.waitRing:nth-child(3) { animation-delay: 1.6s; }
+@keyframes pk-wait-ripple {
+  0% { transform: scale(1); opacity: 0.65; }
+  100% { transform: scale(1.72); opacity: 0; }
+}
+.waitLogo {
+  position: relative;
+  z-index: 1;
+  animation: pk-wait-bob 2.4s var(--pk-ease) infinite;
+  filter: drop-shadow(var(--pk-shadow-1));
+}
+@keyframes pk-wait-bob {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+/* خطوط السرعة الثلاثة في الشعار تتنفس بتتابع — هوية الحركة (skew -8°) */
+.sl1, .sl2, .sl3 { animation: pk-speed-breathe 1.8s var(--pk-ease) infinite; }
+.sl2 { animation-delay: 0.22s; }
+.sl3 { animation-delay: 0.44s; }
+@keyframes pk-speed-breathe {
+  0%, 100% { opacity: 0.25; }
+  35% { opacity: 1; }
+}
+/* الرسالة المتبدلة تحت العنوان */
+.waitMsg {
+  color: var(--pk-text-2);
+  text-align: center;
+  min-height: 26px;
+  margin-bottom: 16px;
+  transition: opacity var(--pk-dur) var(--pk-ease), transform var(--pk-dur) var(--pk-ease);
+}
+.waitMsgOut {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+/* ===== عدّاد التجهيز التنازلي (بعد قبول المطعم) ===== */
+.prepCard {
+  text-align: center;
+  margin-bottom: 12px;
+  padding: 18px 16px 14px;
+}
+.prepRingWrap {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  margin: 8px auto 4px;
+}
+.prepRingWrap svg {
+  transform: rotate(-90deg);
+}
+.prepTrack {
+  stroke: var(--pk-line);
+}
+.prepFill {
+  stroke: var(--pk-lime-900);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+.prepOvertime .prepFill {
+  stroke: var(--pk-warn);
+}
+.prepDigits {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.prepDigits b {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-32);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  line-height: 1.15;
+}
+.prepOvertime .prepDigits b {
+  font-size: var(--pk-fs-20);
+  color: var(--pk-warn);
+}
+.prepDigits span {
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+}
+:global(.pk-drive) .prepTrack { stroke: var(--pk-ink-600); }
+:global(.pk-drive) .prepFill { stroke: var(--pk-lime-500); }
+
+/* ===== زر «الاتجاه للمطعم» ===== */
+.mapsBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: var(--pk-touch);
+  background: var(--pk-surface);
+  color: var(--pk-text);
+  border: 1.5px solid var(--pk-ink-900);
+  border-radius: var(--pk-radius);
+  font-family: var(--pk-font-body);
+  font-weight: 700;
+  font-size: var(--pk-fs-15);
+  text-decoration: none;
+  margin-bottom: 12px;
+  transition: background var(--pk-dur) var(--pk-ease);
+}
+.mapsBtn:hover { background: var(--pk-lime-100); }
+.mapsBtnHint {
+  font-weight: 400;
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+}
+:global(.pk-drive) .mapsBtn {
+  background: var(--pk-ink-700);
+  color: var(--pk-cloud);
+  border-color: var(--pk-cloud);
+}
+:global(.pk-drive) .mapsBtn:hover { background: var(--pk-ink-600); }
+
+@media (prefers-reduced-motion: reduce) {
+  .waitRing, .waitLogo, .sl1, .sl2, .sl3 { animation: none; }
+  .waitRing { opacity: 0.25; transform: scale(1.3); }
+}

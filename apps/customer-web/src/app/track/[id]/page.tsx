@@ -19,6 +19,12 @@ interface Order {
   handoff_code: string | null;
   /** الوقت المتوقع — «متوسط وقت التجهيز» المختوم عند القبول من إعدادات المطعم */
   prep_minutes: number | null;
+  /** لحظة قبول المطعم — مرساة العدّاد التنازلي للتجهيز */
+  accepted_at: string | null;
+  /** موقع الفرع وعنوانه المختصر — زر «الاتجاه للمطعم» */
+  branch_lat: number;
+  branch_lng: number;
+  branch_address_short: string;
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة الرحلة */
   preparing_at: string | null;
   ready_at: string | null;
@@ -42,7 +48,7 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   PAYMENT_FAILED: { step: "SUBMITTED", title: "ما تمّ الدفع", sub: "جرّب بطاقة ثانية — طلبك محفوظ" },
   ORDER_SUBMITTED: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم" },
   MERCHANT_PENDING: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم" },
-  MERCHANT_ACCEPTED: { step: "ACCEPTED", title: "قبل المطعم طلبك", sub: "المطعم يجهّز طلبك على وقت وصولك" },
+  MERCHANT_ACCEPTED: { step: "ACCEPTED", title: "قيد التجهيز", sub: "قبل المطعم طلبك — بدأ تجهيزه الآن" },
   MERCHANT_REJECTED: { step: "SUBMITTED", title: "نعتذر — ما قدر المطعم يستقبل طلبك", sub: "مبلغك يرجع لك كاملاً" },
   PREPARING: { step: "PREPARING", title: "قيد التجهيز", sub: "خلّك مستعد للانطلاق" },
   READY: { step: "READY", title: "طلبك جاهز", sub: "خلّك في سيارتك، الباقي علينا" },
@@ -57,6 +63,14 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
 
 const DRIVE_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
 const ARRIVED_STATES = ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"];
+/** شاشة انتظار قبول المطعم — الشعار الحي + رسائل تطمئن العميل أن شيئاً يحدث */
+const WAITING_STATES = ["ORDER_SUBMITTED", "MERCHANT_PENDING"];
+const WAIT_MSGS = [
+  "أرسلنا طلبك للمطعم",
+  "المطعم يطّلع على طلبك الآن…",
+  "عادةً يُقبل الطلب خلال دقيقة",
+  "فور القبول يبدأ عدّاد التجهيز"
+];
 
 /** موقف استلام يخدمه الفرع — يحدده المطعم من بوابته والعميل يختار منها فقط */
 interface BranchSpot {
@@ -73,6 +87,32 @@ const IconCar = ({ size = 24 }: { size?: number }) => (
       <circle cx="34" cy="78" r="6" strokeWidth="6" />
       <circle cx="66" cy="78" r="6" strokeWidth="6" />
     </g>
+  </svg>
+);
+/** شعار بيكلي — الشارة الليمونية بخطوط السرعة (هوية الحركة skew -8°) */
+const PicklyBadge = ({ size = 96 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
+    <rect width="100" height="100" rx="24" fill="var(--pk-lime-500)" />
+    <g transform="skewX(-8) translate(4,0)" stroke="var(--pk-ink-900)" fill="none">
+      <path d="M36,34 L62,34 L59,72 L39,72 Z" strokeWidth="4" strokeLinejoin="round" />
+      <path d="M43,34 Q49,24 55,34" strokeWidth="3.5" strokeLinecap="round" />
+      <path className={s.sl1} d="M70,40 H88" strokeWidth="5" strokeLinecap="round" />
+      <path className={s.sl2} d="M74,52 H88" strokeWidth="5" strokeLinecap="round" />
+      <path className={s.sl3} d="M70,64 H80" strokeWidth="5" strokeLinecap="round" />
+    </g>
+  </svg>
+);
+/** سهم ملاحة — زر «الاتجاه للمطعم» */
+const IconNav = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
+    <path
+      d="M50,14 L82,82 L50,64 L18,82 Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="8"
+      strokeLinejoin="round"
+      transform="rotate(35 50 50)"
+    />
   </svg>
 );
 const IconRadar = ({ size = 44 }: { size?: number }) => (
@@ -132,6 +172,38 @@ export default function TrackPage() {
     },
     []
   );
+
+  // شاشة الانتظار: رسائل متبدلة تحت الشعار الحي — يتوقف التبديل فور مغادرة حالة الانتظار
+  const isWaiting = WAITING_STATES.includes(order?.order_status ?? "");
+  const [waitIdx, setWaitIdx] = useState(0);
+  const [waitOut, setWaitOut] = useState(false);
+  useEffect(() => {
+    if (!isWaiting) return;
+    const t = setInterval(() => {
+      setWaitOut(true);
+      setTimeout(() => {
+        setWaitIdx((i) => (i + 1) % WAIT_MSGS.length);
+        setWaitOut(false);
+      }, 220);
+    }, 3400);
+    return () => clearInterval(t);
+  }, [isWaiting]);
+
+  // ساعة حية للعدّاد التنازلي — تدق فقط أثناء التجهيز قبل الجاهزية
+  const prepCountdownOn = Boolean(
+    order &&
+      ["MERCHANT_ACCEPTED", "PREPARING"].includes(order.order_status) &&
+      order.prep_minutes !== null &&
+      order.accepted_at &&
+      !order.ready_at
+  );
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!prepCountdownOn) return;
+    setNowTs(Date.now());
+    const t = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [prepCountdownOn]);
 
   const startTrip = async () => {
     await api("POST", `/v1/orders/${id}/trip/start`);
@@ -271,14 +343,63 @@ export default function TrackPage() {
           </div>
         )}
 
-        <h1 className="pk-display" data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)" }}>
+        {/* شاشة انتظار قبول المطعم — الشعار الحي يرسّخ العلامة أثناء الترقب */}
+        {isWaiting && (
+          <div className={s.waitHero} data-testid="waiting-logo">
+            <span className={s.waitRing} />
+            <span className={s.waitRing} />
+            <span className={s.waitRing} />
+            <div className={s.waitLogo}><PicklyBadge /></div>
+          </div>
+        )}
+
+        <h1 className="pk-display" data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting ? "center" : undefined }}>
           {view.title}
         </h1>
-        <p className="pk-muted" style={{ marginBottom: 16 }}>{view.sub}</p>
+        {isWaiting ? (
+          <p className={`${s.waitMsg} ${waitOut ? s.waitMsgOut : ""}`}>{WAIT_MSGS[waitIdx]}</p>
+        ) : (
+          <p className="pk-muted" style={{ marginBottom: 16 }}>{view.sub}</p>
+        )}
 
-        {/* موافقة العميل على وقت التجهيز المتوقع — قبل بدء التجهيز */}
-        {/* الوقت المتوقع — من «متوسط وقت التجهيز» الذي يحدده المطعم في صفحته (قرار المالك 2026-07-12) */}
-        {["MERCHANT_ACCEPTED", "PREPARING"].includes(order.order_status) && order.prep_minutes !== null && !order.ready_at && (
+        {/* عدّاد التجهيز التنازلي — من لحظة القبول + «متوسط وقت التجهيز» الذي حدده المطعم (قرار المالك 2026-07-12) */}
+        {prepCountdownOn && order.prep_minutes !== null && order.accepted_at ? (
+          (() => {
+            const totalMs = order.prep_minutes * 60_000;
+            const leftMs = new Date(order.accepted_at).getTime() + totalMs - nowTs;
+            const overtime = leftMs <= 0;
+            const shown = Math.max(leftMs, 0);
+            const mm = Math.floor(shown / 60_000);
+            const ss = Math.floor((shown % 60_000) / 1000);
+            const C = 402.1; // محيط الحلقة r=64
+            const frac = Math.min(Math.max(shown / totalMs, 0), 1);
+            return (
+              <div className={`pk-card ${s.prepCard} ${overtime ? s.prepOvertime : ""}`} data-testid="prep-expected">
+                <p style={{ fontWeight: 700 }}>طلبك على النار الآن</p>
+                <div className={s.prepRingWrap}>
+                  <svg width="148" height="148" viewBox="0 0 148 148" fill="none">
+                    <circle className={s.prepTrack} cx="74" cy="74" r="64" strokeWidth="9" />
+                    <circle
+                      className={s.prepFill}
+                      cx="74"
+                      cy="74"
+                      r="64"
+                      strokeWidth="9"
+                      strokeDasharray={C}
+                      strokeDashoffset={C * (1 - frac)}
+                    />
+                  </svg>
+                  <div className={s.prepDigits}>
+                    <b>{overtime ? "اللمسات الأخيرة…" : `${mm}:${String(ss).padStart(2, "0")}`}</b>
+                    <span>{overtime ? "أطول من المتوقع قليلاً" : "حتى جاهزية طلبك تقريباً"}</span>
+                  </div>
+                </div>
+                <p className="pk-muted">الوقت المتوقع ~{order.prep_minutes} دقيقة — حدده المطعم عند القبول</p>
+              </div>
+            );
+          })()
+        ) : ["MERCHANT_ACCEPTED", "PREPARING"].includes(order.order_status) && order.prep_minutes !== null && !order.ready_at ? (
+          /* طلبات قديمة بلا accepted_at — البطاقة الثابتة كما كانت */
           <div className="pk-card" data-testid="prep-expected" style={{ textAlign: "center", marginBottom: 12 }}>
             <p style={{ fontWeight: 700, marginBottom: 4 }}>الوقت المتوقع لتجهيز طلبك</p>
             <p className="pk-display" style={{ fontSize: "var(--pk-fs-34)", margin: "4px 0" }}>
@@ -286,6 +407,21 @@ export default function TrackPage() {
             </p>
             <p className="pk-muted">متوسط وقت التجهيز لدى المطعم — انطلق بحسبه</p>
           </div>
+        ) : null}
+
+        {/* «الاتجاه للمطعم» — يفتح خرائط Google بإحداثيات الفرع، متاح من القبول وحتى الوصول */}
+        {(canStart || driveMode) && (
+          <a
+            className={s.mapsBtn}
+            data-testid="maps-directions"
+            href={`https://www.google.com/maps/dir/?api=1&destination=${order.branch_lat},${order.branch_lng}&travelmode=driving`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <IconNav />
+            الاتجاه للمطعم
+            <span className={s.mapsBtnHint}>{order.branch_address_short}</span>
+          </a>
         )}
 
         {/* بطاقة ETA الكبيرة — وضع القيادة (C-45) */}

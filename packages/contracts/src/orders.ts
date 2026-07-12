@@ -59,6 +59,12 @@ export const OrderSchema = z.object({
   handoff_code: z.string().nullable(),
   /** الوقت المتوقع — «متوسط وقت التجهيز» المختوم عند القبول من إعدادات المطعم (قرار المالك 2026-07-12) */
   prep_minutes: z.number().int().nullable(),
+  /** لحظة قبول المطعم — مرساة العدّاد التنازلي للتجهيز لدى العميل */
+  accepted_at: z.string().datetime().nullable().default(null),
+  /** موقع الفرع وعنوانه المختصر — لزر «الاتجاه للمطعم» في صفحة التتبع */
+  branch_lat: z.number(),
+  branch_lng: z.number(),
+  branch_address_short: z.string(),
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة رحلة العميل */
   preparing_at: z.string().datetime().nullable().default(null),
   ready_at: z.string().datetime().nullable().default(null),

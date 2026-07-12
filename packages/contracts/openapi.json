@@ -1971,11 +1971,29 @@
                       },
                       "label": {
                         "type": "string"
+                      },
+                      "lat": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": -90,
+                        "maximum": 90
+                      },
+                      "lng": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": -180,
+                        "maximum": 180
                       }
                     },
                     "required": [
                       "id",
-                      "label"
+                      "label",
+                      "lat",
+                      "lng"
                     ]
                   }
                 }
@@ -4590,6 +4608,23 @@
                         "null"
                       ]
                     },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "branch_lat": {
+                      "type": "number"
+                    },
+                    "branch_lng": {
+                      "type": "number"
+                    },
+                    "branch_address_short": {
+                      "type": "string"
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -4659,6 +4694,9 @@
                     "vehicle",
                     "handoff_code",
                     "prep_minutes",
+                    "branch_lat",
+                    "branch_lng",
+                    "branch_address_short",
                     "pickup_time",
                     "scheduled_slot",
                     "created_at"
@@ -4973,6 +5011,23 @@
                         "null"
                       ]
                     },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "branch_lat": {
+                      "type": "number"
+                    },
+                    "branch_lng": {
+                      "type": "number"
+                    },
+                    "branch_address_short": {
+                      "type": "string"
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -5042,6 +5097,9 @@
                     "vehicle",
                     "handoff_code",
                     "prep_minutes",
+                    "branch_lat",
+                    "branch_lng",
+                    "branch_address_short",
                     "pickup_time",
                     "scheduled_slot",
                     "created_at"
@@ -5611,6 +5669,23 @@
                         "null"
                       ]
                     },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "branch_lat": {
+                      "type": "number"
+                    },
+                    "branch_lng": {
+                      "type": "number"
+                    },
+                    "branch_address_short": {
+                      "type": "string"
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -5680,6 +5755,9 @@
                     "vehicle",
                     "handoff_code",
                     "prep_minutes",
+                    "branch_lat",
+                    "branch_lng",
+                    "branch_address_short",
                     "pickup_time",
                     "scheduled_slot",
                     "created_at"
@@ -6033,6 +6111,23 @@
                         "null"
                       ]
                     },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "branch_lat": {
+                      "type": "number"
+                    },
+                    "branch_lng": {
+                      "type": "number"
+                    },
+                    "branch_address_short": {
+                      "type": "string"
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -6102,6 +6197,9 @@
                     "vehicle",
                     "handoff_code",
                     "prep_minutes",
+                    "branch_lat",
+                    "branch_lng",
+                    "branch_address_short",
                     "pickup_time",
                     "scheduled_slot",
                     "created_at"
@@ -6443,6 +6541,23 @@
                         "null"
                       ]
                     },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "branch_lat": {
+                      "type": "number"
+                    },
+                    "branch_lng": {
+                      "type": "number"
+                    },
+                    "branch_address_short": {
+                      "type": "string"
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -6512,6 +6627,9 @@
                     "vehicle",
                     "handoff_code",
                     "prep_minutes",
+                    "branch_lat",
+                    "branch_lng",
+                    "branch_address_short",
                     "pickup_time",
                     "scheduled_slot",
                     "created_at"
@@ -7312,6 +7430,23 @@
                         "null"
                       ]
                     },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "branch_lat": {
+                      "type": "number"
+                    },
+                    "branch_lng": {
+                      "type": "number"
+                    },
+                    "branch_address_short": {
+                      "type": "string"
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -7381,6 +7516,9 @@
                     "vehicle",
                     "handoff_code",
                     "prep_minutes",
+                    "branch_lat",
+                    "branch_lng",
+                    "branch_address_short",
                     "pickup_time",
                     "scheduled_slot",
                     "created_at"
@@ -7876,6 +8014,23 @@
                         "null"
                       ]
                     },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "branch_lat": {
+                      "type": "number"
+                    },
+                    "branch_lng": {
+                      "type": "number"
+                    },
+                    "branch_address_short": {
+                      "type": "string"
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -7945,6 +8100,9 @@
                     "vehicle",
                     "handoff_code",
                     "prep_minutes",
+                    "branch_lat",
+                    "branch_lng",
+                    "branch_address_short",
                     "pickup_time",
                     "scheduled_slot",
                     "created_at"
