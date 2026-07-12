@@ -78,7 +78,7 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
 
   const orderCard = b.getByTestId("order-card").filter({ hasText: orderCode });
   await expect(orderCard).toBeVisible();
-  await expect(orderCard).toContainText("بيضاء"); // بطاقة السيارة أكبر عنصر
+  await expect(orderCard).toContainText("أبيض"); // بطاقة السيارة أكبر عنصر — اللون كما اختير من الكتالوج
   // قبول بضغطة — الوقت المتوقع يُختم آلياً من «متوسط وقت التجهيز» في إعدادات المطعم
   await orderCard.getByTestId("accept-order").click();
 
@@ -87,8 +87,10 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
 
   await b.getByTestId("tab-preparing").click();
   await expect(orderCard.getByTestId("prep-avg")).toBeVisible();
-  await orderCard.getByTestId("start-preparing").click();
+  // زر واحد «جاهز» — ينقل البطاقة مباشرة إلى تبويب «جاهزة» ويُشعر العميل
   await orderCard.getByTestId("mark-ready").click();
+  await b.getByTestId("tab-ready").click();
+  await expect(orderCard).toBeVisible();
 
   // ===== 7. العميل: جاهز ← انطلقت ← وصلت (J10: يدوي بلا GPS) =====
   await expect(c.getByTestId("track-title")).toContainText("طلبك جاهز");
