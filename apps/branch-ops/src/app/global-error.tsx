@@ -2,21 +2,24 @@
 
 /**
  * حاجز الخطأ الجذري — بدل شاشة Next الافتراضية «Application error».
- * أشيع سبب: إعادة نشر تُبدّل أسماء chunks بينما التبويب يحمل نسخة قديمة
- * (ChunkLoadError عند أي تنقل) — نحدّث الصفحة تلقائياً مرة لجلب النسخة الجديدة.
+ * أشيع سبب: إعادة نشر تُبدّل أسماء chunks بينما التبويب يحمل نسخة قديمة.
+ * رسائل الإنتاج مصغّرة فلا يُعتمد على نصّ الخطأ — نحدّث تلقائياً مرة واحدة
+ * لأي خطأ، فإن تكرر خلال ٣٠ ثانية فالعطل مستمر وتظهر هذه الشاشة.
  */
 import { useEffect } from "react";
 
-const STALE_CHUNK = /ChunkLoadError|Loading chunk|dynamically imported module/i;
-const RELOAD_MARK = "pk_chunk_reload_at";
+const RELOAD_MARK = "pk_error_reload_at";
 
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {
-    if (!STALE_CHUNK.test(`${error.name} ${error.message}`)) return;
-    const last = Number(sessionStorage.getItem(RELOAD_MARK) ?? "0");
-    if (Date.now() - last < 30_000) return; // الفشل مستمر رغم التحديث — لا حلقة إعادة تحميل
-    sessionStorage.setItem(RELOAD_MARK, String(Date.now()));
-    window.location.reload();
+    try {
+      const last = Number(sessionStorage.getItem(RELOAD_MARK) ?? "0");
+      if (Date.now() - last < 30_000) return; // الفشل مستمر رغم التحديث — لا حلقة إعادة تحميل
+      sessionStorage.setItem(RELOAD_MARK, String(Date.now()));
+      window.location.reload();
+    } catch {
+      /* sessionStorage محجوبة — تبقى الشاشة وزر التحديث اليدوي */
+    }
   }, [error]);
 
   return (

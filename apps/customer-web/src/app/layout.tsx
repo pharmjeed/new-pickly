@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Splash from "./splash";
+import VersionWatch from "./version-watch";
 
 export const metadata: Metadata = {
   title: "بيكلي — وصلت؟ إحنا عرفنا.",
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <VersionWatch />
         <Splash />
         {children}
       </body>
