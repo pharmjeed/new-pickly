@@ -4,7 +4,8 @@
  * والتسعير خادمي حصراً (BR-6) — app/cart.tsx تحوّل إلى هنا.
  * وقت الاستلام FR-C06: أقرب وقت / مجدول بفترات وسعة (BR-5).
  * الدفع C-33: بطاقة أو محفظة (Apple Pay/STC Pay) — بوابة sandbox بنفس مسار الإنتاج.
- * GET/POST /v1/customers/me/vehicles (S3: لون + آخر 4)
+ * السيارة: بطاقة لوحة سعودية (حروف + أرقام) + إضافة/تعديل من كتالوج الماركات والموديلات
+ * GET /v1/vehicle-catalog · GET/POST/PATCH/DELETE /v1/customers/me/vehicles
  * POST /v1/orders (idempotent) → payment-intent → mock-gateway pay → /track/{id}
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -105,8 +106,28 @@ interface Vehicle {
   model_ar: string | null;
   color_ar: string;
   plate_short: string;
+  plate_letters_ar: string | null;
+  plate_digits: string;
   is_default: boolean;
 }
+
+/* كتالوج السيارات — GET /v1/vehicle-catalog (قاعدة بيانات الماركات والموديلات) */
+interface CatalogModel {
+  name_ar: string;
+  name_en: string;
+}
+interface CatalogMake {
+  key: string;
+  name_ar: string;
+  name_en: string;
+  models: CatalogModel[];
+}
+interface VehicleCatalog {
+  makes: CatalogMake[];
+  colors: Array<{ name_ar: string; hex: string }>;
+}
+
+const OTHER = "أخرى";
 interface Cart {
   id: string;
   branch_id: string;
@@ -227,9 +248,17 @@ function Wheel({
 export default function CheckoutScreen() {
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<VehicleCatalog | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [makeSel, setMakeSel] = useState<string | null>(null); // name_ar من الكتالوج أو «أخرى»
+  const [makeCustom, setMakeCustom] = useState("");
+  const [modelSel, setModelSel] = useState<string | null>(null);
+  const [modelCustom, setModelCustom] = useState("");
   const [color, setColor] = useState("");
-  const [plate, setPlate] = useState("");
+  const [letters, setLetters] = useState(""); // حروف اللوحة بلا مسافات (حتى 3)
+  const [plate, setPlate] = useState(""); // أرقام اللوحة (حتى 4)
+  const [picker, setPicker] = useState<"make" | "model" | "color" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<Cart | null>(null);
@@ -256,6 +285,10 @@ export default function CheckoutScreen() {
     api<Record<string, boolean>>("GET", "/v1/feature-flags")
       .then(setFlags)
       .catch(() => undefined); // الأعلام ميزة تكيف — الافتراضي إخفاء المؤجل
+    // كتالوج الماركات والموديلات — يغذي قوائم «أضف سيارة جديدة»
+    api<VehicleCatalog>("GET", "/v1/vehicle-catalog")
+      .then(setCatalog)
+      .catch(() => undefined); // بلا كتالوج تبقى الإضافة بالكتابة الحرة
   }, []);
 
   // BR-5: فترات الفرع تُجلب عند اختيار الجدولة
@@ -386,18 +419,92 @@ export default function CheckoutScreen() {
     return () => clearTimeout(t);
   }, [done]);
 
-  const addVehicle = async () => {
+  /* ===== السيارة: بطاقة اللوحة + إضافة/تعديل من الكتالوج ===== */
+
+  const makeEnOf = (make_ar: string | null): string | null =>
+    make_ar ? catalog?.makes.find((mk) => mk.name_ar === make_ar)?.name_en ?? null : null;
+  const colorHexOf = (name_ar: string): string =>
+    catalog?.colors.find((c) => c.name_ar === name_ar)?.hex ?? colors.gray;
+  const modelsOfSel = catalog?.makes.find((mk) => mk.name_ar === makeSel)?.models ?? [];
+
+  const effMake = makeSel === OTHER ? makeCustom.trim() : makeSel ?? "";
+  const effModel = modelSel === OTHER ? modelCustom.trim() : modelSel ?? "";
+  const formValid =
+    color.length >= 2 && plate.length >= 1 && effMake.length >= 2 && (modelSel !== OTHER || effModel.length >= 1);
+
+  const resetForm = () => {
+    setEditId(null);
+    setMakeSel(null);
+    setMakeCustom("");
+    setModelSel(null);
+    setModelCustom("");
+    setColor("");
+    setLetters("");
+    setPlate("");
+    setPicker(null);
+  };
+
+  const openAdd = () => {
+    resetForm();
+    setShowAdd(true);
+  };
+
+  /** ضغط مطول على بطاقة اللوحة → تعديلها (البيانات معبأة مسبقاً) */
+  const openEdit = (v: Vehicle) => {
+    resetForm();
+    setEditId(v.id);
+    const known = catalog?.makes.some((mk) => mk.name_ar === v.make_ar);
+    setMakeSel(v.make_ar ? (known ? v.make_ar : OTHER) : null);
+    setMakeCustom(known ? "" : v.make_ar ?? "");
+    const models = catalog?.makes.find((mk) => mk.name_ar === v.make_ar)?.models ?? [];
+    const knownModel = models.some((md) => md.name_ar === v.model_ar);
+    setModelSel(v.model_ar ? (knownModel ? v.model_ar : OTHER) : null);
+    setModelCustom(knownModel ? "" : v.model_ar ?? "");
+    setColor(v.color_ar);
+    setLetters((v.plate_letters_ar ?? "").replace(/\s/g, ""));
+    setPlate(v.plate_digits);
+    setShowAdd(true);
+  };
+
+  const saveVehicle = async () => {
     setBusy(true);
     setError(null);
     try {
-      // إضافة سيارة مصغرة — S3: حقلان فقط
-      const v = await api<Vehicle>("POST", "/v1/customers/me/vehicles", {
+      const payload = {
+        make_ar: effMake || undefined,
+        model_ar: effModel || undefined,
         color_ar: color,
-        plate_short: plate
-      });
-      setVehicles((vs) => [...(vs ?? []), v]);
-      setVehicleId(v.id);
+        plate_digits: plate,
+        plate_letters_ar: letters || undefined
+      };
+      if (editId) {
+        const v = await api<Vehicle>("PATCH", `/v1/customers/me/vehicles/${editId}`, payload);
+        setVehicles((vs) => (vs ?? []).map((x) => (x.id === v.id ? v : x)));
+      } else {
+        const v = await api<Vehicle>("POST", "/v1/customers/me/vehicles", payload);
+        setVehicles((vs) => [...(vs ?? []), v]);
+        setVehicleId(v.id);
+      }
       setShowAdd(false);
+      resetForm();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteVehicle = async () => {
+    if (!editId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api("DELETE", `/v1/customers/me/vehicles/${editId}`);
+      const rest = (vehicles ?? []).filter((v) => v.id !== editId);
+      setVehicles(rest);
+      if (vehicleId === editId) setVehicleId(rest[0]?.id ?? null);
+      setShowAdd(false);
+      resetForm();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -583,34 +690,83 @@ export default function CheckoutScreen() {
         {/* خطأ الفترات (BR-5) — يظهر تحت الخيار لو تعذر الجلب أو لا فترات */}
         {pickupTime === "scheduled" && slotsError && <ErrorNote text={slotsError} />}
 
-        {/* ===== السيارة — شرائح + إضافة عبر Sheet (C-30 · S3) ===== */}
-        <View style={st.sectionRow}>
-          <Text style={st.section}>السيارة</Text>
-          <Pressable onPress={() => setShowAdd(true)} accessibilityRole="button" style={{ minHeight: 32 }}>
-            <Text style={st.link}>+ إضافة — حقلان (S3)</Text>
+        {/* ===== طريقة الاستلام — السيارة فقط ضمن النطاق (بقية الطرق معروضة مشطوبة) ===== */}
+        <Text style={st.section}>طريقة الاستلام</Text>
+        <View style={st.pmRow}>
+          <View style={[st.pmChip, st.pmChipOn]}>
+            <Text style={st.pmCar}>🚘</Text>
+            <Text style={st.pmTxtOn}>السيارة</Text>
+          </View>
+          <View style={[st.pmChip, st.pmChipOff]}>
+            <Text style={st.pmTxtOff}>من المتجر</Text>
+            <View style={st.pmSlash} />
+          </View>
+          <View style={[st.pmChip, st.pmChipOff]}>
+            <Text style={st.pmTxtOff}>في المحل</Text>
+            <View style={st.pmSlash} />
+          </View>
+        </View>
+
+        {/* بطاقات اللوحة السعودية: اختيار بالضغط · تعديل بالضغط المطول · ⊕ للإضافة */}
+        {!vehicles && !error && <Loader />}
+        <View style={st.vRow}>
+          {vehicles?.map((v) => {
+            const on = vehicleId === v.id;
+            const makeEn = makeEnOf(v.make_ar);
+            return (
+              <Pressable
+                key={v.id}
+                style={[st.pWrap, on ? st.pWrapOn : null]}
+                onPress={() => setVehicleId(v.id)}
+                onLongPress={() => openEdit(v)}
+                delayLongPress={420}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: on }}
+                accessibilityHint="اضغط مطولاً للتعديل"
+              >
+                <View style={st.pCard}>
+                  <View style={st.pBand}>
+                    <Text style={st.pBandPalm}>🌴</Text>
+                    <Text style={st.pBandAr}>السعودية</Text>
+                    <Text style={st.pBandEn}>K{"\n"}S{"\n"}A</Text>
+                    <Text style={st.pBandDot}>●</Text>
+                  </View>
+                  <View style={st.pMain}>
+                    <View style={st.pTop}>
+                      {v.plate_letters_ar ? <Text style={st.pLetters}>{v.plate_letters_ar}</Text> : null}
+                      <Text style={st.pDigits}>{v.plate_digits}</Text>
+                    </View>
+                    <View style={st.pBottom}>
+                      {makeEn ? (
+                        <View style={st.pBrand}>
+                          <Text style={st.pBrandTxt}>{makeEn}</Text>
+                        </View>
+                      ) : null}
+                      {v.model_ar || v.make_ar ? (
+                        <Text style={st.pModel} numberOfLines={1}>
+                          {v.model_ar ?? v.make_ar}
+                        </Text>
+                      ) : null}
+                      <View style={st.pColor}>
+                        <View style={[st.pColorDot, { backgroundColor: colorHexOf(v.color_ar) }]} />
+                        <Text style={st.pColorTxt}>{v.color_ar}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })}
+          <Pressable style={st.vAdd} onPress={openAdd} accessibilityRole="button" accessibilityLabel="أضف سيارة جديدة">
+            <Text style={st.vAddTxt}>+</Text>
           </Pressable>
         </View>
-        {!vehicles && !error && <Loader />}
-        {vehicles?.map((v) => {
-          const name = [v.model_ar ?? v.make_ar, v.color_ar].filter(Boolean).join(" · ");
-          const on = vehicleId === v.id;
-          return (
-            <Pressable
-              key={v.id}
-              style={[st.optCard, on ? st.optSel : null]}
-              onPress={() => setVehicleId(v.id)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: on }}
-            >
-              <View style={[st.rdot, on ? st.rdotOn : null]} />
-              <View style={{ flex: 1 }}>
-                <Text style={st.optTitle}>{name || v.color_ar}</Text>
-                {v.is_default && <Text style={st.optDesc}>الافتراضية</Text>}
-              </View>
-              <Text style={st.plate}>•••• {v.plate_short}</Text>
-            </Pressable>
-          );
-        })}
+        {vehicles && vehicles.length > 0 && (
+          <View style={st.hintWrap}>
+            <View style={st.hintBar} />
+            <Text style={st.hintTxt}>اضغط مطولاً للتعديل</Text>
+          </View>
+        )}
         <Text style={st.privacy}>اللوحات مشفرة ولا تظهر كاملة إلا لموظف التسليم أثناء طلبك النشط فقط.</Text>
 
         {/* ===== الدفع — C-33: بطاقة أو محفظة (بوابة sandbox بنفس مسار الإنتاج) ===== */}
@@ -755,39 +911,168 @@ export default function CheckoutScreen() {
         </View>
       </Modal>
 
-      {/* Sheet إضافة سيارة (C-30 · S3: حقلان) — لا تظهر فوق السلة الفارغة */}
+      {/* Sheet «أضف سيارة جديدة» — قوائم من كتالوج السيارات + لوحة (حروف + أرقام) */}
       <Modal visible={showAdd && !isEmpty} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
         <View style={st.dim}>
           <Pressable style={{ flex: 1 }} onPress={() => setShowAdd(false)} />
           <View style={st.sheet}>
             <View style={st.grab} />
-            <Text style={st.sheetTitle}>إضافة سيارة</Text>
+            <View style={st.schedHead}>
+              <Text style={st.sheetTitle}>{editId ? "تعديل السيارة" : "أضف سيارة جديدة"}</Text>
+              <Pressable
+                style={st.schedClose}
+                onPress={() => setShowAdd(false)}
+                accessibilityRole="button"
+                accessibilityLabel="إغلاق"
+              >
+                <Text style={st.schedCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
             {error && <ErrorNote text={error} />}
-            <Text style={st.label}>اللون *</Text>
-            <TextInput
-              style={st.inp}
-              placeholder="مثال: بيضاء"
-              placeholderTextColor={colors.gray}
-              value={color}
-              onChangeText={setColor}
-            />
-            <Text style={st.label}>آخر 4 أرقام اللوحة *</Text>
-            <TextInput
-              style={[st.inp, { textAlign: "center", letterSpacing: 6, fontVariant: ["tabular-nums"] }]}
-              keyboardType="number-pad"
-              maxLength={4}
-              placeholder="0000"
-              placeholderTextColor={colors.gray}
-              value={plate}
-              onChangeText={(v) => setPlate(v.replace(/\D/g, "").slice(0, 4))}
-            />
+
+            {/* ماركة السيارة */}
+            <Pressable style={st.sel} onPress={() => setPicker("make")} accessibilityRole="button">
+              <Text style={[st.selTxt, !makeSel && st.selPh]}>{makeSel ?? "ماركة السيارة"}</Text>
+              <Text style={st.selChev}>⌄</Text>
+            </Pressable>
+            {makeSel === OTHER && (
+              <TextInput
+                style={st.inp}
+                placeholder="اكتب الماركة"
+                placeholderTextColor={colors.gray}
+                value={makeCustom}
+                onChangeText={setMakeCustom}
+              />
+            )}
+
+            {/* رقم لوحة السيارة: حروف + أرقام */}
+            <View style={st.plateRow}>
+              <TextInput
+                style={[st.inp, st.plateInp, { flexGrow: 1.2 }]}
+                placeholder="أرقام اللوحة"
+                placeholderTextColor={colors.gray}
+                keyboardType="number-pad"
+                maxLength={4}
+                value={plate}
+                onChangeText={(t) => setPlate(t.replace(/\D/g, "").slice(0, 4))}
+              />
+              <TextInput
+                style={[st.inp, st.plateInp]}
+                placeholder="حروف اللوحة"
+                placeholderTextColor={colors.gray}
+                maxLength={5}
+                value={letters.split("").join(" ")}
+                onChangeText={(t) => setLetters(t.replace(/[^ء-ي]/g, "").slice(0, 3))}
+              />
+            </View>
+
+            {/* لون السيارة */}
+            <Pressable style={st.sel} onPress={() => setPicker("color")} accessibilityRole="button">
+              {color ? (
+                <View style={st.selColorWrap}>
+                  <View style={[st.pColorDot, { backgroundColor: colorHexOf(color) }]} />
+                  <Text style={st.selTxt}>{color}</Text>
+                </View>
+              ) : (
+                <Text style={[st.selTxt, st.selPh]}>لون السيارة</Text>
+              )}
+              <Text style={st.selChev}>⌄</Text>
+            </Pressable>
+
+            {/* نوع السيارة (الموديل) — يعتمد على الماركة */}
+            <Pressable
+              style={[st.sel, !makeSel && { opacity: 0.5 }]}
+              onPress={makeSel ? () => setPicker("model") : undefined}
+              accessibilityRole="button"
+            >
+              <Text style={[st.selTxt, !modelSel && st.selPh]}>{modelSel ?? "نوع السيارة"}</Text>
+              <Text style={st.selChev}>⌄</Text>
+            </Pressable>
+            {modelSel === OTHER && (
+              <TextInput
+                style={st.inp}
+                placeholder="اكتب نوع السيارة"
+                placeholderTextColor={colors.gray}
+                value={modelCustom}
+                onChangeText={setModelCustom}
+              />
+            )}
+
+            {/* البلد — KSA ثابتة */}
+            <View style={[st.sel, { opacity: 0.6 }]}>
+              <Text style={st.selTxt}>KSA — السعودية</Text>
+            </View>
+
             <Text style={st.privacy}>خصوصيتك: اللوحة تُشفَّر ولا تُعرض كاملة أبداً خارج طلبك التشغيلي.</Text>
             <LimeButton
-              title="حفظ السيارة"
-              disabled={busy || color.length < 2 || plate.length < 1}
-              onPress={() => void addVehicle()}
+              title={busy ? "جارٍ الحفظ…" : "حفظ"}
+              disabled={busy || !formValid}
+              onPress={() => void saveVehicle()}
               style={{ marginTop: 10 }}
             />
+            {editId && (
+              <Pressable style={st.delVeh} disabled={busy} onPress={() => void deleteVehicle()} accessibilityRole="button">
+                <Text style={st.delVehTxt}>حذف السيارة</Text>
+              </Pressable>
+            )}
+
+            {/* منتقي القيم — طبقة فوق الورقة */}
+            {picker && (
+              <View style={st.pickWrap}>
+                <Pressable style={st.pickDim} onPress={() => setPicker(null)} />
+                <View style={st.pickSheet}>
+                  <Text style={st.pickTitle}>
+                    {picker === "make" ? "ماركة السيارة" : picker === "model" ? "نوع السيارة" : "لون السيارة"}
+                  </Text>
+                  <ScrollView style={{ maxHeight: 320 }}>
+                    {picker === "color"
+                      ? (catalog?.colors ?? []).map((c) => (
+                          <Pressable
+                            key={c.name_ar}
+                            style={st.pickItem}
+                            onPress={() => {
+                              setColor(c.name_ar);
+                              setPicker(null);
+                            }}
+                          >
+                            <View style={[st.pColorDot, { backgroundColor: c.hex }]} />
+                            <Text style={st.pickItemTxt}>{c.name_ar}</Text>
+                            {color === c.name_ar && <Text style={st.pickCheck}>✓</Text>}
+                          </Pressable>
+                        ))
+                      : [
+                          ...(picker === "make"
+                            ? (catalog?.makes ?? []).map((mk) => mk.name_ar)
+                            : modelsOfSel.map((md) => md.name_ar)),
+                          OTHER
+                        ].map((name) => {
+                          const cur = picker === "make" ? makeSel : modelSel;
+                          return (
+                            <Pressable
+                              key={name}
+                              style={st.pickItem}
+                              onPress={() => {
+                                if (picker === "make") {
+                                  if (name !== makeSel) {
+                                    setModelSel(null);
+                                    setModelCustom("");
+                                  }
+                                  setMakeSel(name);
+                                } else {
+                                  setModelSel(name);
+                                }
+                                setPicker(null);
+                              }}
+                            >
+                              <Text style={st.pickItemTxt}>{name}</Text>
+                              {cur === name && <Text style={st.pickCheck}>✓</Text>}
+                            </Pressable>
+                          );
+                        })}
+                  </ScrollView>
+                </View>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -935,5 +1220,169 @@ const st = StyleSheet.create({
     fontSize: fs.fs16,
     color: light.text,
     textAlign: "right"
-  }
+  },
+  /* ===== طريقة الاستلام: شرائح (السيارة فعالة · البقية مشطوبة خارج النطاق) ===== */
+  pmRow: { flexDirection: "row-reverse", gap: 8, alignItems: "center" },
+  pmChip: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: radiusPill,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    minHeight: 40,
+    overflow: "hidden"
+  },
+  pmChipOn: { backgroundColor: light.surface, borderWidth: 1.5, borderColor: colors.ink600 },
+  pmChipOff: { backgroundColor: colors.line },
+  pmCar: { fontSize: fs.fs15 },
+  pmTxtOn: { color: colors.ink900, fontSize: fs.fs14, fontWeight: "800" },
+  pmTxtOff: { color: colors.gray, fontSize: fs.fs14, fontWeight: "600" },
+  pmSlash: {
+    position: "absolute",
+    left: -12,
+    right: -12,
+    top: "50%",
+    height: 1.5,
+    backgroundColor: colors.gray,
+    transform: [{ rotate: "-10deg" }]
+  },
+  /* ===== بطاقة اللوحة السعودية ===== */
+  vRow: {
+    flexDirection: "row-reverse",
+    flexWrap: "wrap",
+    gap: 12,
+    alignItems: "center",
+    marginTop: 6
+  },
+  pWrap: {
+    width: "78%",
+    padding: 3,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "transparent"
+  },
+  pWrapOn: { borderColor: colors.lime500, backgroundColor: colors.lime100 },
+  pCard: {
+    flexDirection: "row",
+    backgroundColor: light.surface,
+    borderWidth: 2,
+    borderColor: colors.ink600,
+    borderRadius: 14,
+    overflow: "hidden",
+    minHeight: 96
+  },
+  pBand: {
+    width: 46,
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+    borderRightWidth: 2,
+    borderRightColor: colors.ink600,
+    backgroundColor: light.surface
+  },
+  pBandPalm: { fontSize: fs.fs12 },
+  pBandAr: { color: colors.ink900, fontSize: 9, fontWeight: "700" },
+  pBandEn: { color: colors.ink900, fontSize: 8, fontWeight: "700", textAlign: "center", lineHeight: 9 },
+  pBandDot: { color: colors.ink900, fontSize: 7 },
+  pMain: { flex: 1 },
+  pTop: {
+    flex: 1.2,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.ink600,
+    paddingHorizontal: 10
+  },
+  pLetters: { color: colors.ink900, fontSize: fs.fs24, fontWeight: "800", letterSpacing: 2 },
+  pDigits: { color: colors.ink900, fontSize: fs.fs32, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  pBottom: {
+    flex: 1,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6
+  },
+  pBrand: {
+    borderWidth: 1,
+    borderColor: light.border,
+    borderRadius: radiusPill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: light.bg
+  },
+  pBrandTxt: { color: colors.ink900, fontSize: fs.fs12, fontWeight: "800" },
+  pModel: { color: colors.ink900, fontSize: fs.fs14, fontWeight: "700", flexShrink: 1 },
+  pColor: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.cloud,
+    borderRadius: radiusPill,
+    paddingHorizontal: 8,
+    paddingVertical: 2
+  },
+  pColorDot: { width: 12, height: 12, borderRadius: radiusPill, borderWidth: 1, borderColor: light.border },
+  pColorTxt: { color: colors.ink900, fontSize: fs.fs12, fontWeight: "700" },
+  vAdd: {
+    width: 56,
+    height: 56,
+    borderRadius: radiusPill,
+    borderWidth: 1.5,
+    borderColor: colors.ink600,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: light.surface
+  },
+  vAddTxt: { color: colors.ink600, fontSize: fs.fs24, fontWeight: "400", lineHeight: 28 },
+  hintWrap: { alignItems: "center", gap: 4, marginTop: 2 },
+  hintBar: { width: 18, height: 4, borderRadius: radiusPill, backgroundColor: colors.ink600 },
+  hintTxt: { color: light.text2, fontSize: fs.fs13 },
+  /* ===== نموذج «أضف سيارة جديدة» ===== */
+  sel: {
+    minHeight: touch + 4,
+    backgroundColor: light.surface,
+    borderWidth: 1,
+    borderColor: light.border,
+    borderRadius: radius + 2,
+    paddingHorizontal: 14,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8
+  },
+  selTxt: { color: light.text, fontSize: fs.fs15, textAlign: "right" },
+  selPh: { color: colors.gray },
+  selChev: { color: colors.ink600, fontSize: fs.fs17, fontWeight: "800", marginTop: -6 },
+  selColorWrap: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
+  plateRow: { flexDirection: "row", gap: 8 },
+  plateInp: { flex: 1, textAlign: "center" },
+  delVeh: { alignItems: "center", minHeight: touch, justifyContent: "center" },
+  delVehTxt: { color: colors.error, fontSize: fs.fs14, fontWeight: "700" },
+  pickWrap: { ...StyleSheet.absoluteFillObject, justifyContent: "flex-end" },
+  pickDim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(16,36,27,0.35)" },
+  pickSheet: {
+    backgroundColor: light.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+    paddingBottom: 24,
+    gap: 4
+  },
+  pickTitle: { color: light.text, fontSize: fs.fs17, fontWeight: "900", textAlign: "right", marginBottom: 6 },
+  pickItem: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10,
+    minHeight: touch,
+    borderBottomWidth: 1,
+    borderBottomColor: light.border,
+    paddingHorizontal: 4
+  },
+  pickItemTxt: { color: light.text, fontSize: fs.fs15, flex: 1, textAlign: "right" },
+  pickCheck: { color: colors.lime900, fontSize: fs.fs16, fontWeight: "900" }
 });

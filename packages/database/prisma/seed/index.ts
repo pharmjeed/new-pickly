@@ -5,6 +5,7 @@
  */
 import { PrismaClient } from "@prisma/client";
 import argon2 from "argon2";
+import { seedVehicleCatalog } from "./vehicle-catalog.js";
 
 const prisma = new PrismaClient();
 
@@ -627,11 +628,13 @@ async function main() {
   });
 
   await seedCustomersAndAdmin();
+  await seedVehicleCatalog(prisma);
 
   const counts = {
     merchants: await prisma.merchant.count(),
     branches: await prisma.branch.count(),
     products: await prisma.product.count(),
+    vehicle_makes: await prisma.vehicleMake.count(),
     users: await prisma.user.count()
   };
   console.warn(`Seed تم: ${JSON.stringify(counts)}`);

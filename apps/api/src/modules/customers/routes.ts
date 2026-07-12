@@ -12,6 +12,7 @@ import { prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { requireAuth, requireCustomer } from "../../lib/auth-plugin.js";
 import { requireFlag } from "../../lib/flags.js";
+import { decryptPlate, encryptPlate } from "../../lib/plate-crypto.js";
 
 /** وحدة Customers: الملف + السيارات + صندوق الإشعارات (C-62) + تذاكر الدعم (C-65/66) */
 export async function customerRoutes(app: FastifyInstance): Promise<void> {
@@ -33,40 +34,86 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
     return { id: user.id, phone: user.phone, full_name: user.full_name };
   });
 
+  // ===== السيارات — لوحة سعودية كاملة (حروف + أرقام) مشفرة AES-GCM =====
+
+  /** اللوحة الكاملة تخزن مشفرة بصيغة «حروف|أرقام» — تفك للمالك فقط */
+  const platePartsOf = (v: { plate_encrypted: string | null; plate_short: string }) => {
+    const full = decryptPlate(v.plate_encrypted);
+    const [letters, digits] = full?.includes("|") ? full.split("|") : ["", ""];
+    return {
+      plate_letters_ar: letters || null,
+      plate_digits: digits || v.plate_short
+    };
+  };
+
+  const vehicleDto = (
+    v: {
+      id: string;
+      make_ar: string | null;
+      model_ar: string | null;
+      color_ar: string;
+      plate_encrypted: string | null;
+      plate_short: string;
+    },
+    is_default: boolean
+  ) => ({
+    id: v.id,
+    make_ar: v.make_ar,
+    model_ar: v.model_ar,
+    color_ar: v.color_ar,
+    plate_short: v.plate_short,
+    ...platePartsOf(v),
+    is_default
+  });
+
+  /** حروف اللوحة السعودية: حتى 3 أحرف عربية — تُخزن مفصولة بمسافات («ح ع ن») */
+  const PlateLettersSchema = z
+    .string()
+    .max(11)
+    .transform((s) => s.replace(/\s+/g, ""))
+    .refine((s) => /^[ء-ي]{0,3}$/.test(s), "حروف عربية فقط (حتى 3)")
+    .transform((s) => s.split("").join(" "));
+
+  const VehicleBodySchema = z.object({
+    color_ar: z.string().min(2).max(30),
+    /** أرقام اللوحة (حتى 4) — الحقل الرئيس؛ plate_short يبقى للتوافق مع العملاء القدامى */
+    plate_digits: z
+      .string()
+      .transform((s) => s.replace(/\D/g, ""))
+      .refine((s) => /^\d{1,4}$/.test(s), "1-4 أرقام")
+      .optional(),
+    plate_letters_ar: PlateLettersSchema.optional(),
+    plate_short: z.string().min(1).max(8).optional(),
+    make_ar: z.string().max(40).optional(),
+    model_ar: z.string().max(40).optional(),
+    set_default: z.boolean().default(true)
+  });
+
   app.get("/me/vehicles", async (req) => {
     const claims = requireCustomer(req);
     const [vehicles, def] = await Promise.all([
-      prisma.vehicle.findMany({ where: { user_id: claims.sub, is_active: true } }),
+      prisma.vehicle.findMany({
+        where: { user_id: claims.sub, is_active: true },
+        orderBy: { created_at: "asc" }
+      }),
       prisma.customerDefaultVehicle.findUnique({ where: { user_id: claims.sub } })
     ]);
-    return vehicles.map((v) => ({
-      id: v.id,
-      make_ar: v.make_ar,
-      model_ar: v.model_ar,
-      color_ar: v.color_ar,
-      plate_short: v.plate_short,
-      is_default: v.id === def?.vehicle_id
-    }));
+    return vehicles.map((v) => vehicleDto(v, v.id === def?.vehicle_id));
   });
 
-  /** إضافة سيارة مصغرة — S3: حقلان إلزاميان فقط (اللون + آخر 4 أرقام) */
+  /** إضافة سيارة — ماركة/موديل/لون من الكتالوج + لوحة كاملة (حروف + أرقام) */
   app.post("/me/vehicles", async (req) => {
     const claims = requireCustomer(req);
-    const body = z
-      .object({
-        color_ar: z.string().min(2).max(30),
-        plate_short: z.string().min(1).max(8),
-        make_ar: z.string().max(40).optional(),
-        model_ar: z.string().max(40).optional(),
-        set_default: z.boolean().default(true)
-      })
-      .parse(req.body);
+    const body = VehicleBodySchema.parse(req.body);
+    const digits = body.plate_digits ?? body.plate_short;
+    if (!digits) throw new AppError("SYS-9004", { field: "plate_digits" });
 
     const vehicle = await prisma.vehicle.create({
       data: {
         user_id: claims.sub,
         color_ar: body.color_ar,
-        plate_short: body.plate_short,
+        plate_short: digits,
+        plate_encrypted: encryptPlate(`${body.plate_letters_ar ?? ""}|${digits}`),
         make_ar: body.make_ar ?? null,
         model_ar: body.model_ar ?? null
       }
@@ -78,14 +125,70 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
         update: { vehicle_id: vehicle.id }
       });
     }
-    return {
-      id: vehicle.id,
-      make_ar: vehicle.make_ar,
-      model_ar: vehicle.model_ar,
-      color_ar: vehicle.color_ar,
-      plate_short: vehicle.plate_short,
-      is_default: body.set_default
-    };
+    return vehicleDto(vehicle, body.set_default);
+  });
+
+  /** تعديل سيارة (ضغط مطول على البطاقة) — ملكية العميل شرط */
+  app.patch("/me/vehicles/:id", async (req) => {
+    const claims = requireCustomer(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = VehicleBodySchema.partial().parse(req.body);
+
+    const existing = await prisma.vehicle.findUnique({ where: { id } });
+    if (!existing || existing.user_id !== claims.sub || !existing.is_active)
+      throw new AppError("SYS-9004", { hint: "السيارة غير موجودة" });
+
+    const digits = body.plate_digits ?? existing.plate_short;
+    const letters = body.plate_letters_ar ?? platePartsOf(existing).plate_letters_ar ?? "";
+
+    const vehicle = await prisma.vehicle.update({
+      where: { id },
+      data: {
+        ...(body.color_ar ? { color_ar: body.color_ar } : {}),
+        ...(body.make_ar !== undefined ? { make_ar: body.make_ar || null } : {}),
+        ...(body.model_ar !== undefined ? { model_ar: body.model_ar || null } : {}),
+        plate_short: digits,
+        plate_encrypted: encryptPlate(`${letters}|${digits}`)
+      }
+    });
+    if (body.set_default) {
+      await prisma.customerDefaultVehicle.upsert({
+        where: { user_id: claims.sub },
+        create: { user_id: claims.sub, vehicle_id: vehicle.id },
+        update: { vehicle_id: vehicle.id }
+      });
+    }
+    const def = await prisma.customerDefaultVehicle.findUnique({ where: { user_id: claims.sub } });
+    return vehicleDto(vehicle, vehicle.id === def?.vehicle_id);
+  });
+
+  /** حذف سيارة (إخفاء ناعم) — لو كانت الافتراضية تنتقل الافتراضية لأقدم سيارة متبقية */
+  app.delete("/me/vehicles/:id", async (req) => {
+    const claims = requireCustomer(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+
+    const existing = await prisma.vehicle.findUnique({ where: { id } });
+    if (!existing || existing.user_id !== claims.sub || !existing.is_active)
+      throw new AppError("SYS-9004", { hint: "السيارة غير موجودة" });
+
+    await prisma.vehicle.update({ where: { id }, data: { is_active: false } });
+
+    const def = await prisma.customerDefaultVehicle.findUnique({ where: { user_id: claims.sub } });
+    if (def?.vehicle_id === id) {
+      const next = await prisma.vehicle.findFirst({
+        where: { user_id: claims.sub, is_active: true },
+        orderBy: { created_at: "asc" }
+      });
+      if (next) {
+        await prisma.customerDefaultVehicle.update({
+          where: { user_id: claims.sub },
+          data: { vehicle_id: next.id }
+        });
+      } else {
+        await prisma.customerDefaultVehicle.delete({ where: { user_id: claims.sub } });
+      }
+    }
+    return { ok: true };
   });
 
   // ===== صندوق الإشعارات C-62 — docs/15 =====

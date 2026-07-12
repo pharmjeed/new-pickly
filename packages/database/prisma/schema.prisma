@@ -426,6 +426,33 @@ model CustomerDefaultVehicle {
   @@map("customer_default_vehicles")
 }
 
+/// قاعدة بيانات السيارات — ماركات السوق السعودي لشاشة «أضف سيارة جديدة»
+model VehicleMake {
+  id        String         @id @default(uuid()) @db.Uuid
+  key       String         @unique
+  name_ar   String
+  name_en   String
+  sort      Int            @default(0)
+  is_active Boolean        @default(true)
+  models    VehicleModel[]
+
+  @@map("vehicle_makes")
+}
+
+model VehicleModel {
+  id        String      @id @default(uuid()) @db.Uuid
+  make_id   String      @db.Uuid
+  make      VehicleMake @relation(fields: [make_id], references: [id])
+  name_ar   String
+  name_en   String
+  sort      Int         @default(0)
+  is_active Boolean     @default(true)
+
+  @@unique([make_id, name_ar])
+  @@index([make_id])
+  @@map("vehicle_models")
+}
+
 // ===================== التجار =====================
 
 model Merchant {

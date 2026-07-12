@@ -14,6 +14,7 @@ import { merchantRoutes } from "./modules/merchant/routes.js";
 import { merchantPortalRoutes } from "./modules/merchant/portal-routes.js";
 import { paymentRoutes } from "./modules/payments/routes.js";
 import { customerRoutes } from "./modules/customers/routes.js";
+import { vehicleCatalogRoutes } from "./modules/vehicles/routes.js";
 import { reviewRoutes } from "./modules/reviews/routes.js";
 import { adminRoutes } from "./modules/admin/routes.js";
 import { realtimeRoutes } from "./modules/realtime/routes.js";
@@ -70,6 +71,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(featureFlagRoutes, { prefix: "/v1" });
   await app.register(catalogRoutes, { prefix: "/v1" });
   await app.register(customerRoutes, { prefix: "/v1/customers" });
+  await app.register(vehicleCatalogRoutes, { prefix: "/v1" });
   await app.register(cartRoutes, { prefix: "/v1/carts" });
   await app.register(orderRoutes, { prefix: "/v1/orders" });
   await app.register(pickupRoutes, { prefix: "/v1/orders" });

@@ -52,9 +52,12 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await expect(c.getByTestId("cart-item").first()).toBeVisible();
   await expect(c.getByTestId("quote-box")).toContainText("رسم خدمة بيكلي"); // BR-6 مفصول
 
-  // ===== 4. الإتمام (نفس الصفحة): سيارة مصغرة (S3) + دفع sandbox =====
-  await c.getByTestId("veh-color").fill("بيضاء");
+  // ===== 4. الإتمام (نفس الصفحة): «أضف سيارة جديدة» من كتالوج السيارات + دفع sandbox =====
+  await c.getByTestId("veh-make").selectOption("فورد");
   await c.getByTestId("veh-plate").fill("8241");
+  await c.getByTestId("veh-letters").fill("حعن");
+  await c.getByTestId("veh-color").selectOption("أبيض");
+  await c.getByTestId("veh-model").selectOption("فوكس");
   await c.getByTestId("veh-save").click();
   await expect(c.getByTestId("vehicle-radio").first()).toBeChecked();
   await c.getByTestId("pay-button").click();

@@ -46,8 +46,28 @@ interface Vehicle {
   model_ar: string | null;
   color_ar: string;
   plate_short: string;
+  plate_letters_ar: string | null;
+  plate_digits: string;
   is_default: boolean;
 }
+
+/* كتالوج السيارات — GET /v1/vehicle-catalog (قاعدة بيانات الماركات والموديلات) */
+interface CatalogModel {
+  name_ar: string;
+  name_en: string;
+}
+interface CatalogMake {
+  key: string;
+  name_ar: string;
+  name_en: string;
+  models: CatalogModel[];
+}
+interface VehicleCatalog {
+  makes: CatalogMake[];
+  colors: Array<{ name_ar: string; hex: string }>;
+}
+
+const OTHER = "أخرى";
 
 interface Cart {
   id: string;
@@ -252,9 +272,17 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<VehicleCatalog | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [makeSel, setMakeSel] = useState(""); // name_ar من الكتالوج أو «أخرى»
+  const [makeCustom, setMakeCustom] = useState("");
+  const [modelSel, setModelSel] = useState("");
+  const [modelCustom, setModelCustom] = useState("");
   const [color, setColor] = useState("");
-  const [plate, setPlate] = useState("");
+  const [letters, setLetters] = useState(""); // حروف اللوحة بلا مسافات (حتى 3)
+  const [plate, setPlate] = useState(""); // أرقام اللوحة (حتى 4)
+  const longPressTimer = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<Cart | null>(null);
@@ -283,6 +311,10 @@ export default function CheckoutPage() {
     api<Record<string, boolean>>("GET", "/v1/feature-flags")
       .then(setFlags)
       .catch(() => undefined); // الأعلام ميزة تكيف — الافتراضي إخفاء المؤجل
+    // كتالوج الماركات والموديلات — يغذي قوائم «أضف سيارة جديدة»
+    api<VehicleCatalog>("GET", "/v1/vehicle-catalog")
+      .then(setCatalog)
+      .catch(() => undefined); // بلا كتالوج تبقى الإضافة بالكتابة الحرة
   }, []);
 
   // BR-5: فترات الفرع تُجلب عند اختيار الجدولة
@@ -413,18 +445,101 @@ export default function CheckoutPage() {
     return () => clearTimeout(t);
   }, [done, router]);
 
-  const addVehicle = async () => {
+  /* ===== السيارة: بطاقة اللوحة السعودية + إضافة/تعديل من الكتالوج ===== */
+
+  const makeEnOf = (make_ar: string | null): string | null =>
+    make_ar ? catalog?.makes.find((mk) => mk.name_ar === make_ar)?.name_en ?? null : null;
+  const colorHexOf = (name_ar: string): string =>
+    catalog?.colors.find((c) => c.name_ar === name_ar)?.hex ?? "var(--pk-gray)";
+  const modelsOfSel = catalog?.makes.find((mk) => mk.name_ar === makeSel)?.models ?? [];
+
+  const effMake = makeSel === OTHER ? makeCustom.trim() : makeSel;
+  const effModel = modelSel === OTHER ? modelCustom.trim() : modelSel;
+  const formValid =
+    color.length >= 2 && plate.length >= 1 && effMake.length >= 2 && (modelSel !== OTHER || effModel.length >= 1);
+
+  const resetForm = () => {
+    setEditId(null);
+    setMakeSel("");
+    setMakeCustom("");
+    setModelSel("");
+    setModelCustom("");
+    setColor("");
+    setLetters("");
+    setPlate("");
+  };
+
+  const openAdd = () => {
+    resetForm();
+    setShowAdd(true);
+  };
+
+  /** ضغط مطول على بطاقة اللوحة → تعديلها (البيانات معبأة مسبقاً) */
+  const openEdit = (v: Vehicle) => {
+    resetForm();
+    setEditId(v.id);
+    const known = catalog?.makes.some((mk) => mk.name_ar === v.make_ar);
+    setMakeSel(v.make_ar ? (known ? v.make_ar : OTHER) : "");
+    setMakeCustom(known ? "" : v.make_ar ?? "");
+    const models = catalog?.makes.find((mk) => mk.name_ar === v.make_ar)?.models ?? [];
+    const knownModel = models.some((md) => md.name_ar === v.model_ar);
+    setModelSel(v.model_ar ? (knownModel ? v.model_ar : OTHER) : "");
+    setModelCustom(knownModel ? "" : v.model_ar ?? "");
+    setColor(v.color_ar);
+    setLetters((v.plate_letters_ar ?? "").replace(/\s/g, ""));
+    setPlate(v.plate_digits);
+    setShowAdd(true);
+  };
+
+  /** ضغط مطول (لمس أو فأرة) — 450ms ثم فتح التعديل */
+  const pressStart = (v: Vehicle) => {
+    if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = window.setTimeout(() => openEdit(v), 450);
+  };
+  const pressEnd = () => {
+    if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  };
+
+  const saveVehicle = async () => {
     setBusy(true);
     setError(null);
     try {
-      // إضافة سيارة مصغرة — S3: حقلان فقط
-      const v = await api<Vehicle>("POST", "/v1/customers/me/vehicles", {
+      const payload = {
+        make_ar: effMake || undefined,
+        model_ar: effModel || undefined,
         color_ar: color,
-        plate_short: plate
-      });
-      setVehicles((vs) => [...(vs ?? []), v]);
-      setVehicleId(v.id);
+        plate_digits: plate,
+        plate_letters_ar: letters || undefined
+      };
+      if (editId) {
+        const v = await api<Vehicle>("PATCH", `/v1/customers/me/vehicles/${editId}`, payload);
+        setVehicles((vs) => (vs ?? []).map((x) => (x.id === v.id ? v : x)));
+      } else {
+        const v = await api<Vehicle>("POST", "/v1/customers/me/vehicles", payload);
+        setVehicles((vs) => [...(vs ?? []), v]);
+        setVehicleId(v.id);
+      }
       setShowAdd(false);
+      resetForm();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteVehicle = async () => {
+    if (!editId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api("DELETE", `/v1/customers/me/vehicles/${editId}`);
+      const rest = (vehicles ?? []).filter((v) => v.id !== editId);
+      setVehicles(rest);
+      if (vehicleId === editId) setVehicleId(rest[0]?.id ?? null);
+      setShowAdd(false);
+      resetForm();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -654,33 +769,75 @@ export default function CheckoutPage() {
         <div className={`${styles.note} ${styles.noteErr}`}>{slotsError}</div>
       )}
 
-      {/* ===== السيارة — شرائح + إضافة عبر Sheet (C-30 · S3) ===== */}
-      <div className={styles.sech}>
-        <h2>السيارة</h2>
-        <button className={styles.sechLink} onClick={() => setShowAdd(true)}>+ إضافة — حقلان (S3)</button>
+      {/* ===== طريقة الاستلام — السيارة فقط ضمن النطاق (بقية الطرق معروضة مشطوبة) ===== */}
+      <div className={styles.sech}><h2>طريقة الاستلام</h2></div>
+      <div className={styles.pmRow}>
+        <span className={`${styles.pmChip} ${styles.pmChipOn}`}>
+          <CarIcon size={20} />
+          <span>السيارة</span>
+        </span>
+        <span className={`${styles.pmChip} ${styles.pmChipOff}`}>من المتجر</span>
+        <span className={`${styles.pmChip} ${styles.pmChipOff}`}>في المحل</span>
       </div>
+
+      {/* بطاقات اللوحة السعودية: اختيار بالضغط · تعديل بالضغط المطول · ⊕ للإضافة */}
       {!vehicles && !error && <div className="pk-loader"><span /><span /><span /></div>}
-      {vehicles?.map((v) => {
-        const name = [v.model_ar ?? v.make_ar, v.color_ar].filter(Boolean).join(" · ");
-        return (
-          <label key={v.id} className={vehicleId === v.id ? `${styles.vcard} ${styles.vcardSel}` : styles.vcard}>
-            <input
-              type="radio"
-              name="vehicle"
-              className={styles.radio}
-              checked={vehicleId === v.id}
-              onChange={() => setVehicleId(v.id)}
-              data-testid="vehicle-radio"
-            />
-            <span className={styles.vic}><CarIcon /></span>
-            <span className={styles.vbody}>
-              <span className={styles.vt}>{name || v.color_ar}</span>
-              {v.is_default && <span className={styles.vsub}>الافتراضية</span>}
-            </span>
-            <span className={styles.plate}><span className={styles.plateNo}>•••• {v.plate_short}</span></span>
-          </label>
-        );
-      })}
+      <div className={styles.vRow}>
+        {vehicles?.map((v) => {
+          const on = vehicleId === v.id;
+          const makeEn = makeEnOf(v.make_ar);
+          return (
+            <label
+              key={v.id}
+              className={on ? `${styles.pWrap} ${styles.pWrapOn}` : styles.pWrap}
+              onPointerDown={() => pressStart(v)}
+              onPointerUp={pressEnd}
+              onPointerLeave={pressEnd}
+              title="اضغط مطولاً للتعديل"
+            >
+              <input
+                type="radio"
+                name="vehicle"
+                className={styles.pRadio}
+                checked={on}
+                onChange={() => setVehicleId(v.id)}
+                data-testid="vehicle-radio"
+              />
+              <span className={styles.pCard}>
+                <span className={styles.pBand}>
+                  <span className={styles.pBandPalm}>🌴</span>
+                  <span className={styles.pBandAr}>السعودية</span>
+                  <span className={styles.pBandEn}>K<br />S<br />A</span>
+                  <span className={styles.pBandDot}>●</span>
+                </span>
+                <span className={styles.pMain}>
+                  <span className={styles.pTop}>
+                    {v.plate_letters_ar && <b className={styles.pLetters}>{v.plate_letters_ar}</b>}
+                    <b className={styles.pDigits}>{v.plate_digits}</b>
+                  </span>
+                  <span className={styles.pBottom}>
+                    {makeEn && <span className={styles.pBrand}>{makeEn}</span>}
+                    {(v.model_ar ?? v.make_ar) && <span className={styles.pModel}>{v.model_ar ?? v.make_ar}</span>}
+                    <span className={styles.pColorChip}>
+                      <span className={styles.pColorDot} style={{ background: colorHexOf(v.color_ar) }} />
+                      {v.color_ar}
+                    </span>
+                  </span>
+                </span>
+              </span>
+            </label>
+          );
+        })}
+        <button type="button" className={styles.vAdd} onClick={openAdd} aria-label="أضف سيارة جديدة" data-testid="veh-add">
+          +
+        </button>
+      </div>
+      {vehicles && vehicles.length > 0 && (
+        <div className={styles.hintWrap}>
+          <span className={styles.hintBar} />
+          <span className={styles.hintTxt}>اضغط مطولاً للتعديل</span>
+        </div>
+      )}
       <p className={styles.privacy}>اللوحات مشفرة ولا تظهر كاملة إلا لموظف التسليم أثناء طلبك النشط فقط.</p>
 
       {/* ===== الدفع — C-33: بطاقة أو محفظة (بوابة sandbox بنفس مسار الإنتاج) ===== */}
@@ -888,40 +1045,119 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {/* ===== Sheet إضافة سيارة (C-30 · S3: حقلان) ===== */}
+      {/* ===== Sheet «أضف سيارة جديدة» — قوائم من كتالوج السيارات + لوحة (حروف + أرقام) ===== */}
       {showAdd && (
         <div className={styles.dim}>
-          <div className={styles.sheet} role="dialog" aria-label="إضافة سيارة">
+          <div className={styles.sheet} role="dialog" aria-label={editId ? "تعديل السيارة" : "أضف سيارة جديدة"}>
             <div className={styles.grab} />
             <div className={styles.sheetHead}>
-              <h2>إضافة سيارة</h2>
-              {vehicles && vehicles.length > 0 && (
+              <h2>{editId ? "تعديل السيارة" : "أضف سيارة جديدة"}</h2>
+              {(editId || (vehicles && vehicles.length > 0)) && (
                 <button className={styles.bk} onClick={() => setShowAdd(false)} aria-label="إغلاق"><XIcon /></button>
               )}
             </div>
             {errorNote}
+
+            {/* ماركة السيارة */}
             <div className={styles.fld}>
-              <label>اللون *</label>
+              <select
+                className={styles.selInp}
+                data-testid="veh-make"
+                value={makeSel}
+                onChange={(e) => {
+                  setMakeSel(e.target.value);
+                  setModelSel("");
+                  setModelCustom("");
+                }}
+              >
+                <option value="" disabled>ماركة السيارة</option>
+                {(catalog?.makes ?? []).map((mk) => (
+                  <option key={mk.key} value={mk.name_ar}>{mk.name_ar}</option>
+                ))}
+                <option value={OTHER}>{OTHER}</option>
+              </select>
+            </div>
+            {makeSel === OTHER && (
               <input
                 className={styles.inp}
-                data-testid="veh-color"
-                placeholder="مثال: بيضاء"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
+                placeholder="اكتب الماركة"
+                value={makeCustom}
+                onChange={(e) => setMakeCustom(e.target.value)}
               />
-            </div>
-            <div className={styles.fld}>
-              <label>آخر 4 أرقام اللوحة *</label>
+            )}
+
+            {/* رقم لوحة السيارة: أرقام + حروف */}
+            <div className={styles.plateRow}>
               <input
                 className={`${styles.inp} ${styles.inpPlate}`}
                 data-testid="veh-plate"
                 inputMode="numeric"
                 maxLength={4}
-                placeholder="0000"
+                placeholder="أرقام اللوحة"
                 value={plate}
-                onChange={(e) => setPlate(e.target.value)}
+                onChange={(e) => setPlate(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              />
+              <input
+                className={styles.inp}
+                data-testid="veh-letters"
+                maxLength={5}
+                placeholder="حروف اللوحة"
+                style={{ textAlign: "center" }}
+                value={letters.split("").join(" ")}
+                onChange={(e) => setLetters(e.target.value.replace(/[^ء-ي]/g, "").slice(0, 3))}
               />
             </div>
+
+            {/* لون السيارة */}
+            <div className={styles.fld}>
+              <div className={styles.colorSelWrap}>
+                {color && <span className={styles.pColorDot} style={{ background: colorHexOf(color) }} />}
+                <select
+                  className={styles.selInp}
+                  data-testid="veh-color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                >
+                  <option value="" disabled>لون السيارة</option>
+                  {(catalog?.colors ?? []).map((c) => (
+                    <option key={c.name_ar} value={c.name_ar}>{c.name_ar}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* نوع السيارة (الموديل) — يعتمد على الماركة */}
+            <div className={styles.fld}>
+              <select
+                className={styles.selInp}
+                data-testid="veh-model"
+                value={modelSel}
+                disabled={!makeSel}
+                onChange={(e) => setModelSel(e.target.value)}
+              >
+                <option value="" disabled>نوع السيارة</option>
+                {modelsOfSel.map((md) => (
+                  <option key={md.name_ar} value={md.name_ar}>{md.name_ar}</option>
+                ))}
+                <option value={OTHER}>{OTHER}</option>
+              </select>
+            </div>
+            {modelSel === OTHER && (
+              <input
+                className={styles.inp}
+                placeholder="اكتب نوع السيارة"
+                value={modelCustom}
+                onChange={(e) => setModelCustom(e.target.value)}
+              />
+            )}
+
+            {/* البلد — KSA ثابتة */}
+            <div className={styles.fld}>
+              <select className={styles.selInp} value="KSA" disabled>
+                <option value="KSA">KSA — السعودية</option>
+              </select>
+            </div>
+
             <div className={`${styles.note} ${styles.noteInfo}`}>
               <ShieldIcon size={17} />
               <span><b>خصوصيتك:</b> اللوحة تُشفَّر ولا تُعرض كاملة أبداً خارج طلبك التشغيلي.</span>
@@ -929,11 +1165,16 @@ export default function CheckoutPage() {
             <button
               className={`${styles.payBtn} ${styles.payBtnCenter}`}
               data-testid="veh-save"
-              disabled={busy || color.length < 2 || plate.length < 1}
-              onClick={addVehicle}
+              disabled={busy || !formValid}
+              onClick={saveVehicle}
             >
-              حفظ السيارة
+              {busy ? "جارٍ الحفظ…" : "حفظ"}
             </button>
+            {editId && (
+              <button type="button" className={styles.delVeh} disabled={busy} onClick={deleteVehicle} data-testid="veh-delete">
+                حذف السيارة
+              </button>
+            )}
           </div>
         </div>
       )}

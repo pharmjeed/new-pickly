@@ -368,3 +368,97 @@
   color: var(--pk-lime-900); font-family: var(--pk-font-body);
   font-size: var(--pk-fs-15); font-weight: 500; cursor: pointer;
 }
+
+/* ===== طريقة الاستلام: شرائح (السيارة فعالة · البقية مشطوبة خارج النطاق) ===== */
+.pmRow { display: flex; flex-direction: row; gap: 8px; align-items: center; }
+.pmChip {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: var(--pk-radius-pill); padding: 8px 16px; min-height: 40px;
+  font-size: var(--pk-fs-14); position: relative; overflow: hidden; white-space: nowrap;
+}
+.pmChipOn { background: var(--pk-surface); border: 1.5px solid var(--pk-ink-600); color: var(--pk-ink-900); font-weight: 700; }
+.pmChipOff { background: var(--pk-line); color: var(--pk-gray); font-weight: 500; }
+.pmChipOff::after {
+  content: ""; position: absolute; left: -12px; right: -12px; top: 50%;
+  height: 1.5px; background: var(--pk-gray); transform: rotate(-10deg);
+}
+
+/* ===== بطاقة اللوحة السعودية ===== */
+.vRow { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.pWrap {
+  flex: 0 1 78%; min-width: 250px; padding: 3px; border-radius: 18px;
+  border: 2px solid transparent; cursor: pointer; user-select: none; -webkit-user-select: none;
+}
+.pWrapOn { border-color: var(--pk-lime-500); background: var(--pk-lime-100); }
+.pRadio { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.pCard {
+  display: flex; flex-direction: row; min-height: 96px; overflow: hidden;
+  background: var(--pk-surface); border: 2px solid var(--pk-ink-600); border-radius: 14px;
+}
+.pBand {
+  width: 46px; flex-shrink: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: space-between; padding: 6px 2px;
+  border-left: 2px solid var(--pk-ink-600); order: 2;
+}
+.pBandPalm { font-size: 12px; }
+.pBandAr { color: var(--pk-ink-900); font-size: 9px; font-weight: 700; }
+.pBandEn { color: var(--pk-ink-900); font-size: 8px; font-weight: 700; text-align: center; line-height: 1.1; }
+.pBandDot { color: var(--pk-ink-900); font-size: 7px; }
+.pMain { flex: 1; display: flex; flex-direction: column; order: 1; min-width: 0; }
+.pTop {
+  flex: 1.2; display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;
+  gap: 14px; border-bottom: 2px solid var(--pk-ink-600); padding: 4px 10px;
+}
+.pLetters { color: var(--pk-ink-900); font-size: var(--pk-fs-24); font-weight: 800; letter-spacing: 3px; }
+.pDigits { color: var(--pk-ink-900); font-size: var(--pk-fs-32); font-weight: 800; font-family: var(--pk-font-mono); direction: ltr; }
+.pBottom {
+  flex: 1; display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;
+  gap: 8px; padding: 6px 8px; min-width: 0;
+}
+.pBrand {
+  border: 1px solid var(--pk-border); border-radius: var(--pk-radius-pill);
+  padding: 2px 8px; background: var(--pk-cloud);
+  color: var(--pk-ink-900); font-size: var(--pk-fs-12); font-weight: 700; white-space: nowrap;
+}
+.pModel { color: var(--pk-ink-900); font-size: var(--pk-fs-14); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pColorChip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--pk-cloud); border-radius: var(--pk-radius-pill); padding: 2px 8px;
+  color: var(--pk-ink-900); font-size: var(--pk-fs-12); font-weight: 700; white-space: nowrap;
+}
+.pColorDot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--pk-border); flex-shrink: 0; }
+.vAdd {
+  width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px solid var(--pk-ink-600); background: var(--pk-surface);
+  color: var(--pk-ink-600); font-size: 30px; font-weight: 300; line-height: 1;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.vAdd:hover { background: var(--pk-lime-100); }
+.hintWrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.hintBar { width: 18px; height: 4px; border-radius: var(--pk-radius-pill); background: var(--pk-ink-600); }
+.hintTxt { color: var(--pk-text-2); font-size: var(--pk-fs-13); }
+
+/* ===== نموذج «أضف سيارة جديدة» ===== */
+.selInp {
+  font-family: var(--pk-font-body); font-size: var(--pk-fs-15); color: var(--pk-text);
+  background: var(--pk-surface); border: 1.5px solid var(--pk-border);
+  border-radius: var(--pk-radius); min-height: 48px; padding: 10px 14px;
+  outline: none; width: 100%; appearance: none; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--pk-ink-600) 50%), linear-gradient(135deg, var(--pk-ink-600) 50%, transparent 50%);
+  background-position: calc(14px + 5px) 50%, 14px 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.selInp:focus { border-color: var(--pk-ink-900); }
+.selInp:disabled { opacity: 0.55; cursor: not-allowed; }
+.selInp:invalid, .selInp option[value=""] { color: var(--pk-gray); }
+.plateRow { display: flex; flex-direction: row; gap: 8px; }
+.plateRow input { flex: 1; min-width: 0; }
+.colorSelWrap { position: relative; display: flex; align-items: center; }
+.colorSelWrap .pColorDot { position: absolute; left: 40px; pointer-events: none; }
+.colorSelWrap select { flex: 1; }
+.delVeh {
+  border: none; background: transparent; width: 100%; min-height: var(--pk-touch);
+  color: var(--pk-error); font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-14); font-weight: 700; cursor: pointer;
+}
