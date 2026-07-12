@@ -38,6 +38,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @pickly/database generate
+      # الحزم تُستهلك من dist — بناء الحزم شرط للـtypecheck والاختبارات
+      - run: pnpm -r --filter "./packages/*" build
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm --filter @pickly/database migrate:deploy
@@ -81,6 +83,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @pickly/database generate
+      - run: pnpm -r --filter "./packages/*" build
       - run: pnpm --filter @pickly/database migrate:deploy
       - run: pnpm db:seed
       - run: pnpm --filter @pickly/e2e exec playwright install chromium --with-deps
