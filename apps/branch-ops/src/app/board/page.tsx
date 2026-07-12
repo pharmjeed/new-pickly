@@ -17,6 +17,8 @@ interface Card {
   customer_phone_masked: string;
   vehicle_summary: string | null;
   parking_spot: string | null;
+  /** بلغ العميل نقطة الموقف المثبتة على الخريطة (GPS) — إشارة معلوماتية */
+  at_spot_at: string | null;
   items_count: number;
   total_halalas: number;
   eta_minutes: number | null;
@@ -464,7 +466,15 @@ export default function BoardPage() {
                         </span>
                       </div>
                     )}
-                    {c.parking_spot && <span className={s.slot}>موقف {c.parking_spot}</span>}
+                    {c.parking_spot &&
+                      (c.at_spot_at && c.order_status !== "COMPLETED" ? (
+                        /* GPS رصد العميل عند نقطة موقفه — الموظف يطلع للمكان الصحيح مباشرة */
+                        <span className={`${s.slot} ${s.slotLive}`} data-testid="at-spot-badge">
+                          🅿 عند الموقف {c.parking_spot} ✓
+                        </span>
+                      ) : (
+                        <span className={s.slot}>موقف {c.parking_spot}</span>
+                      ))}
                   </div>
                 </div>
 

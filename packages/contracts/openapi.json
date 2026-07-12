@@ -8387,6 +8387,14 @@
                           "null"
                         ]
                       },
+                      "at_spot_at": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date-time",
+                        "default": null
+                      },
                       "items_count": {
                         "type": "integer"
                       },
@@ -8697,6 +8705,14 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "at_spot_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
                     },
                     "items_count": {
                       "type": "integer"
@@ -9020,6 +9036,14 @@
                         "null"
                       ]
                     },
+                    "at_spot_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "items_count": {
                       "type": "integer"
                     },
@@ -9301,6 +9325,14 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "at_spot_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
                     },
                     "items_count": {
                       "type": "integer"
@@ -9599,6 +9631,14 @@
                         "null"
                       ]
                     },
+                    "at_spot_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "items_count": {
                       "type": "integer"
                     },
@@ -9880,6 +9920,14 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "at_spot_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
                     },
                     "items_count": {
                       "type": "integer"
@@ -10197,6 +10245,14 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "at_spot_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
                     },
                     "items_count": {
                       "type": "integer"

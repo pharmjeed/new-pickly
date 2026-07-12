@@ -140,6 +140,8 @@ enum ArrivalEventType {
   dwell_detected
   manual_arrival_confirm
   trip_stopped
+  /// بلغ العميل نقطة الموقف المثبتة على الخريطة — إشارة معلوماتية للوحة الفرع
+  reached_parking_spot
 }
 
 enum HandoffMethod {

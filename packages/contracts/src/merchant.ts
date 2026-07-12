@@ -27,6 +27,8 @@ export const BranchOrderCardSchema = z.object({
   customer_phone_masked: z.string(), // 05X *** XX21
   vehicle_summary: z.string().nullable(), // «كامري · بيضاء · 8241» — أثناء الطلب النشط فقط
   parking_spot: z.string().nullable(),
+  /** لحظة بلوغ العميل نقطة الموقف المثبتة على الخريطة (GPS) — إشارة معلوماتية؛ «وصلت» يبقى يدوياً */
+  at_spot_at: z.string().datetime().nullable().default(null),
   items_count: z.number().int(),
   total_halalas: HalalaSchema,
   eta_minutes: z.number().int().nullable(),

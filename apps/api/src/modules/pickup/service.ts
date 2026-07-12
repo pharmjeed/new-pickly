@@ -1,7 +1,7 @@
 import { prisma } from "@pickly/database";
 import type { OrderState, PickupSession as SessionDto, TripLocationBody } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
-import { createGeoAdapter } from "@pickly/geo";
+import { createGeoAdapter, haversineMeters } from "@pickly/geo";
 import { emitEvent } from "../../lib/events.js";
 import { transitionOrder } from "../../lib/state-machine.js";
 import { handoffCodeFor } from "../../lib/codes.js";
@@ -15,6 +15,12 @@ const geo = createGeoAdapter();
 
 /** الرحلة مسموحة من MERCHANT_ACCEPTED فصاعداً (docs/05§4-1) */
 const TRIP_ALLOWED: OrderState[] = ["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"];
+
+/**
+ * نصف قطر «وصل لنقطة الموقف» — أضيق من نطاق الوصول العام لأن النقطة محددة
+ * بدقة على الخريطة؛ 40م يستوعب تشتت GPS المعتاد في المواقف المكشوفة.
+ */
+const SPOT_REACHED_RADIUS_M = 40;
 
 function toSessionDto(s: {
   id: string;
@@ -108,6 +114,19 @@ export class PickupService {
     const settings = order.branch.pickup_settings;
     const alertRadius = settings?.alert_radius_m ?? 300;
 
+    // نقطة الموقف المختار (إن ثبتها المطعم على الخريطة) — لكشف «وصل للموقف»
+    const chosenSpot = order.parking_spot_label
+      ? await prisma.parkingSpot.findUnique({
+          where: {
+            branch_id_label: { branch_id: order.branch_id, label: order.parking_spot_label }
+          }
+        })
+      : null;
+    const spotDistance =
+      chosenSpot && chosenSpot.lat !== null && chosenSpot.lng !== null
+        ? haversineMeters({ lat: loc.lat, lng: loc.lng }, { lat: chosenSpot.lat, lng: chosenSpot.lng })
+        : null;
+
     await prisma.$transaction(async (tx) => {
       await emitEvent(tx, {
         name: "pickup.eta_updated",
@@ -146,6 +165,20 @@ export class PickupService {
         await transitionOrder(tx, order, "CUSTOMER_NEARBY", { actor_type: "system" });
       }
 
+      // «وصل لنقطة الموقف» — العميل بلغ النقطة التي ثبتها المطعم على الخريطة:
+      // إشارة معلوماتية تظهر فوراً على لوحة الفرع (استطلاعها كل ثوانٍ يلتقط الحدث)؛
+      // ARRIVED يبقى يدوياً حصراً (docs/14) — لا حدث نطاق جديد: قائمة docs/12§1 مغلقة.
+      if (spotDistance !== null && spotDistance <= SPOT_REACHED_RADIUS_M) {
+        const already = await tx.arrivalEvent.findFirst({
+          where: { order_id: order.id, event_type: "reached_parking_spot" }
+        });
+        if (!already) {
+          await tx.arrivalEvent.create({
+            data: { order_id: order.id, session_id: session.id, event_type: "reached_parking_spot" }
+          });
+        }
+      }
+
       // Dwell — docs/14§4: قراءة واحدة لا تساوي وصولاً. البقاء داخل نطاق الوصول
       // بسرعة شبه صفرية طوال dwell_seconds ← حدث dwell_detected (يغذي «يبدو أنك
       // وصلت — هل وصلت؟» في الواجهة؛ التحول ARRIVED يبقى يدوياً حصراً).
@@ -182,7 +215,9 @@ export class PickupService {
       eta_minutes: etaMin,
       distance_m: route.distance_m,
       // الواجهة تعرض «يبدو أنك وصلت — هل وصلت؟» — الزر اليدوي هو المرجع
-      looks_arrived: Boolean(dwell) && order.order_status !== "CUSTOMER_ARRIVED"
+      looks_arrived: Boolean(dwell) && order.order_status !== "CUSTOMER_ARRIVED",
+      // العميل عند نقطة موقفه المثبتة — الواجهة تذكّره بزر «وصلت»
+      at_spot: spotDistance !== null && spotDistance <= SPOT_REACHED_RADIUS_M
     };
   }
 

@@ -139,10 +139,13 @@ export default function TrackScreen() {
       .catch(() => setBranchSpots([])); // لا مواقف معرفة → الوصف النصي يكفي
   }, [branchId]);
 
+  // GPS رصدك عند نقطة موقفك المثبتة — تذكير بزر «وصلت» (التحول يبقى يدوياً)
+  const [atSpotHint, setAtSpotHint] = useState(false);
+
   const sendLocation = useCallback(async () => {
     try {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const res = await api<{ eta_minutes: number | null }>("POST", `/v1/orders/${id}/trip/location`, {
+      const res = await api<{ eta_minutes: number | null; at_spot?: boolean }>("POST", `/v1/orders/${id}/trip/location`, {
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
         speed: pos.coords.speed,
@@ -150,6 +153,7 @@ export default function TrackScreen() {
         accuracy: pos.coords.accuracy
       });
       if (res.eta_minutes !== null) setEta(res.eta_minutes);
+      if (res.at_spot) setAtSpotHint(true);
     } catch {
       /* التتبع تحسين لا شرط (docs/14§8) */
     }
@@ -425,6 +429,11 @@ export default function TrackScreen() {
         )}
         {canArrive && (
           <>
+            {atSpotHint && (
+              <Text style={[st.footNote, { color: T.text, fontWeight: "800", marginTop: 10 }]}>
+                وصلت لنقطة موقفك{parkingLabel ? ` — ${parkingLabel}` : ""} 🅿 — اضغط «وصلت» ليطلع لك الموظف
+              </Text>
+            )}
             <LimeButton title="وصلت" onPress={() => void confirmArrival()} style={{ marginTop: 12 }} />
             <Text style={[st.footNote, { color: T.text2 }]}>
               «وصلت» بيدك دائماً — ما نحوّل حالتك بالـGPS وحده أبداً

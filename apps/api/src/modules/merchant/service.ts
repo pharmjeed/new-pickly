@@ -21,7 +21,7 @@ function maskPhone(phone: string): string {
 
 type OrderForCard = Prisma.OrderGetPayload<{ include: { user: true; scheduled_slot: true } }>;
 
-function toCard(o: OrderForCard, etaMinutes: number | null): BranchOrderCard {
+function toCard(o: OrderForCard, etaMinutes: number | null, atSpotAt: Date | null = null): BranchOrderCard {
   const status = o.order_status as OrderState;
   const isActive = ACTIVE_STATES.includes(status);
   return {
@@ -32,6 +32,7 @@ function toCard(o: OrderForCard, etaMinutes: number | null): BranchOrderCard {
     customer_phone_masked: maskPhone(o.user.phone),
     vehicle_summary: isActive ? o.vehicle_summary : null, // الخصوصية خارج الطلب النشط
     parking_spot: o.parking_spot_label,
+    at_spot_at: atSpotAt?.toISOString() ?? null,
     items_count: 0, // يُملأ من العد أدناه
     total_halalas: o.total_halalas,
     eta_minutes: etaMinutes,
@@ -58,6 +59,13 @@ export class MerchantOrderService {
       take: 100
     });
 
+    // «وصل لنقطة الموقف» لكل طلبات الصفحة دفعة واحدة — الموظف يعرف أن العميل عند النقطة
+    const atSpotEvents = await prisma.arrivalEvent.findMany({
+      where: { order_id: { in: orders.map((o) => o.id) }, event_type: "reached_parking_spot" },
+      select: { order_id: true, created_at: true }
+    });
+    const atSpotByOrder = new Map(atSpotEvents.map((e) => [e.order_id, e.created_at]));
+
     const cards: BranchOrderCard[] = [];
     for (const o of orders) {
       let eta: number | null = null;
@@ -66,7 +74,7 @@ export class MerchantOrderService {
         include: { eta_snapshots: { orderBy: { created_at: "desc" }, take: 1 } }
       });
       if (session?.eta_snapshots[0]) eta = Math.round(session.eta_snapshots[0].eta_seconds / 60);
-      cards.push({ ...toCard(o, eta), items_count: o._count.items });
+      cards.push({ ...toCard(o, eta, atSpotByOrder.get(o.id) ?? null), items_count: o._count.items });
     }
     return cards;
   }
@@ -475,6 +483,10 @@ export class MerchantOrderService {
       where: { id: order_id },
       include: { user: true, scheduled_slot: true, _count: { select: { items: true } } }
     });
-    return { ...toCard(o, null), items_count: o._count.items };
+    const atSpot = await prisma.arrivalEvent.findFirst({
+      where: { order_id, event_type: "reached_parking_spot" },
+      select: { created_at: true }
+    });
+    return { ...toCard(o, null, atSpot?.created_at ?? null), items_count: o._count.items };
   }
 }

@@ -202,6 +202,20 @@
   white-space: nowrap;
 }
 
+/* العميل عند نقطة موقفه المثبتة (GPS) — نبضة تلفت الموظف للخروج للمكان الصحيح */
+@keyframes pk-at-spot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 243, 57, 0.65); }
+  50% { box-shadow: 0 0 0 8px rgba(201, 243, 57, 0); }
+}
+.slotLive {
+  background: var(--pk-lime-500);
+  color: var(--pk-ink-900);
+  animation: pk-at-spot-pulse 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .slotLive { animation: none; }
+}
+
 /* عداد قبول BR-1 */
 .acceptTimer { display: flex; flex-direction: column; gap: 2px; align-items: center; }
 .countLbl { font-size: 13px; color: var(--pk-gray); }

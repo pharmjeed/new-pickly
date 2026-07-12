@@ -275,7 +275,21 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     expect(ready.json().order_status).toBe("CUSTOMER_NOTIFIED");
   });
 
-  it("7. أنا في الطريق ← محاكي رحلة ← NEARBY", async () => {
+  it("7. أنا في الطريق ← محاكي رحلة ← NEARBY + «وصل لنقطة الموقف» للفرع", async () => {
+    // العميل يختار مسبقاً موقفاً بنقطة مثبتة على الخريطة — الفرع سيعلم بلوغه إياها بالـGPS
+    const pinnedSpot = await prisma.parkingSpot.findFirstOrThrow({ where: { branch_id: branchId } });
+    await prisma.parkingSpot.update({
+      where: { id: pinnedSpot.id },
+      data: { lat: branchLat, lng: branchLng }
+    });
+    const preSelect = await app.inject({
+      method: "POST",
+      url: `/v1/orders/${orderId}/parking-spot`,
+      headers: authed(customerToken),
+      payload: { spot_id: pinnedSpot.id }
+    });
+    expect(preSelect.statusCode).toBe(200);
+
     const start = await app.inject({
       method: "POST",
       url: `/v1/orders/${orderId}/trip/start`,
@@ -286,6 +300,7 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
 
     // انطلاق من ~3 كم ونتحرك نحو الفرع
     const from = { lat: branchLat + 0.027, lng: branchLng };
+    let sawAtSpot = false;
     for (const point of simulateTrip(from, { lat: branchLat, lng: branchLng }, 30, 40)) {
       const res = await app.inject({
         method: "POST",
@@ -300,6 +315,7 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
         }
       });
       expect(res.statusCode).toBe(200);
+      if ((res.json() as { at_spot?: boolean }).at_spot) sawAtSpot = true;
     }
 
     const orderRes = await app.inject({
@@ -309,6 +325,30 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     });
     // الجيوفنس حوّل إلى NEARBY — ولا يجوز أن يحوّل ARRIVED (docs/05§4-3)
     expect(orderRes.json().order_status).toBe("CUSTOMER_NEARBY");
+
+    // نهاية الرحلة عند نقطة الموقف نفسها → الحدث سُجل والعميل أُعلم
+    expect(sawAtSpot).toBe(true);
+    const reached = await prisma.arrivalEvent.findFirst({
+      where: { order_id: orderId, event_type: "reached_parking_spot" }
+    });
+    expect(reached).not.toBeNull();
+
+    // لوحة الفرع ترى «عند الموقف» على البطاقة (at_spot_at)
+    const board = await app.inject({
+      method: "GET",
+      url: `/v1/merchant/orders?branch_id=${branchId}&tab=all`,
+      headers: authed(staffToken)
+    });
+    const card = (board.json() as Array<{ id: string; at_spot_at: string | null }>).find(
+      (c) => c.id === orderId
+    );
+    expect(card?.at_spot_at).toBeTruthy();
+
+    // إرجاع نقطة الseed كما كانت — الاختبارات لا تترك أثراً
+    await prisma.parkingSpot.update({
+      where: { id: pinnedSpot.id },
+      data: { lat: pinnedSpot.lat, lng: pinnedSpot.lng }
+    });
   });
 
   it("8. «وصلت» اليدوي ← الموقف ← الطابور", async () => {
