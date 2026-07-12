@@ -78,6 +78,8 @@
   direction: ltr;
 }
 .nNew { background: var(--pk-st-new); color: var(--pk-white); }
+/* BR-5: شارة المجدولة — دائمة الظهور بلون التنبيه */
+.nSched { background: var(--pk-warn); color: var(--pk-ink-900); }
 .nPrep { background: var(--pk-st-prep); color: var(--pk-white); }
 .nNear { background: var(--pk-st-near); color: var(--pk-ink-900); }
 .nArr { background: var(--pk-st-arrived); color: var(--pk-white); }
@@ -108,6 +110,28 @@
   font-weight: 500;
 }
 
+/* BR-5: شريط اقتراب موعد مجدول — نابض، والضغط يقود للتبويب */
+.schedBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: right;
+  border: 1.5px solid var(--pk-warn);
+  border-radius: var(--pk-radius);
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pk-ink-900);
+  background: rgba(239, 159, 39, 0.13);
+  cursor: pointer;
+  animation: schedPulse 2s ease-in-out infinite;
+}
+@keyframes schedPulse {
+  50% { box-shadow: 0 0 0 5px rgba(239, 159, 39, 0.22); }
+}
+
 /* ===== شبكة البطاقات ===== */
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
@@ -124,6 +148,7 @@
   position: relative;
   border-inline-start-width: 12px;
 }
+.ocard[data-state="scheduled"] { border-color: var(--pk-warn); background: rgba(239, 159, 39, 0.07); }
 .ocard[data-state="new"] { border-color: var(--pk-st-new); background: var(--pk-st-new-bg); }
 .ocard[data-state="prep"] { border-color: var(--pk-st-prep); background: var(--pk-st-prep-bg); }
 .ocard[data-state="near"] { border-color: var(--pk-st-near); background: var(--pk-st-near-bg); }

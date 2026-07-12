@@ -6,28 +6,12 @@ import { transitionOrder } from "../../lib/state-machine.js";
 import { handoffCodeFor } from "../../lib/codes.js";
 import { completeHandoff } from "../pickup/service.js";
 import { payments } from "../orders/service.js";
+import { ACTIVE_STATES, AWAITING_PAYMENT_STATES, JOURNEY_STATES, TAB_WHERE } from "./tab-filter.js";
 
 /**
  * وحدة Branch Operations (نطاق الشريحة) — لوحة B-03:
  * بيانات العميل مقنّعة، والسيارة كاملة أثناء الطلب النشط فقط (docs/10§3-4).
  */
-
-const ACTIVE_STATES: OrderState[] = [
-  "MERCHANT_PENDING",
-  "MERCHANT_ACCEPTED",
-  "PAYMENT_PENDING",
-  "PAYMENT_FAILED",
-  "PREPARING",
-  "READY",
-  "CUSTOMER_NOTIFIED",
-  "CUSTOMER_ON_THE_WAY",
-  "CUSTOMER_NEARBY",
-  "CUSTOMER_ARRIVED",
-  "HANDOFF_IN_PROGRESS"
-];
-
-/** بين القبول والدفع — يظهر معلوماتياً في عمود «بانتظار الدفع» مع منع التحضير (docs/06 BR-2) */
-const AWAITING_PAYMENT_STATES: OrderState[] = ["MERCHANT_ACCEPTED", "PAYMENT_PENDING", "PAYMENT_FAILED"];
 
 /** الحالات المدفوعة النشطة — نطاق رادار الوصول (docs/14§5-مكرر) */
 const RADAR_STATES: OrderState[] = [
@@ -38,34 +22,6 @@ const RADAR_STATES: OrderState[] = [
   "CUSTOMER_NEARBY",
   "CUSTOMER_ARRIVED"
 ];
-
-/**
- * مسار التجهيز الموازي (docs/05§3): رحلة العميل يجوز أن تسبق READY،
- * فالتبويب يُصنَّف بحقيقة الجاهزية (ready_at) لا بحالة الرحلة —
- * طلب لم يجهز يبقى «قيد التحضير» ولو انطلق العميل، والواصل يظهر في «وصلوا».
- */
-const JOURNEY_EN_ROUTE: OrderState[] = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
-const JOURNEY_STATES: OrderState[] = [...JOURNEY_EN_ROUTE, "CUSTOMER_ARRIVED"];
-
-const TAB_WHERE: Record<string, Prisma.OrderWhereInput> = {
-  new: { order_status: "MERCHANT_PENDING" },
-  // بين القبول والدفع — معلوماتي فقط، التحضير يبدأ آلياً عند نجاح الدفع
-  awaiting_payment: { order_status: { in: AWAITING_PAYMENT_STATES } },
-  preparing: {
-    OR: [
-      { order_status: "PREPARING" },
-      { order_status: { in: JOURNEY_EN_ROUTE }, ready_at: null }
-    ]
-  },
-  ready: {
-    OR: [
-      { order_status: { in: ["READY", "CUSTOMER_NOTIFIED"] } },
-      { order_status: { in: JOURNEY_EN_ROUTE }, ready_at: { not: null } }
-    ]
-  },
-  arrived: { order_status: { in: ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"] } },
-  completed: { order_status: "COMPLETED" }
-};
 
 function maskPhone(phone: string): string {
   // 05X *** XX21 — README §4
@@ -120,7 +76,9 @@ export class MerchantOrderService {
     const orders = await prisma.order.findMany({
       where: { branch_id, ...tabWhere },
       include: { user: true, scheduled_slot: true, _count: { select: { items: true } } },
-      orderBy: { created_at: "desc" },
+      // المجدولة تُرتَّب بموعد فترتها — الأقرب دخولاً للتحضير أولاً (BR-5)
+      orderBy:
+        tab === "scheduled" ? { scheduled_slot: { slot_start: "asc" } } : { created_at: "desc" },
       take: 100
     });
 

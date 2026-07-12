@@ -83,6 +83,7 @@ interface OrderDetails {
 }
 
 const TABS = [
+  ["scheduled", "مجدولة"],
   ["new", "جديدة"],
   ["awaiting_payment", "بانتظار الدفع"],
   ["preparing", "قيد التحضير"],
@@ -91,7 +92,11 @@ const TABS = [
   ["completed", "مكتملة"]
 ] as const;
 
+/** BR-5: عتبة «الموعد اقترب» — شريط تنبيه + نغمتان قبل دخول المجدول قائمة «جديدة» */
+const SCHED_SOON_MS = 30 * 60_000;
+
 function cardState(status: string): string {
+  if (status === "ORDER_SUBMITTED") return "scheduled";
   if (status === "MERCHANT_PENDING") return "new";
   if (AWAITING_PAYMENT_STATES.includes(status)) return "new";
   if (status === "PREPARING") return "prep";
@@ -142,6 +147,9 @@ export default function BoardPage() {
   // رادار الوصول — docs/14§5-مكرر: مستقل عن التبويب، يتحدث دائماً
   const [radar, setRadar] = useState<RadarEntry[]>([]);
   const redSeen = useRef<Set<string>>(new Set());
+  // BR-5: المجدولة القادمة — استطلاع مستقل عن التبويب لشارة العدّ الدائمة وتنبيه اقتراب الموعد
+  const [sched, setSched] = useState<Card[]>([]);
+  const schedSeen = useRef<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [codeFor, setCodeFor] = useState<string | null>(null);
   const [codeVal, setCodeVal] = useState("");
@@ -272,6 +280,35 @@ export default function BoardPage() {
     };
   }, [branchId, call, beep]);
 
+  // BR-5: المجدولة القادمة — كل 15 ث؛ عند دخول طلبٍ نطاق الثلاثين دقيقة: نغمتان (تمييزاً عن نغمة الرادار)
+  useEffect(() => {
+    if (!branchId) return;
+    let stopped = false;
+    const tick = async () => {
+      try {
+        const list = await call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=scheduled`);
+        if (stopped) return;
+        setSched(list);
+        for (const c of list) {
+          const ms = c.scheduled_slot_start ? Date.parse(c.scheduled_slot_start) - Date.now() : null;
+          if (ms !== null && ms <= SCHED_SOON_MS && !schedSeen.current.has(c.id)) {
+            schedSeen.current.add(c.id);
+            beep();
+            setTimeout(beep, 650);
+          }
+        }
+      } catch {
+        /* الشارة تحسين عرض — لا توقف اللوحة */
+      }
+    };
+    void tick();
+    const t = setInterval(tick, 15_000);
+    return () => {
+      stopped = true;
+      clearInterval(t);
+    };
+  }, [branchId, call, beep]);
+
   const act = async (path: string, body?: unknown, idem = false) => {
     try {
       await call("POST", path, body, idem);
@@ -313,11 +350,39 @@ export default function BoardPage() {
         if (pa !== pb) return pa - pb;
         return (a.arrived_at ?? a.created_at).localeCompare(b.arrived_at ?? b.created_at);
       });
+    } else if (tab === "scheduled") {
+      // الأقرب موعداً أولاً (BR-5)
+      list.sort((a, b) => (a.scheduled_slot_start ?? "").localeCompare(b.scheduled_slot_start ?? ""));
     } else {
       list.sort((a, b) => a.created_at.localeCompare(b.created_at));
     }
     return list;
   }, [cards, tab, queueByOrder]);
+
+  // BR-5: المجدولة التي اقترب موعدها (≤ 30 د) — شريط تنبيه دائم فوق اللوحة
+  const schedSoon = useMemo(
+    () =>
+      now === null
+        ? []
+        : sched.filter(
+            (c) => c.scheduled_slot_start !== null && Date.parse(c.scheduled_slot_start) - now <= SCHED_SOON_MS
+          ),
+    [sched, now]
+  );
+
+  /** متى يدخل المجدول قائمة «جديدة» — عدّ تنازلي قريب، ووقت/يوم لما بعُد */
+  const schedLabel = (c: Card): string => {
+    if (!c.scheduled_slot_start || now === null) return "عند موعده";
+    const ms = Date.parse(c.scheduled_slot_start) - now;
+    if (ms <= 0) return "الآن — لحظات وينتقل إلى «جديدة»";
+    const min = Math.ceil(ms / 60_000);
+    if (min <= 90) return `خلال ${min} د`;
+    const d = new Date(c.scheduled_slot_start);
+    const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    return new Date(now).toDateString() === d.toDateString()
+      ? `اليوم ${time}`
+      : `${d.toLocaleDateString("ar", { weekday: "long" })} ${time}`;
+  };
 
   const clock =
     now === null ? "--:--" : `${pad2(new Date(now).getHours())}:${pad2(new Date(now).getMinutes())}`;
@@ -375,23 +440,30 @@ export default function BoardPage() {
             data-testid={`tab-${key}`}
             onClick={() => setTab(key)}
           >
-            {tab === key && (
-              <span
-                className={`${s.n} ${
-                  key === "new"
-                    ? s.nNew
-                    : key === "preparing"
-                      ? s.nPrep
-                      : key === "ready"
-                        ? s.nNear
-                        : key === "arrived"
-                          ? s.nArr
-                          : s.nDone
-                }`}
-              >
-                {cards.length}
-              </span>
-            )}
+            {/* شارة «مجدولة» دائمة الظهور — كي لا يغيب القادم عن العين ولو كان التبويب آخر */}
+            {key === "scheduled"
+              ? sched.length > 0 && (
+                  <span className={`${s.n} ${s.nSched}`} data-testid="scheduled-count">
+                    {sched.length}
+                  </span>
+                )
+              : tab === key && (
+                  <span
+                    className={`${s.n} ${
+                      key === "new"
+                        ? s.nNew
+                        : key === "preparing"
+                          ? s.nPrep
+                          : key === "ready"
+                            ? s.nNear
+                            : key === "arrived"
+                              ? s.nArr
+                              : s.nDone
+                    }`}
+                  >
+                    {cards.length}
+                  </span>
+                )}
             {label}
           </button>
         ))}
@@ -399,6 +471,16 @@ export default function BoardPage() {
 
       <div className={s.workRow}>
       <section className={s.bmain}>
+        {/* BR-5: موعد مجدول على الأبواب — شريط نابض يقود للتبويب مهما كان المعروض */}
+        {schedSoon.length > 0 && tab !== "scheduled" && (
+          <button className={s.schedBanner} data-testid="scheduled-banner" onClick={() => setTab("scheduled")}>
+            ⏰{" "}
+            {schedSoon.length === 1
+              ? "طلب مجدول اقترب موعده"
+              : `${schedSoon.length} طلبات مجدولة اقتربت مواعيدها`}{" "}
+            — {schedSoon.slice(0, 3).map((c) => c.display_code).join(" · ")} · اضغط للاستعراض
+          </button>
+        )}
         {error && (
           <div className={s.noteErr} data-testid="board-error">
             {error}
@@ -521,6 +603,21 @@ export default function BoardPage() {
                 )}
 
                 <div className={s.actions}>
+                  {/* مجدول راقد حتى موعده (BR-5) — استعراض فقط؛ ينتقل إلى «جديدة» آلياً */}
+                  {c.order_status === "ORDER_SUBMITTED" && (
+                    <>
+                      <button
+                        className={`${s.bbtn} ${s.gray}`}
+                        data-testid="view-order"
+                        onClick={() => toggleDetails(c.id)}
+                      >
+                        {detailsFor === c.id ? "إخفاء" : "استعراض الطلب"}
+                      </button>
+                      <span className={s.prepWait} data-testid="scheduled-countdown">
+                        ⏰ يدخل «جديدة» {schedLabel(c)}
+                      </span>
+                    </>
+                  )}
                   {c.order_status === "MERCHANT_PENDING" && acceptFor !== c.id && (
                     <>
                       <button
@@ -727,8 +824,17 @@ export default function BoardPage() {
 
         {cards.length === 0 && (
           <div className={s.empty}>
-            <b>لا طلبات في هذا التبويب</b>
-            <p>البطاقات تظهر هنا فور تغيّر حالتها — التحديث كل ثوانٍ.</p>
+            {tab === "scheduled" ? (
+              <>
+                <b>لا طلبات مجدولة قادمة</b>
+                <p>حين يحجز عميل موعد استلام، يظهر طلبه هنا قبل موعده — وينتقل إلى «جديدة» تلقائياً عند حلوله.</p>
+              </>
+            ) : (
+              <>
+                <b>لا طلبات في هذا التبويب</b>
+                <p>البطاقات تظهر هنا فور تغيّر حالتها — التحديث كل ثوانٍ.</p>
+              </>
+            )}
           </div>
         )}
       </section>

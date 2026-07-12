@@ -7,8 +7,13 @@ import { OrderStateSchema } from "./order-states.js";
 export const MerchantOrdersQuerySchema = z.object({
   branch_id: UuidSchema,
   status: OrderStateSchema.optional(),
-  /** تبويبات لوحة التشغيل B-03 — awaiting_payment: بين القبول والدفع (معلوماتي، لا تحضير) */
-  tab: z.enum(["new", "awaiting_payment", "preparing", "ready", "arrived", "completed", "all"]).default("all"),
+  /**
+   * تبويبات لوحة التشغيل B-03 — awaiting_payment: بين القبول والدفع (معلوماتي، لا تحضير)
+   * scheduled: المجدولة القادمة الراقدة في ORDER_SUBMITTED حتى موعد فترتها (BR-5)
+   */
+  tab: z
+    .enum(["scheduled", "new", "awaiting_payment", "preparing", "ready", "arrived", "completed", "all"])
+    .default("all"),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50)
 });
