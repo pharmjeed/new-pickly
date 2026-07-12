@@ -40,7 +40,6 @@ function toCard(o: OrderForCard, etaMinutes: number | null): BranchOrderCard {
     pickup_time: (o.pickup_time as "asap" | "later" | "scheduled") ?? "asap",
     scheduled_slot_start: o.scheduled_slot?.slot_start.toISOString() ?? null,
     prep_minutes: o.prep_minutes,
-    prep_time_confirmed_at: o.prep_time_confirmed_at?.toISOString() ?? null,
     preparing_at: o.preparing_at?.toISOString() ?? null,
     ready_at: o.ready_at?.toISOString() ?? null,
     created_at: o.created_at.toISOString()
@@ -188,10 +187,7 @@ export class MerchantOrderService {
 
   async preparing(order_id: string, branch_ids: string[], staff_user_id: string) {
     const order = await this.loadBranchOrder(order_id, branch_ids);
-    // لا تجهيز قبل موافقة العميل على الوقت المتوقع — «انطلقت الآن» تُعدّ موافقة ضمنية
-    if (order.prep_minutes !== null && !order.prep_time_confirmed_at) {
-      throw new AppError("ORDER-4009");
-    }
+    // الوقت المتوقع من «متوسط وقت التجهيز» في الإعدادات — لا موافقة عميل (قرار المالك 2026-07-12)
     const status = order.order_status as OrderState;
     await prisma.$transaction(async (tx) => {
       if (JOURNEY_STATES.includes(status)) {

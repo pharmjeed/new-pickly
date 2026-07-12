@@ -35,10 +35,8 @@ export const BranchOrderCardSchema = z.object({
   /** FR-C06: asap | later | scheduled — «سأتحرك لاحقاً» يعني تجهيزاً غير موقوت بالوصول */
   pickup_time: z.enum(["asap", "later", "scheduled"]).default("asap"),
   scheduled_slot_start: z.string().datetime().nullable().default(null),
-  /** وقت التجهيز المتوقع الذي حدده الفرع عند القبول (10/15/20/25 د) */
+  /** الوقت المتوقع — «متوسط وقت التجهيز» المختوم عند القبول من إعدادات المطعم (قرار المالك 2026-07-12) */
   prep_minutes: z.number().int().nullable().default(null),
-  /** موافقة العميل على الوقت — «بدء التجهيز» محظور قبلها */
-  prep_time_confirmed_at: z.string().datetime().nullable().default(null),
   /** مسار التجهيز الموازي (docs/05§3) — يتقدم ولو كانت order_status في مسار رحلة العميل */
   preparing_at: z.string().datetime().nullable().default(null),
   ready_at: z.string().datetime().nullable().default(null),

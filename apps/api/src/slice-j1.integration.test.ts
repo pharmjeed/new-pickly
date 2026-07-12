@@ -233,37 +233,40 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
     expect(mine).toBeDefined();
     expect(mine!.accept_deadline_at).not.toBeNull(); // عداد BR-1
 
+    // «متوسط وقت تجهيز الطلب» يحرره المطعم من بوابته — يُختم على كل طلب عند قبوله
+    // (توكن الفرع كاشير — التعديل عبر service مباشرة يعادل POST /v1/merchant/branches/:id/prep-minutes)
+    await prisma.branchPickupSettings.upsert({
+      where: { branch_id: branchId },
+      create: { branch_id: branchId, default_prep_minutes: 10 },
+      update: { default_prep_minutes: 10 }
+    });
+
+    // قبول بضغطة — بلا اختيار وقت وبلا موافقة عميل (قرار المالك 2026-07-12)
     const accept = await app.inject({
       method: "POST",
       url: `/v1/merchant/orders/${orderId}/accept`,
       headers: { ...authed(staffToken), "idempotency-key": randomUUID() },
-      payload: { prep_time_override_minutes: 10 }
+      payload: {}
     });
     expect(accept.statusCode).toBe(200);
     expect(accept.json().order_status).toBe("MERCHANT_ACCEPTED");
-    expect(accept.json().prep_minutes).toBe(10);
+    expect(accept.json().prep_minutes).toBe(10); // خُتم من متوسط الإعدادات
 
-    // لا تجهيز قبل موافقة العميل على الوقت المتوقع (ORDER-4009)
-    const blocked = await app.inject({
-      method: "POST",
-      url: `/v1/merchant/orders/${orderId}/preparing`,
-      headers: authed(staffToken)
-    });
-    expect(blocked.statusCode).toBe(409);
-
-    const confirmPrep = await app.inject({
-      method: "POST",
-      url: `/v1/orders/${orderId}/confirm-prep-time`,
+    // العميل يرى الوقت المتوقع فوراً في الطلب — بلا أي خطوة موافقة
+    const orderView = await app.inject({
+      method: "GET",
+      url: `/v1/orders/${orderId}`,
       headers: authed(customerToken)
     });
-    expect(confirmPrep.statusCode).toBe(200);
-    expect(confirmPrep.json().prep_time_confirmed_at).not.toBeNull();
+    expect(orderView.json().prep_minutes).toBe(10);
 
-    await app.inject({
+    // التجهيز يبدأ مباشرة — لا حارس موافقة
+    const prep = await app.inject({
       method: "POST",
       url: `/v1/merchant/orders/${orderId}/preparing`,
       headers: authed(staffToken)
     });
+    expect(prep.statusCode).toBe(200);
     const ready = await app.inject({
       method: "POST",
       url: `/v1/merchant/orders/${orderId}/ready`,

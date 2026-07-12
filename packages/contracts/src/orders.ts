@@ -57,9 +57,8 @@ export const OrderSchema = z.object({
   vehicle: VehicleSchema.nullable(),
   /** رمز التسليم — يظهر للعميل فقط بعد ARRIVED أو عند الجاهزية حسب الحالة */
   handoff_code: z.string().nullable(),
+  /** الوقت المتوقع — «متوسط وقت التجهيز» المختوم عند القبول من إعدادات المطعم (قرار المالك 2026-07-12) */
   prep_minutes: z.number().int().nullable(),
-  /** موافقة العميل على وقت التجهيز المتوقع — null حتى يؤكد (أو يضغط «انطلقت الآن») */
-  prep_time_confirmed_at: z.string().datetime().nullable().default(null),
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة رحلة العميل */
   preparing_at: z.string().datetime().nullable().default(null),
   ready_at: z.string().datetime().nullable().default(null),
