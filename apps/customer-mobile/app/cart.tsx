@@ -2,14 +2,95 @@
  * P5 (C-26): السلة + التسعير الخادمي — POST /v1/carts/{id}/quote (BR-6).
  * رسم خدمة بيكلي مفصول وواضح دائماً. حذف عنصر → إعادة تسعير فورية.
  */
-import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  AccessibilityInfo,
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { api, ApiError, fmtSar } from "../src/api";
 import { getCartId, setQuoteId } from "../src/session";
 import { Card, ErrorNote, GhostButton, LimeButton, Loader } from "../src/ui";
 import { colors, fs, light, radius, shadow2, touch } from "../src/theme";
+
+/** عدّاد السعر المتحرك — يصعد بسلاسة عند كل إعادة تسعير، ويحترم «تقليل الحركة» */
+function useCountUp(halalas: number): number {
+  const [shown, setShown] = useState(0);
+  const fromRef = useRef(0);
+  useEffect(() => {
+    let raf = 0;
+    let cancelled = false;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (cancelled) return;
+      if (reduce) {
+        fromRef.current = halalas;
+        setShown(halalas);
+        return;
+      }
+      const from = fromRef.current;
+      const t0 = Date.now();
+      const step = () => {
+        const k = Math.min((Date.now() - t0) / 600, 1);
+        const eased = 1 - (1 - k) ** 3;
+        const v = Math.round(from + (halalas - from) * eased);
+        fromRef.current = v;
+        setShown(v);
+        if (k < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [halalas]);
+  return shown;
+}
+
+/** النبض الحي — هالة ليمونية تتمدد وتتلاشى خلف زر الإتمام */
+function PulseRing() {
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    let cancelled = false;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (reduce || cancelled) return;
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1, duration: 1500, useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 0, duration: 0, useNativeDriver: true }),
+          Animated.delay(700)
+        ])
+      );
+      loop.start();
+    });
+    return () => {
+      cancelled = true;
+      loop?.stop();
+    };
+  }, [pulse]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        st.pulseRing,
+        {
+          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }),
+          transform: [
+            { scaleX: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) },
+            { scaleY: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] }) }
+          ]
+        }
+      ]}
+    />
+  );
+}
 
 interface Cart {
   id: string;
@@ -37,6 +118,7 @@ export default function CartScreen() {
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cartId = getCartId();
+  const shownTotal = useCountUp(cart?.quote?.total_halalas ?? 0);
 
   const applyQuoted = useCallback((c: Cart) => {
     setCart(c);
@@ -181,9 +263,10 @@ export default function CartScreen() {
 
       {!isEmpty && cart?.quote && (
         <View style={st.footbar}>
+          <PulseRing />
           <LimeButton
             title="متابعة الإتمام"
-            trailing={fmtSar(cart.quote.total_halalas)}
+            trailing={fmtSar(shownTotal)}
             onPress={() => router.push("/checkout")}
           />
         </View>
@@ -224,5 +307,10 @@ const st = StyleSheet.create({
     right: 16,
     borderRadius: radius,
     ...shadow2
+  },
+  pulseRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius,
+    backgroundColor: colors.lime500
   }
 });

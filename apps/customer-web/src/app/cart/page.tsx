@@ -5,10 +5,35 @@
  * حذف عنصر → إبطال التسعيرة وإعادة التسعير فوراً.
  * الكوبون مؤجل في الطيار (docs/21§3) — لا مدخل كوبون هنا.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, fmtSar } from "@/lib/api";
 import styles from "./cart.module.css";
+
+/** عدّاد السعر المتحرك — يصعد بسلاسة عند كل إعادة تسعير، ويحترم تفضيل تقليل الحركة */
+function AnimatedSar({ halalas, className }: { halalas: number; className?: string }) {
+  const [shown, setShown] = useState(0);
+  const fromRef = useRef(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      fromRef.current = halalas;
+      setShown(halalas);
+      return;
+    }
+    const from = fromRef.current;
+    const t0 = performance.now();
+    let raf = requestAnimationFrame(function step(t) {
+      const k = Math.min((t - t0) / 600, 1);
+      const eased = 1 - (1 - k) ** 3;
+      const v = Math.round(from + (halalas - from) * eased);
+      fromRef.current = v;
+      setShown(v);
+      if (k < 1) raf = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [halalas]);
+  return <span className={className}>{fmtSar(shown)}</span>;
+}
 
 interface Cart {
   id: string;
@@ -194,7 +219,7 @@ export default function CartPage() {
             onClick={() => router.push("/checkout")}
           >
             <span>متابعة الإتمام</span>
-            <span className={styles.checkoutTotal}>{fmtSar(cart.quote.total_halalas)}</span>
+            <AnimatedSar halalas={cart.quote.total_halalas} className={styles.checkoutTotal} />
           </button>
         </div>
       )}

@@ -204,10 +204,33 @@
   font-size: var(--pk-fs-15);
   font-weight: 500;
   cursor: pointer;
-  transition: background var(--pk-dur) var(--pk-ease);
+  transition:
+    background var(--pk-dur) var(--pk-ease),
+    transform var(--pk-dur) var(--pk-ease);
+  animation: checkoutPulse 2.2s var(--pk-ease) infinite;
 }
 .checkout:hover {
   background: var(--pk-lime-300);
+}
+.checkout:active {
+  transform: scale(0.98);
+}
+/* النبض الحي — هالة ليمونية تتمدد وتتلاشى حول الزر */
+@keyframes checkoutPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(201, 243, 57, 0.55);
+  }
+  65% {
+    box-shadow: 0 0 0 12px rgba(201, 243, 57, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(201, 243, 57, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkout {
+    animation: none;
+  }
 }
 .checkoutTotal {
   font-family: var(--pk-font-mono);
