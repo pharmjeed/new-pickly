@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import SpotsMap from "./SpotsMap";
+import LiveNav from "./LiveNav";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
 import s from "./track.module.css";
 
@@ -164,6 +165,8 @@ export default function TrackPage() {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // وضع الملاحة الحيّة داخل التطبيق (نمط أوبر/كريم)
+  const [navOpen, setNavOpen] = useState(false);
 
   // نقطة الالتقاء التي حدّدها الفرع — مصدر الدبوس على الخريطة (لا اختيار موقف من العميل)
   const [branchSpots, setBranchSpots] = useState<BranchSpot[] | null>(null);
@@ -638,8 +641,21 @@ export default function TrackPage() {
                 />
               )}
 
-              {/* الخريطة أعلاه ترسم المسار والوقت داخل التطبيق. هذا رابط اختياري صغير
-                  لمن يفضّل الملاحة الصوتية خطوة بخطوة (يفتح خرائط قوقل). */}
+              {/* زر الملاحة الحيّة داخل التطبيق (نمط أوبر/كريم) — خريطة تتبعك + توجيه صوتي */}
+              {(canStart || driveMode) && (
+                <button
+                  type="button"
+                  className={s.mapsBtn}
+                  data-testid="start-live-nav"
+                  onClick={() => setNavOpen(true)}
+                >
+                  <IconNav />
+                  ابدأ الملاحة إلى نقطة الالتقاء
+                  <span className={s.mapsBtnHint}>ملاحة صوتية داخل التطبيق — بلا خروج</span>
+                </button>
+              )}
+
+              {/* رابط اختياري صغير لمن يفضّل خرائط قوقل (ملاحة خارجية) */}
               {(canStart || driveMode) && (
                 <a
                   data-testid="maps-directions"
@@ -660,8 +676,16 @@ export default function TrackPage() {
                   }}
                 >
                   <IconNav size={14} />
-                  تفضّل ملاحة صوتية؟ افتح خرائط قوقل ↗
+                  أو افتح خرائط قوقل ↗
                 </a>
+              )}
+
+              {/* وضع الملاحة الحيّة ملء الشاشة */}
+              {navOpen && (
+                <LiveNav
+                  target={{ lat: destLat, lng: destLng, label: destLabel }}
+                  onClose={() => setNavOpen(false)}
+                />
               )}
             </>
           );
