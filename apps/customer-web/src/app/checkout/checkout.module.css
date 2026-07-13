@@ -349,20 +349,57 @@
   }
   /* السيارة تبقى خارج الإطار (right:-64px) فلا تظهر إطلاقاً */
   .car { animation: none; }
+  /* الاحتفال الختامي: بلا حركة — نُخفي الكونفيتي ونُظهر الصح كاملاً فوراً */
+  .confetti { display: none; }
+  .bigicPop { animation: none; }
+  .bigic svg path { stroke-dashoffset: 0; animation: none; }
 }
 
 /* ===== حالة النجاح الختامية (C-37) ===== */
 .success {
+  position: relative;
   flex: 1; display: flex; flex-direction: column; justify-content: center;
   gap: 14px; text-align: center;
 }
+/* المحتوى فوق طبقة الكونفيتي */
+.success > :not(.confetti) { position: relative; z-index: 1; }
 .bigic {
   width: 96px; height: 96px; border-radius: 30px;
   background: var(--pk-lime-500); color: var(--pk-ink-900);
   display: flex; align-items: center; justify-content: center; margin: 0 auto;
 }
+/* العلامة تقفز عند الظهور، والصح يُرسم بخط متحرك */
+.bigicPop { animation: bigPop 0.6s var(--pk-ease) both; }
+.bigic svg path {
+  stroke-dasharray: 90; stroke-dashoffset: 90;
+  animation: checkDraw 0.55s var(--pk-ease) 0.35s forwards;
+}
+@keyframes bigPop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes checkDraw { to { stroke-dashoffset: 0; } }
 .bigTitle { font-family: var(--pk-font-display); font-size: var(--pk-fs-24); font-weight: 700; line-height: 1.5; }
+.bigSub { font-size: var(--pk-fs-13); color: var(--pk-text-2); margin-top: -6px; }
 .successCard { text-align: right; }
+
+/* كونفيتي الاحتفال — قصاصات تتساقط خلف بطاقة النجاح */
+.confetti {
+  position: absolute; inset: 0; z-index: 0;
+  overflow: hidden; pointer-events: none;
+}
+.confetti i {
+  position: absolute; top: -18px;
+  width: 8px; height: 13px; border-radius: 2px; opacity: 0;
+  animation-name: confFall; animation-timing-function: var(--pk-ease);
+  animation-iteration-count: infinite;
+}
+@keyframes confFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translateY(560px) rotate(340deg); opacity: 0; }
+}
 .ghostBtn {
   border: none; background: transparent; width: 100%; min-height: var(--pk-touch);
   color: var(--pk-lime-900); font-family: var(--pk-font-body);

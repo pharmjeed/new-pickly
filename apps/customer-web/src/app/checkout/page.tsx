@@ -139,6 +139,20 @@ const formatPan = (s: string): string =>
 
 type PickupTime = "asap" | "scheduled";
 
+/* قصاصات كونفيتي الاحتفال (C-37) — ألوان الهوية بغلبة ليمونية، مواضع وتوقيتات متنوّعة */
+const CONFETTI: Array<{ l: string; d: string; t: string; c: string }> = [
+  { l: "10%", d: "0s", t: "2.6s", c: "var(--pk-lime-500)" },
+  { l: "22%", d: ".5s", t: "3s", c: "#ffd54d" },
+  { l: "34%", d: ".2s", t: "2.4s", c: "var(--pk-lime-300)" },
+  { l: "46%", d: ".8s", t: "2.9s", c: "var(--pk-ink-900)" },
+  { l: "58%", d: ".35s", t: "2.5s", c: "var(--pk-success)" },
+  { l: "70%", d: ".65s", t: "3.1s", c: "var(--pk-lime-500)" },
+  { l: "82%", d: ".15s", t: "2.7s", c: "#ffd54d" },
+  { l: "90%", d: ".9s", t: "2.8s", c: "var(--pk-lime-300)" },
+  { l: "16%", d: "1.1s", t: "3s", c: "var(--pk-success)" },
+  { l: "64%", d: "1.3s", t: "2.6s", c: "var(--pk-ink-900)" }
+];
+
 /* ===== جدولة BR-5: تسميات اليوم والفترة (كما في تصميم «حدد موعد طلبك») ===== */
 const pad2 = (n: number): string => String(n).padStart(2, "0");
 const clock12 = (d: Date): string => `${pad2(d.getHours() % 12 || 12)}:${pad2(d.getMinutes())}`;
@@ -791,8 +805,19 @@ export default function CheckoutPage() {
     return (
       <main className={styles.page}>
         <div className={styles.success}>
-          <div className={styles.bigic}><CheckIcon /></div>
-          <h1 className={styles.bigTitle}>تم إنشاء طلبك</h1>
+          <div className={styles.confetti} aria-hidden="true">
+            {CONFETTI.map((p, i) => (
+              <i
+                key={i}
+                style={{ left: p.l, background: p.c, animationDelay: p.d, animationDuration: p.t }}
+              />
+            ))}
+          </div>
+          <div className={`${styles.bigic} ${styles.bigicPop}`}><CheckIcon /></div>
+          <h1 className={styles.bigTitle}>يا هلا! طلبك انطلق 🎉</h1>
+          <p className={styles.bigSub}>
+            {donePickup === "scheduled" ? "محجوز لفترتك بنجاح" : "وصل للمطعم وينتظر القبول"}
+          </p>
           <div className={`${styles.card} ${styles.successCard}`}>
             <div className={styles.kv}>
               <span className={styles.k}>رقم الطلب</span>
