@@ -622,16 +622,17 @@ export default function TrackPage() {
          * وإلا موقع الفرع نفسه. العميل يتّجه إليها والخريطة تؤكد وصوله (بلا اختيار موقف).
          */}
         {(() => {
+          // نقطة الالتقاء مضمونة دائماً: موقف مثبّت بإحداثيات إن وُجد، وإلا موقع الفرع نفسه
           const meetingSpot = branchSpots?.find((sp) => sp.lat !== null && sp.lng !== null) ?? null;
           const destLat = meetingSpot?.lat ?? order.branch_lat;
           const destLng = meetingSpot?.lng ?? order.branch_lng;
+          const destLabel = meetingSpot?.label ?? order.brand_name_ar;
           return (
             <>
-              {/* خريطة تفاعلية: نقطة الالتقاء التي حدّدها الفرع 🏁 + موقع العميل الحيّ — تؤكد الوصول داخل التطبيق */}
-              {(canStart || driveMode || arrived) && branchSpots && (
+              {/* خريطة تفاعلية: نقطة الالتقاء 🏁 + موقع العميل الحيّ + مسار الطريق — كله داخل التطبيق */}
+              {(canStart || driveMode || arrived) && (
                 <SpotsMap
-                  spots={branchSpots}
-                  chosenId={meetingSpot?.id ?? null}
+                  target={{ lat: destLat, lng: destLng, label: destLabel }}
                   me={coords}
                   radiusM={order.arrival_radius_m}
                 />

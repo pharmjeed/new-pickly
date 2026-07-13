@@ -2,16 +2,16 @@
 
 /**
  * خريطة نقطة الالتقاء للعميل (Leaflet + OpenStreetMap) — ملاحة داخل التطبيق:
- * تعرض نقطة الفرع 🏁 وموقع العميل الحيّ (نقطة زرقاء)، وترسم **مسار الطريق الحقيقي**
- * بينهما (يتبع الشوارع عبر OSRM) مع المسافة والوقت المقدّر — فلا يحتاج العميل مغادرة
- * التطبيق. إن تعذّر جلب المسار نرجع لخط مستقيم + مسافة هوائية. تؤطّر تلقائياً حتى
- * يلمس الخريطة ثم تتركه يستكشف بحرية.
+ * تعرض نقطة الالتقاء 🏁 (موقف مثبّت من الفرع إن وُجد، وإلا موقع الفرع) وموقع العميل
+ * الحيّ (نقطة زرقاء)، وترسم **مسار الطريق الحقيقي** بينهما (يتبع الشوارع عبر OSRM)
+ * مع المسافة والوقت المقدّر — فلا يحتاج العميل مغادرة التطبيق. إن تعذّر جلب المسار
+ * نرجع لخط مستقيم + مسافة هوائية. تؤطّر تلقائياً حتى يلمس الخريطة ثم تتركه يستكشف.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { LayerGroup, Map as LeafletMap, Marker, Polyline } from "leaflet";
+import { useEffect, useRef, useState } from "react";
+import type { Map as LeafletMap, Marker, Polyline } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-export type CustomerSpot = { id: string; label: string; lat: number | null; lng: number | null };
+export type MeetingTarget = { lat: number; lng: number; label: string };
 
 /** مسافة القوس الكبير بالأمتار (haversine) — للبديل الهوائي وبوابة القرب */
 function distMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
@@ -33,15 +33,12 @@ function fmtDur(s: number): string {
   return `~${Math.max(1, Math.round(s / 60))} د`;
 }
 
-/** دبوس نقطة الفرع بنمط الهوية — divIcon بلا أصول صور */
-function pinHtml(label: string, chosen: boolean): string {
-  const bg = chosen ? "#10241B" : "#C9F339";
-  const fg = chosen ? "#C9F339" : "#10241B";
-  const ring = chosen ? "box-shadow:0 0 0 3px #C9F339;" : "";
+/** دبوس نقطة الالتقاء بنمط الهوية — divIcon بلا أصول صور */
+function pinHtml(label: string): string {
   return `<div style="transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;">
-    <div style="background:${bg};color:${fg};${ring}border-radius:10px;padding:3px 9px;font-weight:800;font-size:12px;white-space:nowrap;font-family:inherit;">${chosen ? "🏁 " : ""}${label}</div>
-    <div style="width:2px;height:8px;background:${bg};"></div>
-    <div style="width:8px;height:8px;border-radius:50%;background:${bg};margin-top:-2px;"></div>
+    <div style="background:#10241B;color:#C9F339;box-shadow:0 0 0 3px #C9F339;border-radius:10px;padding:3px 9px;font-weight:800;font-size:12px;white-space:nowrap;font-family:inherit;">🏁 ${label}</div>
+    <div style="width:2px;height:8px;background:#10241B;"></div>
+    <div style="width:8px;height:8px;border-radius:50%;background:#10241B;margin-top:-2px;"></div>
   </div>`;
 }
 
@@ -56,28 +53,25 @@ function meHtml(): string {
 type RouteInfo = { distanceM: number; durationS: number };
 
 export default function SpotsMap({
-  spots,
-  chosenId,
+  target,
   me,
   radiusM
 }: {
-  spots: CustomerSpot[];
-  chosenId: string | null;
+  /** نقطة الالتقاء المضمونة — موقف مثبّت أو موقع الفرع */
+  target: MeetingTarget;
   me: { lat: number; lng: number } | null;
   /** نصف قطر الوصول — عند دخوله تتحوّل الشارة إلى «وصلت إلى نقطة الالتقاء» */
   radiusM?: number;
 }) {
   const holder = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
-  const layerRef = useRef<LayerGroup | null>(null);
+  const pinRef = useRef<Marker | null>(null);
   const meRef = useRef<Marker | null>(null);
   const lineRef = useRef<Polyline | null>(null); // خط مستقيم بديل قبل وصول المسار
   const routeRef = useRef<Polyline | null>(null); // مسار الطريق الحقيقي (OSRM)
-  // بمجرد أن يسحب العميل الخريطة أو يكبّرها نتوقف عن إعادة التأطير — لا نعاند حركته
   const userMovedRef = useRef(false);
   const sigRef = useRef<string>("");
-  // ضبط إعادة جلب المسار: هدفه ونقطة انطلاقه — لا نعيد الجلب إلا عند تغيّر الهدف أو تحرّك >200م
-  const routeMetaRef = useRef<{ targetId: string; oLat: number; oLng: number } | null>(null);
+  const routeMetaRef = useRef<{ key: string; oLat: number; oLng: number } | null>(null);
   const fetchingRef = useRef(false);
   const routeReqIdRef = useRef(0);
   const mountedRef = useRef(true);
@@ -85,13 +79,9 @@ export default function SpotsMap({
   const [distM, setDistM] = useState<number | null>(null);
   const [route, setRoute] = useState<RouteInfo | null>(null);
 
-  // نقطة الالتقاء الفعلية: المختارة إن وُجدت وإلا أول نقطة فرع بإحداثيات
-  const targetPoint = useMemo(() => {
-    const pts = spots.filter((s) => s.lat !== null && s.lng !== null) as Array<
-      CustomerSpot & { lat: number; lng: number }
-    >;
-    return pts.find((p) => p.id === chosenId) ?? pts[0] ?? null;
-  }, [spots, chosenId]);
+  const tLat = target.lat;
+  const tLng = target.lng;
+  const tKey = `${tLat},${tLng}`;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -100,39 +90,30 @@ export default function SpotsMap({
     };
   }, []);
 
-  // الخريطة + دبابيس الفرع + علامة العميل + خط بديل مستقيم + المسافة الهوائية الحيّة
+  // الخريطة + دبوس نقطة الالتقاء + علامة العميل + خط بديل مستقيم + المسافة الهوائية الحيّة
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       const L = await import("leaflet");
       if (cancelled || !holder.current) return;
-      const pts = spots.filter((s) => s.lat !== null && s.lng !== null) as Array<
-        CustomerSpot & { lat: number; lng: number }
-      >;
-      if (pts.length === 0) return;
 
       if (!mapRef.current) {
-        mapRef.current = L.map(holder.current, { zoomControl: true, scrollWheelZoom: false });
+        mapRef.current = L.map(holder.current, { zoomControl: true, scrollWheelZoom: false }).setView([tLat, tLng], 15);
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         }).addTo(mapRef.current);
-        layerRef.current = L.layerGroup().addTo(mapRef.current);
-        mapRef.current.on("dragstart zoomstart", () => {
-          userMovedRef.current = true;
-        });
       }
       const map = mapRef.current;
-      const layer = layerRef.current;
-      if (!layer) return;
 
-      layer.clearLayers();
-      for (const p of pts) {
-        L.marker([p.lat, p.lng], {
-          icon: L.divIcon({ html: pinHtml(p.label, p.id === chosenId), className: "", iconSize: [0, 0] })
-        }).addTo(layer);
-      }
+      // دبوس نقطة الالتقاء
+      if (pinRef.current) pinRef.current.setLatLng([tLat, tLng]);
+      else
+        pinRef.current = L.marker([tLat, tLng], {
+          icon: L.divIcon({ html: pinHtml(target.label), className: "", iconSize: [0, 0] })
+        }).addTo(map);
 
+      // علامة العميل الحيّة
       if (me) {
         if (meRef.current) meRef.current.setLatLng([me.lat, me.lng]);
         else
@@ -146,8 +127,8 @@ export default function SpotsMap({
         meRef.current = null;
       }
 
-      if (me && targetPoint) {
-        setDistM(distMeters(me.lat, me.lng, targetPoint.lat, targetPoint.lng));
+      if (me) {
+        setDistM(distMeters(me.lat, me.lng, tLat, tLng));
         // خط مستقيم فوري فقط ما دام مسار الطريق لم يصل بعد
         if (routeRef.current) {
           if (lineRef.current) {
@@ -157,7 +138,7 @@ export default function SpotsMap({
         } else {
           const path: Array<[number, number]> = [
             [me.lat, me.lng],
-            [targetPoint.lat, targetPoint.lng]
+            [tLat, tLng]
           ];
           if (lineRef.current) lineRef.current.setLatLngs(path);
           else
@@ -171,47 +152,44 @@ export default function SpotsMap({
         }
       } else {
         setDistM(null);
-        setRoute(null);
-        routeMetaRef.current = null;
-        for (const r of [lineRef, routeRef]) {
-          if (r.current) {
-            r.current.remove();
-            r.current = null;
-          }
-        }
       }
 
-      // تأطير أولي للنقاط + الموقع — مرة عند ظهورها، ونحترم سحب العميل بعدها
-      const sig = `${chosenId ?? ""}|${me ? "me" : "no"}`;
+      // تأطير أولي — الهدف وحده، أو الهدف + موقع العميل عند توفّره
+      const sig = `${tKey}|${me ? "me" : "no"}`;
       if (!userMovedRef.current && sig !== sigRef.current) {
         sigRef.current = sig;
-        const framePts: Array<[number, number]> = pts.map((p) => [p.lat, p.lng]);
-        if (me) framePts.push([me.lat, me.lng]);
-        if (framePts.length === 1) map.setView(framePts[0]!, 18);
-        else map.fitBounds(L.latLngBounds(framePts).pad(0.3), { maxZoom: 17 });
+        if (me) {
+          map.fitBounds(
+            L.latLngBounds([
+              [tLat, tLng],
+              [me.lat, me.lng]
+            ]).pad(0.3),
+            { maxZoom: 17 }
+          );
+        } else {
+          map.setView([tLat, tLng], 16);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [spots, chosenId, me, targetPoint]);
+  }, [tLat, tLng, tKey, target.label, me]);
 
   // مسار الطريق الحقيقي عبر OSRM — يتبع الشوارع، مع المسافة والزمن المقدّر (داخل التطبيق)
   useEffect(() => {
-    if (!me || !targetPoint || !mapRef.current) return;
+    if (!me || !mapRef.current) return;
     const meta = routeMetaRef.current;
-    // لدينا مسار حديث لنفس الهدف من قريب (<200م) → لا نعيد الجلب
-    if (meta && meta.targetId === targetPoint.id && routeRef.current && distMeters(me.lat, me.lng, meta.oLat, meta.oLng) < 200) return;
+    if (meta && meta.key === tKey && routeRef.current && distMeters(me.lat, me.lng, meta.oLat, meta.oLng) < 200) return;
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     const reqId = ++routeReqIdRef.current;
     const oLat = me.lat;
     const oLng = me.lng;
-    const t = targetPoint;
     void (async () => {
       try {
         const L = await import("leaflet");
-        const url = `https://router.project-osrm.org/route/v1/driving/${oLng},${oLat};${t.lng},${t.lat}?overview=full&geometries=geojson`;
+        const url = `https://router.project-osrm.org/route/v1/driving/${oLng},${oLat};${tLng},${tLat}?overview=full&geometries=geojson`;
         const j = (await fetch(url).then((r) => r.json())) as {
           routes?: Array<{ distance: number; duration: number; geometry: { coordinates: [number, number][] } }>;
         };
@@ -233,9 +211,8 @@ export default function SpotsMap({
           lineRef.current.remove();
           lineRef.current = null;
         }
-        routeMetaRef.current = { targetId: t.id, oLat, oLng };
+        routeMetaRef.current = { key: tKey, oLat, oLng };
         setRoute({ distanceM: Math.round(rt.distance), durationS: Math.round(rt.duration) });
-        // نؤطّر على المسار مرة واحدة عند أول رسم لهذا الهدف — لا نلاحق العميل بعدها
         if (firstDraw && !userMovedRef.current) {
           mapRef.current.fitBounds(routeRef.current.getBounds().pad(0.2), { maxZoom: 17 });
         }
@@ -245,21 +222,19 @@ export default function SpotsMap({
         fetchingRef.current = false;
       }
     })();
-  }, [me, targetPoint]);
+  }, [me, tKey, tLat, tLng]);
 
   useEffect(
     () => () => {
       mapRef.current?.remove();
       mapRef.current = null;
-      layerRef.current = null;
+      pinRef.current = null;
       meRef.current = null;
       lineRef.current = null;
       routeRef.current = null;
     },
     []
   );
-
-  if (!spots.some((s) => s.lat !== null && s.lng !== null)) return null;
 
   const atPoint = distM !== null && radiusM != null && distM <= radiusM;
   const badge = atPoint
