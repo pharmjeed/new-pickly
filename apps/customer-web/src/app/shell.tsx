@@ -205,23 +205,37 @@ export function useNearby(): {
   const [coords, setCoords] = useState(RIYADH);
 
   useEffect(() => {
-    const load = (lat: number, lng: number) =>
-      api<BranchCard[]>("GET", `/v1/branches/nearby?lat=${lat}&lng=${lng}&radius=30000`)
-        .then(setBranches)
-        .catch((e: Error) => setError(e.message));
+    const fetchAt = (lat: number, lng: number) =>
+      api<BranchCard[]>("GET", `/v1/branches/nearby?lat=${lat}&lng=${lng}&radius=30000`);
+
+    // عرض تجريبي: مطاعم البيانات في الرياض/جدة/الدمام فقط. إن كان موقعك الحقيقي
+    // بعيداً عنها (لا مطاعم ضمن النطاق) نسقط تلقائياً على الرياض كي لا تفرغ القائمة —
+    // ويبقى موقعك الحقيقي فعّالاً لخريطة التتبع وبوابة الوصول.
+    const load = async (lat: number, lng: number, real: boolean) => {
+      try {
+        let list = await fetchAt(lat, lng);
+        if (real && list.length === 0) {
+          list = await fetchAt(RIYADH.lat, RIYADH.lng);
+          setLocLabel("الرياض (عرض)");
+        }
+        setBranches(list);
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    };
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setLocLabel("موقعك الحالي");
           setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          void load(pos.coords.latitude, pos.coords.longitude);
+          void load(pos.coords.latitude, pos.coords.longitude, true);
         },
-        () => load(RIYADH.lat, RIYADH.lng),
+        () => load(RIYADH.lat, RIYADH.lng, false),
         { timeout: 3000 }
       );
     } else {
-      void load(RIYADH.lat, RIYADH.lng);
+      void load(RIYADH.lat, RIYADH.lng, false);
     }
   }, []);
 
