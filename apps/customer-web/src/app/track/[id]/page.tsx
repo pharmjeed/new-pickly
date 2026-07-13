@@ -347,11 +347,14 @@ export default function TrackPage() {
   const canStart = ["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(order.order_status);
   // «وصلت» متاح من القبول وحتى الوصول — بلا زر «انطلقت الآن»: الخادم يفتح جلسة يدوية تلقائياً (J10)
   const canArrive = canStart || driveMode;
-  // بوابة القرب: لا يُفتح السحب إلا داخل نصف القطر الذي يضبطه Super Admin (docs/14)
+  // بوابة القرب: لا يُفتح السحب إلا داخل نصف القطر الذي يضبطه Super Admin (docs/14).
+  // سماح احتياطي: إن تعذّر تحديد الموقع (رفض/غير مدعوم/أصل غير آمن HTTP) نفتح السحب يدوياً
+  // مع تنبيه — كي لا يُحبس العميل خارج التأكيد؛ الموقع الآمن (HTTPS) يعيد البوابة الصارمة.
   const distanceM = coords
     ? distanceMeters(coords.lat, coords.lng, order.branch_lat, order.branch_lng)
     : null;
-  const withinRange = distanceM !== null && distanceM <= order.arrival_radius_m;
+  const geoBlocked = geoState === "denied" || geoState === "unavailable";
+  const withinRange = geoBlocked || (distanceM !== null && distanceM <= order.arrival_radius_m);
 
   return (
     <div className={driveMode ? "pk-drive" : ""}>

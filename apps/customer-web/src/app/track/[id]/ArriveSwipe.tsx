@@ -60,8 +60,9 @@ export default function ArriveSwipe({ enabled, distanceM, radiusM, geoState, onC
   };
 
   const distanceLabel = (): string => {
-    if (geoState === "denied") return "فعّل الموقع ليتفعّل زر الوصول عند اقترابك";
-    if (geoState === "unavailable") return "جهازك لا يدعم تحديد الموقع — تواصل مع الفرع عند وصولك";
+    // تعذّر تحديد الموقع → سماح احتياطي: يُفتح السحب يدوياً مع تنبيه (docs/14)
+    if (geoState === "denied") return "تعذّر تحديد موقعك — اسحب لتأكيد وصولك يدوياً عند المطعم";
+    if (geoState === "unavailable") return "جهازك لا يدعم تحديد الموقع — اسحب لتأكيد وصولك يدوياً عند المطعم";
     if (geoState === "locating" && distanceM === null) return "نحدد موقعك…";
     if (distanceM === null) return `يتفعّل عند اقترابك ~${radiusM} م من المطعم`;
     if (enabled) return "أنت في نطاق الاستلام — اسحب لتأكيد وصولك";
