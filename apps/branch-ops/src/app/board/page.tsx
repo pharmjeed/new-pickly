@@ -326,9 +326,13 @@ export default function BoardPage() {
     return list;
   }, [cards, tab]);
 
-  // العمود الجانبي بترتيب طابور الوصول (BR-9) — الأسبق وصولاً أولاً
+  // العمود الجانبي: الجاهز الواصل أولاً (وصل + ready_at = قابل للتسليم فوراً)،
+  // ثم بقية الواصلين — وداخل كل مجموعة ترتيب طابور الوصول (BR-9) الأسبق وصولاً أولاً
   const arrivedSorted = useMemo(() => {
     return [...arrived].sort((a, b) => {
+      const da = a.ready_at ? 0 : 1;
+      const db = b.ready_at ? 0 : 1;
+      if (da !== db) return da - db;
       const pa = queueByOrder.get(a.id)?.position ?? Number.MAX_SAFE_INTEGER;
       const pb = queueByOrder.get(b.id)?.position ?? Number.MAX_SAFE_INTEGER;
       if (pa !== pb) return pa - pb;
