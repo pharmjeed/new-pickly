@@ -1116,8 +1116,6 @@ export default function CheckoutPage() {
         </>
       )}
 
-      <p className={styles.sandNote}>دفع تجريبي آمن (sandbox) — لا بطاقة حقيقية في بيئة التطوير</p>
-
       {/* ===== CTA الدفع — أسود بشعار Apple Pay عند اختياره، وإلا الزر الليموني الحيوي ===== */}
       <div className={styles.footbar}>
         {payMethod === "apple_pay" && (dueTotal ?? 1) > 0 ? (
