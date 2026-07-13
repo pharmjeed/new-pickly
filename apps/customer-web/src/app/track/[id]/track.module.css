@@ -424,6 +424,30 @@
   .prepMsg { transition: none; }
 }
 
+/* ===== لحظة الجاهزية — كيس بيكلي المربوط يحلّ محلّ القدر ===== */
+.readyCard {
+  border-color: var(--pk-lime-500);
+}
+.readyBagSvg {
+  display: block;
+  width: 160px;
+  height: 160px;
+  overflow: visible;
+}
+/* الكيس يتمايل حول قاعدته فرحاً */
+.bagBody {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: pk-bag-sway 2.6s var(--pk-ease) infinite;
+}
+@keyframes pk-bag-sway {
+  0%, 100% { transform: rotate(-3.5deg); }
+  50%      { transform: rotate(3.5deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bagBody { animation: none; }
+}
+
 /* ===== زر «الاتجاه للمطعم» ===== */
 .mapsBtn {
   display: flex;

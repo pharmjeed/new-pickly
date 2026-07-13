@@ -102,6 +102,13 @@ const PREP_MSGS = [
   "المطعم يجهّزه بعناية",
   "قربت تجهز — خلّك مستعد"
 ];
+/** عبارات احتفالية تتبدّل تحت «كيس بيكلي» فور جاهزية الطلب */
+const READY_MSGS = [
+  "جهّزناه ومغلّف باسمك",
+  "طازج ومربوط — تعال خذه",
+  "كل شيء تمام، وباقي أنت",
+  "ينتظرك — لا تطوّل عليه"
+];
 
 /** نقطة الالتقاء التي حدّدها الفرع من بوابته (مع إحداثياتها على الخريطة) — العميل يتّجه إليها فقط */
 interface BranchSpot {
@@ -233,6 +240,11 @@ export default function TrackPage() {
     return () => clearInterval(t);
   }, [prepCountdownOn]);
 
+  // لحظة الجاهزية — يحلّ «كيس بيكلي» المربوط محلّ القدر فور ضغطة المطعم «جاهز» وقبل الاكتمال
+  const readyMoment = Boolean(
+    order && order.ready_at && order.order_status !== "COMPLETED"
+  );
+
   // احترام تفضيل تقليل الحركة — نوقف حركات القدر (SMIL) لمن يطلب ذلك
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
@@ -257,6 +269,21 @@ export default function TrackPage() {
     }, 3400);
     return () => clearInterval(t);
   }, [prepCountdownOn, reduceMotion]);
+
+  // العبارة الاحتفالية تحت الكيس تتبدّل بالتلاشي — تتوقف مع تقليل الحركة
+  const [readyMsgIdx, setReadyMsgIdx] = useState(0);
+  const [readyMsgOut, setReadyMsgOut] = useState(false);
+  useEffect(() => {
+    if (!readyMoment || reduceMotion) return;
+    const t = setInterval(() => {
+      setReadyMsgOut(true);
+      setTimeout(() => {
+        setReadyMsgIdx((i) => (i + 1) % READY_MSGS.length);
+        setReadyMsgOut(false);
+      }, 220);
+    }, 3400);
+    return () => clearInterval(t);
+  }, [readyMoment, reduceMotion]);
 
   // بوابة «وصلت»: نراقب موقع العميل أثناء الحالات القابلة للوصول فقط (docs/17 — الموقع أثناء الطلب النشط فقط)
   const canArriveNow = ARRIVABLE_STATES.includes(order?.order_status ?? "");
@@ -414,7 +441,55 @@ export default function TrackPage() {
         )}
 
         {/* عدّاد التجهيز التنازلي — من لحظة القبول + «متوسط وقت التجهيز» الذي حدده المطعم (قرار المالك 2026-07-12) */}
-        {prepCountdownOn && order.prep_minutes !== null && order.accepted_at ? (
+        {readyMoment ? (
+          /* لحظة الجاهزية — كيس بيكلي المربوط يحلّ محلّ القدر (المفهوم المعتمد 2026-07-13) */
+          <div className={`pk-card ${s.prepCard} ${s.readyCard}`} data-testid="ready-bag">
+            <p style={{ fontWeight: 700 }}>طلبك جاهز!</p>
+            <div className={s.prepRingWrap}>
+              <svg viewBox="0 0 160 160" className={s.readyBagSvg} aria-hidden="true">
+                <defs>
+                  <linearGradient id="pk-bag-body" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stopColor="#2E4A3C" />
+                    <stop offset="1" stopColor="#10241B" />
+                  </linearGradient>
+                </defs>
+
+                {/* بريق يتلألأ حول الكيس */}
+                {!reduceMotion && (
+                  <g className={s.bagSparks}>
+                    <path d="M124 44 l2.4 5.2 l5.2 2.4 l-5.2 2.4 l-2.4 5.2 l-2.4 -5.2 l-5.2 -2.4 l5.2 -2.4 Z" fill="#DDF87A">
+                      <animate attributeName="opacity" values="0;1;0" dur="2.2s" begin="0s" repeatCount="indefinite" />
+                      <animateTransform attributeName="transform" type="scale" values="0.6;1;0.6" additive="sum" dur="2.2s" begin="0s" repeatCount="indefinite" />
+                    </path>
+                    <circle cx="30" cy="58" r="3" fill="#C9F339">
+                      <animate attributeName="opacity" values="0;1;0" dur="2.4s" begin="0.6s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="34" cy="98" r="2.4" fill="#DDF87A">
+                      <animate attributeName="opacity" values="0;1;0" dur="2s" begin="1.1s" repeatCount="indefinite" />
+                    </circle>
+                  </g>
+                )}
+
+                {/* الكيس يتمايل فرحاً حول قاعدته */}
+                <g className={s.bagBody}>
+                  {/* المقبض المربوط بعقدة */}
+                  <path d="M62 56 q18 -30 36 0" fill="none" stroke="#10241B" strokeWidth="5" strokeLinecap="round" />
+                  <path d="M74 40 q6 -9 12 0" fill="none" stroke="#C9F339" strokeWidth="4" strokeLinecap="round" />
+                  {/* جسم الكيس */}
+                  <path d="M50 58 h60 l6 62 a10 10 0 0 1 -10 11 H54 a10 10 0 0 1 -10 -11 Z" fill="url(#pk-bag-body)" stroke="#10241B" strokeWidth="2" />
+                  {/* طية علوية */}
+                  <path d="M50 58 h60 l1.4 12 H48.6 Z" fill="#1C3329" />
+                  {/* شارة بيكلي بعلامة صح */}
+                  <rect x="62" y="82" width="36" height="24" rx="6" fill="#C9F339" />
+                  <path d="M71 94 l5 5 l10 -12" fill="none" stroke="#10241B" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                </g>
+              </svg>
+            </div>
+            <p className={`pk-muted ${s.prepMsg} ${readyMsgOut ? s.prepMsgOut : ""}`}>
+              {READY_MSGS[readyMsgIdx]}
+            </p>
+          </div>
+        ) : prepCountdownOn && order.prep_minutes !== null && order.accepted_at ? (
           (() => {
             const totalMs = order.prep_minutes * 60_000;
             const leftMs = new Date(order.accepted_at).getTime() + totalMs - nowTs;
