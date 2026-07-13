@@ -1045,11 +1045,6 @@ export default function CheckoutPage() {
           </div>
         )}
       </div>
-      <div className={`${styles.note} ${styles.noteSoft}`}>
-        <ShieldIcon />
-        <span>لا دفع نقدياً في الإصدار الحالي · Tokenization فقط — لا نخزن رقم بطاقتك أبداً.</span>
-      </div>
-
       {/* ===== ملخص الفاتورة (C-35) — العناصر نفسها معروضة أعلى الصفحة ===== */}
       {cart.items.length > 0 && (
         <>
