@@ -25,6 +25,7 @@ import Promos from "@/components/modules/Promos";
 import Support from "@/components/modules/Support";
 import Risk from "@/components/modules/Risk";
 import FeatureFlags from "@/components/modules/FeatureFlags";
+import NavMap from "@/components/modules/NavMap";
 import s from "./panel.module.css";
 
 /** شارة بيكلي — كتاب الهوية */
@@ -59,7 +60,8 @@ type ModuleKey =
   | "audit"
   | "risk"
   | "health"
-  | "flags";
+  | "flags"
+  | "navmap";
 
 type NavItem = { gp: string } | { key: ModuleKey; label: string };
 
@@ -84,6 +86,7 @@ const NAV: readonly NavItem[] = [
   { key: "risk", label: "المخاطر الآلي" },
   { gp: "التقنية" },
   { key: "health", label: "صحة النظام" },
+  { key: "navmap", label: "خريطة الملاحة" },
   { key: "flags", label: "Feature Flags" }
 ];
 
@@ -167,6 +170,11 @@ const MODULES: Record<ModuleKey, { title: string; crumb: string; render: () => R
     title: "Feature Flags",
     crumb: "كل خاصية قابلة للإيقاف دون نشر (A-23) — التبديل بسبب يدخل التدقيق",
     render: () => <FeatureFlags />
+  },
+  navmap: {
+    title: "خريطة الملاحة",
+    crumb: "تحديث خريطة محرك الملاحة الذاتي (OSRM) بضغطة — العملية مُدقّقة وتنفَّذ على المضيف",
+    render: () => <NavMap />
   }
 };
 

@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { prisma } from "@pickly/database";
@@ -810,6 +812,49 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       radius_m: body.radius_m
     });
     return { ok: true, radius_m: body.radius_m };
+  });
+
+  // ===== خريطة الملاحة (OSRM) — تحديث بضغطة من السوبر أدمن =====
+  // آمن: الـAPI يُسقِط إشارة nav-map.request في مجلد OPS المشترك، ومراقب systemd على
+  // المضيف (خارج أي حاوية ويب) ينزّل الخريطة ويعالجها ويعيد تشغيل الخدمة، ويكتب الحالة.
+
+  const opsDir = process.env.OPS_DIR ?? "/ops";
+  const navStatusPath = path.join(opsDir, "nav-map.status.json");
+  const navRequestPath = path.join(opsDir, "nav-map.request");
+
+  const readNavStatus = async (): Promise<{ state: string; step: string; message: string; at: string }> => {
+    try {
+      const j = JSON.parse(await fs.readFile(navStatusPath, "utf8")) as Partial<{
+        state: string;
+        step: string;
+        message: string;
+        at: string;
+      }>;
+      return { state: j.state ?? "idle", step: j.step ?? "", message: j.message ?? "", at: j.at ?? "" };
+    } catch {
+      return { state: "idle", step: "", message: "لم يُحدَّث بعد", at: "" };
+    }
+  };
+
+  app.get("/ops/nav-map", async (req) => {
+    requireAdmin(req, ALL_READ);
+    return readNavStatus();
+  });
+
+  /** يُسقِط إشارة التحديث ليلتقطها مراقب المضيف؛ يرفض التكرار أثناء تحديث جارٍ */
+  app.post("/ops/nav-map/rebuild", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin", "operations"]);
+    const body = z.object({ reason: z.string().min(3) }).parse(req.body);
+    const status = await readNavStatus();
+    if (status.state === "running") {
+      return { ok: false, running: true, message: "التحديث جارٍ بالفعل — انتظر اكتماله", status };
+    }
+    const at = new Date().toISOString();
+    await fs.writeFile(navRequestPath, JSON.stringify({ requested_by: sub, at }));
+    // حالة تفاؤلية فورية حتى يبدأ المراقب ويكتب تقدّمه الفعلي
+    await fs.writeFile(navStatusPath, JSON.stringify({ state: "running", step: "queued", message: "بدأ التحديث…", at }));
+    await audit(sub, "ops_nav_map_rebuild", "system", "osrm", body.reason);
+    return { ok: true };
   });
 
   // ===== محفظة بيكلي — رصيد العملاء: عرض + إيداع/خصم بسبب مُدقق (docs/01§1) =====

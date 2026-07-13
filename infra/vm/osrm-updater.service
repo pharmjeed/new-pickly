@@ -1,0 +1,18 @@
+# خدمة مراقب تحديث خريطة الملاحة (OSRM) على المضيف.
+# التثبيت لمرة واحدة على السيرفر:
+#   sudo cp /home/ubuntu/pickly/infra/vm/osrm-updater.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now osrm-updater
+[Unit]
+Description=Pickly OSRM nav-map updater (watches Super Admin trigger)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/env bash /home/ubuntu/pickly/infra/vm/osrm-updater.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

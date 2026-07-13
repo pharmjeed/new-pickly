@@ -49,6 +49,11 @@ services:
       <<: *app-env
       API_PORT: "4000"
       API_HOST: 0.0.0.0
+      # مجلد التشغيل المشترك مع مضيف Docker — إشارة تحديث خريطة الملاحة وحالتها (السوبر أدمن)
+      OPS_DIR: /ops
+    volumes:
+      # bind-mount مع المضيف: الـAPI يكتب nav-map.request ويقرأ nav-map.status.json فقط
+      - /home/ubuntu/pickly-ops:/ops
     ports:
       - "4000:4000"
     depends_on:
