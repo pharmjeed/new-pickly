@@ -103,7 +103,7 @@ const PREP_MSGS = [
   "قربت تجهز — خلّك مستعد"
 ];
 
-/** موقف استلام يخدمه الفرع — يحدده المطعم من بوابته (مع نقطته على الخريطة) والعميل يختار منها فقط */
+/** نقطة الالتقاء التي حدّدها الفرع من بوابته (مع إحداثياتها على الخريطة) — العميل يتّجه إليها فقط */
 interface BranchSpot {
   id: string;
   label: string;
@@ -158,33 +158,10 @@ export default function TrackPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Sheet الموقف (C-48): مواقف الفرع المعرفة من المطعم أو وصف حر — POST /v1/orders/{id}/parking-spot
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // نقطة الالتقاء التي حدّدها الفرع — مصدر الدبوس على الخريطة (لا اختيار موقف من العميل)
   const [branchSpots, setBranchSpots] = useState<BranchSpot[] | null>(null);
-  const [spotSel, setSpotSel] = useState<string | null>(null);
-  const [freeText, setFreeText] = useState("");
-  const [parkingLabel, setParkingLabel] = useState<string | null>(null);
-  // الموقف المؤكد بنقطته — يقود الخريطة وزر «التوجه للموقف»
-  const [chosenSpot, setChosenSpot] = useState<BranchSpot | null>(null);
-  const [savingSpot, setSavingSpot] = useState(false);
-  const [spotErr, setSpotErr] = useState<string | null>(null);
 
-  // Sheet مفتوح → قفل تمرير الصفحة خلفه + الإغلاق بـEscape
-  useEffect(() => {
-    if (!sheetOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSheetOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [sheetOpen]);
-
-  // مواقف الفرع — موقف واحد أو أكثر والعميل يختار منها
+  // نقطة الالتقاء التي حدّدها الفرع
   const branchId = order?.branch_id;
   useEffect(() => {
     if (!branchId) return;
@@ -306,8 +283,7 @@ export default function TrackPage() {
   const confirmArrival = async () => {
     await api("POST", `/v1/orders/${id}/arrival`);
     await refresh();
-    // بعد تأكيد الوصول → «وين وقفت؟» (C-47 → C-48)
-    setSheetOpen(true);
+    // نقطة الالتقاء ثابتة يحدّدها الفرع — يكفي وصول العميل إليها، بلا اختيار موقف
   };
 
   // P8: تقييم بضغطة (BR-11)
@@ -332,25 +308,6 @@ export default function TrackPage() {
     const t = setTimeout(() => router.replace("/"), 2500);
     return () => clearTimeout(t);
   }, [reviewDone, router]);
-
-  const submitParking = async () => {
-    const chosen = branchSpots?.find((s) => s.id === spotSel) ?? null;
-    const text = freeText.trim();
-    if (!chosen && !text) return;
-    setSavingSpot(true);
-    setSpotErr(null);
-    try {
-      // موقف معرف من الفرع → spot_id (الخادم يتحقق أنه يخص فرع الطلب)؛ وإلا وصف حر
-      await api("POST", `/v1/orders/${id}/parking-spot`, chosen ? { spot_id: chosen.id } : { free_text: text });
-      setParkingLabel(chosen ? chosen.label : text);
-      setChosenSpot(chosen);
-      setSheetOpen(false);
-    } catch (e) {
-      setSpotErr((e as Error).message);
-    } finally {
-      setSavingSpot(false);
-    }
-  };
 
   if (error)
     return (
@@ -586,19 +543,23 @@ export default function TrackPage() {
         ) : null}
 
         {/*
-         * نقطة الالتقاء — النقطة التي ثبتها المطعم: الموقف الذي اختاره العميل إن وُجد،
-         * وإلا أول موقف بنقطة مثبتة على الخريطة (يخدمه الفرع)، وإلا الفرع نفسه.
+         * نقطة الالتقاء — النقطة التي ثبتها الفرع: أول نقطة بإحداثيات مثبتة على الخريطة،
+         * وإلا موقع الفرع نفسه. العميل يتّجه إليها والخريطة تؤكد وصوله (بلا اختيار موقف).
          */}
         {(() => {
-          const meetingSpot =
-            chosenSpot ?? branchSpots?.find((sp) => sp.lat !== null && sp.lng !== null) ?? null;
+          const meetingSpot = branchSpots?.find((sp) => sp.lat !== null && sp.lng !== null) ?? null;
           const destLat = meetingSpot?.lat ?? order.branch_lat;
           const destLng = meetingSpot?.lng ?? order.branch_lng;
           return (
             <>
-              {/* خريطة تفاعلية: نقطة المطعم 🏁 + موقع العميل الحيّ — داخل التطبيق */}
+              {/* خريطة تفاعلية: نقطة الالتقاء التي حدّدها الفرع 🏁 + موقع العميل الحيّ — تؤكد الوصول داخل التطبيق */}
               {(canStart || driveMode || arrived) && branchSpots && (
-                <SpotsMap spots={branchSpots} chosenId={meetingSpot?.id ?? null} me={coords} />
+                <SpotsMap
+                  spots={branchSpots}
+                  chosenId={meetingSpot?.id ?? null}
+                  me={coords}
+                  radiusM={order.arrival_radius_m}
+                />
               )}
 
               {/* زر واحد — «الاتجاه إلى نقطة الالتقاء»: يفتح الملاحة بالسيارة للنقطة */}
@@ -627,13 +588,6 @@ export default function TrackPage() {
             <p className={s.codeLabel}>رمز الاستلام</p>
             <span className={s.codeDigits} data-testid="handoff-code">{order.handoff_code}</span>
           </div>
-        )}
-
-        {/* الموقف — يفتح Sheet «وين وقفت؟» (C-48) */}
-        {arrived && !parkingLabel && (
-          <button type="button" className={s.parkingBtn} onClick={() => { setSpotErr(null); setSheetOpen(true); }}>
-            وين وقفت؟
-          </button>
         )}
 
         {canArrive && (
@@ -695,68 +649,6 @@ export default function TrackPage() {
           </div>
         )}
       </main>
-
-      {/* Sheet الموقف (C-48): موقف مرقم 1–5 أو وصف حر */}
-      {sheetOpen && (
-        <div className={s.dim} role="dialog" aria-modal="true" aria-label="وين وقفت؟" onClick={() => setSheetOpen(false)}>
-          <div className={s.sheet} onClick={(e) => e.stopPropagation()}>
-            <div className={s.grab} />
-            <div className={s.sheetHead}>
-              <b className={s.sheetTitle}>{arrived ? "وين وقفت؟" : "اختر موقفك"}</b>
-              <button type="button" className={s.closeBtn} aria-label="إغلاق" onClick={() => setSheetOpen(false)}>
-                ✕
-              </button>
-            </div>
-            <p className={s.sheetHint}>
-              {arrived
-                ? "تحديد موقفك يوصل راشد لسيارتك مباشرة — بلا لف ولا اتصال."
-                : "اختر موقفك الآن ونوجهك لنقطته على الخريطة — والمطعم يعرف وين تقف."}
-            </p>
-            {branchSpots && branchSpots.length > 0 && (
-              <>
-                <div className={s.spotGrid}>
-                  {branchSpots.map((sp) => (
-                    <button
-                      key={sp.id}
-                      type="button"
-                      data-testid="parking-spot-option"
-                      className={`${s.spotBtn} ${spotSel === sp.id ? s.spotBtnOn : ""}`}
-                      onClick={() => { setSpotSel(spotSel === sp.id ? null : sp.id); setFreeText(""); }}
-                    >
-                      {sp.label}
-                    </button>
-                  ))}
-                </div>
-                <p className={s.spotGridHint}>
-                  {branchSpots.length === 1
-                    ? "المطعم يخدم هذا الموقف — اختره ليصلك طلبك مباشرة"
-                    : "المواقف التي يخدمها المطعم — اختر موقفك منها"}
-                </p>
-              </>
-            )}
-            <div>
-              <label className={s.fldLabel} htmlFor="parking-free-text">
-                {branchSpots && branchSpots.length > 0 ? "أو صف مكان سيارتك للموظف" : "صف مكان سيارتك للموظف"}
-              </label>
-              <input
-                id="parking-free-text"
-                className="pk-input"
-                value={freeText}
-                placeholder="على يمين البوابة الخلفية، جنب شاحنة التوريد"
-                onChange={(e) => { setFreeText(e.target.value); setSpotSel(null); }}
-              />
-            </div>
-            {spotErr && <p className={s.sheetErr}>{spotErr}</p>}
-            <button
-              className="pk-btn"
-              onClick={submitParking}
-              disabled={savingSpot || (spotSel === null && freeText.trim() === "")}
-            >
-              تأكيد الموقف
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

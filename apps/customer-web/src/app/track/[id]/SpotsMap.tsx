@@ -52,11 +52,14 @@ function meHtml(): string {
 export default function SpotsMap({
   spots,
   chosenId,
-  me
+  me,
+  radiusM
 }: {
   spots: CustomerSpot[];
   chosenId: string | null;
   me: { lat: number; lng: number } | null;
+  /** نصف قطر الوصول — عند دخوله تتحوّل شارة المسافة إلى «وصلت إلى نقطة الالتقاء» */
+  radiusM?: number;
 }) {
   const holder = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -185,27 +188,32 @@ export default function SpotsMap({
         data-testid="customer-spots-map"
         style={{ height: 240, borderRadius: 16, overflow: "hidden", border: "1px solid var(--pk-border)" }}
       />
-      {distM !== null && (
-        <div
-          data-testid="map-distance"
-          style={{
-            position: "absolute",
-            top: 10,
-            insetInlineStart: 10,
-            zIndex: 500,
-            background: "#10241B",
-            color: "#C9F339",
-            borderRadius: 999,
-            padding: "5px 12px",
-            fontSize: 13,
-            fontWeight: 800,
-            boxShadow: "0 2px 8px rgba(0,0,0,.25)",
-            pointerEvents: "none"
-          }}
-        >
-          تبعد {fmtDist(distM)} عن نقطة الالتقاء
-        </div>
-      )}
+      {distM !== null && (() => {
+        // داخل نصف القطر → أكّد للعميل وصوله إلى النقطة التي حدّدها الفرع
+        const atPoint = radiusM != null && distM <= radiusM;
+        return (
+          <div
+            data-testid="map-distance"
+            data-arrived={atPoint ? "1" : undefined}
+            style={{
+              position: "absolute",
+              top: 10,
+              insetInlineStart: 10,
+              zIndex: 500,
+              background: atPoint ? "#C9F339" : "#10241B",
+              color: atPoint ? "#10241B" : "#C9F339",
+              borderRadius: 999,
+              padding: "5px 12px",
+              fontSize: 13,
+              fontWeight: 800,
+              boxShadow: "0 2px 8px rgba(0,0,0,.25)",
+              pointerEvents: "none"
+            }}
+          >
+            {atPoint ? "✓ وصلت إلى نقطة الالتقاء" : `تبعد ${fmtDist(distM)} عن نقطة الالتقاء`}
+          </div>
+        );
+      })()}
     </div>
   );
 }
