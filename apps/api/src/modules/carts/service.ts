@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from "@pickly/database";
+import { prisma, effectiveProductPrice, type Prisma } from "@pickly/database";
 import type { Cart as CartDto, CartItemInput } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
 import { requireFlag } from "../../lib/flags.js";
@@ -155,7 +155,8 @@ export class CartService {
           cart_id,
           product_id: product.id,
           quantity: input.quantity,
-          unit_price_halalas: product.price_halalas,
+          // لقطة السعر الفعّال — سعر العرض إن كان سارياً لحظة الإضافة (M-11، BR-6)
+          unit_price_halalas: effectiveProductPrice(product),
           ...(input.notes ? { notes: input.notes } : {})
         }
       });

@@ -324,6 +324,18 @@
   font-size: var(--pk-fs-12);
   color: var(--pk-text-2);
 }
+/* عرض على الصنف (M-11) — السعر المخفّض مع شطب الأصلي */
+.salePrice {
+  color: var(--pk-lime-900);
+  font-weight: 700;
+  margin-inline-end: 6px;
+}
+.origPrice {
+  color: var(--pk-text-2);
+  text-decoration: line-through;
+  font-size: var(--pk-fs-12);
+  margin-inline-end: 6px;
+}
 .addBtn {
   width: 32px;
   height: 32px;

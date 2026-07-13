@@ -48,7 +48,12 @@ export const ProductSchema = z.object({
   name_ar: z.string(),
   name_en: z.string().nullable(),
   description_ar: z.string().nullable(),
+  /** السعر الأصلي — يُشطب للعميل حين يوجد عرض ساري */
   price_halalas: HalalaSchema,
+  /** سعر العرض الساري الآن (M-11)؛ null = لا عرض. أقل دائماً من price_halalas */
+  sale_price_halalas: HalalaSchema.nullable(),
+  /** نهاية العرض إن وُجدت — للعدّاد التنازلي في الواجهة */
+  sale_ends_at: z.string().datetime().nullable(),
   image_url: z.string().nullable(),
   is_available: z.boolean(),
   modifier_groups: z.array(ModifierGroupSchema),

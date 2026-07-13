@@ -1205,6 +1205,20 @@
                                   "type": "integer",
                                   "minimum": 0
                                 },
+                                "sale_price_halalas": {
+                                  "type": [
+                                    "integer",
+                                    "null"
+                                  ],
+                                  "minimum": 0
+                                },
+                                "sale_ends_at": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "format": "date-time"
+                                },
                                 "image_url": {
                                   "type": [
                                     "string",
@@ -1300,6 +1314,8 @@
                                 "name_en",
                                 "description_ar",
                                 "price_halalas",
+                                "sale_price_halalas",
+                                "sale_ends_at",
                                 "image_url",
                                 "is_available",
                                 "modifier_groups",

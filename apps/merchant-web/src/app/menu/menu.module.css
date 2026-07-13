@@ -249,3 +249,9 @@
   font-size: 12px; cursor: pointer;
 }
 .delBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* عرض على الصنف (M-11) — السعر المخفّض مع شطب الأصلي */
+.priceCell { display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.salePrice { color: var(--pk-lime-900); font-weight: 800; }
+.origPrice { color: var(--pk-text-2); text-decoration: line-through; font-size: 11px; }
+.saleBadge { font-size: 9.5px; }

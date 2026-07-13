@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { hashPin } from "@pickly/auth";
-import { generateBranchSlotsFromTemplate, prisma } from "@pickly/database";
+import { generateBranchSlotsFromTemplate, prisma, isProductOnSale } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { HalalaSchema, UuidSchema, type JwtClaims } from "@pickly/contracts";
 import { assertBranchScope, requireAuth, requireStaff } from "../../lib/auth-plugin.js";
@@ -81,6 +81,14 @@ const ModifierGroupsSchema = z
     })
   )
   .max(6);
+
+/**
+ * حقول عرض الصنف (M-11): سعر عرض بالهللات + نهاية اختيارية.
+ * سعر العرض يجب أن يكون موجباً وأقل من السعر الأصلي — يُتحقق في المسار حيث يُعرف السعر.
+ * التمرير: قيمة = تفعيل/تحديث العرض، null = إلغاؤه، غياب المفتاح = إبقاؤه كما هو.
+ */
+const SalePriceSchema = HalalaSchema.nullable();
+const SaleEndsAtSchema = z.string().datetime().nullable();
 
 /**
  * بوابة التاجر (نطاق الطيار) — يدعم صفحات M-01/M-02/M-03/M-08/M-10/M-12/M-15
@@ -695,6 +703,10 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
           name_ar: p.name_ar,
           description_ar: p.description_ar,
           price_halalas: p.price_halalas,
+          // عرض الصنف (M-11) — التاجر يرى الإعداد المخزّن + إن كان سارياً الآن
+          sale_price_halalas: p.sale_price_halalas,
+          sale_ends_at: p.sale_ends_at?.toISOString() ?? null,
+          on_sale: isProductOnSale(p),
           calories: p.calories,
           image_url: p.images[0]?.file_url ?? null,
           is_active: p.is_active,
@@ -775,11 +787,18 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
         name_ar: z.string().min(2).max(80),
         description_ar: z.string().max(280).optional(),
         price_halalas: HalalaSchema,
+        sale_price_halalas: SalePriceSchema.optional(),
+        sale_ends_at: SaleEndsAtSchema.optional(),
         calories: z.number().int().min(0).max(9999).optional(),
         image_data_url: ImageDataUrlSchema.optional(),
         modifier_groups: ModifierGroupsSchema.default([])
       })
       .parse(req.body);
+
+    // سعر العرض إن وُجد يجب أن يكون أقل من السعر الأصلي (M-11)
+    if (body.sale_price_halalas != null && body.sale_price_halalas >= body.price_halalas) {
+      throw new AppError("MERCHANT-7005", { hint: "سعر العرض يجب أن يكون أقل من سعر الصنف" });
+    }
 
     const branch = await prisma.branch.findFirst({ where: { id: body.branch_id, merchant_id } });
     if (!branch) throw new AppError("MERCHANT-7003");
@@ -799,6 +818,10 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
           name_ar: body.name_ar,
           description_ar: body.description_ar ?? null,
           price_halalas: body.price_halalas,
+          sale_price_halalas: body.sale_price_halalas ?? null,
+          // العرض يبدأ فوراً؛ نهايته اختيارية
+          sale_starts_at: body.sale_price_halalas != null ? new Date() : null,
+          sale_ends_at: body.sale_price_halalas != null && body.sale_ends_at ? new Date(body.sale_ends_at) : null,
           calories: body.calories ?? null,
           sort_order: sort,
           is_active: true
@@ -886,6 +909,9 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
         name_ar: z.string().min(2).max(80).optional(),
         description_ar: z.string().max(280).nullable().optional(),
         price_halalas: HalalaSchema.optional(),
+        // عرض الصنف (M-11): قيمة = تفعيل/تحديث، null = إلغاء، غياب = إبقاء
+        sale_price_halalas: SalePriceSchema.optional(),
+        sale_ends_at: SaleEndsAtSchema.optional(),
         calories: z.number().int().min(0).max(9999).nullable().optional(),
         // "" لإزالة الصورة، data URL لتبديلها، غياب المفتاح = إبقاؤها
         image_data_url: z.union([ImageDataUrlSchema, z.literal("")]).optional(),
@@ -903,11 +929,34 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
     });
     if (!brand) throw new AppError("MERCHANT-7003");
 
+    // سعر العرض إن مُرِّر يجب أن يكون أقل من السعر (الجديد إن مُرِّر وإلا الحالي) — M-11
+    if (body.sale_price_halalas != null) {
+      const effectivePrice = body.price_halalas ?? product.price_halalas;
+      if (body.sale_price_halalas >= effectivePrice) {
+        throw new AppError("MERCHANT-7005", { hint: "سعر العرض يجب أن يكون أقل من سعر الصنف" });
+      }
+    }
+
     await prisma.$transaction(async (tx) => {
       const data: Record<string, unknown> = {};
       if (body.name_ar !== undefined) data.name_ar = body.name_ar;
       if (body.description_ar !== undefined) data.description_ar = body.description_ar;
       if (body.price_halalas !== undefined) data.price_halalas = body.price_halalas;
+      // العرض: null يُلغيه (يمسح كل حقوله)؛ قيمة تفعّله من الآن بنهاية اختيارية
+      if (body.sale_price_halalas !== undefined) {
+        if (body.sale_price_halalas === null) {
+          data.sale_price_halalas = null;
+          data.sale_starts_at = null;
+          data.sale_ends_at = null;
+        } else {
+          data.sale_price_halalas = body.sale_price_halalas;
+          data.sale_starts_at = product.sale_starts_at ?? new Date();
+          data.sale_ends_at = body.sale_ends_at ? new Date(body.sale_ends_at) : null;
+        }
+      } else if (body.sale_ends_at !== undefined && product.sale_price_halalas != null) {
+        // تعديل النهاية فقط لعرض قائم
+        data.sale_ends_at = body.sale_ends_at ? new Date(body.sale_ends_at) : null;
+      }
       if (body.calories !== undefined) data.calories = body.calories;
       if (Object.keys(data).length > 0) {
         await tx.product.update({ where: { id }, data });

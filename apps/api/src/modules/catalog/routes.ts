@@ -12,7 +12,7 @@ import {
   type OfferCard,
   type SearchResponse
 } from "@pickly/contracts";
-import { prisma, slotWithinWeeklyWindows } from "@pickly/database";
+import { prisma, slotWithinWeeklyWindows, isProductOnSale } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { createGeoAdapter, haversineMeters } from "@pickly/geo";
 import { requireFlag } from "../../lib/flags.js";
@@ -335,6 +335,9 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
           name_en: p.name_en,
           description_ar: p.description_ar,
           price_halalas: p.price_halalas,
+          // العرض يُعرض فقط إن كان سارياً هذه اللحظة (M-11) — الشطب في الواجهة
+          sale_price_halalas: isProductOnSale(p) ? p.sale_price_halalas : null,
+          sale_ends_at: isProductOnSale(p) ? (p.sale_ends_at?.toISOString() ?? null) : null,
           image_url: p.images?.[0]?.file_url ?? null,
           is_available: p.availability[0]?.is_available ?? true,
           calories: p.calories,

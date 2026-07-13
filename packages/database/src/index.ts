@@ -18,3 +18,4 @@ if (process.env.NODE_ENV !== "production") {
 
 export * from "@prisma/client";
 export * from "./scheduled-template.js";
+export * from "./product-pricing.js";

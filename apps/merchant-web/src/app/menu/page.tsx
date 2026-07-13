@@ -25,6 +25,9 @@ type Product = {
   name_ar: string;
   description_ar: string | null;
   price_halalas: number;
+  sale_price_halalas: number | null;
+  sale_ends_at: string | null;
+  on_sale: boolean;
   calories: number | null;
   image_url: string | null;
   is_active: boolean;
@@ -60,6 +63,8 @@ export default function MenuPage() {
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [price, setPrice] = useState("");
+  const [salePrice, setSalePrice] = useState(""); // سعر العرض (فارغ = لا عرض)
+  const [saleEnds, setSaleEnds] = useState(""); // تاريخ نهاية العرض YYYY-MM-DD (اختياري)
   const [calories, setCalories] = useState("");
   const [groups, setGroups] = useState<GroupDraft[]>([]);
   const [image, setImage] = useState<string | null>(null); // data URL أو رابط موجود
@@ -134,6 +139,8 @@ export default function MenuPage() {
     setName("");
     setDesc("");
     setPrice("");
+    setSalePrice("");
+    setSaleEnds("");
     setCalories("");
     setGroups([]);
     setNewCategory("");
@@ -156,6 +163,8 @@ export default function MenuPage() {
     setName(p.name_ar);
     setDesc(p.description_ar ?? "");
     setPrice((p.price_halalas / 100).toString());
+    setSalePrice(p.sale_price_halalas != null ? (p.sale_price_halalas / 100).toString() : "");
+    setSaleEnds(p.sale_ends_at ? p.sale_ends_at.slice(0, 10) : "");
     setCalories(p.calories != null ? String(p.calories) : "");
     setImage(p.image_url);
     setGroups(
@@ -202,6 +211,11 @@ export default function MenuPage() {
     const priceNum = Number(price);
     if (name.trim().length < 2) return "اسم الصنف مطلوب";
     if (!Number.isFinite(priceNum) || priceNum <= 0) return "أدخل سعراً صحيحاً بالريال";
+    if (salePrice.trim()) {
+      const saleNum = Number(salePrice);
+      if (!Number.isFinite(saleNum) || saleNum <= 0) return "أدخل سعر عرض صحيحاً بالريال";
+      if (saleNum >= priceNum) return "سعر العرض يجب أن يكون أقل من سعر الصنف";
+    }
     if (!editId && !categoryId && newCategory.trim().length < 2) return "اختر تصنيفاً أو أنشئ واحداً";
     for (const g of groups) {
       if (g.name_ar.trim().length < 1) return "اسم كل مجموعة تخصيص مطلوب";
@@ -217,6 +231,12 @@ export default function MenuPage() {
     setSaving(true);
     setFormError(null);
     const priceHalalas = Math.round(Number(price) * 100);
+    // سعر العرض: قيمة إن أُدخل، null لإلغائه (في التعديل)
+    const saleHalalas = salePrice.trim() ? Math.round(Number(salePrice) * 100) : null;
+    // تاريخ النهاية → نهاية اليوم بتوقيت UTC-ISO (يسري حتى آخر اليوم المختار)
+    const saleEndsIso = saleHalalas != null && saleEnds.trim()
+      ? new Date(`${saleEnds}T23:59:59`).toISOString()
+      : null;
     try {
       if (editId) {
         // تعديل — نرسل الحقول + الصورة إن تغيّرت + المجموعات دائماً (استبدال)
@@ -224,6 +244,8 @@ export default function MenuPage() {
           name_ar: name.trim(),
           description_ar: desc.trim() || null,
           price_halalas: priceHalalas,
+          sale_price_halalas: saleHalalas,
+          sale_ends_at: saleEndsIso,
           calories: calories.trim() ? Number(calories) : null,
           ...(imageChanged ? { image_data_url: image ?? "" } : {}),
           modifier_groups: buildGroupsPayload()
@@ -243,6 +265,7 @@ export default function MenuPage() {
           name_ar: name.trim(),
           ...(desc.trim() ? { description_ar: desc.trim() } : {}),
           price_halalas: priceHalalas,
+          ...(saleHalalas != null ? { sale_price_halalas: saleHalalas, sale_ends_at: saleEndsIso } : {}),
           ...(calories.trim() ? { calories: Number(calories) } : {}),
           ...(image ? { image_data_url: image } : {}),
           modifier_groups: buildGroupsPayload()
@@ -392,6 +415,27 @@ export default function MenuPage() {
               <span>السعر (ريال) *</span>
               <input value={price} data-testid="add-product-price" inputMode="decimal" placeholder="32.00" onChange={(e) => setPrice(e.target.value)} />
             </label>
+            <label className={s.field}>
+              <span>سعر العرض (اختياري)</span>
+              <input
+                value={salePrice}
+                data-testid="add-product-sale-price"
+                inputMode="decimal"
+                placeholder="أقل من السعر — لتفعيل عرض"
+                onChange={(e) => setSalePrice(e.target.value)}
+              />
+            </label>
+            {salePrice.trim() && (
+              <label className={s.field}>
+                <span>نهاية العرض (اختياري)</span>
+                <input
+                  type="date"
+                  value={saleEnds}
+                  data-testid="add-product-sale-ends"
+                  onChange={(e) => setSaleEnds(e.target.value)}
+                />
+              </label>
+            )}
             <label className={s.field}>
               <span>السعرات (اختياري)</span>
               <input value={calories} data-testid="add-product-calories" inputMode="numeric" placeholder="620" onChange={(e) => setCalories(e.target.value)} />
@@ -563,7 +607,19 @@ export default function MenuPage() {
                         <span className={s.prodName}>{p.name_ar}</span>
                         {p.description_ar && <span className={s.prodDesc}>{p.description_ar}</span>}
                       </td>
-                      <td className="mono">{sar(p.price_halalas)}</td>
+                      <td className="mono">
+                        {p.sale_price_halalas != null ? (
+                          <span className={s.priceCell}>
+                            <span className={s.salePrice}>{sar(p.sale_price_halalas)}</span>
+                            <span className={s.origPrice}>{sar(p.price_halalas)}</span>
+                            <span className={`badge ${p.on_sale ? "b-lime" : "b-soft"} ${s.saleBadge}`}>
+                              {p.on_sale ? "عرض" : "عرض منتهٍ"}
+                            </span>
+                          </span>
+                        ) : (
+                          sar(p.price_halalas)
+                        )}
+                      </td>
                       <td>
                         {p.is_active ? (
                           <span className="badge b-lime" style={{ fontSize: "10.5px" }}>منشور</span>

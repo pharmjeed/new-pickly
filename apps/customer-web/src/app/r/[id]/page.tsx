@@ -28,11 +28,17 @@ interface Product {
   name_ar: string;
   description_ar: string | null;
   price_halalas: number;
+  sale_price_halalas?: number | null;
+  sale_ends_at?: string | null;
   image_url?: string | null;
   is_available: boolean;
   calories?: number | null;
   modifier_groups: ModifierGroup[];
 }
+
+/** السعر المعروض: سعر العرض إن وُجد (M-11) وإلا الأصلي */
+const shownPrice = (p: Product): number =>
+  p.sale_price_halalas != null ? p.sale_price_halalas : p.price_halalas;
 interface Menu {
   branch_id: string;
   categories: Array<{ id: string; name_ar: string; products: Product[] }>;
@@ -163,7 +169,7 @@ export default function RestaurantPage() {
         .filter((m) => modifier_ids.includes(m.id))
         .reduce((s, m) => s + m.price_halalas, 0);
       setCount((c) => c + quantity);
-      setTotalHalalas((t) => t + (p.price_halalas + modTotal) * quantity);
+      setTotalHalalas((t) => t + (shownPrice(p) + modTotal) * quantity);
       return true;
     } catch (e) {
       setError((e as Error).message);
@@ -206,7 +212,7 @@ export default function RestaurantPage() {
       .flatMap((g) => g.modifiers)
       .filter((m) => sheetModifierIds.includes(m.id))
       .reduce((s, m) => s + m.price_halalas, 0);
-    return sheet.product.price_halalas + mods;
+    return shownPrice(sheet.product) + mods;
   }, [sheet, sheetModifierIds]);
   const incompleteGroups = useMemo(
     () =>
@@ -382,10 +388,19 @@ export default function RestaurantPage() {
                         )}
                       </div>
                       {p.description_ar && <p className={styles.pdesc}>{p.description_ar}</p>}
-                      <span className={styles.price}>
-                        {customizable && <span className={styles.priceFrom}>يبدأ من </span>}
-                        {fmtSar(p.price_halalas)}
-                      </span>
+                      {p.sale_price_halalas != null ? (
+                        <span className={styles.price}>
+                          {customizable && <span className={styles.priceFrom}>يبدأ من </span>}
+                          <span className={styles.salePrice}>{fmtSar(p.sale_price_halalas)}</span>
+                          <span className={styles.origPrice}>{fmtSar(p.price_halalas)}</span>
+                          <span className={`${styles.badgeLime} ${styles.badgeSm}`}>عرض</span>
+                        </span>
+                      ) : (
+                        <span className={styles.price}>
+                          {customizable && <span className={styles.priceFrom}>يبدأ من </span>}
+                          {fmtSar(p.price_halalas)}
+                        </span>
+                      )}
                     </div>
                     <div className={styles.pmedia}>
                       <div className={styles.pimg}>
@@ -446,7 +461,15 @@ export default function RestaurantPage() {
                 ✕
               </button>
             </div>
-            <span className={styles.sheetPrice}>{fmtSar(sheet.product.price_halalas)}</span>
+            {sheet.product.sale_price_halalas != null ? (
+              <span className={styles.sheetPrice}>
+                <span className={styles.salePrice}>{fmtSar(sheet.product.sale_price_halalas)}</span>
+                <span className={styles.origPrice}>{fmtSar(sheet.product.price_halalas)}</span>
+                <span className={`${styles.badgeLime} ${styles.badgeSm}`}>عرض</span>
+              </span>
+            ) : (
+              <span className={styles.sheetPrice}>{fmtSar(sheet.product.price_halalas)}</span>
+            )}
             {sheet.product.description_ar && (
               <p className={styles.pdesc}>{sheet.product.description_ar}</p>
             )}

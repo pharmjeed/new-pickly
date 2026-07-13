@@ -758,6 +758,11 @@ model Product {
   name_en        String?
   description_ar String?
   price_halalas  Int
+  // عرض على الصنف (M-11): سعر مخفّض ساري ضمن نافذة اختيارية — السعر الأصلي يُشطب للعميل.
+  // السعر الفعّال يُحسب عبر effectiveProductPrice؛ لا يُحسب في أي واجهة (BR-6).
+  sale_price_halalas Int?
+  sale_starts_at DateTime? @db.Timestamptz(6)
+  sale_ends_at   DateTime? @db.Timestamptz(6)
   calories       Int?
   is_active      Boolean @default(true)
   sort_order     Int     @default(0)

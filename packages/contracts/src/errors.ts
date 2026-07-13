@@ -75,6 +75,7 @@ export const ERROR_CODES = {
   "MERCHANT-7002": { ar: "سبب الرفض مطلوب من القائمة", en: "Rejection reason required from the closed list", status: 400 },
   "MERCHANT-7003": { ar: "خارج نطاق فرعك", en: "Outside your branch scope", status: 403 },
   "MERCHANT-7004": { ar: "تعديل الطلب يتطلب موافقة العميل", en: "Order change requires customer approval", status: 409 },
+  "MERCHANT-7005": { ar: "سعر العرض يجب أن يكون أقل من سعر الصنف", en: "Offer price must be lower than the item price", status: 400 },
 
   // ADMIN-8xxx
   "ADMIN-8001": { ar: "تجاوز العزل يتطلب سبباً موثقاً", en: "Tenant-scope override requires a documented reason", status: 400 },

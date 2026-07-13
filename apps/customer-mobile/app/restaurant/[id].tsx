@@ -40,6 +40,8 @@ interface Product {
   name_ar: string;
   description_ar: string | null;
   price_halalas: number;
+  sale_price_halalas?: number | null;
+  sale_ends_at?: string | null;
   image_url?: string | null;
   is_available: boolean;
   modifier_groups: ModifierGroup[];
@@ -53,6 +55,11 @@ interface SheetState {
   qty: number;
   sel: Record<string, string[]>;
   note: string;
+}
+
+/** السعر المعروض للصنف: سعر العرض إن وُجد (M-11) وإلا السعر الأصلي */
+function shownPrice(p: Product): number {
+  return p.sale_price_halalas != null ? p.sale_price_halalas : p.price_halalas;
 }
 
 /** الاختيار الافتراضي: أول min_select خيار من كل مجموعة إلزامية */
@@ -130,7 +137,7 @@ export default function RestaurantScreen() {
         .filter((m) => modifier_ids.includes(m.id))
         .reduce((s, m) => s + m.price_halalas, 0);
       setCount((c) => c + quantity);
-      setTotalHalalas((t) => t + (p.price_halalas + modTotal) * quantity);
+      setTotalHalalas((t) => t + (shownPrice(p) + modTotal) * quantity);
       return true;
     } catch (e) {
       setError((e as Error).message);
@@ -168,7 +175,7 @@ export default function RestaurantScreen() {
       .flatMap((g) => g.modifiers)
       .filter((m) => sheetModifierIds.includes(m.id))
       .reduce((s, m) => s + m.price_halalas, 0);
-    return sheet.product.price_halalas + mods;
+    return shownPrice(sheet.product) + mods;
   }, [sheet, sheetModifierIds]);
   const incompleteGroups = useMemo(
     () =>
@@ -236,10 +243,21 @@ export default function RestaurantScreen() {
                       {p.description_ar}
                     </Text>
                   )}
-                  <Text style={st.price}>
-                    {customizable ? "يبدأ من " : ""}
-                    {fmtSar(p.price_halalas)}
-                  </Text>
+                  {p.sale_price_halalas != null ? (
+                    <View style={st.priceRow}>
+                      <Text style={st.salePrice}>
+                        {customizable ? "يبدأ من " : ""}
+                        {fmtSar(p.sale_price_halalas)}
+                      </Text>
+                      <Text style={st.origPrice}>{fmtSar(p.price_halalas)}</Text>
+                      <Badge label="عرض" tone="lime" />
+                    </View>
+                  ) : (
+                    <Text style={st.price}>
+                      {customizable ? "يبدأ من " : ""}
+                      {fmtSar(p.price_halalas)}
+                    </Text>
+                  )}
                 </View>
                 {p.is_available ? (
                   <View style={st.addBtn} pointerEvents="none">
@@ -286,7 +304,15 @@ export default function RestaurantScreen() {
                   <Text style={st.closeTxt}>✕</Text>
                 </Pressable>
               </View>
-              <Text style={st.sheetPrice}>{fmtSar(sheet.product.price_halalas)}</Text>
+              {sheet.product.sale_price_halalas != null ? (
+                <View style={st.priceRow}>
+                  <Text style={st.sheetPrice}>{fmtSar(sheet.product.sale_price_halalas)}</Text>
+                  <Text style={st.origPrice}>{fmtSar(sheet.product.price_halalas)}</Text>
+                  <Badge label="عرض" tone="lime" />
+                </View>
+              ) : (
+                <Text style={st.sheetPrice}>{fmtSar(sheet.product.price_halalas)}</Text>
+              )}
               {sheet.product.description_ar ? (
                 <Text style={[st.pdesc, { marginBottom: 10 }]}>{sheet.product.description_ar}</Text>
               ) : null}
@@ -434,6 +460,9 @@ const st = StyleSheet.create({
   ptitle: { color: light.text, fontSize: fs.fs15, fontWeight: "800", flexShrink: 1, textAlign: "right" },
   pdesc: { color: light.text2, fontSize: fs.fs13, textAlign: "right" },
   price: { color: light.text, fontSize: fs.fs14, fontWeight: "700", textAlign: "right" },
+  priceRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  salePrice: { color: colors.lime900, fontSize: fs.fs14, fontWeight: "800", textAlign: "right" },
+  origPrice: { color: light.text2, fontSize: fs.fs13, textAlign: "right", textDecorationLine: "line-through" },
   addBtn: {
     width: touch,
     height: touch,
