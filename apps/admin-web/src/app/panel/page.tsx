@@ -20,6 +20,7 @@ import AuditLogs from "@/components/modules/AuditLogs";
 import Cms from "@/components/modules/Cms";
 import Payments from "@/components/modules/Payments";
 import Pricing from "@/components/modules/Pricing";
+import ArrivalRadius from "@/components/modules/ArrivalRadius";
 import Promos from "@/components/modules/Promos";
 import Support from "@/components/modules/Support";
 import Risk from "@/components/modules/Risk";
@@ -48,6 +49,7 @@ type ModuleKey =
   | "refunds"
   | "settlements"
   | "pricing"
+  | "arrival"
   | "payments"
   | "merchants"
   | "customers"
@@ -68,6 +70,7 @@ const NAV: readonly NavItem[] = [
   { key: "refunds", label: "الاسترجاعات" },
   { key: "settlements", label: "التسويات" },
   { key: "pricing", label: "رسوم الخدمة" },
+  { key: "arrival", label: "نصف قطر الوصول" },
   { key: "payments", label: "طرق الدفع والمحفظة" },
   { gp: "الشركاء" },
   { key: "merchants", label: "التجار" },
@@ -119,6 +122,11 @@ const MODULES: Record<ModuleKey, { title: string; crumb: string; render: () => R
     title: "رسوم الخدمة",
     crumb: "رسم خدمة بيكلي وحصة التاجر منه — التعديل بسبب يدخل التدقيق (BR-15)",
     render: () => <Pricing />
+  },
+  arrival: {
+    title: "نصف قطر الوصول",
+    crumb: "المسافة التي يتفعّل عندها زر «وصلت» لدى العميل (docs/14) — التعديل بسبب يدخل التدقيق",
+    render: () => <ArrivalRadius />
   },
   payments: {
     title: "طرق الدفع والمحفظة",

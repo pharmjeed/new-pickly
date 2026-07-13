@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
  * J1 Happy Path (docs/03) في المتصفح — البوابة الكبرى للمرحلة 2:
  * عميل: تسجيل ← مطعم ← منتجات ← صفحة السلة والإتمام الواحدة ← دفع sandbox ← تتبع
  * فرع: قبول ← تجهيز ← جاهز
- * عميل: وصلت مباشرة (يدوي — J10: بلا زر انطلاق ولا صلاحية موقع)
+ * عميل: داخل نطاق الوصول (500م) ← سحب «وصلت» يدوياً (J10: الخادم يفتح الجلسة اليدوية تلقائياً)
  * فرع: خرج الموظف ← تحقق بالرمز ← سلّمت
  * عميل: تم التسليم.
  */
@@ -12,11 +12,18 @@ import { expect, test, type Page } from "@playwright/test";
 const CUSTOMER = "http://localhost:3000";
 const BRANCH = "http://localhost:3002";
 
+// موقع فرع بيست برجر — العليا (seed) — نضع العميل عنده ليُفتح سحب «وصلت»
+const OLAYA = { latitude: 24.6949, longitude: 46.6853 };
+
 // جوال عشوائي لكل تشغيل — تسجيل جديد كامل
 const phone = `05${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
 
 test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
-  const customerCtx = await browser.newContext({ locale: "ar-SA" });
+  const customerCtx = await browser.newContext({
+    locale: "ar-SA",
+    permissions: ["geolocation"],
+    geolocation: OLAYA // العميل عند الفرع → داخل نصف قطر الوصول
+  });
   const branchCtx = await browser.newContext({ locale: "ar-SA" });
   const c: Page = await customerCtx.newPage();
   const b: Page = await branchCtx.newPage();
@@ -92,9 +99,20 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await b.getByTestId("tab-ready").click();
   await expect(orderCard).toBeVisible();
 
-  // ===== 7. العميل: جاهز ← وصلت مباشرة (J10: الخادم يفتح الجلسة اليدوية تلقائياً) =====
+  // ===== 7. العميل: جاهز ← داخل النطاق ← سحب «وصلت» (J10: الخادم يفتح الجلسة اليدوية تلقائياً) =====
   await expect(c.getByTestId("track-title")).toContainText("طلبك جاهز");
-  await c.getByTestId("confirm-arrival").click();
+  // الموقع عند الفرع → العنصر يتفعّل ويطلب السحب
+  await expect(c.getByTestId("arrive-swipe-hint")).toContainText("نطاق الاستلام");
+  const knob = c.getByTestId("arrive-swipe-knob");
+  const swipe = c.getByTestId("arrive-swipe");
+  const kb = await knob.boundingBox();
+  const sb = await swipe.boundingBox();
+  if (!kb || !sb) throw new Error("arrive swipe not rendered");
+  const cy = kb.y + kb.height / 2;
+  await c.mouse.move(kb.x + kb.width / 2, cy);
+  await c.mouse.down();
+  await c.mouse.move(sb.x + sb.width - 8, cy, { steps: 12 });
+  await c.mouse.up();
   await expect(c.getByTestId("track-title")).toContainText("وصلت؟ إحنا عرفنا.");
 
   // رمز الاستلام ظهر للعميل

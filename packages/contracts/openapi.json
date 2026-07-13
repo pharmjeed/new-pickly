@@ -4625,6 +4625,11 @@
                     "branch_address_short": {
                       "type": "string"
                     },
+                    "arrival_radius_m": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "default": 500
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -5027,6 +5032,11 @@
                     },
                     "branch_address_short": {
                       "type": "string"
+                    },
+                    "arrival_radius_m": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "default": 500
                     },
                     "preparing_at": {
                       "type": [
@@ -5686,6 +5696,11 @@
                     "branch_address_short": {
                       "type": "string"
                     },
+                    "arrival_radius_m": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "default": 500
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -6128,6 +6143,11 @@
                     "branch_address_short": {
                       "type": "string"
                     },
+                    "arrival_radius_m": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "default": 500
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -6557,6 +6577,11 @@
                     },
                     "branch_address_short": {
                       "type": "string"
+                    },
+                    "arrival_radius_m": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "default": 500
                     },
                     "preparing_at": {
                       "type": [
@@ -7447,6 +7472,11 @@
                     "branch_address_short": {
                       "type": "string"
                     },
+                    "arrival_radius_m": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "default": 500
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -8030,6 +8060,11 @@
                     },
                     "branch_address_short": {
                       "type": "string"
+                    },
+                    "arrival_radius_m": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "default": 500
                     },
                     "preparing_at": {
                       "type": [

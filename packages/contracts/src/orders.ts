@@ -65,6 +65,8 @@ export const OrderSchema = z.object({
   branch_lat: z.number(),
   branch_lng: z.number(),
   branch_address_short: z.string(),
+  /** نصف قطر تفعيل زر «وصلت» بالأمتار — يضبطه Super Admin (ops.arrival_radius_m، الافتراضي 500) */
+  arrival_radius_m: z.number().int().positive().default(500),
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة رحلة العميل */
   preparing_at: z.string().datetime().nullable().default(null),
   ready_at: z.string().datetime().nullable().default(null),

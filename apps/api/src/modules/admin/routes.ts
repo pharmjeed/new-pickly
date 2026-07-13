@@ -782,6 +782,36 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
+  // ===== نصف قطر تفعيل «وصلت» — العميل لا يؤكد الوصول إلا داخله (system_settings:ops.arrival_radius_m) =====
+
+  app.get("/ops/arrival-radius", async (req) => {
+    requireAdmin(req, ALL_READ);
+    const setting = await prisma.systemSetting.findFirst({
+      where: { key: "ops.arrival_radius_m" },
+      orderBy: { effective_at: "desc" }
+    });
+    const v = Number(setting?.value);
+    return { radius_m: Number.isFinite(v) && v > 0 ? v : 500 };
+  });
+
+  /** يُحفظ صفاً جديداً — system_settings سجل تاريخي (key, effective_at)؛ يسري على الطلبات الحية فوراً */
+  app.post("/ops/arrival-radius", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin", "operations"]);
+    const body = z
+      .object({
+        radius_m: z.number().int().min(50).max(5000),
+        reason: z.string().min(3)
+      })
+      .parse(req.body);
+    const setting = await prisma.systemSetting.create({
+      data: { key: "ops.arrival_radius_m", value: body.radius_m as never, created_by: sub }
+    });
+    await audit(sub, "ops_arrival_radius_saved", "system_setting", setting.id, body.reason, {
+      radius_m: body.radius_m
+    });
+    return { ok: true, radius_m: body.radius_m };
+  });
+
   // ===== محفظة بيكلي — رصيد العملاء: عرض + إيداع/خصم بسبب مُدقق (docs/01§1) =====
 
   app.get("/wallet", async (req) => {

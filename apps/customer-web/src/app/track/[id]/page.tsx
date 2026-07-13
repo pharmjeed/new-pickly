@@ -9,7 +9,19 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import SpotsMap from "./SpotsMap";
+import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
 import s from "./track.module.css";
+
+/** مسافة القوس الكبير بالأمتار بين نقطتين (haversine) — لبوابة تفعيل «وصلت» */
+function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6_371_000;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const la1 = (aLat * Math.PI) / 180;
+  const la2 = (bLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+}
 
 interface Order {
   id: string;
@@ -26,6 +38,8 @@ interface Order {
   branch_lat: number;
   branch_lng: number;
   branch_address_short: string;
+  /** نصف قطر تفعيل زر «وصلت» بالأمتار — يضبطه Super Admin (ops.arrival_radius_m) */
+  arrival_radius_m: number;
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة الرحلة */
   preparing_at: string | null;
   ready_at: string | null;
@@ -63,6 +77,15 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
 
 const DRIVE_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
 const ARRIVED_STATES = ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"];
+/** الحالات التي يُتاح فيها تأكيد «وصلت» — من قبول المطعم وحتى الطريق (نراقب الموقع فيها فقط) */
+const ARRIVABLE_STATES = [
+  "MERCHANT_ACCEPTED",
+  "PREPARING",
+  "READY",
+  "CUSTOMER_NOTIFIED",
+  "CUSTOMER_ON_THE_WAY",
+  "CUSTOMER_NEARBY"
+];
 /** شاشة انتظار قبول المطعم — الشعار الحي + رسائل تطمئن العميل أن شيئاً يحدث */
 const WAITING_STATES = ["ORDER_SUBMITTED", "MERCHANT_PENDING"];
 const WAIT_MSGS = [
@@ -209,6 +232,28 @@ export default function TrackPage() {
     return () => clearInterval(t);
   }, [prepCountdownOn]);
 
+  // بوابة «وصلت»: نراقب موقع العميل أثناء الحالات القابلة للوصول فقط (docs/17 — الموقع أثناء الطلب النشط فقط)
+  const canArriveNow = ARRIVABLE_STATES.includes(order?.order_status ?? "");
+  const [geoState, setGeoState] = useState<GeoState>("locating");
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (!canArriveNow) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoState("unavailable");
+      return;
+    }
+    setGeoState((g) => (g === "denied" || g === "unavailable" ? g : "locating"));
+    const wid = navigator.geolocation.watchPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoState("ok");
+      },
+      (err) => setGeoState(err.code === err.PERMISSION_DENIED ? "denied" : "unavailable"),
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 }
+    );
+    return () => navigator.geolocation.clearWatch(wid);
+  }, [canArriveNow]);
+
   const confirmArrival = async () => {
     await api("POST", `/v1/orders/${id}/arrival`);
     await refresh();
@@ -302,6 +347,11 @@ export default function TrackPage() {
   const canStart = ["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(order.order_status);
   // «وصلت» متاح من القبول وحتى الوصول — بلا زر «انطلقت الآن»: الخادم يفتح جلسة يدوية تلقائياً (J10)
   const canArrive = canStart || driveMode;
+  // بوابة القرب: لا يُفتح السحب إلا داخل نصف القطر الذي يضبطه Super Admin (docs/14)
+  const distanceM = coords
+    ? distanceMeters(coords.lat, coords.lng, order.branch_lat, order.branch_lng)
+    : null;
+  const withinRange = distanceM !== null && distanceM <= order.arrival_radius_m;
 
   return (
     <div className={driveMode ? "pk-drive" : ""}>
@@ -473,12 +523,13 @@ export default function TrackPage() {
         )}
 
         {canArrive && (
-          <>
-            <button className="pk-btn" data-testid="confirm-arrival" onClick={confirmArrival} style={{ marginTop: 8 }}>
-              وصلت
-            </button>
-            <p className={s.footNote}>«وصلت» بيدك دائماً — اضغطه فور وقوفك عند المطعم</p>
-          </>
+          <ArriveSwipe
+            enabled={withinRange}
+            distanceM={distanceM}
+            radiusM={order.arrival_radius_m}
+            geoState={geoState}
+            onConfirm={confirmArrival}
+          />
         )}
 
         {completed && (

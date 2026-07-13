@@ -578,6 +578,125 @@
 }
 :global(.pk-drive) .mapsBtn:hover { background: var(--pk-ink-600); }
 
+/* ===== تأكيد الوصول بالسحب (يسار ← يمين) — نمط «تمرير للإجابة» ===== */
+.swipeWrap {
+  margin-top: 8px;
+}
+.swipe {
+  position: relative;
+  width: 100%;
+  height: 64px;
+  border-radius: var(--pk-radius-pill);
+  overflow: hidden;
+  user-select: none;
+  touch-action: pan-y;
+  border: 1.5px solid var(--pk-line);
+  background: var(--pk-cloud);
+  transition: background var(--pk-dur) var(--pk-ease), border-color var(--pk-dur) var(--pk-ease);
+}
+.swipeOn {
+  border-color: var(--pk-lime-500);
+  background: var(--pk-lime-100);
+}
+.swipeDone {
+  border-color: var(--pk-success);
+  background: color-mix(in srgb, var(--pk-success) 16%, transparent);
+}
+/* التعبئة تتبع المقبض أثناء السحب */
+.swipeFill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  border-radius: var(--pk-radius-pill);
+  background: var(--pk-lime-500);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.swipeLocked .swipeFill {
+  display: none;
+}
+.swipeLabel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline-start: 52px;
+  font-family: var(--pk-font-body);
+  font-weight: 700;
+  font-size: var(--pk-fs-15);
+  color: var(--pk-text-2);
+  pointer-events: none;
+  text-align: center;
+}
+.swipeOn .swipeLabel {
+  color: var(--pk-ink-900);
+}
+.swipeDone .swipeLabel {
+  color: var(--pk-success);
+  padding-inline-start: 0;
+}
+/* المقبض الدائري — يبدأ من اليسار ويُسحب لليمين */
+.swipeKnob {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  margin-top: -26px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--pk-white);
+  color: var(--pk-lime-900);
+  box-shadow: var(--pk-shadow-1);
+  touch-action: none;
+  z-index: 1;
+}
+.swipeOn .swipeKnob {
+  cursor: grab;
+  color: var(--pk-ink-900);
+}
+.swipeOn .swipeKnob:active {
+  cursor: grabbing;
+}
+.swipeLocked .swipeKnob {
+  background: var(--pk-surface);
+  color: var(--pk-text-2);
+  cursor: not-allowed;
+}
+.swipeDone .swipeKnob {
+  color: var(--pk-success);
+}
+.swipeHint {
+  color: var(--pk-text-2);
+  font-size: var(--pk-fs-12);
+  text-align: center;
+  margin-top: 8px;
+}
+/* وضع القيادة الداكن */
+:global(.pk-drive) .swipe {
+  background: var(--pk-ink-700);
+  border-color: var(--pk-ink-600);
+}
+:global(.pk-drive) .swipeOn {
+  border-color: var(--pk-lime-500);
+  background: var(--pk-ink-600);
+}
+:global(.pk-drive) .swipeLabel {
+  color: var(--pk-gray-2);
+}
+:global(.pk-drive) .swipeOn .swipeLabel {
+  color: var(--pk-lime-500);
+}
+:global(.pk-drive) .swipeKnob {
+  background: var(--pk-cloud);
+}
+:global(.pk-drive) .swipeHint {
+  color: var(--pk-gray-2);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .waitRing, .waitLogo, .sl1, .sl2, .sl3, .dim, .sheet { animation: none; }
   .waitRing { opacity: 0.25; transform: scale(1.3); }

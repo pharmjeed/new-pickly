@@ -21,6 +21,8 @@ import { transitionOrder } from "../../lib/state-machine.js";
 const DUAL_CONFIRMATION_THRESHOLD_HALALAS = 30_000; // BR-8: ≥300 ر.س
 const FREE_CHANGE_MINUTES_DEFAULT = 60; // BR-5 — قابل للضبط br5.free_change_minutes
 const UNPAID_EXPIRE_MINUTES_DEFAULT = 30; // مجدول لم يُدفع → EXPIRED
+/** نصف قطر تفعيل زر «وصلت» — قابل للضبط من Super Admin (ops.arrival_radius_m) */
+const ARRIVAL_RADIUS_M_DEFAULT = 500;
 
 export const payments = createPaymentAdapter();
 
@@ -60,7 +62,7 @@ const CODE_VISIBLE_STATES: OrderState[] = [
   "HANDOFF_IN_PROGRESS"
 ];
 
-export function toOrderDto(o: OrderWithItems): OrderDto {
+export function toOrderDto(o: OrderWithItems, arrivalRadiusM = ARRIVAL_RADIUS_M_DEFAULT): OrderDto {
   const status = o.order_status as OrderState;
   return {
     id: o.id,
@@ -100,6 +102,7 @@ export function toOrderDto(o: OrderWithItems): OrderDto {
     branch_lat: o.branch.lat,
     branch_lng: o.branch.lng,
     branch_address_short: o.branch.address_short,
+    arrival_radius_m: arrivalRadiusM,
     preparing_at: o.preparing_at?.toISOString() ?? null,
     ready_at: o.ready_at?.toISOString() ?? null,
     pickup_time: o.pickup_time as PickupTime,
@@ -461,7 +464,8 @@ export class OrderService {
   async get(order_id: string, user_id: string): Promise<OrderDto> {
     const order = await prisma.order.findUnique({ where: { id: order_id }, include: orderInclude });
     if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
-    return toOrderDto(order);
+    const arrivalRadiusM = await numericSetting("ops.arrival_radius_m", ARRIVAL_RADIUS_M_DEFAULT);
+    return toOrderDto(order, arrivalRadiusM);
   }
 
   /** تعديل فترة المجدول — مجاني قبل free_change_until (BR-5) */
