@@ -24,6 +24,8 @@ type Props = {
   selectedId: string | null;
   /** نقطة الموقف الجديد قبل الحفظ */
   draft: { lat: number; lng: number } | null;
+  /** نص دبوس المسودة — «الموقف الجديد» افتراضياً، أو «موقع الفرع» عند اختيار موقع فرع */
+  draftLabel?: string;
   onMapClick: (lat: number, lng: number) => void;
 };
 
@@ -40,7 +42,7 @@ function pinHtml(label: string, kind: "active" | "inactive" | "selected" | "draf
   </div>`;
 }
 
-export default function SpotMap({ center, spots, selectedId, draft, onMapClick }: Props) {
+export default function SpotMap({ center, spots, selectedId, draft, draftLabel, onMapClick }: Props) {
   const holder = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const layerRef = useRef<LayerGroup | null>(null);
@@ -88,14 +90,14 @@ export default function SpotMap({ center, spots, selectedId, draft, onMapClick }
       }
       if (draft) {
         L.marker([draft.lat, draft.lng], {
-          icon: L.divIcon({ html: pinHtml("الموقف الجديد", "draft"), className: "", iconSize: [0, 0] })
+          icon: L.divIcon({ html: pinHtml(draftLabel ?? "الموقف الجديد", "draft"), className: "", iconSize: [0, 0] })
         }).addTo(layerRef.current);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [spots, selectedId, draft]);
+  }, [spots, selectedId, draft, draftLabel]);
 
   return (
     <div

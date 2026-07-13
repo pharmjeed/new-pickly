@@ -58,6 +58,63 @@ export default function DashboardPage() {
   const [pinDraft, setPinDraft] = useState<Record<string, { lat: number; lng: number } | null>>({});
   const [spotSelected, setSpotSelected] = useState<Record<string, string | null>>({});
 
+  // M-03: إضافة فرع جديد ذاتياً — النموذج + نقطة موقعه على الخريطة
+  const [showAddBranch, setShowAddBranch] = useState(false);
+  const [nb, setNb] = useState({ name_ar: "", city: "", address_short: "", phone: "", prep_minutes: 15, copy_from: "" });
+  const [nbPin, setNbPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [nbBusy, setNbBusy] = useState(false);
+  const [nbError, setNbError] = useState<string | null>(null);
+
+  // مركز خريطة اختيار الموقع: أول فرع قائم، وإلا مركز الرياض
+  const addBranchCenter = prepBranches?.[0]
+    ? { lat: prepBranches[0].lat, lng: prepBranches[0].lng }
+    : { lat: 24.7136, lng: 46.6753 };
+
+  const addBranch = async () => {
+    const name_ar = nb.name_ar.trim();
+    const city = nb.city.trim();
+    const address_short = nb.address_short.trim();
+    if (!name_ar || !city || !address_short) {
+      setNbError("الاسم والمدينة والعنوان حقول مطلوبة");
+      return;
+    }
+    if (!nbPin) {
+      setNbError("حدّد موقع الفرع بالنقر على الخريطة");
+      return;
+    }
+    setNbBusy(true);
+    setNbError(null);
+    try {
+      const created = await apiPost<BranchSettings & { city: string; status: string }>(
+        "/api/v1/merchant/branches",
+        {
+          name_ar,
+          city,
+          address_short,
+          lat: nbPin.lat,
+          lng: nbPin.lng,
+          prep_minutes: nb.prep_minutes,
+          ...(nb.phone.trim() ? { phone: nb.phone.trim() } : {}),
+          ...(nb.copy_from ? { copy_menu_from_branch_id: nb.copy_from } : {})
+        }
+      );
+      // ادمج الفرع في القوائم الحية فوراً (لوحة الفروع + التجهيز + المواقف)
+      setPrepBranches((bs) => [...(bs ?? []), created]);
+      setPrepDraft((d) => ({ ...d, [created.id]: created.default_prep_minutes }));
+      setSpots((s) => ({ ...s, [created.id]: [] }));
+      setData((d) =>
+        d ? { ...d, branches: [...d.branches, { id: created.id, name_ar: created.name_ar, status: created.status }] } : d
+      );
+      setNb({ name_ar: "", city: "", address_short: "", phone: "", prep_minutes: 15, copy_from: "" });
+      setNbPin(null);
+      setShowAddBranch(false);
+    } catch (e) {
+      setNbError((e as Error).message);
+    } finally {
+      setNbBusy(false);
+    }
+  };
+
   /** نقرة الخريطة: موقف محدد → تحريك نقطته؛ وإلا → نقطة الموقف الجديد */
   const onMapClick = async (branch_id: string, lat: number, lng: number) => {
     const sel = spotSelected[branch_id];
@@ -245,12 +302,24 @@ export default function DashboardPage() {
                 <span className="sp muted" style={{ fontSize: 11 }}>
                   {data.branches.length} فرع
                 </span>
+                <button
+                  className="btn"
+                  data-testid="add-branch-toggle"
+                  style={{ fontSize: 12 }}
+                  onClick={() => {
+                    setNbError(null);
+                    setShowAddBranch((v) => !v);
+                  }}
+                >
+                  {showAddBranch ? "إغلاق" : "＋ فرع جديد"}
+                </button>
               </h3>
-              {data.branches.length === 0 ? (
+
+              {data.branches.length === 0 && !showAddBranch ? (
                 <div className="empty">
                   <div className="ic">🏪</div>
                   <b>لا فروع بعد</b>
-                  <p>تُضاف الفروع عبر فريق نجاح التجار في نطاق الطيار</p>
+                  <p>أضف فرعك الأول بالضغط على «＋ فرع جديد» وحدّد موقعه على الخريطة</p>
                 </div>
               ) : (
                 data.branches.map((b) => {
@@ -264,6 +333,123 @@ export default function DashboardPage() {
                     </div>
                   );
                 })
+              )}
+
+              {/* نموذج إضافة فرع جديد — موقع من الخريطة + نسخ المنيو من فرع قائم */}
+              {showAddBranch && (
+                <div
+                  data-testid="add-branch-form"
+                  style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--m-line, #e5e7e3)", display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  <input
+                    value={nb.name_ar}
+                    placeholder="اسم الفرع — مثال: بيست برجر — الروضة"
+                    maxLength={80}
+                    data-testid="add-branch-name"
+                    onChange={(e) => setNb((v) => ({ ...v, name_ar: e.target.value }))}
+                    style={{ padding: "6px 10px" }}
+                  />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      value={nb.city}
+                      placeholder="المدينة"
+                      maxLength={60}
+                      data-testid="add-branch-city"
+                      onChange={(e) => setNb((v) => ({ ...v, city: e.target.value }))}
+                      style={{ flex: 1, padding: "6px 10px" }}
+                    />
+                    <input
+                      value={nb.phone}
+                      placeholder="جوال الفرع (اختياري)"
+                      maxLength={20}
+                      inputMode="tel"
+                      data-testid="add-branch-phone"
+                      onChange={(e) => setNb((v) => ({ ...v, phone: e.target.value }))}
+                      style={{ flex: 1, padding: "6px 10px" }}
+                    />
+                  </div>
+                  <input
+                    value={nb.address_short}
+                    placeholder="العنوان المختصر — مثال: طريق الملك عبدالله، حي الروضة"
+                    maxLength={160}
+                    data-testid="add-branch-address"
+                    onChange={(e) => setNb((v) => ({ ...v, address_short: e.target.value }))}
+                    style={{ padding: "6px 10px" }}
+                  />
+
+                  <p className="muted" style={{ fontSize: 11.5, margin: "2px 0 0" }}>
+                    انقر على الخريطة لتحديد موقع الفرع بدقّة — هذا الموقع تُحسب منه مسافة وصول العميل.
+                  </p>
+                  <SpotMap
+                    center={addBranchCenter}
+                    spots={[]}
+                    selectedId={null}
+                    draft={nbPin}
+                    draftLabel="موقع الفرع"
+                    onMapClick={(lat, lng) => setNbPin({ lat, lng })}
+                  />
+
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <span className="muted" style={{ fontSize: 12 }}>وقت التجهيز</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={120}
+                        value={nb.prep_minutes}
+                        data-testid="add-branch-prep"
+                        onChange={(e) => setNb((v) => ({ ...v, prep_minutes: Number(e.target.value) }))}
+                        style={{ width: 60, padding: "4px 8px", textAlign: "center" }}
+                      />
+                      <span className="muted" style={{ fontSize: 12 }}>دقيقة</span>
+                    </span>
+                    {(prepBranches?.length ?? 0) > 0 && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span className="muted" style={{ fontSize: 12 }}>انسخ المنيو من</span>
+                        <select
+                          value={nb.copy_from}
+                          data-testid="add-branch-copy-from"
+                          onChange={(e) => setNb((v) => ({ ...v, copy_from: e.target.value }))}
+                          style={{ padding: "4px 8px" }}
+                        >
+                          <option value="">منيو العلامة (افتراضي)</option>
+                          {prepBranches?.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.name_ar}
+                            </option>
+                          ))}
+                        </select>
+                      </span>
+                    )}
+                  </div>
+
+                  {nbError && (
+                    <div className="note err" data-testid="add-branch-error" style={{ fontSize: 12 }}>
+                      {nbError}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="btn"
+                      data-testid="add-branch-submit"
+                      disabled={nbBusy}
+                      onClick={() => void addBranch()}
+                    >
+                      {nbBusy ? "…جارٍ الإنشاء" : "إنشاء الفرع"}
+                    </button>
+                    <button
+                      className="btn sec2"
+                      disabled={nbBusy}
+                      onClick={() => {
+                        setShowAddBranch(false);
+                        setNbError(null);
+                      }}
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 

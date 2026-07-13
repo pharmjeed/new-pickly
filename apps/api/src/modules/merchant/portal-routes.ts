@@ -45,6 +45,24 @@ async function pruneProductGroups(
   }
 }
 
+/**
+ * كود دخول فريق الفرع (branch_code) — فريد عالمياً (docs/11§1).
+ * يُولَّد `br-` + 6 أحرف base36 ويُعاد المحاولة عند التصادم (احتمال ضئيل).
+ */
+async function generateBranchCode(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+): Promise<string> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const suffix = Array.from({ length: 6 }, () =>
+      "abcdefghijklmnopqrstuvwxyz0123456789".charAt(Math.floor(Math.random() * 36))
+    ).join("");
+    const code = `br-${suffix}`;
+    const clash = await tx.branch.findUnique({ where: { branch_code: code }, select: { id: true } });
+    if (!clash) return code;
+  }
+  throw new AppError("SYS-9004", { branch_code: "تعذّر توليد كود فرع فريد — أعد المحاولة" });
+}
+
 const ModifierGroupsSchema = z
   .array(
     z.object({
@@ -72,6 +90,8 @@ const ModifierGroupsSchema = z
 const MANAGER_ROLES = ["owner", "general_manager", "operations_manager", "branch_manager"] as const;
 /** هوية العلامة (الاسم/الشعار/الغلاف) تمس كل الفروع — المالك والمدير العام فقط */
 const BRAND_EDIT_ROLES = ["owner", "general_manager"] as const;
+/** إنشاء فرع = توسّع تنظيمي يمس العلامة كاملة — كامل النطاق فقط (المالك/المدير العام) */
+const BRANCH_CREATE_ROLES = ["owner", "general_manager"] as const;
 const MENU_ROLES = [...MANAGER_ROLES, "cashier"] as const; // الكاشير: توفر فرعه فقط
 const FINANCE_VIEW = ["owner", "general_manager", "finance"] as const;
 const REPORT_ROLES = [...MANAGER_ROLES, "finance", "analyst"] as const;
@@ -132,6 +152,27 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
     const id = req.claims?.merchant_id;
     if (!id) throw new AppError("MERCHANT-7003");
     return id;
+  };
+
+  /**
+   * نطاق الفرع للأدوار الإدارية: كامل النطاق (المالك/المدير العام) يديرون كل فروع تاجرهم —
+   * بما فيها فرع أُنشئ للتو ولم يدخل رمزهم بعد — مع تأكيد الملكية حفاظاً على العزل (BR-15).
+   * الأدوار المقيّدة بفروع تبقى على فحص الرمز (assertBranchScope).
+   */
+  const assertBranchAccess = async (
+    req: Parameters<typeof requireStaff>[0],
+    claims: JwtClaims,
+    branch_id: string
+  ): Promise<void> => {
+    if (hasFullScope(claims)) {
+      const owned = await prisma.branch.findFirst({
+        where: { id: branch_id, merchant_id: merchantIdOf(req) },
+        select: { id: true }
+      });
+      if (!owned) throw new AppError("MERCHANT-7003");
+      return;
+    }
+    assertBranchScope(claims, branch_id);
   };
 
   /** M-01: لوحة اليوم — أرقام تشغيلية حية */
@@ -209,13 +250,153 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
   });
 
   /**
+   * M-03: إنشاء فرع جديد ذاتياً من بوابة التاجر — اسم/مدينة/عنوان + موقع من الخريطة.
+   * المنيو مرتبط بالعلامة فيرثه الفرع تلقائياً؛ `copy_menu_from_branch_id` يحدّد
+   * العلامة المصدر وينسخ حالة توفّر أصنافها إلى الفرع الجديد (docs/10§1، البنية كنمط السييد).
+   */
+  app.post("/branches", async (req) => {
+    const claims = requireStaff(req, BRANCH_CREATE_ROLES);
+    const merchant_id = merchantIdOf(req);
+    const body = z
+      .object({
+        name_ar: z.string().trim().min(2).max(80),
+        city: z.string().trim().min(2).max(60),
+        address_short: z.string().trim().min(2).max(160),
+        lat: z.number().min(-90).max(90),
+        lng: z.number().min(-180).max(180),
+        phone: z.string().trim().max(20).optional(),
+        prep_minutes: z.number().int().min(1).max(120).optional(),
+        // الفرع الذي تُنسخ منه العلامة (المنيو) وحالة التوفّر — اختياري
+        copy_menu_from_branch_id: UuidSchema.optional()
+      })
+      .parse(req.body);
+
+    // تحديد العلامة: من الفرع المصدر إن حُدّد، وإلا من فرع قائم، وإلا أول علامة للتاجر
+    let brand_id: string;
+    let sourceBranchId: string | null = null;
+    if (body.copy_menu_from_branch_id) {
+      const src = await prisma.branch.findFirst({
+        where: { id: body.copy_menu_from_branch_id, merchant_id },
+        select: { id: true, brand_id: true }
+      });
+      if (!src) throw new AppError("MERCHANT-7003");
+      brand_id = src.brand_id;
+      sourceBranchId = src.id;
+    } else {
+      const anyBranch = await prisma.branch.findFirst({ where: { merchant_id }, select: { brand_id: true } });
+      const brand = anyBranch
+        ? { id: anyBranch.brand_id }
+        : await prisma.brand.findFirst({ where: { merchant_id }, orderBy: { created_at: "asc" }, select: { id: true } });
+      if (!brand) throw new AppError("MERCHANT-7003", { brand: "لا توجد علامة تجارية لهذا التاجر بعد" });
+      brand_id = brand.id;
+    }
+
+    const prepMinutes = body.prep_minutes ?? 15;
+
+    const created = await prisma.$transaction(async (tx) => {
+      const branch_code = await generateBranchCode(tx);
+      const branch = await tx.branch.create({
+        data: {
+          merchant_id,
+          brand_id,
+          name_ar: body.name_ar,
+          branch_code,
+          city: body.city,
+          address_short: body.address_short,
+          lat: body.lat,
+          lng: body.lng,
+          phone: body.phone ?? null,
+          status: "open"
+        }
+      });
+
+      // location (PostGIS) — SQL خام لأن Prisma لا يدعم geography مباشرة (نمط السييد)
+      await tx.$executeRaw`
+        UPDATE branches
+        SET location = ST_SetSRID(ST_MakePoint(${body.lng}, ${body.lat}), 4326)::geography
+        WHERE id = ${branch.id}::uuid`;
+
+      await tx.branchPickupSettings.create({
+        data: { branch_id: branch.id, default_prep_minutes: prepMinutes }
+      });
+
+      // سياجا التنبيه والوصول الافتراضيان — يعملان بحساب المسافة في تدفق الوصول
+      await tx.geofence.createMany({
+        data: [
+          { branch_id: branch.id, kind: "alert", radius_m: 300 },
+          { branch_id: branch.id, kind: "arrival", radius_m: 100 }
+        ]
+      });
+
+      // ساعات العمل الافتراضية: يومياً 08:00–23:30
+      await tx.branchHour.createMany({
+        data: Array.from({ length: 7 }, (_, day) => ({
+          branch_id: branch.id,
+          day_of_week: day,
+          opens_at: "08:00",
+          closes_at: "23:30"
+        }))
+      });
+
+      // نسخ حالة توفّر الأصناف من الفرع المصدر (المنيو نفسه لأنهما بنفس العلامة)
+      if (sourceBranchId) {
+        const srcAvail = await tx.branchProductAvailability.findMany({
+          where: { branch_id: sourceBranchId },
+          select: { product_id: true, is_available: true }
+        });
+        if (srcAvail.length > 0) {
+          await tx.branchProductAvailability.createMany({
+            data: srcAvail.map((a) => ({
+              branch_id: branch.id,
+              product_id: a.product_id,
+              is_available: a.is_available
+            }))
+          });
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "branch_created",
+          entity_type: "branch",
+          entity_id: branch.id,
+          merchant_id,
+          branch_id: branch.id,
+          after: {
+            name_ar: body.name_ar,
+            branch_code,
+            copied_menu_from: sourceBranchId
+          } as never
+        }
+      });
+      return branch;
+    });
+
+    return {
+      id: created.id,
+      name_ar: created.name_ar,
+      branch_code: created.branch_code,
+      city: created.city,
+      status: created.status,
+      busy_message: created.busy_message,
+      address_short: created.address_short,
+      lat: created.lat,
+      lng: created.lng,
+      default_prep_minutes: prepMinutes,
+      service_target_seconds: 120
+    };
+  });
+
+  /**
    * «متوسط وقت تجهيز الطلب» — قرار المالك 2026-07-12: هذا الرقم هو الوقت المتوقع
    * الذي يُختم على كل طلب عند قبوله ويظهر للعميل — لا اختيار وقتٍ عند كل قبول.
    */
   app.post("/branches/:id/prep-minutes", async (req) => {
     const claims = requireStaff(req, MANAGER_ROLES);
     const branch_id = UuidSchema.parse((req.params as { id: string }).id);
-    assertBranchScope(claims, branch_id);
+    await assertBranchAccess(req, claims, branch_id);
     const body = z.object({ prep_minutes: z.number().int().min(1).max(120) }).parse(req.body);
 
     await prisma.$transaction(async (tx) => {
@@ -255,14 +436,15 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
       include: { branch: { select: { merchant_id: true } } }
     });
     if (!spot || spot.branch.merchant_id !== merchantIdOf(req)) throw new AppError("MERCHANT-7003");
-    assertBranchScope(claims, spot.branch_id);
+    // الملكية مؤكدة أعلاه؛ كامل النطاق يمرّ، والأدوار المقيّدة تُفحص برمزها
+    if (!hasFullScope(claims)) assertBranchScope(claims, spot.branch_id);
     return spot;
   };
 
   app.get("/branches/:id/parking-spots", async (req) => {
     const claims = requireStaff(req, MANAGER_ROLES);
     const branch_id = UuidSchema.parse((req.params as { id: string }).id);
-    assertBranchScope(claims, branch_id);
+    await assertBranchAccess(req, claims, branch_id);
     await ownedBranch(merchantIdOf(req), branch_id);
     const spots = await prisma.parkingSpot.findMany({
       where: { branch_id },
@@ -274,7 +456,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
   app.post("/branches/:id/parking-spots", async (req) => {
     const claims = requireStaff(req, MANAGER_ROLES);
     const branch_id = UuidSchema.parse((req.params as { id: string }).id);
-    assertBranchScope(claims, branch_id);
+    await assertBranchAccess(req, claims, branch_id);
     const body = z
       .object({
         label: z.string().trim().min(1).max(40),
