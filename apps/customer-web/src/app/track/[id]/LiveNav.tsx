@@ -154,7 +154,8 @@ export default function LiveNav({ target, onClose }: { target: NavTarget; onClos
       fetchingRef.current = true;
       try {
         const L = await import("leaflet");
-        const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${target.lng},${target.lat}?overview=full&geometries=geojson&steps=true`;
+        // محرك المسارات الذاتي (OSRM على السيرفر) عبر بروكسي /osrm — نفس الأصل، بلا حدود demo
+        const url = `/osrm/route/v1/driving/${fromLng},${fromLat};${target.lng},${target.lat}?overview=full&geometries=geojson&steps=true`;
         const j = (await fetch(url).then((r) => r.json())) as {
           routes?: Array<{
             distance: number;

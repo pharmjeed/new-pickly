@@ -68,6 +68,16 @@ services:
       postgres:
         condition: service_healthy
 
+  # محرك المسارات الذاتي — خريطة السعودية معالَجة مسبقاً في volume osrmdata (MLD)
+  # يخدم /route,/nearest,... على المنفذ 5000 داخلياً؛ العميل يصله عبر بروكسي /osrm
+  osrm:
+    # صورة ghcr متعددة المعمارية (تدعم arm64 لسيرفرات Ampere) — الرسمية osrm/osrm-backend x86 فقط
+    image: ghcr.io/project-osrm/osrm-backend:latest
+    restart: unless-stopped
+    command: osrm-routed --algorithm mld --max-table-size 8000 /data/saudi.osrm
+    volumes:
+      - osrmdata:/data
+
   customer-web:
     build:
       context: ../..
@@ -76,9 +86,10 @@ services:
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://api:4000
+      OSRM_INTERNAL_URL: http://osrm:5000
       PORT: "3000"
     ports: ["3000:3000"]
-    depends_on: [api]
+    depends_on: [api, osrm]
 
   merchant-web:
     build:
@@ -145,3 +156,4 @@ volumes:
   redisdata:
   caddydata:
   caddyconfig:
+  osrmdata:

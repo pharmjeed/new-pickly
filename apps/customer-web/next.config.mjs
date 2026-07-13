@@ -7,6 +7,11 @@ const nextConfig = {
       {
         source: "/api/:path*",
         destination: `${process.env.API_INTERNAL_URL ?? "http://localhost:4000"}/:path*`
+      },
+      {
+        // بروكسي محرك المسارات الذاتي OSRM — نفس الأصل (بلا CORS)، داخلياً لخدمة osrm:5000
+        source: "/osrm/:path*",
+        destination: `${process.env.OSRM_INTERNAL_URL ?? "http://localhost:5000"}/:path*`
       }
     ];
   }

@@ -189,7 +189,8 @@ export default function SpotsMap({
     void (async () => {
       try {
         const L = await import("leaflet");
-        const url = `https://router.project-osrm.org/route/v1/driving/${oLng},${oLat};${tLng},${tLat}?overview=full&geometries=geojson`;
+        // محرك المسارات الذاتي (OSRM على السيرفر) عبر بروكسي /osrm — نفس الأصل
+        const url = `/osrm/route/v1/driving/${oLng},${oLat};${tLng},${tLat}?overview=full&geometries=geojson`;
         const j = (await fetch(url).then((r) => r.json())) as {
           routes?: Array<{ distance: number; duration: number; geometry: { coordinates: [number, number][] } }>;
         };
