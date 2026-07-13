@@ -7,6 +7,8 @@ ARG APP
 ARG PORT=3000
 # Next.js يثبّت rewrites وقت البناء في routes-manifest — لذا العنوان لازم وقت البناء
 ARG API_INTERNAL_URL=http://api:4000
+# محرك المسارات الذاتي — بروكسي /osrm في customer-web (بقية التطبيقات لا تستخدمه)
+ARG OSRM_INTERNAL_URL=http://osrm:5000
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages ./packages
@@ -14,6 +16,7 @@ COPY apps/${APP} ./apps/${APP}
 RUN pnpm install --frozen-lockfile --filter @pickly/${APP}...
 
 ENV API_INTERNAL_URL=${API_INTERNAL_URL}
+ENV OSRM_INTERNAL_URL=${OSRM_INTERNAL_URL}
 RUN pnpm --filter @pickly/${APP} build
 
 ENV NODE_ENV=production

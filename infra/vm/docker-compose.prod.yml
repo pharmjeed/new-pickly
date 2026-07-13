@@ -82,7 +82,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/vm/Dockerfile.web
-      args: { APP: customer-web, PORT: 3000, API_INTERNAL_URL: "http://api:4000" }
+      args: { APP: customer-web, PORT: 3000, API_INTERNAL_URL: "http://api:4000", OSRM_INTERNAL_URL: "http://osrm:5000" }
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://api:4000
