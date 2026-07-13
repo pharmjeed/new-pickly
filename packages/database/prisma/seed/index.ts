@@ -507,7 +507,8 @@ async function main() {
     ownerName: "عبدالله الحربي",
     branches: [
       { name: "بيست برجر — العليا", code: "BB-OLAYA", city: "الرياض", address: "شارع العليا العام", lat: 24.6949, lng: 46.6853, spots: ["1", "2", "3", "4", "أمام المدخل"] },
-      { name: "بيست برجر — النخيل", code: "BB-NAKHEEL", city: "الرياض", address: "طريق الملك سلمان، النخيل", lat: 24.7565, lng: 46.6288, spots: ["1", "2", "3"] }
+      { name: "بيست برجر — النخيل", code: "BB-NAKHEEL", city: "الرياض", address: "طريق الملك سلمان، النخيل", lat: 24.7565, lng: 46.6288, spots: ["1", "2", "3"] },
+      { name: "بيست برجر — قباء", code: "BB-MED-QUBA", city: "المدينة المنورة", address: "طريق قباء", lat: 24.4410, lng: 39.6180, spots: ["1", "2", "3", "أمام المدخل"] }
     ],
     menu: [
       {
@@ -556,7 +557,8 @@ async function main() {
     ownerName: "خالد القحطاني",
     branches: [
       { name: "الديوان — الملز", code: "DW-MALAZ", city: "الرياض", address: "شارع الستين، الملز", lat: 24.6664, lng: 46.7398, spots: ["1", "2", "أمام المدخل"] },
-      { name: "الديوان — الحمراء", code: "DW-HAMRA", city: "جدة", address: "طريق الأمير سلطان، الحمراء", lat: 21.5433, lng: 39.1728, spots: ["1", "2", "3", "4"] }
+      { name: "الديوان — الحمراء", code: "DW-HAMRA", city: "جدة", address: "طريق الأمير سلطان، الحمراء", lat: 21.5433, lng: 39.1728, spots: ["1", "2", "3", "4"] },
+      { name: "الديوان — العزيزية", code: "DW-MED-AZIZIYAH", city: "المدينة المنورة", address: "شارع العزيزية", lat: 24.4555, lng: 39.6320, spots: ["1", "2", "3", "أمام المدخل"] }
     ],
     menu: [
       {
@@ -599,7 +601,8 @@ async function main() {
     ownerName: "ريم العنزي",
     branches: [
       { name: "سحابة — حطين", code: "SA-HITTEEN", city: "الرياض", address: "بوليفارد حطين", lat: 24.7748, lng: 46.5987, spots: ["1", "2", "3"] },
-      { name: "سحابة — الشاطئ", code: "SA-SHATEA", city: "الدمام", address: "كورنيش الشاطئ الغربي", lat: 26.4498, lng: 50.0891, spots: ["1", "2"] }
+      { name: "سحابة — الشاطئ", code: "SA-SHATEA", city: "الدمام", address: "كورنيش الشاطئ الغربي", lat: 26.4498, lng: 50.0891, spots: ["1", "2"] },
+      { name: "سحابة — سلطانة", code: "SA-MED-SULTANAH", city: "المدينة المنورة", address: "شارع سلطانة", lat: 24.4760, lng: 39.5900, spots: ["1", "2", "أمام المدخل"] }
     ],
     menu: [
       {
