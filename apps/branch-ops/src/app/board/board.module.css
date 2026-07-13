@@ -175,6 +175,15 @@
 }
 /* تجاوز زمن الخدمة المستهدف (BR-9) */
 .acardOver { border-color: var(--pk-st-overdue); background: var(--pk-st-overdue-bg); }
+/* واصل وطلبه جاهز — يومض أحمر يلفت الموظف للتسليم فوراً */
+.acardReady {
+  border-color: #e53935;
+  animation: acardReadyBlink 1s ease-in-out infinite;
+}
+@keyframes acardReadyBlink {
+  0%, 100% { background: var(--pk-white); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
+  50% { background: rgba(229, 57, 53, 0.14); box-shadow: 0 0 0 4px rgba(229, 57, 53, 0.35); }
+}
 .acardHd { display: flex; align-items: center; gap: 8px; }
 .aPos {
   font-family: var(--pk-font-display);

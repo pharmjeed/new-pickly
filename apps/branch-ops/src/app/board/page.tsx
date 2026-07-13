@@ -38,6 +38,12 @@ interface Card {
 
 /** رحلة العميل قبل الوصول — التجهيز يستمر موازياً لها بالحقائق (preparing_at/ready_at) */
 const EN_ROUTE = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
+/**
+ * رحلة موازية للتجهيز: في الطريق أو وصل أو بدأ تسليمه. تظهر البطاقة في عمود تجهيزها
+ * بحقيقة الجاهزية (ready_at) — إعلان الوصول لا يزيح الطلب عن «قيد التحضير»/«جاهزة»
+ * (مفصول تماماً عن حالة الفرع — قرار المالك). التسليم كله من العمود الجانبي «وصلوا».
+ */
+const JOURNEY_PARALLEL = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY", "CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"];
 
 interface QueueEntry {
   order_id: string;
@@ -608,11 +614,14 @@ export default function BoardPage() {
                     </button>
                   )}
                   {/* العميل سبق التجهيز (docs/05§3): التحضير يستمر موازياً — لا بطاقة بلا زر.
-                      الواصلون لا يظهرون هنا — بطاقاتهم في العمود الجانبي «وصلوا» بأزرار التسليم */}
-                  {EN_ROUTE.includes(c.order_status) && !c.ready_at && (
+                      الوصول مفصول عن حالة الفرع: الواصل يبقى في عمود تجهيزه هنا (بحقيقة الجاهزية)
+                      ويظهر إضافةً في العمود الجانبي «وصلوا» حيث يتم التسليم (BR-9) */}
+                  {JOURNEY_PARALLEL.includes(c.order_status) && !c.ready_at && (
                     <>
                       <span className={s.prepOk} data-testid="journey-badge">
-                        🚗 العميل في الطريق — جهّزوا على وصوله
+                        {EN_ROUTE.includes(c.order_status)
+                          ? "🚗 العميل في الطريق — جهّزوا على وصوله"
+                          : "🚘 العميل وصل — جهّزوا وسلّموه من «وصلوا»"}
                       </span>
                       {/* زر واحد «جاهز» — الخدمة تختم preparing_at آلياً إن لم يسبق تسجيله */}
                       <button
@@ -624,9 +633,11 @@ export default function BoardPage() {
                       </button>
                     </>
                   )}
-                  {EN_ROUTE.includes(c.order_status) && c.ready_at && (
+                  {JOURNEY_PARALLEL.includes(c.order_status) && c.ready_at && (
                     <span className={s.prepOk} data-testid="ready-en-route">
-                      ✓ جاهز — العميل في الطريق
+                      {EN_ROUTE.includes(c.order_status)
+                        ? "✓ جاهز — العميل في الطريق"
+                        : "✓ جاهز — العميل وصل، سلّموه من «وصلوا»"}
                     </span>
                   )}
                   {c.order_status === "COMPLETED" && <span className={s.done}>تم التسليم ✓</span>}
@@ -667,10 +678,16 @@ export default function BoardPage() {
 
             {arrivedSorted.map((c) => {
               const q = queueByOrder.get(c.id);
+              // واصل وطلبه جاهز = قابل للتسليم فوراً — البطاقة تومض أحمر تلفت الموظف
+              const deliverable =
+                !!c.ready_at &&
+                (c.order_status === "CUSTOMER_ARRIVED" || c.order_status === "HANDOFF_IN_PROGRESS");
               return (
                 <article
                   key={c.id}
-                  className={`${s.acard} ${q?.service_target_exceeded ? s.acardOver : ""}`}
+                  className={`${s.acard} ${q?.service_target_exceeded ? s.acardOver : ""} ${
+                    deliverable ? s.acardReady : ""
+                  }`}
                   data-testid="arrived-card"
                 >
                   <div className={s.acardHd}>
