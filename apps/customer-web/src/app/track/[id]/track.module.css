@@ -573,6 +573,19 @@
   color: var(--pk-warn);
 }
 
+/* الرسالة المطمئنة تحت القدر — تتبدّل بالتلاشي مثل رسائل شاشة الانتظار */
+.prepMsg {
+  min-height: 1.5em;
+  transition: opacity var(--pk-dur) var(--pk-ease), transform var(--pk-dur) var(--pk-ease);
+}
+.prepMsgOut {
+  opacity: 0;
+  transform: translateY(6px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .prepMsg { transition: none; }
+}
+
 /* ===== زر «الاتجاه للمطعم» ===== */
 .mapsBtn {
   display: flex;

@@ -94,6 +94,14 @@ const WAIT_MSGS = [
   "عادةً يُقبل الطلب خلال دقيقة",
   "فور القبول يبدأ عدّاد التجهيز"
 ];
+/** رسائل مطمئنة تتبدّل بالتلاشي تحت القدر أثناء التجهيز */
+const PREP_MSGS = [
+  "حتى جاهزية طلبك تقريباً",
+  "نطبخه لك طازجاً الآن",
+  "نار هادئة… ونكهة تنضج",
+  "المطعم يجهّزه بعناية",
+  "قربت تجهز — خلّك مستعد"
+];
 
 /** موقف استلام يخدمه الفرع — يحدده المطعم من بوابته (مع نقطته على الخريطة) والعميل يختار منها فقط */
 interface BranchSpot {
@@ -257,6 +265,21 @@ export default function TrackPage() {
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
+
+  // الرسالة المطمئنة تحت القدر تتبدّل بالتلاشي (نفس نبض شاشة الانتظار) — تتوقف مع تقليل الحركة
+  const [prepMsgIdx, setPrepMsgIdx] = useState(0);
+  const [prepMsgOut, setPrepMsgOut] = useState(false);
+  useEffect(() => {
+    if (!prepCountdownOn || reduceMotion) return;
+    const t = setInterval(() => {
+      setPrepMsgOut(true);
+      setTimeout(() => {
+        setPrepMsgIdx((i) => (i + 1) % PREP_MSGS.length);
+        setPrepMsgOut(false);
+      }, 220);
+    }, 3400);
+    return () => clearInterval(t);
+  }, [prepCountdownOn, reduceMotion]);
 
   // بوابة «وصلت»: نراقب موقع العميل أثناء الحالات القابلة للوصول فقط (docs/17 — الموقع أثناء الطلب النشط فقط)
   const canArriveNow = ARRIVABLE_STATES.includes(order?.order_status ?? "");
@@ -544,8 +567,8 @@ export default function TrackPage() {
                     <b>{overtime ? "جاهز تقريباً" : `${mm}:${String(ss).padStart(2, "0")}`}</b>
                   </div>
                 </div>
-                <p className="pk-muted">
-                  {overtime ? "أطول من المتوقع بقليل — يوشك على الجهوز" : "حتى جاهزية طلبك تقريباً"}
+                <p className={`pk-muted ${s.prepMsg} ${prepMsgOut ? s.prepMsgOut : ""}`}>
+                  {overtime ? "أطول من المتوقع بقليل — يوشك على الجهوز" : PREP_MSGS[prepMsgIdx]}
                 </p>
                 <p className="pk-muted">الوقت المتوقع ~{order.prep_minutes} دقيقة — حدده المطعم عند القبول</p>
               </div>
