@@ -62,7 +62,7 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   PAYMENT_FAILED: { step: "SUBMITTED", title: "ما تمّ الدفع", sub: "جرّب بطاقة ثانية — طلبك محفوظ" },
   ORDER_SUBMITTED: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم" },
   MERCHANT_PENDING: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم" },
-  MERCHANT_ACCEPTED: { step: "ACCEPTED", title: "قيد التجهيز", sub: "قبل المطعم طلبك — بدأ تجهيزه الآن" },
+  MERCHANT_ACCEPTED: { step: "PREPARING", title: "قيد التجهيز", sub: "قبل المطعم طلبك — بدأ تجهيزه الآن" },
   MERCHANT_REJECTED: { step: "SUBMITTED", title: "نعتذر — ما قدر المطعم يستقبل طلبك", sub: "مبلغك يرجع لك كاملاً" },
   PREPARING: { step: "PREPARING", title: "قيد التجهيز", sub: "خلّك مستعد للانطلاق" },
   READY: { step: "READY", title: "طلبك جاهز", sub: "خلّك في سيارتك، الباقي علينا" },

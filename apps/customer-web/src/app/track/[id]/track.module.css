@@ -54,37 +54,42 @@
 .stepDone:not(:last-child)::before {
   transform: scaleX(1);
 }
+/* كل نقطة تم الوصول لها تبقى متوهجة + ومضة قوية لحظة اكتمالها */
 .stepDone .dot {
   background: var(--pk-success);
-  animation: dotDone 0.45s ease;
+  box-shadow: 0 0 7px 1px var(--pk-success);
+  animation: dotDone 0.6s ease;
 }
 .stepCur .dot {
   background: var(--pk-lime-500);
   outline: 4px solid var(--pk-lime-100);
   color: var(--pk-ink-900);
-  animation: dotPulse 1.8s ease-out infinite;
+  animation: dotPulse 1.5s ease-out infinite;
 }
-/* دفعة احتفالية للحظة انتقال الطلب لمرحلة جديدة (لمرة واحدة) */
+/* دفعة احتفالية قوية للحظة انتقال الطلب لمرحلة جديدة (لمرة واحدة) */
 .stepBurst .dot {
-  animation: dotBurst 0.9s cubic-bezier(0.2, 0.9, 0.25, 1);
+  animation: dotBurst 1s cubic-bezier(0.2, 0.9, 0.25, 1);
 }
 @keyframes dotDone {
   0% {
     transform: scale(1);
+    box-shadow: 0 0 0 0 var(--pk-success);
   }
-  40% {
-    transform: scale(1.35);
+  35% {
+    transform: scale(1.6);
+    box-shadow: 0 0 0 10px transparent;
   }
   100% {
     transform: scale(1);
+    box-shadow: 0 0 7px 1px var(--pk-success);
   }
 }
 @keyframes dotPulse {
   0% {
-    box-shadow: 0 0 0 0 var(--pk-lime-100);
+    box-shadow: 0 0 0 0 var(--pk-lime-500);
   }
   70% {
-    box-shadow: 0 0 0 9px transparent;
+    box-shadow: 0 0 0 13px transparent;
   }
   100% {
     box-shadow: 0 0 0 0 transparent;
@@ -92,16 +97,19 @@
 }
 @keyframes dotBurst {
   0% {
-    transform: scale(0.6);
+    transform: scale(0.5);
+    box-shadow: 0 0 0 0 var(--pk-lime-500);
   }
-  45% {
-    transform: scale(1.45);
+  40% {
+    transform: scale(1.75);
+    box-shadow: 0 0 0 16px transparent;
   }
-  70% {
-    transform: scale(0.92);
+  65% {
+    transform: scale(0.9);
   }
   100% {
     transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 /* عنوان الحالة ينزلق للأعلى عند كل تغيّر */
