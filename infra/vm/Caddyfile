@@ -1,0 +1,28 @@
+# Pickly — بوابة HTTPS تلقائية عبر sslip.io (تحلّ إلى 193.122.83.224)
+# HTTPS إلزامي كي يسمح المتصفح بتحديد الموقع (geolocation) على الأجهزة.
+# Caddy يجلب شهادة Let's Encrypt لكل مضيف تلقائياً (تحدي HTTP-01 على المنفذ 80).
+
+# واجهة العميل — النطاق الرئيسي
+193-122-83-224.sslip.io {
+	reverse_proxy customer-web:3000
+}
+
+# بوابة التاجر
+merchant.193-122-83-224.sslip.io {
+	reverse_proxy merchant-web:3001
+}
+
+# تشغيل الفرع
+branch.193-122-83-224.sslip.io {
+	reverse_proxy branch-ops:3002
+}
+
+# لوحة السوبر أدمن
+admin.193-122-83-224.sslip.io {
+	reverse_proxy admin-web:3003
+}
+
+# الموقع التعريفي
+site.193-122-83-224.sslip.io {
+	reverse_proxy site:3004
+}

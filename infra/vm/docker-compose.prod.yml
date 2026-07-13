@@ -126,6 +126,22 @@ services:
       PORT: "3004"
     ports: ["3004:3004"]
 
+  # بوابة HTTPS — Caddy يصدر شهادات Let's Encrypt تلقائياً لأسماء sslip.io
+  # (تحلّ كلها إلى 193.122.83.224). يلزم HTTPS كي يسمح المتصفح بتحديد الموقع.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on: [customer-web, merchant-web, branch-ops, admin-web, site]
+
 volumes:
   pgdata:
   redisdata:
+  caddydata:
+  caddyconfig:
