@@ -359,8 +359,9 @@ export default function TrackPage() {
   const view = journeyBeforeReady
     ? {
         ...baseView,
-        // الشريط لا يتقدم لـ«جاهز للاستلام» قبل ضغطة المطعم «جاهز» — الخطوة الصادقة «قيد التجهيز»
-        step: order.order_status === "CUSTOMER_ARRIVED" ? baseView.step : "PREPARING",
+        // الشريط لا يتقدم لـ«جاهز للاستلام» قبل ضغطة المطعم «جاهز» — الخطوة الصادقة «قيد التجهيز».
+        // حتى بعد تأكيد العميل «وصلت»: الوصول ليس جاهزية؛ نبضة الرصد تعرض الوصول منفصلاً.
+        step: "PREPARING",
         sub:
           order.order_status === "CUSTOMER_ARRIVED"
             ? "طلبك يُجهَّز الآن — نطلع لك فور جاهزيته"
