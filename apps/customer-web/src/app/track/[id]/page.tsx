@@ -226,7 +226,7 @@ export default function TrackPage() {
     return () => clearTimeout(t);
   }, [status]);
 
-  // ساعة حية للعدّاد التنازلي — تدق فقط أثناء التجهيز قبل الجاهزية
+  // ساعة حية للعدّاد التنازلي — تدق أثناء التجهيز، وكذلك بعد وصول العميل مبكراً قبل الجاهزية
   const prepCountdownOn = Boolean(
     order &&
       ["MERCHANT_ACCEPTED", "PREPARING"].includes(order.order_status) &&
@@ -234,13 +234,19 @@ export default function TrackPage() {
       order.accepted_at &&
       !order.ready_at
   );
+  // وصل العميل (تأكيد يدوي بالسحب) قبل أن يعلن المطعم «جاهز» — نطمئنه بعدّاد «على وشك» ونُخفي الخريطة
+  const arrivedBeforeReady = Boolean(
+    order && order.order_status === "CUSTOMER_ARRIVED" && !order.ready_at
+  );
+  // العدّاد الحي يدق في الحالتين — التجهيز أو الوصول المبكر — ما دام لدينا مرساة القبول والوقت
+  const liveClockOn = prepCountdownOn || arrivedBeforeReady;
   const [nowTs, setNowTs] = useState(() => Date.now());
   useEffect(() => {
-    if (!prepCountdownOn) return;
+    if (!liveClockOn) return;
     setNowTs(Date.now());
     const t = setInterval(() => setNowTs(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [prepCountdownOn]);
+  }, [liveClockOn]);
 
   // لحظة الجاهزية — يحلّ «كيس بيكلي» المربوط محلّ القدر فور ضغطة المطعم «جاهز» وقبل الاكتمال
   const readyMoment = Boolean(
@@ -417,8 +423,8 @@ export default function TrackPage() {
           })}
         </div>
 
-        {/* نبضة «تم رصد وصولك» — الاحتفالية الوحيدة (C-46/C-47) */}
-        {order.order_status === "CUSTOMER_ARRIVED" && (
+        {/* نبضة «تم رصد وصولك» — تُعرض مع لحظة الجاهزية؛ الوصول المبكر يعرض عدّاد «على وشك» بدلها */}
+        {order.order_status === "CUSTOMER_ARRIVED" && !arrivedBeforeReady && (
           <div className={s.pulseWrap}>
             <div className={s.pulseIcon}><IconRadar /></div>
           </div>
@@ -491,6 +497,55 @@ export default function TrackPage() {
             <p className={`pk-muted ${s.prepMsg} ${readyMsgOut ? s.prepMsgOut : ""}`}>
               {READY_MSGS[readyMsgIdx]}
             </p>
+          </div>
+        ) : arrivedBeforeReady && order.prep_minutes !== null && order.accepted_at ? (
+          (() => {
+            // عدّاد «على وشك» بعد الوصول المبكر — نفس مرساة القبول ومتوسط وقت التجهيز، معروضاً كحلقة تتقلص مع الوقت
+            const totalMs = order.prep_minutes * 60_000;
+            const leftMs = new Date(order.accepted_at).getTime() + totalMs - nowTs;
+            const overtime = leftMs <= 0;
+            const shown = Math.max(leftMs, 0);
+            const mm = Math.floor(shown / 60_000);
+            const ss = Math.floor((shown % 60_000) / 1000);
+            const frac = Math.min(Math.max(shown / totalMs, 0), 1); // نسبة الوقت المتبقي
+            const R = 52;
+            const CIRC = 2 * Math.PI * R;
+            const offset = overtime ? 0 : CIRC * (1 - frac); // الحلقة تتقلص مع تناقص الوقت
+            return (
+              <div className={`pk-card ${s.arriveCard}`} data-testid="arrived-countdown">
+                <p style={{ fontWeight: 700 }}>{overtime ? "اللمسات الأخيرة على طلبك" : "طلبك على وشك الجهوز"}</p>
+                <div className={s.cdRingWrap}>
+                  <svg viewBox="0 0 126 126" className={s.cdRing} aria-hidden="true">
+                    <circle cx="63" cy="63" r="52" fill="none" stroke="var(--pk-lime-100)" strokeWidth="10" />
+                    <circle
+                      cx="63"
+                      cy="63"
+                      r="52"
+                      fill="none"
+                      stroke={overtime ? "var(--pk-warn)" : "var(--pk-lime-500)"}
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeDasharray={CIRC}
+                      strokeDashoffset={offset}
+                      transform="rotate(-90 63 63)"
+                      style={{ transition: reduceMotion ? "none" : "stroke-dashoffset 1s linear" }}
+                    />
+                  </svg>
+                  <div className={s.cdNum}>
+                    <b>{overtime ? "جاهز تقريباً" : `${mm}:${String(ss).padStart(2, "0")}`}</b>
+                    <span>حتى الجهوز تقريباً</span>
+                  </div>
+                </div>
+                <span className="pk-badge ok" data-testid="arrival-ack">أبلغنا المطعم بوصولك ✓</span>
+              </div>
+            );
+          })()
+        ) : arrivedBeforeReady ? (
+          /* وصل مبكراً بلا مرساة وقت (طلب قديم) — نكتفي بتأكيد الإبلاغ والطمأنة */
+          <div className={`pk-card ${s.arriveCard}`} data-testid="arrived-countdown">
+            <p style={{ fontWeight: 700 }}>طلبك على وشك الجهوز</p>
+            <p className="pk-muted" style={{ marginTop: 4, marginBottom: 10 }}>المطعم يُنهي تجهيزه — نطلع لك فور جهوزه</p>
+            <span className="pk-badge ok" data-testid="arrival-ack">أبلغنا المطعم بوصولك ✓</span>
           </div>
         ) : prepCountdownOn && order.prep_minutes !== null && order.accepted_at ? (
           (() => {
@@ -632,23 +687,25 @@ export default function TrackPage() {
           const destLabel = meetingSpot?.label ?? order.brand_name_ar;
           return (
             <>
-              {/* الملاحة الحيّة تحلّ محلّ الخريطة في مكانها وبحجمها نفسه — بلا تكبير ملء الشاشة */}
-              {navOpen ? (
-                <LiveNav
-                  inline
-                  target={{ lat: destLat, lng: destLng, label: destLabel }}
-                  onClose={() => setNavOpen(false)}
-                />
-              ) : (
-                /* خريطة تفاعلية: نقطة الالتقاء 🏁 + موقع العميل الحيّ + مسار الطريق — كله داخل التطبيق */
-                (canStart || driveMode || arrived) && (
-                  <SpotsMap
+              {/* الخريطة/الملاحة تختفيان فور تأكيد الوصول — يحلّ محلّهما عدّاد «على وشك» (المعتمد 2026-07-13) */}
+              {!arrived &&
+                (navOpen ? (
+                  /* الملاحة الحيّة تحلّ محلّ الخريطة في مكانها وبحجمها نفسه — بلا تكبير ملء الشاشة */
+                  <LiveNav
+                    inline
                     target={{ lat: destLat, lng: destLng, label: destLabel }}
-                    me={coords}
-                    radiusM={order.arrival_radius_m}
+                    onClose={() => setNavOpen(false)}
                   />
-                )
-              )}
+                ) : (
+                  /* خريطة تفاعلية: نقطة الالتقاء 🏁 + موقع العميل الحيّ + مسار الطريق — كله داخل التطبيق */
+                  (canStart || driveMode) && (
+                    <SpotsMap
+                      target={{ lat: destLat, lng: destLng, label: destLabel }}
+                      me={coords}
+                      radiusM={order.arrival_radius_m}
+                    />
+                  )
+                ))}
 
               {/* زر الملاحة الحيّة داخل التطبيق (نمط أوبر/كريم) — خريطة تتبعك + توجيه صوتي */}
               {(canStart || driveMode) && !navOpen && (
