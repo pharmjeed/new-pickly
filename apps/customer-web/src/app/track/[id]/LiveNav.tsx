@@ -107,7 +107,7 @@ function destPinHtml(label: string): string {
 
 type Pos = { lat: number; lng: number; heading: number | null };
 
-export default function LiveNav({ target, onClose }: { target: NavTarget; onClose: () => void }) {
+export default function LiveNav({ target, onClose, inline = false }: { target: NavTarget; onClose: () => void; inline?: boolean }) {
   const holder = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const meRef = useRef<Marker | null>(null);
@@ -355,9 +355,15 @@ export default function LiveNav({ target, onClose }: { target: NavTarget; onClos
       : null;
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "#0b1a13", display: "flex", flexDirection: "column" }}>
+    <div
+      style={
+        inline
+          ? { position: "relative", marginBottom: 12, borderRadius: 16, overflow: "hidden", border: "1px solid var(--pk-border)", background: "#0b1a13", display: "flex", flexDirection: "column" }
+          : { position: "fixed", inset: 0, zIndex: 3000, background: "#0b1a13", display: "flex", flexDirection: "column" }
+      }
+    >
       {/* شريط المناورة العلوي */}
-      <div style={{ background: "#10241B", color: "#fff", padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 2px 12px rgba(0,0,0,.4)" }}>
+      <div style={{ background: "#10241B", color: "#fff", padding: inline ? "10px 14px" : "14px 16px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 2px 12px rgba(0,0,0,.4)" }}>
         <div style={{ fontSize: 34, lineHeight: 1, color: "#C9F339", minWidth: 40, textAlign: "center" }}>
           {banner ? banner.arrow : "🧭"}
         </div>
@@ -375,7 +381,7 @@ export default function LiveNav({ target, onClose }: { target: NavTarget; onClos
       </div>
 
       {/* الخريطة */}
-      <div style={{ position: "relative", flex: 1 }}>
+      <div style={{ position: "relative", ...(inline ? { height: 240 } : { flex: 1 }) }}>
         <div ref={holder} data-testid="live-nav-map" style={{ position: "absolute", inset: 0 }} />
         {!follow && status === "go" && !arrived && (
           <button

@@ -632,17 +632,26 @@ export default function TrackPage() {
           const destLabel = meetingSpot?.label ?? order.brand_name_ar;
           return (
             <>
-              {/* خريطة تفاعلية: نقطة الالتقاء 🏁 + موقع العميل الحيّ + مسار الطريق — كله داخل التطبيق */}
-              {(canStart || driveMode || arrived) && (
-                <SpotsMap
+              {/* الملاحة الحيّة تحلّ محلّ الخريطة في مكانها وبحجمها نفسه — بلا تكبير ملء الشاشة */}
+              {navOpen ? (
+                <LiveNav
+                  inline
                   target={{ lat: destLat, lng: destLng, label: destLabel }}
-                  me={coords}
-                  radiusM={order.arrival_radius_m}
+                  onClose={() => setNavOpen(false)}
                 />
+              ) : (
+                /* خريطة تفاعلية: نقطة الالتقاء 🏁 + موقع العميل الحيّ + مسار الطريق — كله داخل التطبيق */
+                (canStart || driveMode || arrived) && (
+                  <SpotsMap
+                    target={{ lat: destLat, lng: destLng, label: destLabel }}
+                    me={coords}
+                    radiusM={order.arrival_radius_m}
+                  />
+                )
               )}
 
               {/* زر الملاحة الحيّة داخل التطبيق (نمط أوبر/كريم) — خريطة تتبعك + توجيه صوتي */}
-              {(canStart || driveMode) && (
+              {(canStart || driveMode) && !navOpen && (
                 <button
                   type="button"
                   className={s.mapsBtn}
@@ -680,13 +689,6 @@ export default function TrackPage() {
                 </a>
               )}
 
-              {/* وضع الملاحة الحيّة ملء الشاشة */}
-              {navOpen && (
-                <LiveNav
-                  target={{ lat: destLat, lng: destLng, label: destLabel }}
-                  onClose={() => setNavOpen(false)}
-                />
-              )}
             </>
           );
         })()}
