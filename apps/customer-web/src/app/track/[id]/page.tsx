@@ -357,23 +357,44 @@ export default function TrackPage() {
             const shown = Math.max(leftMs, 0);
             const mm = Math.floor(shown / 60_000);
             const ss = Math.floor((shown % 60_000) / 1000);
-            const C = 402.1; // محيط الحلقة r=64
             const frac = Math.min(Math.max(shown / totalMs, 0), 1);
+            const cook = overtime ? 1 : 1 - frac;      // نسبة اكتمال الطبخ
+            const liquidFrac = 0.3 + 0.7 * cook;       // القدر يمتلئ كلما نضج الطلب
+            const liquidTop = 120 - 52 * liquidFrac;   // 120 قاع الداخل · 52 ارتفاعه
             return (
               <div className={`pk-card ${s.prepCard} ${overtime ? s.prepOvertime : ""}`} data-testid="prep-expected">
                 <p style={{ fontWeight: 700 }}>طلبك على النار الآن</p>
                 <div className={s.prepRingWrap}>
-                  <svg width="148" height="148" viewBox="0 0 148 148" fill="none">
-                    <circle className={s.prepTrack} cx="74" cy="74" r="64" strokeWidth="9" />
-                    <circle
-                      className={s.prepFill}
-                      cx="74"
-                      cy="74"
-                      r="64"
-                      strokeWidth="9"
-                      strokeDasharray={C}
-                      strokeDashoffset={C * (1 - frac)}
-                    />
+                  <svg width="148" height="148" viewBox="0 0 148 148" fill="none" className={s.pot}>
+                    {/* بخار يتصاعد من القدر */}
+                    <g className={s.potSteam}>
+                      <path className={s.steamA} d="M60 44 q-6 -7 0 -14 q6 -7 0 -14" />
+                      <path className={s.steamB} d="M74 42 q-6 -7 0 -14 q6 -7 0 -14" />
+                      <path className={s.steamC} d="M88 44 q-6 -7 0 -14 q6 -7 0 -14" />
+                    </g>
+                    <defs>
+                      <clipPath id="pk-pot-clip">
+                        <path d="M34 66 H114 L108 118 Q108 122 104 122 H44 Q40 122 40 118 Z" />
+                      </clipPath>
+                    </defs>
+                    {/* السائل يرتفع كلما اقترب نضج الطلب */}
+                    <g clipPath="url(#pk-pot-clip)">
+                      <rect className={s.potLiquid} x="34" y={liquidTop} width="80" height={124 - liquidTop} />
+                      <circle className={s.bubbleA} cx="60" cy="110" r="3" />
+                      <circle className={s.bubbleB} cx="80" cy="112" r="2.4" />
+                      <circle className={s.bubbleC} cx="92" cy="108" r="2.8" />
+                    </g>
+                    {/* جسم القدر */}
+                    <path className={s.potBody} d="M34 66 H114 L108 118 Q108 122 104 122 H44 Q40 122 40 118 Z" />
+                    {/* المقبضان */}
+                    <path className={s.potHandle} d="M34 76 q-11 1 -11 11" />
+                    <path className={s.potHandle} d="M114 76 q11 1 11 11" />
+                    {/* الحافة */}
+                    <rect className={s.potRim} x="27" y="58" width="94" height="11" rx="5.5" />
+                    {/* الغطاء والمقبض */}
+                    <path className={s.potLid} d="M41 58 Q74 43 107 58" />
+                    <line className={s.potKnobStem} x1="74" y1="46" x2="74" y2="51" />
+                    <circle className={s.potKnob} cx="74" cy="44" r="3.2" />
                   </svg>
                   <div className={s.prepDigits}>
                     <b>{overtime ? "اللمسات الأخيرة…" : `${mm}:${String(ss).padStart(2, "0")}`}</b>
