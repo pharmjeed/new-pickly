@@ -520,116 +520,58 @@
 }
 .prepRingWrap {
   position: relative;
-  width: 148px;
-  height: 148px;
-  margin: 8px auto 4px;
+  width: 160px;
+  height: 160px;
+  margin: 4px auto 2px;
 }
-/* ===== القدر على النار ===== */
-.pot { overflow: visible; display: block; }
-
-.potBody {
-  fill: var(--pk-ink-700);
-  stroke: var(--pk-ink-900);
-  stroke-width: 2.5;
+/* ===== القدر على النار — تصميم «قدر جانبي، سائل يرتفع» ===== */
+.pot {
+  display: block;
+  width: 160px;
+  height: 160px;
+  overflow: visible;
 }
-.potRim {
-  fill: var(--pk-ink-600);
-  stroke: var(--pk-ink-900);
-  stroke-width: 2;
-}
-.potHandle {
-  fill: none;
-  stroke: var(--pk-ink-900);
-  stroke-width: 4;
-  stroke-linecap: round;
-}
-.potLid {
-  fill: none;
-  stroke: var(--pk-ink-600);
-  stroke-width: 4;
-  stroke-linecap: round;
-}
-.potKnob { fill: var(--pk-ink-600); }
-.potKnobStem { stroke: var(--pk-ink-600); stroke-width: 3; stroke-linecap: round; }
-
-/* السائل داخل القدر — يرتفع مع اكتمال الطبخ */
-.potLiquid {
-  fill: var(--pk-lime-500);
-  transition: y 1s linear, height 1s linear;
-}
-.prepOvertime .potLiquid { fill: var(--pk-warn); }
-
-/* فقاعات الغليان */
-.bubbleA, .bubbleB, .bubbleC {
-  fill: color-mix(in srgb, var(--pk-lime-100) 80%, white);
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-.bubbleA { animation: potBubble 2.2s ease-in infinite; }
-.bubbleB { animation: potBubble 2.6s ease-in .5s infinite; }
-.bubbleC { animation: potBubble 2s ease-in 1s infinite; }
-@keyframes potBubble {
-  0%   { opacity: 0; transform: translateY(6px) scale(.5); }
-  35%  { opacity: .9; }
-  100% { opacity: 0; transform: translateY(-16px) scale(1); }
-}
-
-/* بخار متصاعد */
 .potSteam path {
   fill: none;
   stroke: var(--pk-text-2);
   stroke-width: 3;
   stroke-linecap: round;
-  opacity: 0;
 }
-.steamA { animation: potSteam 3s ease-out infinite; }
-.steamB { animation: potSteam 3s ease-out .6s infinite; }
-.steamC { animation: potSteam 3s ease-out 1.2s infinite; }
-@keyframes potSteam {
-  0%   { opacity: 0; transform: translateY(6px); }
-  30%  { opacity: .55; }
-  100% { opacity: 0; transform: translateY(-14px); }
-}
+.potBody { stroke: #10241b; }
+/* وضع القيادة: القدر على خلفية داكنة — نُبرز حدّه بالليموني */
+:global(.pk-drive) .potBody { stroke: var(--pk-lime-500); }
 
-@media (prefers-reduced-motion: reduce) {
-  .bubbleA, .bubbleB, .bubbleC, .steamA, .steamB, .steamC { animation: none; opacity: 0; }
-}
-
+/* شريحة الوقت في بطن القدر — عنصر مصمت مستقل لا يتداخل مع رسم القدر */
 .prepDigits {
   position: absolute;
   left: 50%;
-  top: 60%; /* في بطن القدر */
+  top: 64%;
   transform: translate(-50%, -50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 1px;
-  padding: 6px 15px;
-  border-radius: 15px;
-  background: color-mix(in srgb, var(--pk-ink-900) 74%, transparent);
+  justify-content: center;
+  min-width: 56px;
+  padding: 4px 12px;
+  border-radius: 9px;
+  background: var(--pk-ink-900);
+  pointer-events: none;
 }
 .prepDigits b {
-  font-family: var(--pk-font-display);
-  font-size: var(--pk-fs-24);
-  font-weight: 800;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: var(--pk-fs-16);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   direction: ltr;
-  line-height: 1.15;
+  line-height: 1.2;
+  letter-spacing: 0.5px;
   color: #fff;
 }
 .prepOvertime .prepDigits b {
-  font-size: var(--pk-fs-16);
+  font-family: var(--pk-font-display);
+  direction: rtl;
+  letter-spacing: 0;
   color: var(--pk-warn);
 }
-.prepDigits span {
-  font-size: var(--pk-fs-12);
-  color: rgba(255, 255, 255, 0.82);
-}
-/* وضع القيادة: القدر على خلفية داكنة — أفتح حدوده ومقابضه */
-:global(.pk-drive) .potBody { stroke: var(--pk-lime-500); }
-:global(.pk-drive) .potHandle,
-:global(.pk-drive) .potRim { stroke: var(--pk-lime-500); }
 
 /* ===== زر «الاتجاه للمطعم» ===== */
 .mapsBtn {

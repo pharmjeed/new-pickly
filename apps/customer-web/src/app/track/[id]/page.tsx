@@ -248,6 +248,16 @@ export default function TrackPage() {
     return () => clearInterval(t);
   }, [prepCountdownOn]);
 
+  // احترام تفضيل تقليل الحركة — نوقف حركات القدر (SMIL) لمن يطلب ذلك
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduceMotion(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   // بوابة «وصلت»: نراقب موقع العميل أثناء الحالات القابلة للوصول فقط (docs/17 — الموقع أثناء الطلب النشط فقط)
   const canArriveNow = ARRIVABLE_STATES.includes(order?.order_status ?? "");
   const [geoState, setGeoState] = useState<GeoState>("locating");
@@ -432,50 +442,111 @@ export default function TrackPage() {
             const shown = Math.max(leftMs, 0);
             const mm = Math.floor(shown / 60_000);
             const ss = Math.floor((shown % 60_000) / 1000);
-            const frac = Math.min(Math.max(shown / totalMs, 0), 1);
-            const cook = overtime ? 1 : 1 - frac;      // نسبة اكتمال الطبخ
-            const liquidFrac = 0.3 + 0.7 * cook;       // القدر يمتلئ كلما نضج الطلب
-            const liquidTop = 120 - 52 * liquidFrac;   // 120 قاع الداخل · 52 ارتفاعه
+            const frac = Math.min(Math.max(shown / totalMs, 0), 1); // نسبة الوقت المتبقي
+            const cook = overtime ? 1 : 1 - frac;                    // نسبة اكتمال الطبخ
+            // مستوى السائل داخل القدر: يرتفع مع النضج (تغيّره خلال الثانية دون البكسل — بلا حاجة لتنعيم)
+            const liquidTy = 9 - 25 * cook;
+            const liquidFill = overtime ? "var(--pk-warn)" : "url(#pk-pot-liquid)";
+            const waveFill = overtime ? "#F6C260" : "#DDF87A";
+            const anim = !reduceMotion;
             return (
               <div className={`pk-card ${s.prepCard} ${overtime ? s.prepOvertime : ""}`} data-testid="prep-expected">
-                <p style={{ fontWeight: 700 }}>طلبك على النار الآن</p>
+                <p style={{ fontWeight: 700 }}>{overtime ? "اللمسات الأخيرة على طلبك" : "طلبك على النار الآن"}</p>
                 <div className={s.prepRingWrap}>
-                  <svg width="148" height="148" viewBox="0 0 148 148" fill="none" className={s.pot}>
-                    {/* بخار يتصاعد من القدر */}
-                    <g className={s.potSteam}>
-                      <path className={s.steamA} d="M60 44 q-6 -7 0 -14 q6 -7 0 -14" />
-                      <path className={s.steamB} d="M74 42 q-6 -7 0 -14 q6 -7 0 -14" />
-                      <path className={s.steamC} d="M88 44 q-6 -7 0 -14 q6 -7 0 -14" />
-                    </g>
+                  <svg viewBox="0 0 160 160" className={s.pot} aria-hidden="true">
                     <defs>
+                      <linearGradient id="pk-pot-liquid" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stopColor="#DDF87A" />
+                        <stop offset="1" stopColor="#C9F339" />
+                      </linearGradient>
+                      <linearGradient id="pk-pot-body" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stopColor="#2E4A3C" />
+                        <stop offset="1" stopColor="#10241B" />
+                      </linearGradient>
+                      <linearGradient id="pk-pot-lid" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stopColor="#2E4A3C" />
+                        <stop offset="1" stopColor="#1C3329" />
+                      </linearGradient>
                       <clipPath id="pk-pot-clip">
-                        <path d="M34 66 H114 L108 118 Q108 122 104 122 H44 Q40 122 40 118 Z" />
+                        <path d="M42 74 h76 v34 a10 10 0 0 1 -10 10 H52 a10 10 0 0 1 -10 -10 Z" />
                       </clipPath>
                     </defs>
-                    {/* السائل يرتفع كلما اقترب نضج الطلب */}
-                    <g clipPath="url(#pk-pot-clip)">
-                      <rect className={s.potLiquid} x="34" y={liquidTop} width="80" height={124 - liquidTop} />
-                      <circle className={s.bubbleA} cx="60" cy="110" r="3" />
-                      <circle className={s.bubbleB} cx="80" cy="112" r="2.4" />
-                      <circle className={s.bubbleC} cx="92" cy="108" r="2.8" />
+
+                    {/* بخار يتصاعد */}
+                    <g className={s.potSteam}>
+                      {[
+                        { x: 66, dur: "3.2s", begin: "0s", o: 0.5 },
+                        { x: 80, dur: "3.6s", begin: "0.7s", o: 0.45 },
+                        { x: 94, dur: "3.4s", begin: "1.4s", o: 0.5 },
+                      ].map((p) => (
+                        <path key={p.x} d={`M${p.x} 44 q-6 -8 0 -16 q6 -8 0 -16`} opacity={anim ? 0 : 0.4}>
+                          {anim && (
+                            <>
+                              <animate attributeName="opacity" values={`0;${p.o};0`} dur={p.dur} begin={p.begin} repeatCount="indefinite" />
+                              <animateTransform attributeName="transform" type="translate" values="0 4; 0 -5; 0 -10" dur={p.dur} begin={p.begin} repeatCount="indefinite" />
+                            </>
+                          )}
+                        </path>
+                      ))}
                     </g>
-                    {/* جسم القدر */}
-                    <path className={s.potBody} d="M34 66 H114 L108 118 Q108 122 104 122 H44 Q40 122 40 118 Z" />
+
                     {/* المقبضان */}
-                    <path className={s.potHandle} d="M34 76 q-11 1 -11 11" />
-                    <path className={s.potHandle} d="M114 76 q11 1 11 11" />
-                    {/* الحافة */}
-                    <rect className={s.potRim} x="27" y="58" width="94" height="11" rx="5.5" />
+                    <rect x="30" y="82" width="12" height="9" rx="4.5" fill="#1C3329" />
+                    <rect x="118" y="82" width="12" height="9" rx="4.5" fill="#1C3329" />
+
+                    {/* جسم القدر */}
+                    <path className={s.potBody} d="M42 74 h76 v34 a10 10 0 0 1 -10 10 H52 a10 10 0 0 1 -10 -10 Z" fill="url(#pk-pot-body)" strokeWidth="2" />
+
+                    {/* السائل — مستواه يرتفع مع النضج، والموجة والفقاعات تغلي داخله */}
+                    <g clipPath="url(#pk-pot-clip)">
+                      <g transform={`translate(0 ${liquidTy})`}>
+                        <rect x="40" y="96" width="80" height="34" fill={liquidFill} />
+                        <path d="M40 96 q10 -5 20 0 t20 0 t20 0 t20 0 v6 H40 Z" fill={waveFill}>
+                          {anim && (
+                            <animate
+                              attributeName="d"
+                              values="M40 96 q10 -5 20 0 t20 0 t20 0 t20 0 v6 H40 Z; M40 96 q10 5 20 0 t20 0 t20 0 t20 0 v6 H40 Z; M40 96 q10 -5 20 0 t20 0 t20 0 t20 0 v6 H40 Z"
+                              dur="2.6s"
+                              repeatCount="indefinite"
+                            />
+                          )}
+                        </path>
+                        {anim && (
+                          <>
+                            <circle cx="60" cy="118" r="2.4" fill="#F2FCD1">
+                              <animate attributeName="cy" values="120;99" dur="2.4s" repeatCount="indefinite" />
+                              <animate attributeName="opacity" values="0;0.9;0" dur="2.4s" repeatCount="indefinite" />
+                            </circle>
+                            <circle cx="80" cy="118" r="3" fill="#FFFFFF">
+                              <animate attributeName="cy" values="121;100" dur="2.9s" begin="0.6s" repeatCount="indefinite" />
+                              <animate attributeName="opacity" values="0;0.85;0" dur="2.9s" begin="0.6s" repeatCount="indefinite" />
+                            </circle>
+                            <circle cx="98" cy="118" r="2" fill="#F2FCD1">
+                              <animate attributeName="cy" values="119;101" dur="2.2s" begin="1.1s" repeatCount="indefinite" />
+                              <animate attributeName="opacity" values="0;0.9;0" dur="2.2s" begin="1.1s" repeatCount="indefinite" />
+                            </circle>
+                          </>
+                        )}
+                      </g>
+                    </g>
+
                     {/* الغطاء والمقبض */}
-                    <path className={s.potLid} d="M41 58 Q74 43 107 58" />
-                    <line className={s.potKnobStem} x1="74" y1="46" x2="74" y2="51" />
-                    <circle className={s.potKnob} cx="74" cy="44" r="3.2" />
+                    <g>
+                      {anim && (
+                        <animateTransform attributeName="transform" type="rotate" values="0 80 70; 0 80 70; 1.2 80 70; -1.2 80 70; 0 80 70; 0 80 70" dur="4s" repeatCount="indefinite" />
+                      )}
+                      <path d="M40 70 q40 -16 80 0 Z" fill="url(#pk-pot-lid)" stroke="#10241B" strokeWidth="2" />
+                      <rect x="38" y="68" width="84" height="6" rx="3" fill="#1C3329" />
+                      <circle cx="80" cy="55" r="4.5" fill="#C9F339" stroke="#10241B" strokeWidth="1.5" />
+                    </g>
                   </svg>
                   <div className={s.prepDigits}>
-                    <b>{overtime ? "اللمسات الأخيرة…" : `${mm}:${String(ss).padStart(2, "0")}`}</b>
-                    <span>{overtime ? "أطول من المتوقع قليلاً" : "حتى جاهزية طلبك تقريباً"}</span>
+                    <b>{overtime ? "جاهز تقريباً" : `${mm}:${String(ss).padStart(2, "0")}`}</b>
                   </div>
                 </div>
+                <p className="pk-muted">
+                  {overtime ? "أطول من المتوقع بقليل — يوشك على الجهوز" : "حتى جاهزية طلبك تقريباً"}
+                </p>
                 <p className="pk-muted">الوقت المتوقع ~{order.prep_minutes} دقيقة — حدده المطعم عند القبول</p>
               </div>
             );
