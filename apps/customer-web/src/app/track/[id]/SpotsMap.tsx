@@ -2,15 +2,32 @@
 
 /**
  * خريطة نقطة الالتقاء للعميل (Leaflet + OpenStreetMap) — تفاعلية داخل التطبيق:
- * تعرض نقطة الموقف التي ثبتها المطعم (🏁) وموقع العميل الحيّ (نقطة زرقاء) معاً،
- * فيرى نفسه ونقطته دون مغادرة التطبيق. تؤطّر الاثنين تلقائياً حتى يلمس العميل
- * الخريطة، ثم تتركه يستكشف بحرية (سحب + تكبير باللمس/الأزرار).
+ * تعرض نقطة الموقف التي ثبتها المطعم (🏁) وموقع العميل الحيّ (نقطة زرقاء)، وخطاً
+ * يربطهما مع شارة مسافة حيّة («تبعد … عن نقطة الالتقاء») تتحدّث وهو ماشي — فيرى
+ * قربه بنظرة دون مغادرة التطبيق. تؤطّر الاثنين تلقائياً حتى يلمس الخريطة ثم تتركه
+ * يستكشف بحرية (سحب + تكبير باللمس/الأزرار).
  */
-import { useEffect, useRef } from "react";
-import type { LayerGroup, Map as LeafletMap, Marker } from "leaflet";
+import { useEffect, useRef, useState } from "react";
+import type { LayerGroup, Map as LeafletMap, Marker, Polyline } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 export type CustomerSpot = { id: string; label: string; lat: number | null; lng: number | null };
+
+/** مسافة القوس الكبير بالأمتار (haversine) — لشارة القرب على الخريطة */
+function distMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6_371_000;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const la1 = (aLat * Math.PI) / 180;
+  const la2 = (bLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+}
+
+/** صياغة عربية مختصرة للمسافة — أمتار حتى الكيلومتر ثم كسر عشري */
+function fmtDist(m: number): string {
+  return m < 1000 ? `${m} م` : `${(m / 1000).toFixed(1)} كم`;
+}
 
 /** دبوس نقطة المطعم بنمط الهوية — divIcon بلا أصول صور */
 function pinHtml(label: string, chosen: boolean): string {
@@ -45,10 +62,13 @@ export default function SpotsMap({
   const mapRef = useRef<LeafletMap | null>(null);
   const layerRef = useRef<LayerGroup | null>(null);
   const meRef = useRef<Marker | null>(null);
+  const lineRef = useRef<Polyline | null>(null);
   // بمجرد أن يسحب العميل الخريطة أو يكبّرها نتوقف عن إعادة التأطير — لا نعاند حركته
   const userMovedRef = useRef(false);
   // توقيع مجموعة النقاط المؤطَّرة — نُعيد التأطير فقط عند تغيّر النقطة المختارة أو ظهور موقع العميل
   const sigRef = useRef<string>("");
+  // مسافة العميل عن نقطة الالتقاء — تُعرض في شارة فوق الخريطة وتتحدّث حيّاً
+  const [distM, setDistM] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,6 +120,33 @@ export default function SpotsMap({
         meRef.current = null;
       }
 
+      // خط يربط العميل بنقطة الالتقاء (المختارة) + المسافة الحيّة بينهما
+      const target = pts.find((p) => p.id === chosenId) ?? pts[0];
+      if (me && target) {
+        const path: Array<[number, number]> = [
+          [me.lat, me.lng],
+          [target.lat, target.lng]
+        ];
+        if (lineRef.current) {
+          lineRef.current.setLatLngs(path);
+        } else {
+          lineRef.current = L.polyline(path, {
+            color: "#10241B",
+            weight: 3,
+            opacity: 0.7,
+            dashArray: "2 8",
+            lineCap: "round"
+          }).addTo(map);
+        }
+        setDistM(distMeters(me.lat, me.lng, target.lat, target.lng));
+      } else {
+        if (lineRef.current) {
+          lineRef.current.remove();
+          lineRef.current = null;
+        }
+        setDistM(null);
+      }
+
       // تأطير الاثنين — مرة عند ظهور النقطة/الموقع، ونحترم سحب العميل بعدها
       const sig = `${chosenId ?? ""}|${me ? "me" : "no"}`;
       if (!userMovedRef.current && sig !== sigRef.current) {
@@ -125,16 +172,40 @@ export default function SpotsMap({
       mapRef.current = null;
       layerRef.current = null;
       meRef.current = null;
+      lineRef.current = null;
     },
     []
   );
 
   if (!spots.some((s) => s.lat !== null && s.lng !== null)) return null;
   return (
-    <div
-      ref={holder}
-      data-testid="customer-spots-map"
-      style={{ height: 240, borderRadius: 16, overflow: "hidden", marginBottom: 12, border: "1px solid var(--pk-border)" }}
-    />
+    <div style={{ position: "relative", marginBottom: 12 }}>
+      <div
+        ref={holder}
+        data-testid="customer-spots-map"
+        style={{ height: 240, borderRadius: 16, overflow: "hidden", border: "1px solid var(--pk-border)" }}
+      />
+      {distM !== null && (
+        <div
+          data-testid="map-distance"
+          style={{
+            position: "absolute",
+            top: 10,
+            insetInlineStart: 10,
+            zIndex: 500,
+            background: "#10241B",
+            color: "#C9F339",
+            borderRadius: 999,
+            padding: "5px 12px",
+            fontSize: 13,
+            fontWeight: 800,
+            boxShadow: "0 2px 8px rgba(0,0,0,.25)",
+            pointerEvents: "none"
+          }}
+        >
+          تبعد {fmtDist(distM)} عن نقطة الالتقاء
+        </div>
+      )}
+    </div>
   );
 }
