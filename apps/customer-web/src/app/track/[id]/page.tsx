@@ -637,20 +637,29 @@ export default function TrackPage() {
                 />
               )}
 
-              {/* زر واحد — «الاتجاه إلى نقطة الالتقاء»: يفتح الملاحة بالسيارة للنقطة */}
+              {/* الخريطة أعلاه ترسم المسار والوقت داخل التطبيق. هذا رابط اختياري صغير
+                  لمن يفضّل الملاحة الصوتية خطوة بخطوة (يفتح خرائط قوقل). */}
               {(canStart || driveMode) && (
                 <a
-                  className={s.mapsBtn}
                   data-testid="maps-directions"
                   href={`${navUrl(destLat, destLng)}&travelmode=driving`}
                   target="_blank"
                   rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    justifyContent: "center",
+                    width: "100%",
+                    fontSize: 13,
+                    color: "var(--pk-muted)",
+                    textDecoration: "underline",
+                    padding: "8px 0",
+                    marginBottom: 8
+                  }}
                 >
-                  <IconNav />
-                  الاتجاه إلى نقطة الالتقاء
-                  <span className={s.mapsBtnHint}>
-                    {meetingSpot && meetingSpot.lat !== null ? meetingSpot.label : order.branch_address_short}
-                  </span>
+                  <IconNav size={14} />
+                  تفضّل ملاحة صوتية؟ افتح خرائط قوقل ↗
                 </a>
               )}
             </>
