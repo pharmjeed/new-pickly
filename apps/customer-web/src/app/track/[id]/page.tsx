@@ -6,7 +6,7 @@
  * وضع القيادة داكن إجباري أثناء الطريق. النبضة عند رصد الوصول هي الاحتفالية الوحيدة.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import SpotsMap from "./SpotsMap";
 import s from "./track.module.css";
@@ -123,6 +123,7 @@ const IconRadar = ({ size = 44 }: { size?: number }) => (
 
 export default function TrackPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -230,6 +231,13 @@ export default function TrackPage() {
       setSavingReview(false);
     }
   };
+
+  // بعد التقييم: لحظة شكر ثم عودة تلقائية للرئيسية — انتهت رحلة الطلب
+  useEffect(() => {
+    if (!reviewDone) return;
+    const t = setTimeout(() => router.replace("/"), 2500);
+    return () => clearTimeout(t);
+  }, [reviewDone, router]);
 
   const submitParking = async () => {
     const chosen = branchSpots?.find((s) => s.id === spotSel) ?? null;
@@ -486,9 +494,18 @@ export default function TrackPage() {
               </div>
             ) : (
               <p className="pk-muted" style={{ marginTop: 8 }} data-testid="review-thanks">
-                شكراً لك — تقييمك يطوّر التجربة 🌟
+                شكراً لك — تقييمك يطوّر التجربة 🌟 نرجعك للرئيسية…
               </p>
             )}
+            <button
+              type="button"
+              className="pk-btn"
+              data-testid="back-home"
+              style={{ marginTop: 14 }}
+              onClick={() => router.replace("/")}
+            >
+              العودة للرئيسية
+            </button>
           </div>
         )}
       </main>
