@@ -47,14 +47,13 @@ interface Order {
   vehicle: { color_ar: string; model_ar: string | null; plate_short: string } | null;
 }
 
-const STEPS = ["SUBMITTED", "ACCEPTED", "PREPARING", "READY", "ARRIVED", "COMPLETED"];
-/* عناوين شريط الحالات الست — «جاهز للاستلام» لا تُضاء إلا بضغطة المطعم «جاهز» (ready_at) */
+const STEPS = ["SUBMITTED", "ACCEPTED", "PREPARING", "READY", "COMPLETED"];
+/* عناوين شريط الحالات الخمس — «جاهز للاستلام» لا تُضاء إلا بضغطة المطعم «جاهز» (ready_at) */
 const STEP_LABELS = [
   "تم استلام الطلب",
   "تم قبول الطلب",
   "قيد التجهيز",
   "جاهز للاستلام",
-  "وصلت",
   "تم التسليم"
 ];
 const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
@@ -70,8 +69,8 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "توجه للمطعم — واضغط «وصلت» عند وصولك" },
   CUSTOMER_ON_THE_WAY: { step: "READY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
   CUSTOMER_NEARBY: { step: "READY", title: "اقتربت!", sub: "تم رصد اقترابك — أبلغنا المطعم تلقائيًا" },
-  CUSTOMER_ARRIVED: { step: "ARRIVED", title: "وصلت؟ إحنا عرفنا.", sub: "الموظف في طريقه إليك" },
-  HANDOFF_IN_PROGRESS: { step: "ARRIVED", title: "الموظف متجه إليك", sub: "يحمل طلبك ويسلّمه لسيارتك" },
+  CUSTOMER_ARRIVED: { step: "READY", title: "وصلت؟ إحنا عرفنا.", sub: "الموظف في طريقه إليك" },
+  HANDOFF_IN_PROGRESS: { step: "READY", title: "الموظف متجه إليك", sub: "يحمل طلبك ويسلّمه لسيارتك" },
   COMPLETED: { step: "COMPLETED", title: "بالعافية!", sub: "قيّم استلامك بضغطة" },
   CANCELLED: { step: "SUBMITTED", title: "أُلغي الطلب", sub: "مبلغك يرجع لك حسب السياسة" }
 };
@@ -397,7 +396,7 @@ export default function TrackPage() {
       <main className="pk-wrap">
         <p className="pk-mono pk-muted" data-testid="order-code" style={{ marginBottom: 4 }}>{order.display_code}</p>
 
-        {/* شريط الحالات السبع (steps7 — P7.html) */}
+        {/* شريط الحالات الخمس (steps — P7.html) */}
         <div className={s.steps} aria-label="حالة الطلب">
           {STEP_LABELS.map((lb, i) => {
             const done = stepDone(i);
