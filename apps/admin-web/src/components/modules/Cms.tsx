@@ -7,9 +7,10 @@
  * إسناد تصنيف كل مطعم (brand.cuisine_ar)،
  * وقوالب الإشعارات (notification_templates — docs/15§48).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost } from "@/lib/api";
+import { resizeImage } from "@/lib/image";
 import ReasonModal from "@/components/ReasonModal";
 
 type Template = {
@@ -45,6 +46,87 @@ type PendingSave =
   | { kind: "banners" }
   | { kind: "categories" }
   | { kind: "brand"; brand: BrandRow; cuisine: string | null };
+
+/**
+ * خلية صورة البانر — رفع من الجهاز فقط (لا لصق روابط).
+ * تُصغَّر في المتصفح إلى ≤1200px وتُخزَّن data URL (نمط شعار/غلاف بوابة التاجر).
+ */
+function BannerImageCell({
+  value,
+  onChange,
+  onError
+}: {
+  value: string | null;
+  onChange: (dataUrl: string | null) => void;
+  onError: (msg: string) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [working, setWorking] = useState(false);
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    setWorking(true);
+    try {
+      if (file.size > 12 * 1024 * 1024) throw new Error("الصورة أكبر من 12MB");
+      onChange(await resizeImage(file, 1200));
+    } catch (e) {
+      onError((e as Error).message);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  return (
+    <div className="fld">
+      <label>صورة البانر (اختياري)</label>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {value ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={value}
+            alt=""
+            style={{ width: 56, height: 40, objectFit: "cover", borderRadius: 8, border: "1px solid var(--pk-line)", flexShrink: 0 }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 56,
+              height: 40,
+              borderRadius: 8,
+              border: "1px dashed var(--pk-line)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              color: "var(--pk-text-2)",
+              flexShrink: 0
+            }}
+          >
+            🖼️
+          </div>
+        )}
+        <button type="button" className="btn sm" disabled={working} data-testid="banner-image-pick" onClick={() => fileRef.current?.click()}>
+          {working ? "جارٍ…" : value ? "تغيير" : "رفع صورة"}
+        </button>
+        {value && (
+          <button type="button" className="btn sm dgh" onClick={() => onChange(null)}>
+            إزالة
+          </button>
+        )}
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          void pick(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
 
 export default function Cms() {
   const router = useRouter();
@@ -202,10 +284,11 @@ export default function Cms() {
                   <label>نص فرعي</label>
                   <input className="inp" value={b.body_ar ?? ""} onChange={(e) => setBanner(i, { body_ar: e.target.value || null })} />
                 </div>
-                <div className="fld">
-                  <label>رابط صورة (اختياري)</label>
-                  <input className="inp mono" dir="ltr" placeholder="https://…" value={b.image_url ?? ""} onChange={(e) => setBanner(i, { image_url: e.target.value.trim() || null })} />
-                </div>
+                <BannerImageCell
+                  value={b.image_url}
+                  onChange={(dataUrl) => setBanner(i, { image_url: dataUrl })}
+                  onError={setError}
+                />
                 <div className="fld">
                   <label>رابط (اختياري)</label>
                   <input className="inp mono" value={b.link ?? ""} onChange={(e) => setBanner(i, { link: e.target.value || null })} />
@@ -224,7 +307,7 @@ export default function Cms() {
             ))}
           </div>
           <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-            بلا صورة يظهر البانر بخلفية داكنة بالعنوان والنص · مع رابط صورة تظهر الصورة خلفية كاملة · تتحرك تلقائياً كل 4 ثوانٍ.
+            بلا صورة يظهر البانر بخلفية داكنة بالعنوان والنص · ارفع صورة من جهازك لتظهر خلفية كاملة (تُصغَّر تلقائياً) · تتحرك تلقائياً كل 4 ثوانٍ.
           </p>
         </div>
       )}
