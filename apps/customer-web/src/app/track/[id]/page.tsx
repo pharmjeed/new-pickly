@@ -34,7 +34,7 @@ interface Order {
   prep_minutes: number | null;
   /** لحظة قبول المطعم — مرساة العدّاد التنازلي للتجهيز */
   accepted_at: string | null;
-  /** موقع الفرع وعنوانه المختصر — زر «الاتجاه للمطعم» */
+  /** موقع الفرع وعنوانه المختصر — وجهة «نقطة الالتقاء» الاحتياطية إن لم يثبّت المطعم موقفاً */
   branch_lat: number;
   branch_lng: number;
   branch_address_short: string;
@@ -120,7 +120,7 @@ const PicklyBadge = ({ size = 96 }: { size?: number }) => (
     </g>
   </svg>
 );
-/** سهم ملاحة — زر «الاتجاه للمطعم» */
+/** سهم ملاحة — زر «الاتجاه إلى نقطة الالتقاء» */
 const IconNav = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
     <path
@@ -562,46 +562,41 @@ export default function TrackPage() {
           </div>
         ) : null}
 
-        {/* خريطة نقاط المواقف التي ثبتها المطعم — الموقف المختار مميز 🏁 (نمط أوبر) */}
-        {(canStart || driveMode || arrived) && branchSpots && (
-          <SpotsMap spots={branchSpots} chosenId={chosenSpot?.id ?? null} />
-        )}
-
         {/*
-         * «الاتجاه» — يفتح خرائط Google بالاتجاهات، متاح من القبول وحتى الوصول:
-         * اختار العميل موقفاً بنقطة مثبتة → الوجهة نقطة الموقف نفسها؛ وإلا → الفرع.
+         * نقطة الالتقاء — النقطة التي ثبتها المطعم: الموقف الذي اختاره العميل إن وُجد،
+         * وإلا أول موقف بنقطة مثبتة على الخريطة (يخدمه الفرع)، وإلا الفرع نفسه.
          */}
-        {(canStart || driveMode) && (
-          <a
-            className={s.mapsBtn}
-            data-testid="maps-directions"
-            href={
-              chosenSpot && chosenSpot.lat !== null && chosenSpot.lng !== null
-                ? `${navUrl(chosenSpot.lat, chosenSpot.lng)}&travelmode=driving`
-                : `https://www.google.com/maps/dir/?api=1&destination=${order.branch_lat},${order.branch_lng}&travelmode=driving`
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <IconNav />
-            {chosenSpot && chosenSpot.lat !== null ? `الاتجاه لموقفك — ${chosenSpot.label}` : "الاتجاه للمطعم"}
-            <span className={s.mapsBtnHint}>
-              {chosenSpot && chosenSpot.lat !== null ? "نقطة الموقف كما ثبتها المطعم" : order.branch_address_short}
-            </span>
-          </a>
-        )}
+        {(() => {
+          const meetingSpot =
+            chosenSpot ?? branchSpots?.find((sp) => sp.lat !== null && sp.lng !== null) ?? null;
+          const destLat = meetingSpot?.lat ?? order.branch_lat;
+          const destLng = meetingSpot?.lng ?? order.branch_lng;
+          return (
+            <>
+              {/* خريطة تفاعلية: نقطة المطعم 🏁 + موقع العميل الحيّ — داخل التطبيق */}
+              {(canStart || driveMode || arrived) && branchSpots && (
+                <SpotsMap spots={branchSpots} chosenId={meetingSpot?.id ?? null} me={coords} />
+              )}
 
-        {/* اختيار الموقف مسبقاً — قبل الوصول، ليتوجه العميل لنقطته مباشرة */}
-        {(canStart || driveMode) && !parkingLabel && branchSpots && branchSpots.length > 0 && (
-          <button
-            type="button"
-            className={s.parkingBtn}
-            data-testid="pre-parking-btn"
-            onClick={() => { setSpotErr(null); setSheetOpen(true); }}
-          >
-            اختر موقفك مسبقاً — نوجهك لنقطته
-          </button>
-        )}
+              {/* زر واحد — «الاتجاه إلى نقطة الالتقاء»: يفتح الملاحة بالسيارة للنقطة */}
+              {(canStart || driveMode) && (
+                <a
+                  className={s.mapsBtn}
+                  data-testid="maps-directions"
+                  href={`${navUrl(destLat, destLng)}&travelmode=driving`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <IconNav />
+                  الاتجاه إلى نقطة الالتقاء
+                  <span className={s.mapsBtnHint}>
+                    {meetingSpot && meetingSpot.lat !== null ? meetingSpot.label : order.branch_address_short}
+                  </span>
+                </a>
+              )}
+            </>
+          );
+        })()}
 
         {/* بطاقة الرمز الليمونية (C-50/C-51) */}
         {order.handoff_code && arrived && (
