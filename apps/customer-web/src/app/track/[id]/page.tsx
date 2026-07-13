@@ -5,7 +5,7 @@
  * الهيكل ثابت والمحتوى يتبدل (docs/21§1، design/customer/P7.html C-38→C-51).
  * وضع القيادة داكن إجباري أثناء الطريق. النبضة عند رصد الوصول هي الاحتفالية الوحيدة.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import SpotsMap from "./SpotsMap";
@@ -216,6 +216,22 @@ export default function TrackPage() {
     return () => clearInterval(t);
   }, [isWaiting]);
 
+  // حياة شريط الحالات: عند كل انتقال فعلي للطلب نطلق دفعة احتفالية على الخطوة الحالية
+  // (نتجاهل أول تحميل حتى لا يحتفل عند فتح الصفحة على حالة قائمة).
+  const status = order?.order_status;
+  const [celebrate, setCelebrate] = useState(false);
+  const firstStatusRef = useRef(true);
+  useEffect(() => {
+    if (!status) return;
+    if (firstStatusRef.current) {
+      firstStatusRef.current = false;
+      return;
+    }
+    setCelebrate(true);
+    const t = setTimeout(() => setCelebrate(false), 1100);
+    return () => clearTimeout(t);
+  }, [status]);
+
   // ساعة حية للعدّاد التنازلي — تدق فقط أثناء التجهيز قبل الجاهزية
   const prepCountdownOn = Boolean(
     order &&
@@ -367,7 +383,13 @@ export default function TrackPage() {
             const done = stepDone(i);
             const cur = !completed && i === stepIdx;
             return (
-              <div key={lb} className={`${s.step} ${done ? s.stepDone : ""} ${cur ? s.stepCur : ""}`}>
+              <div
+                key={lb}
+                aria-current={cur ? "step" : undefined}
+                className={`${s.step} ${done ? s.stepDone : ""} ${cur ? s.stepCur : ""} ${
+                  cur && celebrate ? s.stepBurst : ""
+                }`}
+              >
                 <div className={s.dot}>{done ? "✓" : cur ? "●" : ""}</div>
                 <div className={s.lbl}>{lb}</div>
               </div>
@@ -392,7 +414,7 @@ export default function TrackPage() {
           </div>
         )}
 
-        <h1 className="pk-display" data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting ? "center" : undefined }}>
+        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting ? "center" : undefined }}>
           {view.title}
         </h1>
         {isWaiting ? (
