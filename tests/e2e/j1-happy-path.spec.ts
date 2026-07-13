@@ -5,7 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
  * عميل: تسجيل ← مطعم ← منتجات ← صفحة السلة والإتمام الواحدة ← دفع sandbox ← تتبع
  * فرع: قبول ← تجهيز ← جاهز
  * عميل: داخل نطاق الوصول (500م) ← سحب «وصلت» يدوياً (J10: الخادم يفتح الجلسة اليدوية تلقائياً)
- * فرع: خرج الموظف ← تحقق بالرمز ← سلّمت
+ * فرع: تم التسليم (بضغطة واحدة بلا رمز)
  * عميل: تم التسليم.
  */
 
@@ -115,21 +115,12 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await c.mouse.up();
   await expect(c.getByTestId("track-title")).toContainText("وصلت؟ إحنا عرفنا.");
 
-  // رمز الاستلام ظهر للعميل
-  const handoffCode = (await c.getByTestId("handoff-code").textContent())?.trim() ?? "";
-  expect(handoffCode).toMatch(/^\d{4}$/);
-
   // ===== 8. الفرع: الواصل يظهر في العمود الجانبي «وصلوا» (بلا تنقّل عن «جاهزة»)
-  //          ← خرج الموظف ← تحقق بالرمز ← سلّمت =====
+  //          ← «تم التسليم» بضغطة واحدة بلا رمز =====
   const arrivedCard = b.getByTestId("arrived-card").filter({ hasText: orderCode });
   await expect(arrivedCard).toBeVisible();
   // التبويب المعروض ما زال «جاهزة» — العمود حي بجانبه
   await expect(b.getByTestId("tab-ready")).toHaveAttribute("aria-selected", "true");
-  await arrivedCard.getByTestId("handoff-start").click();
-  await expect(c.getByTestId("track-title")).toContainText("الموظف متجه إليك");
-
-  await arrivedCard.getByTestId("handoff-open-code").click();
-  await arrivedCard.getByTestId("handoff-code-input").fill(handoffCode);
   await arrivedCard.getByTestId("handoff-complete").click();
 
   // ===== 9. الاكتمال عند الطرفين =====

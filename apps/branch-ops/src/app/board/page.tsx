@@ -129,8 +129,6 @@ export default function BoardPage() {
   const [sched, setSched] = useState<Card[]>([]);
   const schedSeen = useRef<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [codeFor, setCodeFor] = useState<string | null>(null);
-  const [codeVal, setCodeVal] = useState("");
   const [now, setNow] = useState<number | null>(null);
   // استعراض تفاصيل الطلب قبل القبول
   const [detailsFor, setDetailsFor] = useState<string | null>(null);
@@ -274,6 +272,21 @@ export default function BoardPage() {
   const act = async (path: string, body?: unknown, idem = false) => {
     try {
       await call("POST", path, body, idem);
+      await refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  // «تم التسليم» بضغطة واحدة — يخرج الموظف (إن لزم) ثم يُكمل بلا رمز تحقق
+  const deliver = async (id: string, status: string) => {
+    try {
+      if (status === "CUSTOMER_ARRIVED") {
+        await call("POST", `/v1/merchant/orders/${id}/handoff/start`);
+      }
+      await call("POST", `/v1/merchant/orders/${id}/handoff/complete`, {
+        verification: { method: "board" }
+      });
       await refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -693,51 +706,16 @@ export default function BoardPage() {
                           جاهز
                         </button>
                       </>
-                    ) : c.order_status === "CUSTOMER_ARRIVED" ? (
-                      <button
-                        className={`${s.bbtn} ${s.orange} ${s.abtn}`}
-                        data-testid="handoff-start"
-                        onClick={() => act(`/v1/merchant/orders/${c.id}/handoff/start`)}
-                      >
-                        خرج الموظف
-                      </button>
-                    ) : codeFor !== c.id ? (
+                    ) : c.order_status === "CUSTOMER_ARRIVED" ||
+                      c.order_status === "HANDOFF_IN_PROGRESS" ? (
                       <button
                         className={`${s.bbtn} ${s.green} ${s.abtn}`}
-                        data-testid="handoff-open-code"
-                        onClick={() => {
-                          setCodeFor(c.id);
-                          setCodeVal("");
-                        }}
+                        data-testid="handoff-complete"
+                        onClick={() => deliver(c.id, c.order_status)}
                       >
-                        تحقق وسلّم
+                        تم التسليم
                       </button>
                     ) : null}
-                    {codeFor === c.id && c.order_status === "HANDOFF_IN_PROGRESS" && (
-                      <div className={s.codeRow}>
-                        <input
-                          className={s.codeInput}
-                          data-testid="handoff-code-input"
-                          placeholder="رمز العميل"
-                          inputMode="numeric"
-                          maxLength={4}
-                          value={codeVal}
-                          onChange={(e) => setCodeVal(e.target.value)}
-                        />
-                        <button
-                          className={`${s.bbtn} ${s.green}`}
-                          data-testid="handoff-complete"
-                          disabled={codeVal.length !== 4}
-                          onClick={() =>
-                            act(`/v1/merchant/orders/${c.id}/handoff/complete`, {
-                              verification: { method: "code", code: codeVal }
-                            })
-                          }
-                        >
-                          سلّمت
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </article>
               );

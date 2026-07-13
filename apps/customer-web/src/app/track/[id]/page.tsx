@@ -71,7 +71,7 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   CUSTOMER_ON_THE_WAY: { step: "READY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
   CUSTOMER_NEARBY: { step: "READY", title: "اقتربت!", sub: "تم رصد اقترابك — أبلغنا المطعم تلقائيًا" },
   CUSTOMER_ARRIVED: { step: "ARRIVED", title: "وصلت؟ إحنا عرفنا.", sub: "الموظف في طريقه إليك" },
-  HANDOFF_IN_PROGRESS: { step: "ARRIVED", title: "الموظف متجه إليك", sub: "يحمل طلبك — جهّز الرمز" },
+  HANDOFF_IN_PROGRESS: { step: "ARRIVED", title: "الموظف متجه إليك", sub: "يحمل طلبك ويسلّمه لسيارتك" },
   COMPLETED: { step: "COMPLETED", title: "بالعافية!", sub: "قيّم استلامك بضغطة" },
   CANCELLED: { step: "SUBMITTED", title: "أُلغي الطلب", sub: "مبلغك يرجع لك حسب السياسة" }
 };
@@ -690,14 +690,6 @@ export default function TrackPage() {
             </>
           );
         })()}
-
-        {/* بطاقة الرمز الليمونية (C-50/C-51) */}
-        {order.handoff_code && arrived && (
-          <div className={s.codeCard}>
-            <p className={s.codeLabel}>رمز الاستلام</p>
-            <span className={s.codeDigits} data-testid="handoff-code">{order.handoff_code}</span>
-          </div>
-        )}
 
         {canArrive && (
           <ArriveSwipe
