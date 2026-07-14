@@ -803,11 +803,11 @@ export default function CheckoutScreen() {
             <View style={[st.rdot, pickupTime === "scheduled" ? st.rdotOn : null]} />
             <View style={{ flex: 1 }}>
               <Text style={st.optTitle}>جدولة لوقت لاحق</Text>
-              <Text style={st.optDesc}>
-                {pickupTime === "scheduled" && chosenSlot
-                  ? `${dayLabelOf(chosenSlot.slot_start)} ${slotRangeLabel(chosenSlot)} — اضغط للتغيير`
-                  : "فترات بسعة يحددها الفرع (BR-5) — الدفع يؤكد الحجز"}
-              </Text>
+              {pickupTime === "scheduled" && chosenSlot ? (
+                <Text style={st.optDesc}>
+                  {`${dayLabelOf(chosenSlot.slot_start)} ${slotRangeLabel(chosenSlot)} — اضغط للتغيير`}
+                </Text>
+              ) : null}
             </View>
           </Pressable>
         ) : (
@@ -815,7 +815,6 @@ export default function CheckoutScreen() {
             <View style={st.rdot} />
             <View style={{ flex: 1 }}>
               <Text style={st.optTitle}>جدولة لوقت لاحق</Text>
-              <Text style={st.optDesc}>فترات بسعة يحددها الفرع (BR-5)</Text>
             </View>
             <Badge label="قريباً" tone="soft" />
           </View>

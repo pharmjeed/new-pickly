@@ -931,11 +931,11 @@ export default function CheckoutPage() {
           <span className={pickupTime === "scheduled" ? `${styles.rdot} ${styles.rdotOn}` : styles.rdot} />
           <div className={styles.optBody}>
             <b className={styles.optTitle}>جدولة لوقت لاحق</b>
-            <div className={styles.optDesc}>
-              {pickupTime === "scheduled" && chosenSlot
-                ? `${dayLabelOf(chosenSlot.slot_start)} ${slotRangeLabel(chosenSlot)} — اضغط للتغيير`
-                : "فترات بسعة يحددها الفرع (BR-5) — الدفع يؤكد الحجز"}
-            </div>
+            {pickupTime === "scheduled" && chosenSlot && (
+              <div className={styles.optDesc}>
+                {`${dayLabelOf(chosenSlot.slot_start)} ${slotRangeLabel(chosenSlot)} — اضغط للتغيير`}
+              </div>
+            )}
           </div>
         </button>
       ) : (
@@ -943,7 +943,6 @@ export default function CheckoutPage() {
           <span className={styles.rdot} />
           <div className={styles.optBody}>
             <b className={styles.optTitleR}>جدولة لوقت لاحق</b>
-            <div className={styles.optDesc}>فترات بسعة يحددها الفرع (BR-5)</div>
           </div>
           <span className={`${styles.badge} ${styles.badgeSoft}`}>قريباً</span>
         </div>
