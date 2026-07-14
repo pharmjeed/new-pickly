@@ -195,12 +195,12 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
     is_default
   });
 
-  /** حروف اللوحة السعودية: حتى 3 أحرف عربية — تُخزن مفصولة بمسافات («ح ع ن») */
+  /** حروف اللوحة السعودية: 3 أحرف عربية إلزامية — تُخزن مفصولة بمسافات («ح ع ن») */
   const PlateLettersSchema = z
     .string()
     .max(11)
     .transform((s) => s.replace(/\s+/g, ""))
-    .refine((s) => /^[ء-ي]{0,3}$/.test(s), "حروف عربية فقط (حتى 3)")
+    .refine((s) => /^[ء-ي]{3}$/.test(s), "3 حروف عربية إلزامية")
     .transform((s) => s.split("").join(" "));
 
   const VehicleBodySchema = z.object({
@@ -211,7 +211,7 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
       .transform((s) => s.replace(/\D/g, ""))
       .refine((s) => /^\d{1,4}$/.test(s), "1-4 أرقام")
       .optional(),
-    plate_letters_ar: PlateLettersSchema.optional(),
+    plate_letters_ar: PlateLettersSchema,
     plate_short: z.string().min(1).max(8).optional(),
     make_ar: z.string().max(40).optional(),
     model_ar: z.string().max(40).optional(),
@@ -242,7 +242,7 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
         user_id: claims.sub,
         color_ar: body.color_ar,
         plate_short: digits,
-        plate_encrypted: encryptPlate(`${body.plate_letters_ar ?? ""}|${digits}`),
+        plate_encrypted: encryptPlate(`${body.plate_letters_ar}|${digits}`),
         make_ar: body.make_ar ?? null,
         model_ar: body.model_ar ?? null
       }

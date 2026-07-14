@@ -83,16 +83,34 @@ describe.skipIf(!hasDb)("Vehicles — الكتالوج واللوحة الكام
     expect(row.plate_encrypted).not.toContain("ح");
   });
 
-  it("التوافق القديم: plate_short وحده يكفي (S3)", async () => {
+  it("التوافق القديم: plate_short يكفي للأرقام — والحروف تبقى إلزامية", async () => {
     const res = await app.inject({
       method: "POST",
       url: "/v1/customers/me/vehicles",
       headers: authed,
-      payload: { color_ar: "بيضاء", plate_short: "8241", set_default: false }
+      payload: { color_ar: "بيضاء", plate_short: "8241", plate_letters_ar: "كوب", set_default: false }
     });
     expect(res.statusCode).toBe(200);
     secondId = res.json().id;
     expect(res.json().plate_digits).toBe("8241");
+  });
+
+  it("حروف اللوحة إلزامية: بلا حروف أو بأقل من 3 تُرفض", async () => {
+    const missing = await app.inject({
+      method: "POST",
+      url: "/v1/customers/me/vehicles",
+      headers: authed,
+      payload: { color_ar: "بيضاء", plate_digits: "9999" }
+    });
+    expect(missing.statusCode).toBe(400);
+
+    const partial = await app.inject({
+      method: "POST",
+      url: "/v1/customers/me/vehicles",
+      headers: authed,
+      payload: { color_ar: "بيضاء", plate_digits: "9999", plate_letters_ar: "حع" }
+    });
+    expect(partial.statusCode).toBe(400);
   });
 
   it("تعديل السيارة (ضغط مطول): لون وموديل ولوحة", async () => {

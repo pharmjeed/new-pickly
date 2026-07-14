@@ -542,7 +542,11 @@ export default function CheckoutScreen() {
   const effMake = makeSel === OTHER ? makeCustom.trim() : makeSel ?? "";
   const effModel = modelSel === OTHER ? modelCustom.trim() : modelSel ?? "";
   const formValid =
-    color.length >= 2 && plate.length >= 1 && effMake.length >= 2 && (modelSel !== OTHER || effModel.length >= 1);
+    color.length >= 2 &&
+    plate.length >= 1 &&
+    letters.length === 3 &&
+    effMake.length >= 2 &&
+    (modelSel !== OTHER || effModel.length >= 1);
 
   const resetForm = () => {
     setEditId(null);
@@ -587,7 +591,7 @@ export default function CheckoutScreen() {
         model_ar: effModel || undefined,
         color_ar: color,
         plate_digits: plate,
-        plate_letters_ar: letters || undefined
+        plate_letters_ar: letters
       };
       if (editId) {
         const v = await api<Vehicle>("PATCH", `/v1/customers/me/vehicles/${editId}`, payload);
@@ -1304,7 +1308,7 @@ export default function CheckoutScreen() {
               />
               <TextInput
                 style={[st.inp, st.plateInp]}
-                placeholder="حروف اللوحة"
+                placeholder="حروف اللوحة (3 أحرف)"
                 placeholderTextColor={colors.gray}
                 maxLength={5}
                 value={letters.split("").join(" ")}
