@@ -693,11 +693,11 @@ export default function BoardPage() {
                   {JOURNEY_PARALLEL.includes(c.order_status) && !c.ready_at && (
                     <>
                       {prepChip(c)}
-                      <span className={s.prepOk} data-testid="journey-badge">
-                        {EN_ROUTE.includes(c.order_status)
-                          ? "🚗 العميل في الطريق — جهّزوا على وصوله"
-                          : "🚘 العميل وصل — جهّزوه ثم سلّموه"}
-                      </span>
+                      {EN_ROUTE.includes(c.order_status) && (
+                        <span className={s.prepOk} data-testid="journey-badge">
+                          🚗 العميل في الطريق — جهّزوا على وصوله
+                        </span>
+                      )}
                       {/* زر واحد «جاهز» — الخدمة تختم preparing_at آلياً إن لم يسبق تسجيله */}
                       <button
                         className={s.bbtn}
