@@ -33,7 +33,6 @@ interface Order {
   order_status: string;
   branch_id: string;
   brand_name_ar: string;
-  handoff_code: string | null;
   /** الوقت المتوقع — «متوسط وقت التجهيز» المختوم عند القبول من إعدادات المطعم */
   prep_minutes: number | null;
   /** لحظة قبول المطعم — مرساة العدّاد التنازلي للتجهيز */
@@ -684,14 +683,6 @@ export default function TrackPage() {
         {order.order_status === "HANDOFF_IN_PROGRESS" && (
           <div className="pk-card pk-in" data-testid="handoff-scene" style={{ padding: "14px 10px 6px" }}>
             <HandoffScene />
-          </div>
-        )}
-
-        {/* بطاقة رمز التسليم الكحلية — الرمز ليموني كبير متباعد الأحرف (نموذج hand-code) */}
-        {arrived && order.handoff_code && (
-          <div className={s.codeCard} data-testid="handoff-code">
-            <p className={s.codeLabel}>ورّه هذا الرمز لموظف التسليم</p>
-            <span className={s.codeDigits}>{order.handoff_code}</span>
           </div>
         )}
 

@@ -4,7 +4,7 @@
  * - شريط الحالات السبع
  * - وضع قيادة داكن (ink-900) أثناء الطريق
  * - «وصلت» POST arrival (الخادم يفتح جلسة يدوية تلقائياً — J10) · Sheet الموقف POST parking-spot {free_text}
- * - بطاقة رمز الاستلام الليمونية · عند COMPLETED تقييم بنجوم (P8)
+ * - عند COMPLETED تقييم بنجوم (P8)
  */
 import { useCallback, useEffect, useState } from "react";
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -36,7 +36,6 @@ interface Order {
   order_status: string;
   branch_id: string;
   brand_name_ar: string;
-  handoff_code: string | null;
   /** الوقت المتوقع — «متوسط وقت التجهيز» المختوم عند القبول من إعدادات المطعم */
   prep_minutes: number | null;
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة الرحلة */
@@ -342,14 +341,6 @@ export default function TrackScreen() {
           </View>
         )}
 
-        {/* بطاقة رمز الاستلام الليمونية (C-50/C-51) */}
-        {order.handoff_code && arrived && (
-          <View style={st.codeCard}>
-            <Text style={st.codeLabel}>رمز الاستلام</Text>
-            <Text style={st.codeDigits}>{order.handoff_code}</Text>
-          </View>
-        )}
-
         {/* التوجه لنقطة الموقف التي ثبتها المطعم — نمط أوبر: المتوجه يقصد النقطة المحددة */}
         {chosenSpot && chosenSpot.lat !== null && chosenSpot.lng !== null && !completed && (
           <GhostButton
@@ -539,24 +530,6 @@ const st = StyleSheet.create({
     paddingVertical: 4
   },
   spotBadgeTxt: { color: colors.lime900, fontSize: fs.fs12, fontWeight: "800" },
-  codeCard: {
-    backgroundColor: colors.lime500,
-    borderRadius: radius,
-    borderWidth: bw3,
-    borderColor: colors.ink900,
-    padding: 18,
-    alignItems: "center",
-    marginBottom: 10,
-    ...popSm
-  },
-  codeLabel: { color: colors.lime900, fontSize: fs.fs13, fontWeight: "800", marginBottom: 4 },
-  codeDigits: {
-    color: colors.ink900,
-    fontSize: fs.bPlate,
-    fontWeight: "900",
-    letterSpacing: 10,
-    fontVariant: ["tabular-nums"]
-  },
   footNote: { fontSize: fs.fs12, textAlign: "center", marginTop: 8 },
   okBadge: {
     backgroundColor: statusColors.doneBg,

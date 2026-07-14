@@ -220,35 +220,6 @@
   display: block;
 }
 
-/* ===== بطاقة رمز التسليم — كحلية والرمز ليموني كبير (نموذج hand-code) ===== */
-.codeCard {
-  background: var(--pk-ink-900);
-  border: var(--pk-b2);
-  border-radius: var(--pk-radius-lg);
-  box-shadow: var(--pk-pop-sm);
-  padding: 20px;
-  text-align: center;
-  margin-bottom: 12px;
-}
-.codeLabel {
-  color: var(--pk-cloud);
-  font-size: var(--pk-fs-14);
-  margin-bottom: 6px;
-  opacity: 0.85;
-}
-.codeDigits {
-  font-family: var(--pk-font-display);
-  direction: ltr;
-  unicode-bidi: embed;
-  font-size: 40px;
-  font-weight: 800;
-  color: var(--pk-lime-500);
-  letter-spacing: 14px;
-  padding-inline-start: 14px;
-  line-height: 1.3;
-  display: inline-block;
-}
-
 /* ===== نبضة «تم رصد وصولك» — الاحتفالية الوحيدة ===== */
 @keyframes pk-arrive-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pk-lime-500) 50%, transparent); }
@@ -407,7 +378,7 @@
   font-family: var(--pk-font-mono);
   font-variant-numeric: tabular-nums;
   direction: ltr;
-  font-size: 40px; /* نموذج codeDigits */
+  font-size: 40px;
   font-weight: 700;
   line-height: 1.3;
   color: var(--pk-blue-500);
