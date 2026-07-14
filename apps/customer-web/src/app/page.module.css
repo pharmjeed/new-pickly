@@ -284,16 +284,27 @@
   transform: translate(2px, 2px);
   box-shadow: 0 0 0 var(--pk-ink-900);
 }
-.catIc {
-  width: 52px;
-  height: 52px;
-  border-radius: 18px;
+/* ملصق التصنيف الفوتوغرافي — دائرة بحد كحلي وظل صلب وميلان ملصقات الهوية */
+.catPh {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
   background: var(--pk-cloud);
   border: var(--pk-b2);
-  color: var(--pk-ink-900);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  box-shadow: var(--pk-pop-xs);
+  transform: rotate(var(--pk-sticker-tilt));
+  overflow: hidden;
+  flex: none;
+}
+.catPh img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* تناوب اتجاه الميلان بين البطاقات — إيقاع الملصقات المرح */
+.catCard:nth-child(even) .catPh {
+  transform: rotate(calc(-1 * var(--pk-sticker-tilt)));
 }
 .catNm {
   font-family: var(--pk-font-display);
@@ -1025,8 +1036,8 @@
   100% { transform: rotate(var(--pk-sticker-tilt)) translateY(0) scale(1); }
 }
 
-/* ===== أيقونة التصنيف تقفز فرحاً عند المرور ===== */
-.catCard:hover .catIc {
+/* ===== صورة التصنيف تقفز فرحاً عند المرور (الحركة على img لتبقى دائرة الملصق مائلة) ===== */
+.catCard:hover .catPh img {
   animation: pk-cat-hop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 @keyframes pk-cat-hop {

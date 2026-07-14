@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { AppHead, IStore, TabBar, cuisineIcon, useCategories, useNearby } from "./shell";
+import { AppHead, IStore, TabBar, cuisinePhoto, useCategories, useNearby } from "./shell";
 import { QirtasDrive, QirtasEmptyLive } from "./qirtas-motion";
 import styles from "./page.module.css";
 
@@ -158,7 +158,11 @@ export default function HomePage() {
                     style={{ animationDelay: `${100 + Math.min(i, 8) * 55}ms` }}
                     data-testid="cat-card"
                   >
-                    <span className={styles.catIc}>{cuisineIcon(name)}</span>
+                    <span className={styles.catPh}>
+                      {/* أصل ثابت صغير من public — كصور البانرات، next/image يتطلب تهيئة لا تلزم هنا */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={cuisinePhoto(name)} alt="" width={64} height={64} loading="lazy" />
+                    </span>
                     <b className={styles.catNm}>{name}</b>
                     <span className={styles.catCt}>{count} {count === 1 ? "مطعم" : "مطاعم"}</span>
                   </Link>

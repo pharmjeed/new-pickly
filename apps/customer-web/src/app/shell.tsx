@@ -187,6 +187,16 @@ export function cuisineIcon(name: string, size = 26): React.ReactNode {
   return <IStore size={size} />;
 }
 
+/** صورة التصنيف الواقعية حسب اسمه (public/cats — ترخيص Unsplash) — سقوط لصورة المتجر العام */
+export function cuisinePhoto(name: string): string {
+  if (name.includes("برجر")) return "/cats/burger.jpg";
+  if (name.includes("شاورما")) return "/cats/shawarma.jpg";
+  if (name.includes("مقهى") || name.includes("قهوة")) return "/cats/coffee.jpg";
+  if (name.includes("بيتزا")) return "/cats/pizza.jpg";
+  if (name.includes("صيدلي")) return "/cats/pharmacy.jpg";
+  return "/cats/store.jpg";
+}
+
 /* حالة الفرع → شارة على صورة البطاقة (كما في rcard بالتصميم) */
 export function statusBadge(status: string): { label: string; cls: string } {
   if (status === "open") return { label: "مفتوح", cls: styles.stOpen };
