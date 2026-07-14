@@ -622,30 +622,22 @@ export default function BoardPage() {
                 )}
 
                 <div className={s.actions}>
+                  {/* استعراض محتوى الطلب متاح في كل الحالات — حتى قيد التحضير وما بعده */}
+                  <button
+                    className={`${s.bbtn} ${s.gray}`}
+                    data-testid="view-order"
+                    onClick={() => toggleDetails(c.id)}
+                  >
+                    {detailsFor === c.id ? "إخفاء" : "استعراض الطلب"}
+                  </button>
                   {/* مجدول راقد حتى موعده (BR-5) — استعراض فقط؛ ينتقل إلى «التشغيل» آلياً */}
                   {c.order_status === "ORDER_SUBMITTED" && (
-                    <>
-                      <button
-                        className={`${s.bbtn} ${s.gray}`}
-                        data-testid="view-order"
-                        onClick={() => toggleDetails(c.id)}
-                      >
-                        {detailsFor === c.id ? "إخفاء" : "استعراض الطلب"}
-                      </button>
-                      <span className={s.prepWait} data-testid="scheduled-countdown">
-                        ⏰ يدخل «التشغيل» {schedLabel(c)}
-                      </span>
-                    </>
+                    <span className={s.prepWait} data-testid="scheduled-countdown">
+                      ⏰ يدخل «التشغيل» {schedLabel(c)}
+                    </span>
                   )}
                   {c.order_status === "MERCHANT_PENDING" && (
                     <>
-                      <button
-                        className={`${s.bbtn} ${s.gray}`}
-                        data-testid="view-order"
-                        onClick={() => toggleDetails(c.id)}
-                      >
-                        {detailsFor === c.id ? "إخفاء" : "استعراض الطلب"}
-                      </button>
                       {/* قبول بضغطة — الوقت المتوقع يُختم آلياً من «متوسط وقت التجهيز» في الإعدادات */}
                       <button
                         className={s.bbtn}
