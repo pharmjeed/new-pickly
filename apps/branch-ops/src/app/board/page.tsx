@@ -507,11 +507,10 @@ export default function BoardPage() {
                 data-testid="order-card"
               >
                 <div className={s.hd}>
-                  {/* الرقم اليومي بارزاً (#N — يتصفر يومياً) والكود الفريد P-XXXX صغيراً تحته */}
+                  {/* الرقم اليومي بارزاً (#N — يتصفر يومياً)؛ الكود P-XXXX لا يظهر على البطاقة إلا كبديل عند غياب الرقم اليومي */}
                   {c.daily_number !== null ? (
                     <div className={s.onum}>
                       <b className={s.dnum} data-testid="daily-number">#{c.daily_number}</b>
-                      <span className={s.oidSmall}>{c.display_code}</span>
                     </div>
                   ) : (
                     <span className={s.oid}>{c.display_code}</span>
@@ -561,7 +560,6 @@ export default function BoardPage() {
                     )}
                     {remainMs !== null && (
                       <div className={s.acceptTimer}>
-                        <span className={s.countLbl}>مهلة القبول (BR-1)</span>
                         <span className={s.count}>
                           <span className={s.countT}>{mmss(Math.floor(remainMs / 1000))}</span>
                         </span>

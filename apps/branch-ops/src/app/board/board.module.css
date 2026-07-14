@@ -205,8 +205,6 @@
   box-shadow: var(--pk-pop);
 }
 .ocard[data-state="arrived"] .meta,
-.ocard[data-state="arrived"] .oidSmall,
-.ocard[data-state="arrived"] .countLbl,
 .ocard[data-state="arrived"] .colorChip { color: var(--pk-ink-700); }
 .ocard[data-state="done"] { border-inline-start-color: var(--pk-st-done); background: var(--pk-st-done-bg); }
 /* تجاوز زمن الخدمة المستهدف (BR-9) — يلوّن البطاقة أحمر */
@@ -242,13 +240,6 @@
   unicode-bidi: embed;
 }
 .ocard[data-state="arrived"] .dnum { color: var(--pk-ink-900); }
-.oidSmall {
-  font-family: var(--pk-font-mono);
-  font-size: 11.5px;
-  color: var(--pk-gray);
-  direction: ltr;
-  unicode-bidi: embed;
-}
 /* بطاقة السيارة أكبر عنصر — كتاب الهوية §11 (28–40px) */
 .vehicle {
   font-family: var(--pk-font-display);
@@ -368,7 +359,6 @@
 
 /* عداد قبول BR-1 */
 .acceptTimer { display: flex; flex-direction: column; gap: 2px; align-items: center; }
-.countLbl { font-size: 13px; color: var(--pk-gray); }
 .count {
   display: inline-flex;
   align-items: center;
