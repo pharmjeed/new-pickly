@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, shortDateTime } from "@/lib/api";
+import { QirtasLoader } from "@/components/qirtas";
 
 type HealthData = {
   jobs_pending: number;
@@ -39,7 +40,7 @@ export default function HealthOps() {
       </div>
     );
   }
-  if (!data) return <div className="skl" style={{ height: 260 }} />;
+  if (!data) return <div className="loadwrap" style={{ minHeight: 260 }}><QirtasLoader /></div>;
 
   return (
     <>

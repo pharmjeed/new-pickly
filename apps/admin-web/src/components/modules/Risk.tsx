@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import { Qirtas, QirtasLoader } from "@/components/qirtas";
 
 type Alert = {
   user_id: string | null;
@@ -76,7 +77,7 @@ export default function Risk() {
     <>
       {error && <div className="note err" data-testid="risk-error">{error}</div>}
       {notice && <div className="note info" data-testid="risk-notice">{notice}</div>}
-      {!alerts && !error && <div className="skl" style={{ height: 260 }} />}
+      {!alerts && !error && <div className="loadwrap" style={{ minHeight: 260 }}><QirtasLoader /></div>}
 
       {alerts && (
         <div className="kpis">
@@ -93,7 +94,7 @@ export default function Risk() {
 
       {alerts && alerts.length === 0 && (
         <div className="empty">
-          <div className="ic">🛡</div>
+          <div className="qr"><Qirtas mood="sleepy" size={72} /></div>
           <b>لا تنبيهات مخاطر</b>
           <p>الإشارات تُحسب آلياً من عدم الحضور والاسترجاعات والنزاعات</p>
         </div>

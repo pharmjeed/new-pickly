@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
 import SpotMap from "@/components/SpotMap";
+import { Qirtas } from "@/components/qirtas";
 import { clearToken, ApiError, apiDelete, apiGet, apiPatch, apiPost, minSec, sar } from "@/lib/api";
 import s from "./dashboard.module.css";
 
@@ -317,7 +318,7 @@ export default function DashboardPage() {
 
               {data.branches.length === 0 && !showAddBranch ? (
                 <div className="empty">
-                  <div className="ic">🏪</div>
+                  <Qirtas mood="sleepy" size={96} />
                   <b>لا فروع بعد</b>
                   <p>أضف فرعك الأول بالضغط على «＋ فرع جديد» وحدّد موقعه على الخريطة</p>
                 </div>
@@ -339,9 +340,10 @@ export default function DashboardPage() {
               {showAddBranch && (
                 <div
                   data-testid="add-branch-form"
-                  style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--m-line, #e5e7e3)", display: "flex", flexDirection: "column", gap: 8 }}
+                  style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--pk-line)", display: "flex", flexDirection: "column", gap: 8 }}
                 >
                   <input
+                    className="inp"
                     value={nb.name_ar}
                     placeholder="اسم الفرع — مثال: بيست برجر — الروضة"
                     maxLength={80}
@@ -351,6 +353,7 @@ export default function DashboardPage() {
                   />
                   <div style={{ display: "flex", gap: 8 }}>
                     <input
+                      className="inp"
                       value={nb.city}
                       placeholder="المدينة"
                       maxLength={60}
@@ -359,6 +362,7 @@ export default function DashboardPage() {
                       style={{ flex: 1, padding: "6px 10px" }}
                     />
                     <input
+                      className="inp"
                       value={nb.phone}
                       placeholder="جوال الفرع (اختياري)"
                       maxLength={20}
@@ -369,6 +373,7 @@ export default function DashboardPage() {
                     />
                   </div>
                   <input
+                    className="inp"
                     value={nb.address_short}
                     placeholder="العنوان المختصر — مثال: طريق الملك عبدالله، حي الروضة"
                     maxLength={160}
@@ -393,13 +398,14 @@ export default function DashboardPage() {
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span className="muted" style={{ fontSize: 12 }}>وقت التجهيز</span>
                       <input
+                        className="inp"
                         type="number"
                         min={1}
                         max={120}
                         value={nb.prep_minutes}
                         data-testid="add-branch-prep"
                         onChange={(e) => setNb((v) => ({ ...v, prep_minutes: Number(e.target.value) }))}
-                        style={{ width: 60, padding: "4px 8px", textAlign: "center" }}
+                        style={{ width: 64, minHeight: 40, padding: "4px 8px", textAlign: "center" }}
                       />
                       <span className="muted" style={{ fontSize: 12 }}>دقيقة</span>
                     </span>
@@ -407,10 +413,11 @@ export default function DashboardPage() {
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                         <span className="muted" style={{ fontSize: 12 }}>انسخ المنيو من</span>
                         <select
+                          className="inp"
                           value={nb.copy_from}
                           data-testid="add-branch-copy-from"
                           onChange={(e) => setNb((v) => ({ ...v, copy_from: e.target.value }))}
-                          style={{ padding: "4px 8px" }}
+                          style={{ width: "auto", minHeight: 40, padding: "4px 8px" }}
                         >
                           <option value="">منيو العلامة (افتراضي)</option>
                           {prepBranches?.map((b) => (
@@ -465,6 +472,7 @@ export default function DashboardPage() {
                   <span className="k">{b.name_ar}</span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                     <input
+                      className="inp"
                       type="number"
                       min={1}
                       max={120}
@@ -473,7 +481,7 @@ export default function DashboardPage() {
                         setPrepDraft((d) => ({ ...d, [b.id]: Number(e.target.value) }))
                       }
                       data-testid="prep-minutes-input"
-                      style={{ width: 64, padding: "4px 8px", textAlign: "center" }}
+                      style={{ width: 64, minHeight: 40, padding: "4px 8px", textAlign: "center" }}
                     />
                     <span className="muted" style={{ fontSize: 12 }}>دقيقة</span>
                     <button
@@ -531,7 +539,7 @@ export default function DashboardPage() {
                           alignItems: "center",
                           gap: 6,
                           opacity: p.is_active ? 1 : 0.45,
-                          outline: spotSelected[b.id] === p.id ? "2px solid var(--m-ink, #10241B)" : "none"
+                          outline: spotSelected[b.id] === p.id ? "2px solid var(--pk-blue-500)" : "none"
                         }}
                       >
                         <button
@@ -558,7 +566,7 @@ export default function DashboardPage() {
                           title="حذف الموقف"
                           disabled={spotBusy === p.id}
                           onClick={() => void deleteSpot(b.id, p)}
-                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--m-danger, #c0392b)" }}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--pk-error)" }}
                         >
                           ✕
                         </button>
@@ -567,6 +575,7 @@ export default function DashboardPage() {
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
+                      className="inp"
                       value={spotDraft[b.id] ?? ""}
                       placeholder={pinDraft[b.id] ? "سمّ النقطة المثبتة — مثال: 6 أو «أمام المدخل»" : "مثال: 6 أو «أمام المدخل»"}
                       maxLength={40}
@@ -575,7 +584,7 @@ export default function DashboardPage() {
                       onKeyDown={(e) => {
                         if (e.key === "Enter") void addSpot(b.id);
                       }}
-                      style={{ flex: 1, padding: "4px 8px" }}
+                      style={{ flex: 1, minHeight: 40, padding: "4px 8px" }}
                     />
                     <button
                       className="btn"

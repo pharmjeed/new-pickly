@@ -4,25 +4,11 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, setTokens } from "@/lib/api";
+import { QirtasBadge } from "../qirtas";
 import s from "./auth.module.css";
 
 const OTP_LEN = 6;
 const RESEND_SECONDS = 47;
-
-function BadgeLogo() {
-  return (
-    <svg width="64" height="64" viewBox="0 0 100 100" aria-hidden="true">
-      <rect width="100" height="100" rx="24" fill="var(--pk-lime-500)" />
-      <g transform="skewX(-8) translate(4,0)" stroke="var(--pk-ink-900)" fill="none">
-        <path d="M36,34 L62,34 L59,72 L39,72 Z" strokeWidth="4" strokeLinejoin="round" />
-        <path d="M43,34 Q49,24 55,34" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M70,40 H88" strokeWidth="5" strokeLinecap="round" />
-        <path d="M74,52 H88" strokeWidth="5" strokeLinecap="round" opacity="0.55" />
-        <path d="M70,64 H80" strokeWidth="5" strokeLinecap="round" opacity="0.3" />
-      </g>
-    </svg>
-  );
-}
 
 function ChevBack() {
   return (
@@ -116,7 +102,7 @@ function AuthFlow() {
               <span className={s.logoLatin}>pickly</span>
               <span className={s.logoAr}>بيكلي</span>
             </div>
-            <BadgeLogo />
+            <QirtasBadge size={72} />
           </div>
 
           <h1 className={s.hero}>

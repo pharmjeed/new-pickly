@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { api, fmtSar, getToken } from "@/lib/api";
+import { Qirtas, QirtasBadge } from "./qirtas";
 import styles from "./page.module.css";
 
 export interface BranchCard {
@@ -323,7 +324,9 @@ export function AppHead({ locLabel, coords }: { locLabel: string; coords: { lat:
   return (
     <header className={styles.apphead} style={{ position: "relative" }}>
       <div className={styles.loc}>
-        <span style={{ color: "var(--pk-lime-900)", display: "inline-flex" }}>
+        {/* شارة القرطاس المصغّرة — 30px كما في نموذج الرئيسية */}
+        <QirtasBadge size={30} style={{ flexShrink: 0 }} />
+        <span style={{ color: "var(--pk-ink-900)", display: "inline-flex" }}>
           <IPin size={17} />
         </span>
         <div>
@@ -387,7 +390,10 @@ export function AppHead({ locLabel, coords }: { locLabel: string; coords: { lat:
       {results && !showNotifs && (
         <div className={styles.searchResults} data-testid="search-results">
           {results.branches.length === 0 && results.products.length === 0 && (
-            <div className={styles.notifEmpty}>لا نتائج لـ«{q.trim()}» — جرّب كلمة أخرى</div>
+            <div className={styles.notifEmpty}>
+              <Qirtas mood="sad" size={64} />
+              <div>لا نتائج لـ«{q.trim()}» — جرّب كلمة أخرى</div>
+            </div>
           )}
           {results.branches.length > 0 && <div className={styles.searchHint}>مطاعم</div>}
           {results.branches.map((b) => (
@@ -454,9 +460,7 @@ export function TabBar() {
 export function GuestGate({ next, message }: { next: string; message: string }) {
   return (
     <div className={styles.empty}>
-      <div className={styles.emptyIc}>
-        <IUser />
-      </div>
+      <QirtasBadge size={72} style={{ marginBottom: 10 }} />
       <b>سجّل دخولك أولاً</b>
       <p>{message}</p>
       <Link href={`/auth?next=${encodeURIComponent(next)}`} className={styles.gateBtn} data-testid="gate-login">

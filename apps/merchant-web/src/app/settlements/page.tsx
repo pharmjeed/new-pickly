@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
+import { Qirtas } from "@/components/qirtas";
 import {clearToken,  ApiError, apiGet, sar } from "@/lib/api";
 import s from "./settlements.module.css";
 
@@ -100,7 +101,7 @@ export default function SettlementsPage() {
 
       {settlements && settlements.length === 0 && (
         <div className="empty">
-          <div className="ic">🧾</div>
+          <Qirtas mood="sleepy" size={96} />
           <b>لا تسويات بعد</b>
           <p>تظهر الدورات هنا بعد أول تجميع أسبوعي</p>
         </div>

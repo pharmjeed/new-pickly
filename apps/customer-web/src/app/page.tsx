@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { AppHead, IStore, TabBar, cuisineIcon, useCategories, useNearby } from "./shell";
+import { QirtasEmpty } from "./qirtas";
 import styles from "./page.module.css";
 
 interface Banner {
@@ -126,11 +127,10 @@ export default function HomePage() {
             </div>
             {cats.length === 0 ? (
               <div className={styles.empty}>
-                <div className={styles.emptyIc}>
-                  <IStore />
-                </div>
-                <b>ما فيه مطاعم قريبة منك الآن</b>
-                <p>بيكلي يتوسع — جرّب من موقع آخر أو عُد لاحقاً</p>
+                <QirtasEmpty mood="sleepy">
+                  <b>ما فيه مطاعم قريبة منك الآن</b>
+                  <p>بيكلي يتوسع — جرّب من موقع آخر أو عُد لاحقاً</p>
+                </QirtasEmpty>
               </div>
             ) : (
               <div className={styles.cats} data-testid="home-cats">

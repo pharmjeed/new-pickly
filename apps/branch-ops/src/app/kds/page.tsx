@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import s from "./kds.module.css";
+import { Qirtas, QirtasBadge, QirtasLoader } from "../qirtas";
 
 interface Card {
   id: string;
@@ -66,22 +67,6 @@ const ISSUE_TYPES = [
   ["out_of_stock", "نفد من المخزون"],
   ["partial", "متوفر جزئياً"]
 ] as const;
-
-/** شارة بيكلي — كتاب الهوية */
-function Badge() {
-  return (
-    <svg width="38" height="38" viewBox="0 0 100 100" aria-hidden="true">
-      <rect width="100" height="100" rx="24" fill="var(--pk-lime-500)" />
-      <g transform="skewX(-8) translate(4,0)" stroke="var(--pk-ink-900)" fill="none">
-        <path d="M36,34 L62,34 L59,72 L39,72 Z" strokeWidth="4" strokeLinejoin="round" />
-        <path d="M43,34 Q49,24 55,34" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M70,40 H88" strokeWidth="5" strokeLinecap="round" />
-        <path d="M74,52 H88" strokeWidth="5" strokeLinecap="round" opacity="0.55" />
-        <path d="M70,64 H80" strokeWidth="5" strokeLinecap="round" opacity="0.3" />
-      </g>
-    </svg>
-  );
-}
 
 export default function KdsPage() {
   const router = useRouter();
@@ -283,7 +268,10 @@ export default function KdsPage() {
               </li>
             ))
           ) : (
-            <li className={s.mod}>{c.items_count} أصناف — جارٍ جلب التفاصيل…</li>
+            <li className={s.loadRow}>
+              <QirtasLoader size={32} />
+              {c.items_count} أصناف — جارٍ جلب التفاصيل…
+            </li>
           )}
           {d?.customer_notes && <li className={s.alrg}>⚠ ملاحظة العميل: {d.customer_notes}</li>}
         </ul>
@@ -297,7 +285,7 @@ export default function KdsPage() {
       {/* ترويسة KDS */}
       <header className={s.bhdr}>
         <div className={s.brand}>
-          <Badge />
+          <QirtasBadge size={40} />
           <div>
             <b>بيكلي — شاشة المطبخ</b>
             <div className={s.sub}>KDS · التحضير والجاهزية</div>
@@ -329,6 +317,15 @@ export default function KdsPage() {
             </span>
           )}
         </div>
+
+        {/* الحالة الفارغة الجامعة — القرطاس النعسان حين لا شيء في المطبخ كله */}
+        {waiting.length === 0 && cooking.length === 0 && ready.length === 0 && (
+          <div className={s.empty} data-testid="kds-empty">
+            <Qirtas mood="sleepy" size={100} />
+            <b>لا طلبات حالية</b>
+            <p>حين يصل طلب جديد يظهر هنا فوراً — التحديث كل ثوانٍ.</p>
+          </div>
+        )}
 
         <div className={s.grid3}>
           {/* في الانتظار — MERCHANT_ACCEPTED */}
@@ -449,7 +446,9 @@ export default function KdsPage() {
                   </button>
                 ))
               ) : (
-                <div className={s.kempty}>جارٍ جلب عناصر الطلب…</div>
+                <div className={s.kempty}>
+                  <QirtasLoader size={40} /> جارٍ جلب عناصر الطلب…
+                </div>
               )}
             </div>
 

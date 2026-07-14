@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import { QirtasLoader } from "@/components/qirtas";
 
 type FeeConfig = { amount_halalas: number; merchant_share_halalas: number };
 
@@ -73,7 +74,7 @@ export default function Pricing() {
     <>
       {error && <div className="note err" data-testid="pricing-error">{error}</div>}
       {notice && <div className="note info" data-testid="pricing-notice">{notice}</div>}
-      {!config && !error && <div className="skl" style={{ height: 180 }} />}
+      {!config && !error && <div className="loadwrap" style={{ minHeight: 180 }}><QirtasLoader /></div>}
 
       {config && (
         <div className="pcardx" data-testid="pricing-service-fee">

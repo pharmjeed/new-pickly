@@ -1,8 +1,9 @@
-/* M-15 المالية والتسويات — جدول التسويات + كشف البنود (design/merchant/M-15) */
+/* M-15 المالية والتسويات — جدول التسويات + كشف البنود (الهوية الفنكية v2.0) */
 .row { cursor: pointer; }
-.rowOn td { background: var(--pk-lime-100) !important; }
+.rowOn td { background: var(--pk-st-prep-bg) !important; }
 
-.net { font-weight: 700; }
+.net { font-weight: 800; color: var(--pk-blue-500); }
+:global([data-theme="dark"]) .net { color: var(--pk-live); }
 .neg { color: var(--pk-error); }
 .pos { color: var(--pk-success); }
 

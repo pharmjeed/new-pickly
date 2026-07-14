@@ -1,16 +1,16 @@
 /* B-07/B-08 — KDS المطبخ (design/branch/B-07.html) — تابلت 1280 أفقي · كثافة شاشة مطبخ
-   لمس ≥56px (--pk-touch-branch) · خط ≥ --pk-fs-b-min · كل الألوان من tokens (--pk-*) */
+   لمس ≥56px (--pk-touch-branch) · خط ≥ --pk-fs-b-min
+   الهوية الفنكية v2.0: عاجي منقّط + حدود كحلية سميكة + ظل صلب مُزاح */
 
 .kds {
   min-height: 100vh;
   max-width: 1280px;
   margin: 0 auto;
-  background: var(--pk-cloud);
   display: flex;
   flex-direction: column;
 }
 
-/* ===== ترويسة KDS ===== */
+/* ===== ترويسة KDS — كحلية بخط ليموني ===== */
 .bhdr {
   background: var(--pk-ink-900);
   color: var(--pk-cloud);
@@ -19,9 +19,10 @@
   gap: 18px;
   padding: 12px 22px;
   flex-shrink: 0;
+  border-bottom: 3px solid var(--pk-lime-500);
 }
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand b { font-family: var(--pk-font-display); font-size: var(--pk-fs-20); font-weight: 700; }
+.brand b { font-family: var(--pk-font-display); font-size: var(--pk-fs-20); font-weight: 800; }
 .sub { font-size: var(--pk-fs-13); color: var(--pk-gray-2); }
 .sp { margin-inline-start: auto; display: flex; gap: 12px; align-items: center; }
 .pill {
@@ -29,8 +30,9 @@
   align-items: center;
   gap: 8px;
   background: var(--pk-ink-700);
+  border: 2px solid var(--pk-ink-600);
   border-radius: var(--pk-radius-pill);
-  padding: 6px 16px;
+  padding: 4px 16px;
   font-size: var(--pk-fs-14);
 }
 .dot {
@@ -45,12 +47,14 @@
   unicode-bidi: embed;
 }
 
-/* ===== منطقة العمل ===== */
+/* ===== منطقة العمل — بطاقة بحد كحلي وظل صلب فوق العاجي المنقّط ===== */
 .bmain {
   flex: 1;
   background: var(--pk-white);
-  margin: 16px 20px 20px;
-  border-radius: 18px;
+  margin: 20px;
+  border: var(--pk-b3);
+  border-radius: var(--pk-radius-lg);
+  box-shadow: var(--pk-pop);
   padding: 18px;
   overflow-y: auto;
   display: flex;
@@ -60,7 +64,8 @@
 .noteErr {
   display: flex;
   gap: 10px;
-  align-items: flex-start;
+  align-items: center;
+  border: 2px solid var(--pk-error);
   border-radius: var(--pk-radius);
   padding: 11px 14px;
   font-size: var(--pk-fs-b-min);
@@ -70,41 +75,58 @@
   font-weight: 500;
 }
 
-/* ===== شريط الملخص (شارات B-07) ===== */
+/* ===== شريط الملخص (شارات B-07) — تاجات بحد كحلي ===== */
 .sumline { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-pill);
+  box-shadow: var(--pk-pop-xs);
   padding: 6px 16px;
   font-size: var(--pk-fs-b-min);
-  font-weight: 500;
+  font-weight: 700;
   white-space: nowrap;
 }
-.bPrep { background: var(--pk-st-prep-bg); color: var(--pk-st-prep); border: 1.5px solid var(--pk-st-prep); }
-.bOver { background: var(--pk-st-overdue-bg); color: var(--pk-st-overdue); border: 1.5px solid var(--pk-st-overdue); }
+.bPrep { background: var(--pk-st-prep-bg); color: var(--pk-ink-900); }
+.bOver { background: var(--pk-st-overdue); color: var(--pk-white); }
 
-/* ===== أعمدة KDS الثلاثة ===== */
-.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; flex: 1; align-items: stretch; }
+/* ===== الحالة الفارغة الجامعة — القرطاس النعسان ===== */
+.empty {
+  text-align: center;
+  padding: 26px 20px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.empty b { font-family: var(--pk-font-display); font-size: var(--pk-fs-20); font-weight: 800; }
+.empty p { font-size: var(--pk-fs-14); color: var(--pk-text-2); margin: 0; }
+
+/* ===== أعمدة KDS الثلاثة — أطر كحلية ورؤوس ملوّنة ===== */
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; flex: 1; align-items: stretch; }
 @media (max-width: 1000px) { .grid3 { grid-template-columns: 1fr; } }
 
 .kcol {
   background: var(--pk-cloud);
-  border: 1px solid var(--pk-line);
-  border-radius: 16px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-sm);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 .kh {
   padding: 10px 16px;
+  font-family: var(--pk-font-display);
   font-size: var(--pk-fs-b-min);
   font-weight: 700;
   display: flex;
   align-items: center;
   gap: 10px;
   color: var(--pk-white);
+  border-bottom: var(--pk-b2);
 }
 .khCount {
   font-family: var(--pk-font-mono);
@@ -117,11 +139,12 @@
 .khDone { background: var(--pk-st-done); }
 .kb { padding: 12px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
 
-/* ===== تذكرة KDS ===== */
+/* ===== تذكرة KDS — بطاقة بحد كحلي وظل صغير ===== */
 .kt {
   background: var(--pk-white);
-  border: 1.5px solid var(--pk-line);
-  border-radius: 12px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius);
+  box-shadow: var(--pk-pop-xs);
   padding: 10px 14px;
   display: flex;
   flex-direction: column;
@@ -159,8 +182,10 @@
   direction: ltr;
   unicode-bidi: embed;
 }
+/* جلب التفاصيل — المحمّل الرسمي (خطوط وردية تتلألأ) */
+.loadRow { display: inline-flex; align-items: center; gap: 8px; color: var(--pk-gray); }
 
-/* ===== أزرار ضخمة للمطبخ (لمس ≥56px) ===== */
+/* ===== أزرار ضخمة للمطبخ (لمس ≥56px) — أزرق الفعل + ليموني الجاهزية ===== */
 .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .bbtn {
   display: inline-flex;
@@ -170,23 +195,31 @@
   min-height: var(--pk-touch-branch);
   padding: 0 22px;
   border-radius: 14px;
-  border: none;
+  border: var(--pk-b2);
   cursor: pointer;
-  font-family: var(--pk-font-body);
+  font-family: var(--pk-font-display);
   font-size: var(--pk-fs-b-min);
   font-weight: 700;
-  background: var(--pk-lime-500);
-  color: var(--pk-ink-900);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  box-shadow: var(--pk-pop-sm);
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
   flex: 1;
 }
-.bbtn:hover { background: var(--pk-lime-300); }
-.bbtn:disabled { background: var(--pk-line); color: var(--pk-gray); cursor: not-allowed; }
-.gray { background: var(--pk-cloud); border: 2px solid var(--pk-ink-900); color: var(--pk-ink-900); }
-.gray:hover { background: var(--pk-line); }
-.green { background: var(--pk-success); color: var(--pk-white); }
-.green:hover { background: var(--pk-st-done); }
+.bbtn:hover { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--pk-ink-900); }
+.bbtn:disabled {
+  background: var(--pk-cloud-2);
+  color: var(--pk-gray);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+/* ثانوي: أبيض بحد كحلي بلا ظل */
+.gray { background: var(--pk-white); color: var(--pk-ink-900); box-shadow: none; font-family: var(--pk-font-body); }
+.gray:hover { transform: none; box-shadow: var(--pk-pop-xs); }
+/* «جاهز ✓» = نجاح التجهيز — الليموني المحجوز للنجاح */
+.green { background: var(--pk-lime-500); color: var(--pk-ink-900); }
 .red { background: var(--pk-error); color: var(--pk-white); }
-.red:hover { background: var(--pk-st-overdue); }
 
 .kempty { text-align: center; color: var(--pk-text-2); font-size: var(--pk-fs-b-min); padding: 18px 8px; }
 .foot { color: var(--pk-gray); font-size: var(--pk-fs-b-min); }
@@ -195,7 +228,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(16, 36, 27, 0.55); /* --pk-ink-900 بشفافية */
+  background: color-mix(in srgb, var(--pk-ink-900) 55%, transparent);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -203,7 +236,9 @@
 }
 .sheet {
   background: var(--pk-white);
-  border-radius: 20px 20px 0 0;
+  border: var(--pk-b3);
+  border-bottom: none;
+  border-radius: var(--pk-radius-lg) var(--pk-radius-lg) 0 0;
   width: min(720px, 100%);
   max-height: 85vh;
   overflow-y: auto;
@@ -215,7 +250,7 @@
 .sheetTitle {
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-24);
-  font-weight: 700;
+  font-weight: 800;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -228,8 +263,8 @@
   gap: 12px;
   min-height: var(--pk-touch-branch);
   padding: 8px 14px;
-  border: 1.5px solid var(--pk-line);
-  border-radius: 12px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius);
   background: var(--pk-white);
   cursor: pointer;
   font-family: var(--pk-font-body);
@@ -238,11 +273,12 @@
   text-align: start;
   width: 100%;
 }
-.itemRowOn { border-color: var(--pk-ink-900); background: var(--pk-lime-100); }
+.itemRow:hover { box-shadow: var(--pk-pop-xs); }
+.itemRowOn { background: var(--pk-lime-100); box-shadow: var(--pk-pop-xs); }
 .rdot {
   width: 22px;
   height: 22px;
-  border: 2px solid var(--pk-line);
+  border: 2px solid var(--pk-ink-900);
   border-radius: 50%;
   flex-shrink: 0;
   display: inline-flex;
@@ -256,14 +292,14 @@
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  background: var(--pk-ink-900);
+  background: var(--pk-blue-500);
 }
 .segRow { display: flex; gap: 10px; flex-wrap: wrap; }
 .segBtn { flex: 1; width: auto; justify-content: flex-start; }
 .ta {
   min-height: 88px;
-  border: 1.5px solid var(--pk-line);
-  border-radius: 12px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius);
   padding: 10px 14px;
   font-family: var(--pk-font-body);
   font-size: var(--pk-fs-b-min);
@@ -274,5 +310,5 @@
   resize: vertical;
   line-height: 1.7;
 }
-.ta:focus { border-color: var(--pk-ink-900); }
+.ta:focus { border-color: var(--pk-blue-500); }
 .hint { color: var(--pk-error); font-size: var(--pk-fs-b-min); }

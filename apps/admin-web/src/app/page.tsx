@@ -8,23 +8,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TOKEN_KEY, getToken } from "@/lib/api";
+import { QirtasBadge, SpeedLines } from "@/components/qirtas";
 import s from "./login.module.css";
-
-/** شارة بيكلي — كتاب الهوية */
-function Badge() {
-  return (
-    <svg width="42" height="42" viewBox="0 0 100 100" aria-hidden="true">
-      <rect width="100" height="100" rx="24" fill="var(--pk-lime-500)" />
-      <g transform="skewX(-8) translate(4,0)" stroke="var(--pk-ink-900)" fill="none">
-        <path d="M36,34 L62,34 L59,72 L39,72 Z" strokeWidth="4" strokeLinejoin="round" />
-        <path d="M43,34 Q49,24 55,34" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M70,40 H88" strokeWidth="5" strokeLinecap="round" />
-        <path d="M74,52 H88" strokeWidth="5" strokeLinecap="round" opacity="0.55" />
-        <path d="M70,64 H80" strokeWidth="5" strokeLinecap="round" opacity="0.3" />
-      </g>
-    </svg>
-  );
-}
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -87,11 +72,12 @@ export default function AdminLoginPage() {
     <main className={s.page}>
       <div className={s.card}>
         <div className={s.brand}>
-          <Badge />
+          <QirtasBadge size={46} />
           <div>
             <b>لوحة Super Admin</b>
             <div className={s.sub}>منصة بيكلي — نطاق الطيار</div>
           </div>
+          <SpeedLines width={44} style={{ marginInlineStart: "auto" }} />
         </div>
 
         {step === "phone" ? (

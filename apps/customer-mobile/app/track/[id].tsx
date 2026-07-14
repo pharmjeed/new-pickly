@@ -13,7 +13,22 @@ import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { api } from "../../src/api";
 import { ErrorNote, GhostButton, LimeButton, Loader } from "../../src/ui";
-import { colors, dark, fs, light, radius, radiusPill, touch } from "../../src/theme";
+import { Qirtas } from "../../src/qirtas";
+import {
+  bw2,
+  bw3,
+  colors,
+  dark,
+  fs,
+  light,
+  popLime,
+  popSm,
+  radius,
+  radiusLg,
+  radiusPill,
+  statusColors,
+  touch
+} from "../../src/theme";
 
 interface Order {
   id: string;
@@ -292,9 +307,16 @@ export default function TrackScreen() {
           </View>
         )}
 
-        {/* بطاقة السيارة (C-42/C-49) */}
+        {/* بطاقة السيارة (C-42/C-49) — فوق داكن وضع القيادة الظل ليموني */}
         {order.vehicle && (
-          <View style={[st.card, st.vehRow, { backgroundColor: T.surface, borderColor: T.border }]}>
+          <View
+            style={[
+              st.card,
+              st.vehRow,
+              { backgroundColor: T.surface, borderColor: T.border },
+              driveMode ? popLime : null
+            ]}
+          >
             <View style={{ flex: 1 }}>
               <Text style={[st.vehName, { color: T.text }]}>
                 {[order.vehicle.model_ar, order.vehicle.color_ar, order.vehicle.plate_short]
@@ -310,6 +332,13 @@ export default function TrackScreen() {
                 <Text style={st.spotBadgeTxt}>{parkingLabel}</Text>
               </View>
             )}
+          </View>
+        )}
+
+        {/* لحظة الوصول — القرطاس المتحمس (كاركتر الحالة الواحد) */}
+        {arrived && (
+          <View style={st.arrivedChar}>
+            <Qirtas mood="excited" size={72} lines />
           </View>
         )}
 
@@ -359,7 +388,7 @@ export default function TrackScreen() {
 
         {canArrive && (
           <>
-            <LimeButton title="وصلت" onPress={() => void confirmArrival()} style={{ marginTop: 12 }} />
+            <LimeButton lime title="وصلت" onPress={() => void confirmArrival()} style={{ marginTop: 12 }} />
             <Text style={[st.footNote, { color: T.text2 }]}>
               «وصلت» بيدك دائماً — اضغطه فور وقوفك عند المطعم
             </Text>
@@ -373,6 +402,8 @@ export default function TrackScreen() {
             </View>
             {!reviewDone ? (
               <View style={{ marginTop: 12, alignItems: "center" }}>
+                {/* التقييم — القرطاس الغامز */}
+                <Qirtas mood="wink" size={64} />
                 <View style={st.stars}>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <Pressable
@@ -426,7 +457,7 @@ export default function TrackScreen() {
                         accessibilityRole="button"
                         accessibilityState={{ selected: on }}
                       >
-                        <Text style={[st.spotBtnTxt, on ? { color: colors.ink900 } : null]}>{sp.label}</Text>
+                        <Text style={[st.spotBtnTxt, on ? { color: colors.white } : null]}>{sp.label}</Text>
                       </Pressable>
                     );
                   })}
@@ -483,15 +514,16 @@ const st = StyleSheet.create({
     justifyContent: "center"
   },
   dotDone: { backgroundColor: colors.success, borderColor: colors.success },
-  dotCur: { backgroundColor: colors.lime500, borderColor: colors.lime500 },
-  dotTxt: { color: colors.ink900, fontSize: 10, fontWeight: "900" },
+  dotCur: { backgroundColor: colors.blue500, borderColor: colors.ink900 },
+  dotTxt: { color: colors.white, fontSize: 10, fontWeight: "900" },
   stepLbl: { fontSize: 9, textAlign: "center" },
   stepLblCur: { fontWeight: "900" },
   title: { fontWeight: "900", textAlign: "right", marginBottom: 4 },
   sub: { fontSize: fs.fs15, textAlign: "right", marginBottom: 14 },
-  card: { borderRadius: radius, borderWidth: 1, padding: 14, marginBottom: 10 },
+  card: { borderRadius: radius, borderWidth: bw2, padding: 14, marginBottom: 10 },
+  arrivedChar: { alignItems: "center", marginBottom: 8 },
   prepMinutes: {
-    color: colors.lime900,
+    color: colors.blue500,
     fontSize: fs.fs32,
     fontWeight: "900",
     textAlign: "center",
@@ -510,9 +542,12 @@ const st = StyleSheet.create({
   codeCard: {
     backgroundColor: colors.lime500,
     borderRadius: radius,
+    borderWidth: bw3,
+    borderColor: colors.ink900,
     padding: 18,
     alignItems: "center",
-    marginBottom: 10
+    marginBottom: 10,
+    ...popSm
   },
   codeLabel: { color: colors.lime900, fontSize: fs.fs13, fontWeight: "800", marginBottom: 4 },
   codeDigits: {
@@ -524,8 +559,10 @@ const st = StyleSheet.create({
   },
   footNote: { fontSize: fs.fs12, textAlign: "center", marginTop: 8 },
   okBadge: {
-    backgroundColor: "#E2F3ED",
+    backgroundColor: statusColors.doneBg,
     borderRadius: radiusPill,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     paddingHorizontal: 12,
     paddingVertical: 5
   },
@@ -533,11 +570,15 @@ const st = StyleSheet.create({
   stars: { flexDirection: "row", gap: 6 },
   starBtn: { width: touch, height: touch, alignItems: "center", justifyContent: "center" },
   star: { color: colors.warn, fontSize: 30, lineHeight: 34 },
-  dim: { flex: 1, backgroundColor: "rgba(16,36,27,0.55)", justifyContent: "flex-end" },
+  dim: { flex: 1, backgroundColor: "rgba(14,27,61,0.55)", justifyContent: "flex-end" },
   sheet: {
     backgroundColor: light.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: radiusLg,
+    borderTopRightRadius: radiusLg,
+    borderTopWidth: bw3,
+    borderLeftWidth: bw3,
+    borderRightWidth: bw3,
+    borderColor: colors.ink900,
     padding: 16,
     paddingBottom: 28
   },
@@ -557,22 +598,22 @@ const st = StyleSheet.create({
     minWidth: 56,
     minHeight: touch + 4,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: light.bg,
     paddingHorizontal: 12
   },
-  spotBtnOn: { backgroundColor: colors.lime500, borderColor: colors.lime500 },
+  spotBtnOn: { backgroundColor: colors.blue500, borderColor: colors.ink900 },
   spotBtnTxt: { color: light.text, fontSize: fs.fs17, fontWeight: "800", fontVariant: ["tabular-nums"] },
   spotGridHint: { color: light.text2, fontSize: fs.fs12, textAlign: "right", marginTop: 6, marginBottom: 10 },
   label: { color: light.text, fontSize: fs.fs14, fontWeight: "700", textAlign: "right", marginBottom: 6 },
   inp: {
     minHeight: touch + 4,
     backgroundColor: light.bg,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     borderRadius: radius,
     paddingHorizontal: 12,
     fontSize: fs.fs14,

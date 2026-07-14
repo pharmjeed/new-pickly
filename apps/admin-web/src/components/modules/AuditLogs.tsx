@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, shortDateTime } from "@/lib/api";
+import { Qirtas, QirtasLoader } from "@/components/qirtas";
 
 type AuditLog = {
   id: string;
@@ -49,11 +50,11 @@ export default function AuditLogs() {
         </div>
       )}
 
-      {!logs && !error && <div className="skl" style={{ height: 260 }} />}
+      {!logs && !error && <div className="loadwrap" style={{ minHeight: 260 }}><QirtasLoader /></div>}
 
       {logs && logs.length === 0 && (
         <div className="empty">
-          <div className="ic">🛡</div>
+          <div className="qr"><Qirtas mood="sleepy" size={72} /></div>
           <b>السجل فارغ</b>
           <p>يظهر هنا كل فعل حساس بسببه ومنفّذه</p>
         </div>

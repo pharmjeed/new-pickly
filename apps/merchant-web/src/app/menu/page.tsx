@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
+import { Qirtas } from "@/components/qirtas";
 import { clearToken, ApiError, apiGet, apiPost, apiPatch, apiDelete, sar } from "@/lib/api";
 import { resizeImage } from "@/lib/image";
 import s from "./menu.module.css";
@@ -554,7 +555,7 @@ export default function MenuPage() {
 
       {menu && menu.categories.length === 0 && !formOpen && (
         <div className="empty">
-          <div className="ic">🍔</div>
+          <Qirtas mood="sleepy" size={96} />
           <b>لا قائمة منشورة لهذا الفرع</b>
           <p>ابدأ بإضافة صنف عبر زر «إضافة صنف» بالأعلى</p>
         </div>

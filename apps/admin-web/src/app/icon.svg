@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="Pickly">
+  <rect x="0" y="0" width="240" height="240" rx="52" fill="#C8F542"/>
+  <rect x="5" y="5" width="230" height="230" rx="48" fill="none" stroke="#0E1B3D" stroke-width="7"/>
+  <!-- خطوط السرعة — متدرّجة الطول ومتلاشية الشفافية ١٠٠/٥٥/٣٠٪ -->
+  <g stroke="#FF4D9D" stroke-width="11" stroke-linecap="butt">
+    <line x1="22" y1="94"  x2="78" y2="94"/>
+    <line x1="22" y1="126" x2="66" y2="126" opacity="0.55"/>
+    <line x1="22" y1="158" x2="54" y2="158" opacity="0.30"/>
+  </g>
+  <g transform="rotate(7 144 124)">
+    <path d="M88 84 L116 66 L102 42 Z" fill="#FFFFFF" stroke="#0E1B3D" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M88 84 L116 66 L116 192 L88 204 Z" fill="#FFFFFF" stroke="#0E1B3D" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M116 62 L200 62 L200 182 L189.5 196 L179 182 L168.5 196 L158 182 L147.5 196 L137 182 L126.5 196 L116 182 Z" fill="#FFFFFF" stroke="#0E1B3D" stroke-width="7" stroke-linejoin="round"/>
+    <circle cx="144" cy="112" r="7.5" fill="#0E1B3D"/>
+    <circle cx="176" cy="112" r="7.5" fill="#0E1B3D"/>
+    <path d="M142 140 Q160 160 178 140" fill="none" stroke="#0E1B3D" stroke-width="9" stroke-linecap="round"/>
+  </g>
+</svg>

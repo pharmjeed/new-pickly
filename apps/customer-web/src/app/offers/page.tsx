@@ -6,7 +6,8 @@
  */
 import { useEffect, useState } from "react";
 import { api, fmtSar } from "@/lib/api";
-import { ITag, TabBar } from "../shell";
+import { TabBar } from "../shell";
+import { QirtasEmpty } from "../qirtas";
 import styles from "../page.module.css";
 
 interface OfferCard {
@@ -75,11 +76,10 @@ export default function OffersPage() {
 
         {offers && offers.length === 0 && (
           <div className={styles.empty}>
-            <div className={styles.emptyIc}>
-              <ITag />
-            </div>
-            <b>لا عروض حالياً</b>
-            <p>نضيف كوبونات وعروض المطاعم هنا أولاً بأول — عُد قريباً</p>
+            <QirtasEmpty mood="sleepy">
+              <b>لا عروض حالياً</b>
+              <p>نضيف كوبونات وعروض المطاعم هنا أولاً بأول — عُد قريباً</p>
+            </QirtasEmpty>
           </div>
         )}
 

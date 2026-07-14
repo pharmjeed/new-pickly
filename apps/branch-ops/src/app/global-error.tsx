@@ -5,8 +5,11 @@
  * أشيع سبب: إعادة نشر تُبدّل أسماء chunks بينما التبويب يحمل نسخة قديمة.
  * رسائل الإنتاج مصغّرة فلا يُعتمد على نصّ الخطأ — نحدّث تلقائياً مرة واحدة
  * لأي خطأ، فإن تكرر خلال ٣٠ ثانية فالعطل مستمر وتظهر هذه الشاشة.
+ * الهوية الفنكية v2.0: القرطاس المتأسف + التوكنز (globals.css تحمل tokens).
  */
 import { useEffect } from "react";
+import "./globals.css";
+import { Qirtas } from "./qirtas";
 
 const RELOAD_MARK = "pk_error_reload_at";
 
@@ -30,14 +33,29 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
           minHeight: "100vh",
           display: "grid",
           placeItems: "center",
-          background: "#f6f7f4",
-          color: "#161a14",
-          fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
+          backgroundColor: "var(--pk-bg)",
+          backgroundImage: "var(--pk-dots)",
+          backgroundSize: "var(--pk-dots-size)",
+          color: "var(--pk-text)",
+          fontFamily: "var(--pk-font-body), 'IBM Plex Sans Arabic', system-ui, sans-serif",
           textAlign: "center"
         }}
       >
-        <main style={{ padding: 24, maxWidth: 480 }}>
-          <h1 style={{ fontSize: 22, marginBottom: 8 }}>حدث خطأ غير متوقع</h1>
+        <main
+          style={{
+            padding: 28,
+            maxWidth: 480,
+            background: "var(--pk-surface)",
+            border: "var(--pk-b3)",
+            borderRadius: "var(--pk-radius-lg)",
+            boxShadow: "var(--pk-pop)"
+          }}
+        >
+          {/* القرطاس المتأسف — الأخطاء بلا لوم للمستخدم */}
+          <Qirtas mood="sad" size={96} />
+          <h1 style={{ fontSize: 22, margin: "12px 0 8px", fontFamily: "var(--pk-font-display)", fontWeight: 800 }}>
+            حدث خطأ غير متوقع
+          </h1>
           <p style={{ lineHeight: 1.8, marginBottom: 20 }}>
             غالباً لأن نسخة الصفحة أقدم من آخر تحديث للنظام — حدّث الصفحة للمتابعة، وإن تكرر
             الخطأ فبلّغ الدعم الفني.
@@ -46,14 +64,16 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
             onClick={() => window.location.reload()}
             style={{
               padding: "12px 28px",
-              borderRadius: 12,
-              border: "none",
-              background: "#c8f051",
-              color: "#161a14",
+              borderRadius: 14,
+              border: "var(--pk-b2)",
+              background: "var(--pk-blue-500)",
+              color: "var(--pk-white)",
+              boxShadow: "var(--pk-pop-sm)",
               fontSize: 16,
               fontWeight: 700,
               cursor: "pointer",
-              fontFamily: "inherit"
+              fontFamily: "var(--pk-font-display), inherit",
+              minHeight: 48
             }}
           >
             تحديث الصفحة

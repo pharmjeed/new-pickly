@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import { QirtasLoader } from "@/components/qirtas";
 
 type MethodKey = "apple_pay" | "card" | "stc_pay";
 
@@ -149,7 +150,7 @@ export default function Payments() {
     <>
       {error && <div className="note err" data-testid="payments-error">{error}</div>}
       {notice && <div className="note info" data-testid="payments-notice">{notice}</div>}
-      {!methods && !error && <div className="skl" style={{ height: 220 }} />}
+      {!methods && !error && <div className="loadwrap" style={{ minHeight: 220 }}><QirtasLoader /></div>}
 
       {methods && (
         <div className="pcardx" data-testid="payment-methods">

@@ -10,7 +10,8 @@ import { api, clearTokens, getToken } from "../../src/api";
 import { fmtSar } from "../../src/api";
 import { clearCart } from "../../src/session";
 import { Badge, Card, GhostButton, LimeButton, Loader } from "../../src/ui";
-import { colors, fs, light } from "../../src/theme";
+import { QirtasBadge } from "../../src/qirtas";
+import { bw2, colors, fs, light } from "../../src/theme";
 
 interface Me {
   id: string;
@@ -105,6 +106,9 @@ export default function AccountScreen() {
 
       {state === "guest" && (
         <View style={st.guest}>
+          <View style={{ marginBottom: 14 }}>
+            <QirtasBadge size={72} />
+          </View>
           <Text style={st.guestTxt}>سجّل دخولك لإدارة حسابك وسياراتك</Text>
           <LimeButton
             title="تسجيل الدخول"
@@ -224,11 +228,13 @@ const st = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#FFD54D",
+    backgroundColor: colors.lime300, // المحفظة = سياق دفع — الليموني مسموح
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     alignItems: "center",
     justifyContent: "center"
   },
-  walletBal: { color: light.text, fontSize: fs.fs20, fontWeight: "900", textAlign: "right" },
+  walletBal: { color: colors.blue500, fontSize: fs.fs20, fontWeight: "900", textAlign: "right" },
   walletEntry: {
     flexDirection: "row-reverse",
     alignItems: "center",

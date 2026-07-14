@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api, fmtSar, getToken } from "@/lib/api";
+import { QirtasLoader } from "../../qirtas";
 import styles from "./restaurant.module.css";
 
 interface Modifier {
@@ -332,11 +333,7 @@ export default function RestaurantPage() {
 
       {!menu && !error && (
         <div className={styles.loaderWrap}>
-          <div className="pk-loader" aria-label="جارٍ التحميل">
-            <span />
-            <span />
-            <span />
-          </div>
+          <QirtasLoader />
         </div>
       )}
 

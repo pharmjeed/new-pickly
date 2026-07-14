@@ -38,8 +38,9 @@
   width: 40px;
   height: 40px;
   border-radius: 13px;
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b2);
   background: var(--pk-surface);
+  box-shadow: var(--pk-pop-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,8 +55,9 @@
   min-width: 18px;
   height: 18px;
   border-radius: 9px;
-  background: var(--pk-error);
-  color: #fff;
+  background: var(--pk-pink-500);
+  border: 1px solid var(--pk-ink-900);
+  color: var(--pk-white);
   font-size: 11px;
   display: flex;
   align-items: center;
@@ -69,9 +71,9 @@
   inset-inline-start: 16px;
   inset-inline-end: 16px;
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
-  border-radius: var(--pk-radius);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop);
   z-index: 30;
   max-height: 340px;
   overflow: auto;
@@ -111,9 +113,10 @@
   align-items: center;
   gap: 10px;
   background: var(--pk-surface);
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-pill);
-  min-height: 46px;
+  box-shadow: var(--pk-pop-xs);
+  min-height: 48px;
   padding: 0 16px;
   color: var(--pk-text-2);
   font-size: var(--pk-fs-14);
@@ -134,9 +137,9 @@
   inset-inline-start: 16px;
   inset-inline-end: 16px;
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
-  border-radius: var(--pk-radius);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop);
   z-index: 30;
   max-height: 320px;
   overflow: auto;
@@ -187,10 +190,12 @@
   display: block;
   position: relative;
   min-height: 128px;
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-lg);
   overflow: hidden;
-  background: linear-gradient(135deg, var(--pk-ink-900), #2e3a25 65%, var(--pk-lime-900));
+  background: var(--pk-blue-500);
   color: var(--pk-white);
+  box-shadow: var(--pk-pop-sm);
   text-decoration: none;
   animation: bIn 0.55s ease both;
 }
@@ -209,7 +214,7 @@
   position: relative;
   z-index: 1;
   padding: 18px 18px 26px;
-  background: linear-gradient(0deg, rgba(20, 24, 15, 0.55), transparent 80%);
+  background: color-mix(in srgb, var(--pk-ink-900) 42%, transparent);
   min-height: 128px;
   display: flex;
   flex-direction: column;
@@ -241,14 +246,14 @@
   border-radius: 50%;
   border: none;
   padding: 0;
-  background: rgba(255, 255, 255, 0.45);
+  background: color-mix(in srgb, var(--pk-white) 45%, transparent);
   cursor: pointer;
   transition: width 0.25s, background 0.25s;
 }
 .bdotOn {
   width: 18px;
   border-radius: 4px;
-  background: var(--pk-lime-500);
+  background: var(--pk-pink-500);
 }
 .sklBanner {
   height: 128px;
@@ -263,8 +268,9 @@
 }
 .catCard {
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
-  border-radius: var(--pk-radius-lg);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-xs);
   padding: 14px 8px 12px;
   display: flex;
   flex-direction: column;
@@ -272,18 +278,19 @@
   gap: 6px;
   color: var(--pk-text);
   text-decoration: none;
-  transition: border-color 0.15s, transform 0.15s;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 .catCard:hover {
-  border-color: var(--pk-lime-500);
-  transform: translateY(-2px);
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--pk-ink-900);
 }
 .catIc {
   width: 52px;
   height: 52px;
   border-radius: 18px;
-  background: var(--pk-lime-100);
-  color: var(--pk-lime-900);
+  background: var(--pk-cloud);
+  border: var(--pk-b2);
+  color: var(--pk-ink-900);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -298,21 +305,28 @@
   color: var(--pk-text-2);
 }
 
-/* زر كل المطاعم */
+/* زر كل المطاعم — أزرق الفعل بحد كحلي وظل صلب */
 .allBtn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: var(--pk-ink-900);
-  color: var(--pk-lime-500);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-pill);
+  box-shadow: var(--pk-pop-sm);
   min-height: 52px;
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-15);
   font-weight: 700;
   text-decoration: none;
   margin-top: 2px;
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
+}
+.allBtn:hover {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 var(--pk-ink-900);
 }
 
 /* ===== chips التصنيفات في قائمة المطاعم ===== */
@@ -327,20 +341,20 @@
   display: none;
 }
 .chip {
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b2);
   background: var(--pk-surface);
   color: var(--pk-text);
   border-radius: var(--pk-radius-pill);
   padding: 7px 16px;
   font-size: var(--pk-fs-13);
+  font-weight: 700;
   white-space: nowrap;
   text-decoration: none;
 }
 .chipOn {
-  background: var(--pk-ink-900);
-  color: var(--pk-lime-500);
-  border-color: var(--pk-ink-900);
-  font-weight: 700;
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  box-shadow: var(--pk-pop-xs);
 }
 
 /* ===== جسم الشاشة ===== */
@@ -364,11 +378,12 @@
   font-weight: 700;
 }
 
-/* ===== بطاقة مطعم كاملة (rcard) ===== */
+/* ===== بطاقة مطعم كاملة (rcard) — حد كحلي + ظل صلب ===== */
 .rcard {
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
-  border-radius: var(--pk-radius-lg);
+  border: var(--pk-b2);
+  border-radius: 18px;
+  box-shadow: var(--pk-pop-sm);
   overflow: hidden;
   display: block;
   color: var(--pk-text);
@@ -377,11 +392,8 @@
 .img {
   height: 132px;
   position: relative;
-  background: repeating-linear-gradient(
-    -45deg,
-    var(--pk-cloud) 0 14px,
-    var(--pk-line) 14px 28px
-  );
+  background: var(--pk-cloud-2);
+  border-bottom: var(--pk-b2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -395,10 +407,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-pill);
-  padding: 3px 12px;
+  padding: 2px 12px;
   font-size: var(--pk-fs-12);
-  font-weight: 500;
+  font-weight: 700;
   white-space: nowrap;
 }
 .stOpen {
@@ -435,7 +448,7 @@
   height: 30px;
   border-radius: 9px;
   object-fit: cover;
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b2);
   flex-shrink: 0;
 }
 .nm b {
@@ -461,9 +474,11 @@
   margin-top: 9px;
   background: var(--pk-lime-100);
   color: var(--pk-lime-900);
-  border-radius: 9px;
-  padding: 5px 10px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-pill);
+  padding: 4px 10px;
   font-size: var(--pk-fs-12);
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -487,19 +502,14 @@
   gap: 10px;
 }
 .skl {
-  background: linear-gradient(
-    90deg,
-    var(--pk-cloud) 25%,
-    var(--pk-line) 50%,
-    var(--pk-cloud) 75%
-  );
-  background-size: 200% 100%;
-  animation: skl 1.4s infinite;
+  background: var(--pk-cloud-2);
+  border: 1px dashed var(--pk-line);
+  animation: skl 1.4s var(--pk-ease) infinite;
   border-radius: 10px;
 }
 @keyframes skl {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
 .sklH96 { height: 96px; }
 .sklH64 { height: 64px; }
@@ -518,13 +528,14 @@
   width: 72px;
   height: 72px;
   border-radius: 22px;
-  background: var(--pk-cloud);
-  border: 1px solid var(--pk-line);
+  background: var(--pk-surface);
+  border: var(--pk-b2);
+  box-shadow: var(--pk-pop-xs);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 10px;
-  color: var(--pk-gray);
+  color: var(--pk-ink-900);
 }
 .empty b {
   font-family: var(--pk-font-display);
@@ -543,6 +554,7 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  border: 2px solid var(--pk-error);
   border-radius: var(--pk-radius);
   padding: 11px 14px;
   font-size: var(--pk-fs-13);
@@ -560,7 +572,7 @@
   max-width: 480px;
   display: flex;
   background: var(--pk-surface);
-  border-top: 1px solid var(--pk-border);
+  border-top: var(--pk-b2);
   padding-bottom: 2px;
   z-index: 10;
 }
@@ -576,10 +588,21 @@
   gap: 3px;
   align-items: center;
   min-height: var(--pk-touch);
+  position: relative;
 }
+/* التبويب النشط: أزرق + مؤشر ليموني علوي (كما في نموذج tabbar div.on::before) */
 .tabOn {
-  color: var(--pk-ink-900);
+  color: var(--pk-blue-500);
   font-weight: 700;
+}
+.tabOn::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  inset-inline: 22%;
+  height: 4px;
+  background: var(--pk-lime-500);
+  border-radius: 0 0 6px 6px;
 }
 .tabOff {
   opacity: 0.45; /* تبويبات مؤجلة عن نطاق الطيار */
@@ -595,6 +618,9 @@
 }
 :global(.pk-drive) .tabOn {
   color: var(--pk-lime-500);
+}
+:global(.pk-drive) .tabOn::before {
+  background: var(--pk-lime-500);
 }
 
 /* ===== صفحات التبويبات: رأس موحد + دعوة تسجيل الدخول ===== */
@@ -613,12 +639,20 @@
   justify-content: center;
   min-height: var(--pk-touch);
   padding: 0 26px;
+  border: var(--pk-b2);
   border-radius: 999px;
-  background: var(--pk-lime-500);
-  color: var(--pk-ink-900);
-  font-weight: 800;
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  box-shadow: var(--pk-pop-sm);
+  font-family: var(--pk-font-display);
+  font-weight: 700;
   font-size: var(--pk-fs-14);
   text-decoration: none;
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
+}
+.gateBtn:hover {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 var(--pk-ink-900);
 }
 
 /* ===== طلباتي (C-56/W-09) ===== */
@@ -627,8 +661,9 @@
   gap: 12px;
   align-items: center;
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
-  border-radius: var(--pk-radius);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-xs);
   padding: 12px 14px;
   text-decoration: none;
   color: inherit;
@@ -638,7 +673,7 @@
   height: 46px;
   border-radius: 12px;
   background: var(--pk-cloud);
-  border: 1px solid var(--pk-line);
+  border: var(--pk-b2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -690,8 +725,9 @@
 .stChip {
   font-size: var(--pk-fs-12);
   font-weight: 700;
+  border: var(--pk-b2);
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: 2px 10px;
   white-space: nowrap;
 }
 .stChipActive {
@@ -707,22 +743,25 @@
   color: var(--pk-error);
 }
 
-/* ===== العروض (C-17) ===== */
+/* ===== العروض (C-17) — ملصق وردي مائل بطاقة مقصوصة ===== */
 .offCard {
   display: flex;
   gap: 12px;
   align-items: center;
   background: var(--pk-surface);
-  border: 1px dashed var(--pk-lime-900);
-  border-radius: var(--pk-radius);
+  border: 2px dashed var(--pk-ink-900);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-xs);
   padding: 13px 14px;
 }
 .offBadge {
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: var(--pk-lime-500);
+  background: var(--pk-pink-500);
   color: var(--pk-ink-900);
+  border: var(--pk-b2);
+  transform: rotate(var(--pk-sticker-tilt));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -761,12 +800,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 10px;
   padding: 7px 12px;
   font-weight: 800;
+  font-family: var(--pk-font-mono);
   font-variant-numeric: tabular-nums;
   background: var(--pk-cloud);
+  box-shadow: var(--pk-pop-xs);
   cursor: pointer;
   font-size: var(--pk-fs-13);
   color: inherit;
@@ -778,8 +819,9 @@
   gap: 12px;
   align-items: center;
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
-  border-radius: var(--pk-radius);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-xs);
   padding: 11px 14px;
 }
 .favLink {
@@ -804,8 +846,9 @@
 /* ===== حسابي (C-59/W-10) ===== */
 .acCard {
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
-  border-radius: var(--pk-radius);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-xs);
   padding: 14px 16px;
 }
 .acName {
@@ -857,12 +900,13 @@
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-20);
   font-weight: 900;
+  color: var(--pk-blue-500);
 }
 .logoutBtn {
   width: 100%;
   min-height: var(--pk-touch);
   border-radius: 999px;
-  border: 1px solid var(--pk-border);
+  border: 2px solid var(--pk-error);
   background: var(--pk-surface);
   color: var(--pk-error);
   font-weight: 800;

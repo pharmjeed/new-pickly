@@ -13,6 +13,12 @@ import "leaflet/dist/leaflet.css";
 
 export type MeetingTarget = { lat: number; lng: number; label: string };
 
+/** قراءة لون من رموز الهوية (tokens.css) — خيارات رسم Leaflet لا تقرأ متغيرات CSS */
+function tokenColor(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
 /** مسافة القوس الكبير بالأمتار (haversine) — للبديل الهوائي وبوابة القرب */
 function distMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const R = 6_371_000;
@@ -36,17 +42,17 @@ function fmtDur(s: number): string {
 /** دبوس نقطة الالتقاء بنمط الهوية — divIcon بلا أصول صور */
 function pinHtml(label: string): string {
   return `<div style="transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;">
-    <div style="background:#10241B;color:#C9F339;box-shadow:0 0 0 3px #C9F339;border-radius:10px;padding:3px 9px;font-weight:800;font-size:12px;white-space:nowrap;font-family:inherit;">🏁 ${label}</div>
-    <div style="width:2px;height:8px;background:#10241B;"></div>
-    <div style="width:8px;height:8px;border-radius:50%;background:#10241B;margin-top:-2px;"></div>
+    <div style="background:var(--pk-ink-900);color:var(--pk-lime-500);box-shadow:0 0 0 3px var(--pk-lime-500);border-radius:10px;padding:3px 9px;font-weight:800;font-size:12px;white-space:nowrap;font-family:inherit;">🏁 ${label}</div>
+    <div style="width:2px;height:8px;background:var(--pk-ink-900);"></div>
+    <div style="width:8px;height:8px;border-radius:50%;background:var(--pk-ink-900);margin-top:-2px;"></div>
   </div>`;
 }
 
 /** نقطة موقع العميل الحيّة — قرص أزرق بهالة، كنمط خرائط الملاحة */
 function meHtml(): string {
   return `<div style="transform:translate(-50%,-50%);position:relative;width:0;height:0;">
-    <div style="position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:rgba(37,99,235,.18);"></div>
-    <div style="position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#2563EB;box-shadow:0 0 0 3px #fff,0 1px 4px rgba(0,0,0,.45);"></div>
+    <div style="position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:color-mix(in srgb, var(--pk-blue-500) 18%, transparent);"></div>
+    <div style="position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:var(--pk-blue-500);box-shadow:0 0 0 3px var(--pk-white);"></div>
   </div>`;
 }
 
@@ -143,7 +149,7 @@ export default function SpotsMap({
           if (lineRef.current) lineRef.current.setLatLngs(path);
           else
             lineRef.current = L.polyline(path, {
-              color: "#10241B",
+              color: tokenColor("--pk-ink-900", "navy"),
               weight: 3,
               opacity: 0.55,
               dashArray: "2 8",
@@ -202,7 +208,7 @@ export default function SpotsMap({
         if (routeRef.current) routeRef.current.setLatLngs(latlngs);
         else
           routeRef.current = L.polyline(latlngs, {
-            color: "#10241B",
+            color: tokenColor("--pk-ink-900", "navy"),
             weight: 5,
             opacity: 0.85,
             lineCap: "round",
@@ -251,7 +257,7 @@ export default function SpotsMap({
       <div
         ref={holder}
         data-testid="customer-spots-map"
-        style={{ height: 240, borderRadius: 16, overflow: "hidden", border: "1px solid var(--pk-border)" }}
+        style={{ height: 240, borderRadius: 16, overflow: "hidden", border: "2px solid var(--pk-ink-900)", boxShadow: "var(--pk-pop-sm)" }}
       />
       {badge && (
         <div
@@ -262,13 +268,13 @@ export default function SpotsMap({
             top: 10,
             insetInlineStart: 10,
             zIndex: 500,
-            background: atPoint ? "#C9F339" : "#10241B",
-            color: atPoint ? "#10241B" : "#C9F339",
+            background: atPoint ? "var(--pk-lime-500)" : "var(--pk-ink-900)",
+            color: atPoint ? "var(--pk-ink-900)" : "var(--pk-lime-500)",
+            border: "2px solid var(--pk-ink-900)",
             borderRadius: 999,
             padding: "5px 12px",
             fontSize: 13,
             fontWeight: 800,
-            boxShadow: "0 2px 8px rgba(0,0,0,.25)",
             pointerEvents: "none"
           }}
         >

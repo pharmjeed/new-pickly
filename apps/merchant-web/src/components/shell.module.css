@@ -1,20 +1,19 @@
-/* هيكل البوابة — 1440px، الشريط الجانبي داكن على يمين RTL (design/merchant) */
+/* هيكل البوابة — 1440px، الشريط الجانبي داكن على يمين RTL (الهوية الفنكية v2.0)
+   الخلفية عاجية منقّطة تأتي من body — الهيكل شفاف لتظهر النقاط */
 .stage {
   display: flex;
   justify-content: center;
   min-height: 100vh;
-  background: var(--pk-bg);
 }
 
 .portal {
   width: 100%;
   max-width: 1440px;
   min-height: 100vh;
-  background: var(--pk-bg);
   display: flex;
 }
 
-/* ===== الشريط الجانبي ===== */
+/* ===== الشريط الجانبي — كحلي داكن (فوقه الظل الليموني) ===== */
 .side {
   width: 236px;
   flex-shrink: 0;
@@ -33,13 +32,13 @@
   align-items: center;
   gap: 10px;
   padding: 0 18px 16px;
-  border-bottom: 1px solid var(--pk-ink-600);
+  border-bottom: 2px solid var(--pk-ink-600);
   margin-bottom: 10px;
 }
 .lg b {
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-17);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--pk-cloud);
 }
 .lg .sub { font-size: 10.5px; color: var(--pk-gray-2); }
@@ -57,7 +56,7 @@
   font-size: 10px;
   color: var(--pk-gray-2);
   padding: 12px 10px 4px;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0.5px;
 }
 
@@ -67,17 +66,26 @@
   gap: 10px;
   padding: 8px 10px;
   border-radius: 10px;
+  border-inline-start: 3px solid transparent;
   color: var(--pk-gray-2);
   font-size: var(--pk-fs-13);
   text-decoration: none;
   min-height: 38px;
+  transition: background var(--pk-dur) var(--pk-ease), color var(--pk-dur) var(--pk-ease);
 }
 .nav a:hover { background: var(--pk-ink-700); color: var(--pk-cloud); }
-.nav a.on { background: var(--pk-lime-500); color: var(--pk-ink-900); font-weight: 700; }
+/* العنصر النشط: أزرق الفعل بمؤشر ليموني (الهوية §11) */
+.nav a.on {
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  border-inline-start-color: var(--pk-lime-500);
+  font-family: var(--pk-font-display);
+  font-weight: 700;
+}
 
 .ft {
   padding: 12px 18px 0;
-  border-top: 1px solid var(--pk-ink-600);
+  border-top: 2px solid var(--pk-ink-600);
   font-size: 11px;
   color: var(--pk-gray-2);
 }
@@ -86,14 +94,14 @@
 .logout {
   margin: 10px 18px 0;
   min-height: 34px;
-  border: 1px solid var(--pk-ink-600);
+  border: 2px solid var(--pk-ink-600);
   background: transparent;
   color: var(--pk-gray-2);
   border-radius: 10px;
   font-size: var(--pk-fs-12);
   cursor: pointer;
 }
-.logout:hover { color: var(--pk-cloud); border-color: var(--pk-gray-2); }
+.logout:hover { color: var(--pk-lime-500); border-color: var(--pk-lime-500); }
 
 /* ===== المنطقة الرئيسية ===== */
 .pmain {
@@ -109,14 +117,15 @@
   gap: 14px;
   padding: 14px 24px;
   background: var(--pk-surface);
-  border-bottom: 1px solid var(--pk-border);
+  border-bottom: var(--pk-b2);
 }
 .ptop h1 {
   font-family: var(--pk-font-display);
-  font-size: 21px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
   color: var(--pk-text);
 }
+.lines { flex-shrink: 0; display: inline-flex; }
 .crumb { font-size: 11.5px; color: var(--pk-text-2); }
 .sp { margin-inline-start: auto; display: flex; gap: 10px; align-items: center; }
 
@@ -126,6 +135,8 @@
   border-radius: 12px;
   background: var(--pk-lime-100);
   color: var(--pk-lime-900);
+  border: var(--pk-b2);
+  box-shadow: var(--pk-pop-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -140,4 +151,10 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 64px 0;
 }

@@ -12,6 +12,12 @@ import "leaflet/dist/leaflet.css";
 
 export type NavTarget = { lat: number; lng: number; label: string };
 
+/** قراءة لون من رموز الهوية (tokens.css) — خيارات رسم Leaflet لا تقرأ متغيرات CSS */
+function tokenColor(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
 /** مسافة القوس الكبير بالأمتار (haversine) */
 function hav(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const R = 6_371_000;
@@ -92,16 +98,16 @@ function maneuverArrow(type: string, modifier?: string): string {
 function meArrowHtml(heading: number): string {
   return `<div style="transform:translate(-50%,-50%) rotate(${heading}deg);">
     <svg width="34" height="34" viewBox="0 0 34 34">
-      <circle cx="17" cy="17" r="16" fill="rgba(37,99,235,.18)"/>
-      <path d="M17 4 L26 27 L17 21 L8 27 Z" fill="#2563EB" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+      <circle cx="17" cy="17" r="16" fill="var(--pk-blue-500)" opacity="0.18"/>
+      <path d="M17 4 L26 27 L17 21 L8 27 Z" fill="var(--pk-blue-500)" stroke="var(--pk-white)" stroke-width="2" stroke-linejoin="round"/>
     </svg>
   </div>`;
 }
 function destPinHtml(label: string): string {
   return `<div style="transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;">
-    <div style="background:#10241B;color:#C9F339;box-shadow:0 0 0 3px #C9F339;border-radius:10px;padding:3px 9px;font-weight:800;font-size:12px;white-space:nowrap;">🏁 ${label}</div>
-    <div style="width:2px;height:8px;background:#10241B;"></div>
-    <div style="width:9px;height:9px;border-radius:50%;background:#10241B;margin-top:-2px;"></div>
+    <div style="background:var(--pk-ink-900);color:var(--pk-lime-500);box-shadow:0 0 0 3px var(--pk-lime-500);border-radius:10px;padding:3px 9px;font-weight:800;font-size:12px;white-space:nowrap;">🏁 ${label}</div>
+    <div style="width:2px;height:8px;background:var(--pk-ink-900);"></div>
+    <div style="width:9px;height:9px;border-radius:50%;background:var(--pk-ink-900);margin-top:-2px;"></div>
   </div>`;
 }
 
@@ -183,7 +189,7 @@ export default function LiveNav({ target, onClose, inline = false }: { target: N
         if (routeRef.current) routeRef.current.setLatLngs(geom);
         else
           routeRef.current = L.polyline(geom, {
-            color: "#2563EB",
+            color: tokenColor("--pk-blue-500", "blue"),
             weight: 7,
             opacity: 0.9,
             lineCap: "round",
@@ -358,13 +364,13 @@ export default function LiveNav({ target, onClose, inline = false }: { target: N
     <div
       style={
         inline
-          ? { position: "relative", marginBottom: 12, borderRadius: 16, overflow: "hidden", border: "1px solid var(--pk-border)", background: "#0b1a13", display: "flex", flexDirection: "column" }
-          : { position: "fixed", inset: 0, zIndex: 3000, background: "#0b1a13", display: "flex", flexDirection: "column" }
+          ? { position: "relative", marginBottom: 12, borderRadius: 16, overflow: "hidden", border: "2px solid var(--pk-ink-900)", boxShadow: "var(--pk-pop-sm)", background: "var(--pk-ink-900)", display: "flex", flexDirection: "column" }
+          : { position: "fixed", inset: 0, zIndex: 3000, background: "var(--pk-ink-900)", display: "flex", flexDirection: "column" }
       }
     >
       {/* شريط المناورة العلوي */}
-      <div style={{ background: "#10241B", color: "#fff", padding: inline ? "10px 14px" : "14px 16px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 2px 12px rgba(0,0,0,.4)" }}>
-        <div style={{ fontSize: 34, lineHeight: 1, color: "#C9F339", minWidth: 40, textAlign: "center" }}>
+      <div style={{ background: "var(--pk-ink-900)", color: "var(--pk-white)", padding: inline ? "10px 14px" : "14px 16px", display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ fontSize: 34, lineHeight: 1, color: "var(--pk-lime-500)", minWidth: 40, textAlign: "center" }}>
           {banner ? banner.arrow : "🧭"}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -372,10 +378,10 @@ export default function LiveNav({ target, onClose, inline = false }: { target: N
             {status === "locating" ? "جارٍ تحديد موقعك…" : status === "routing" ? "جارٍ حساب الطريق…" : status === "error" ? "تعذّر تحديد الموقع أو الطريق" : banner?.text ?? "ابدأ القيادة"}
           </div>
           {banner && banner.dist > 0 && status === "go" && (
-            <div style={{ color: "#C9F339", fontWeight: 700, fontSize: 14, marginTop: 2 }}>بعد {fmtDist(banner.dist)}</div>
+            <div style={{ color: "var(--pk-lime-500)", fontWeight: 700, fontSize: 14, marginTop: 2 }}>بعد {fmtDist(banner.dist)}</div>
           )}
         </div>
-        <button type="button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} style={{ background: "none", border: "none", color: "#fff", fontSize: 22, cursor: "pointer", padding: 4 }}>
+        <button type="button" onClick={() => setMuted((m) => !m)} aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} style={{ background: "none", border: "none", color: "var(--pk-white)", fontSize: 22, cursor: "pointer", padding: 4 }}>
           {muted ? "🔇" : "🔊"}
         </button>
       </div>
@@ -387,7 +393,7 @@ export default function LiveNav({ target, onClose, inline = false }: { target: N
           <button
             type="button"
             onClick={recenter}
-            style={{ position: "absolute", insetInlineEnd: 14, bottom: 96, zIndex: 10, background: "#10241B", color: "#C9F339", border: "2px solid #C9F339", borderRadius: 999, padding: "8px 14px", fontWeight: 800, boxShadow: "0 2px 10px rgba(0,0,0,.35)", cursor: "pointer" }}
+            style={{ position: "absolute", insetInlineEnd: 14, bottom: 96, zIndex: 10, background: "var(--pk-ink-900)", color: "var(--pk-lime-500)", border: "2px solid var(--pk-lime-500)", borderRadius: 999, padding: "8px 14px", fontWeight: 800, cursor: "pointer" }}
           >
             ⌖ إعادة التوسيط
           </button>
@@ -395,10 +401,10 @@ export default function LiveNav({ target, onClose, inline = false }: { target: N
       </div>
 
       {/* الشريط السفلي: الوصول/المتبقّي + إنهاء */}
-      <div style={{ background: "#10241B", color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ background: "var(--pk-ink-900)", color: "var(--pk-white)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ flex: 1 }}>
           {arrived ? (
-            <div style={{ fontWeight: 800, fontSize: 18, color: "#C9F339" }}>✓ وصلت إلى نقطة الالتقاء</div>
+            <div style={{ fontWeight: 800, fontSize: 18, color: "var(--pk-lime-500)" }}>✓ وصلت إلى نقطة الالتقاء</div>
           ) : remaining ? (
             <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
               <b style={{ fontSize: 22 }}>{fmtMin(remaining.s)}</b>
@@ -409,7 +415,7 @@ export default function LiveNav({ target, onClose, inline = false }: { target: N
             <div style={{ opacity: 0.8 }}>تجهيز الملاحة…</div>
           )}
         </div>
-        <button type="button" data-testid="live-nav-close" onClick={onClose} style={{ background: arrived ? "#C9F339" : "transparent", color: arrived ? "#10241B" : "#fff", border: arrived ? "none" : "1.5px solid rgba(255,255,255,.5)", borderRadius: 12, padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
+        <button type="button" data-testid="live-nav-close" onClick={onClose} style={{ background: arrived ? "var(--pk-lime-500)" : "transparent", color: arrived ? "var(--pk-ink-900)" : "var(--pk-white)", border: arrived ? "2px solid var(--pk-ink-900)" : "2px solid color-mix(in srgb, var(--pk-white) 50%, transparent)", borderRadius: 12, padding: "10px 18px", fontWeight: 800, cursor: "pointer", fontFamily: "var(--pk-font-display)" }}>
           {arrived ? "تم" : "إنهاء"}
         </button>
       </div>

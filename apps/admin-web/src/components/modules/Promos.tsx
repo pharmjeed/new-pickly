@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost, sar, shortDate } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import { Qirtas, QirtasLoader } from "@/components/qirtas";
 
 type Coupon = {
   id: string;
@@ -130,7 +131,7 @@ export default function Promos() {
     <>
       {error && <div className="note err" data-testid="promos-error">{error}</div>}
       {notice && <div className="note info" data-testid="promos-notice">{notice}</div>}
-      {!coupons && !error && <div className="skl" style={{ height: 260 }} />}
+      {!coupons && !error && <div className="loadwrap" style={{ minHeight: 260 }}><QirtasLoader /></div>}
 
       {coupons && (
         <div className="kpis">
@@ -198,7 +199,7 @@ export default function Promos() {
 
       {coupons && coupons.length === 0 && !draft && (
         <div className="empty">
-          <div className="ic">٪</div>
+          <div className="qr"><Qirtas mood="sleepy" size={72} /></div>
           <b>لا كوبونات</b>
           <p>أنشئ أول كوبون — التحقق والخصم خادميان بالكامل (BR-7)</p>
         </div>

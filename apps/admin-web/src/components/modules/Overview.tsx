@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet } from "@/lib/api";
+import { QirtasLoader } from "@/components/qirtas";
 
 type OverviewData = {
   merchants: number;
@@ -51,7 +52,7 @@ export default function Overview() {
       </div>
     );
   }
-  if (!data) return <div className="skl" style={{ height: 180 }} />;
+  if (!data) return <div className="loadwrap" style={{ minHeight: 180 }}><QirtasLoader /></div>;
 
   return (
     <>

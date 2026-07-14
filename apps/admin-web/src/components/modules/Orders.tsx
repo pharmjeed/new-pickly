@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, sar, shortDateTime, shortTime } from "@/lib/api";
 import s from "./orders.module.css";
+import { Qirtas, QirtasLoader } from "@/components/qirtas";
 
 type AdminOrder = {
   id: string;
@@ -90,11 +91,11 @@ export default function Orders() {
         </div>
       )}
 
-      {!orders && !error && <div className="skl" style={{ height: 260 }} />}
+      {!orders && !error && <div className="loadwrap" style={{ minHeight: 260 }}><QirtasLoader /></div>}
 
       {orders && orders.length === 0 && (
         <div className="empty">
-          <div className="ic">🧾</div>
+          <div className="qr"><Qirtas mood="sleepy" size={72} /></div>
           <b>لا طلبات بعد</b>
           <p>تظهر طلبات كل التجار هنا فور وصولها</p>
         </div>
@@ -153,7 +154,7 @@ export default function Orders() {
                 </span>
               </h3>
               {timelineError && <div className="note err">{timelineError}</div>}
-              {!timeline && !timelineError && <div className="skl" style={{ height: 120 }} />}
+              {!timeline && !timelineError && <div className="loadwrap" style={{ minHeight: 120 }}><QirtasLoader /></div>}
               {timeline && timeline.length === 0 && <p className="muted">لا انتقالات مسجلة.</p>}
               {timeline && timeline.length > 0 && (
                 <div className="tline">

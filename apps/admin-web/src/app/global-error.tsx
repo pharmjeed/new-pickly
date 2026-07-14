@@ -7,6 +7,8 @@
  * لأي خطأ، فإن تكرر خلال ٣٠ ثانية فالعطل مستمر وتظهر هذه الشاشة.
  */
 import { useEffect } from "react";
+import { Qirtas } from "@/components/qirtas";
+import "./globals.css";
 
 const RELOAD_MARK = "pk_error_reload_at";
 
@@ -30,32 +32,33 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
           minHeight: "100vh",
           display: "grid",
           placeItems: "center",
-          background: "#f6f7f4",
-          color: "#161a14",
-          fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
+          backgroundColor: "var(--pk-bg)",
+          backgroundImage: "var(--pk-dots)",
+          backgroundSize: "var(--pk-dots-size)",
+          color: "var(--pk-text)",
+          fontFamily: "var(--pk-font-body)",
           textAlign: "center"
         }}
       >
-        <main style={{ padding: 24, maxWidth: 480 }}>
-          <h1 style={{ fontSize: 22, marginBottom: 8 }}>حدث خطأ غير متوقع</h1>
+        <main
+          style={{
+            padding: 28,
+            maxWidth: 480,
+            background: "var(--pk-surface)",
+            border: "var(--pk-b3)",
+            borderRadius: "var(--pk-radius-lg)",
+            boxShadow: "var(--pk-pop)"
+          }}
+        >
+          <Qirtas mood="sad" size={96} title="حدث خطأ" />
+          <h1 style={{ fontFamily: "var(--pk-font-display)", fontWeight: 800, fontSize: 22, margin: "10px 0 8px" }}>
+            حدث خطأ غير متوقع
+          </h1>
           <p style={{ lineHeight: 1.8, marginBottom: 20 }}>
             غالباً لأن نسخة الصفحة أقدم من آخر تحديث للنظام — حدّث الصفحة للمتابعة، وإن تكرر
             الخطأ فبلّغ الدعم الفني.
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              padding: "12px 28px",
-              borderRadius: 12,
-              border: "none",
-              background: "#c8f051",
-              color: "#161a14",
-              fontSize: 16,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "inherit"
-            }}
-          >
+          <button onClick={() => window.location.reload()} className="btn">
             تحديث الصفحة
           </button>
         </main>

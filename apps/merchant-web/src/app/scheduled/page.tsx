@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
+import { Qirtas } from "@/components/qirtas";
 import { ApiError, apiDelete, apiGet, apiPost, clearToken } from "@/lib/api";
 
 type Branch = { id: string; name_ar: string };
@@ -257,7 +258,7 @@ export default function ScheduledPage() {
 
       {slots && slots.length === 0 && (
         <div className="empty">
-          <div className="ic">🗓</div>
+          <Qirtas mood="sleepy" size={96} />
           <b>لا فترات قادمة</b>
           <p>حدد أيام دوامك أعلاه واحفظ لتتولد الفترات ويتمكن العملاء من الحجز</p>
         </div>

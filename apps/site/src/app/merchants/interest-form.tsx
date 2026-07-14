@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Qirtas } from "@/components/qirtas";
 
 /* نموذج تسجيل اهتمام المتاجر — يخزَّن محلياً (localStorage) في الطيار، لا backend له */
 const STORAGE_KEY = "pickly.merchant-interest";
@@ -47,8 +48,10 @@ export function InterestForm() {
 
   if (done) {
     return (
-      <div className="scard" style={{ padding: 26 }}>
-        <div className="note-ok" role="status">
+      <div className="scard scard-pop" style={{ padding: 26, textAlign: "center" }}>
+        {/* القرطاس المتحمس — لحظة نجاح التسجيل */}
+        <Qirtas mood="excited" size={96} style={{ marginBottom: 12 }} />
+        <div className="note-ok" role="status" style={{ textAlign: "start" }}>
           <span aria-hidden="true">✓</span>
           <span>
             استلمنا طلبك — <b>سنتواصل معك</b> خلال يوم عمل.
@@ -59,7 +62,7 @@ export function InterestForm() {
   }
 
   return (
-    <form className="scard" style={{ padding: 26 }} onSubmit={submit} noValidate>
+    <form className="scard scard-pop" style={{ padding: 26 }} onSubmit={submit} noValidate>
       <b className="disp" style={{ fontSize: 18, fontWeight: 700 }}>
         نموذج تسجيل الاهتمام
       </b>

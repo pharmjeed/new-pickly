@@ -29,14 +29,19 @@ type Props = {
   onMapClick: (lat: number, lng: number) => void;
 };
 
-/** دبوس ليموني بنمط الهوية — divIcon بلا أصول صور (مشكلة أيقونات Leaflet الافتراضية) */
+/** دبوس بنمط الهوية الفنكية — divIcon بلا أصول صور (مشكلة أيقونات Leaflet الافتراضية):
+ *  نشط أزرق الفعل، محدد/مسودة كحلي بنص وحلقة ليمونية (إشارة «الآن»)، موقوف رمادي */
 function pinHtml(label: string, kind: "active" | "inactive" | "selected" | "draft"): string {
   const bg =
-    kind === "draft" ? "#10241B" : kind === "inactive" ? "#9aa39e" : kind === "selected" ? "#10241B" : "#C9F339";
-  const fg = kind === "active" ? "#10241B" : "#C9F339";
-  const ring = kind === "selected" || kind === "draft" ? "box-shadow:0 0 0 3px #C9F339;" : "";
+    kind === "draft" || kind === "selected"
+      ? "var(--pk-ink-900)"
+      : kind === "inactive"
+        ? "var(--pk-gray)"
+        : "var(--pk-blue-500)";
+  const fg = kind === "draft" || kind === "selected" ? "var(--pk-lime-500)" : "var(--pk-white)";
+  const ring = kind === "selected" || kind === "draft" ? "box-shadow:0 0 0 3px var(--pk-lime-500);" : "";
   return `<div style="transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;">
-    <div style="background:${bg};color:${fg};${ring}border-radius:10px;padding:3px 9px;font-weight:800;font-size:12px;white-space:nowrap;font-family:inherit;">${label}</div>
+    <div style="background:${bg};color:${fg};${ring}border:2px solid var(--pk-ink-900);border-radius:10px;padding:3px 9px;font-weight:800;font-size:12px;white-space:nowrap;font-family:inherit;">${label}</div>
     <div style="width:2px;height:8px;background:${bg};"></div>
     <div style="width:8px;height:8px;border-radius:50%;background:${bg};margin-top:-2px;"></div>
   </div>`;
@@ -103,7 +108,7 @@ export default function SpotMap({ center, spots, selectedId, draft, draftLabel, 
     <div
       ref={holder}
       data-testid="spot-map"
-      style={{ height: 260, borderRadius: 12, overflow: "hidden", border: "1px solid var(--m-line, #e5e7e3)" }}
+      style={{ height: 260, borderRadius: 12, overflow: "hidden", border: "var(--pk-b2)", boxShadow: "var(--pk-pop-xs)" }}
     />
   );
 }

@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import s from "./busy.module.css";
+import { QirtasBadge } from "../qirtas";
 
 interface Branch {
   id: string;
@@ -21,22 +22,6 @@ interface Branch {
 type PrepDelta = 10 | 20 | 30;
 
 const pad2 = (n: number): string => String(n).padStart(2, "0");
-
-/** شارة بيكلي — كتاب الهوية */
-function Badge() {
-  return (
-    <svg width="38" height="38" viewBox="0 0 100 100" aria-hidden="true">
-      <rect width="100" height="100" rx="24" fill="var(--pk-lime-500)" />
-      <g transform="skewX(-8) translate(4,0)" stroke="var(--pk-ink-900)" fill="none">
-        <path d="M36,34 L62,34 L59,72 L39,72 Z" strokeWidth="4" strokeLinejoin="round" />
-        <path d="M43,34 Q49,24 55,34" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M70,40 H88" strokeWidth="5" strokeLinecap="round" />
-        <path d="M74,52 H88" strokeWidth="5" strokeLinecap="round" opacity="0.55" />
-        <path d="M70,64 H80" strokeWidth="5" strokeLinecap="round" opacity="0.3" />
-      </g>
-    </svg>
-  );
-}
 
 export default function BusyPage() {
   const router = useRouter();
@@ -163,7 +148,7 @@ export default function BusyPage() {
       {/* ترويسة اللوحة */}
       <header className={s.bhdr}>
         <div className={s.brand}>
-          <Badge />
+          <QirtasBadge size={40} />
           <div>
             <b>بيكلي — شاشة الفرع</b>
             <div className={s.sub}>{branch ? branch.name_ar : "وضع الازدحام"} · شاشة الاستلام</div>

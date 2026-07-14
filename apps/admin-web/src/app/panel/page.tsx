@@ -26,23 +26,8 @@ import Support from "@/components/modules/Support";
 import Risk from "@/components/modules/Risk";
 import FeatureFlags from "@/components/modules/FeatureFlags";
 import NavMap from "@/components/modules/NavMap";
+import { QirtasBadge } from "@/components/qirtas";
 import s from "./panel.module.css";
-
-/** شارة بيكلي — كتاب الهوية */
-function Badge({ size = 34 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
-      <rect width="100" height="100" rx="24" fill="var(--pk-lime-500)" />
-      <g transform="skewX(-8) translate(4,0)" stroke="var(--pk-ink-900)" fill="none">
-        <path d="M36,34 L62,34 L59,72 L39,72 Z" strokeWidth="4" strokeLinejoin="round" />
-        <path d="M43,34 Q49,24 55,34" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M70,40 H88" strokeWidth="5" strokeLinecap="round" />
-        <path d="M74,52 H88" strokeWidth="5" strokeLinecap="round" opacity="0.55" />
-        <path d="M70,64 H80" strokeWidth="5" strokeLinecap="round" opacity="0.3" />
-      </g>
-    </svg>
-  );
-}
 
 type ModuleKey =
   | "overview"
@@ -220,7 +205,7 @@ export default function AdminPanelPage() {
       <div className={s.portal}>
         <aside className={s.side} data-testid="admin-sidebar">
           <div className={s.lg}>
-            <Badge />
+            <QirtasBadge size={36} />
             <div>
               <b>Super Admin</b>
               <div className={s.sub}>منصة بيكلي — نطاق الطيار</div>

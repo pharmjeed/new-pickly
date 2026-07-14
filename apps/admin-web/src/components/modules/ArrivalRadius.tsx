@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import { QirtasLoader } from "@/components/qirtas";
 
 type RadiusConfig = { radius_m: number };
 
@@ -61,7 +62,7 @@ export default function ArrivalRadius() {
     <>
       {error && <div className="note err" data-testid="arrival-error">{error}</div>}
       {notice && <div className="note info" data-testid="arrival-notice">{notice}</div>}
-      {!config && !error && <div className="skl" style={{ height: 160 }} />}
+      {!config && !error && <div className="loadwrap" style={{ minHeight: 160 }}><QirtasLoader /></div>}
 
       {config && (
         <div className="pcardx" data-testid="arrival-radius">

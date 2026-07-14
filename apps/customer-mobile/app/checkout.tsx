@@ -27,7 +27,8 @@ import { router } from "expo-router";
 import { api, ApiError, fmtSar } from "../src/api";
 import { clearCart, getCartId, getQuoteId, setLastOrderId, setQuoteId } from "../src/session";
 import { Badge, Card, ErrorNote, GhostButton, LimeButton, Loader } from "../src/ui";
-import { colors, fs, light, radius, radiusPill, shadow2, touch } from "../src/theme";
+import { Qirtas } from "../src/qirtas";
+import { bw2, bw3, colors, fs, light, pop, popXs, radius, radiusLg, radiusPill, touch } from "../src/theme";
 
 /** عدّاد السعر المتحرك — يصعد بسلاسة عند كل إعادة تسعير، ويحترم «تقليل الحركة» */
 function useCountUp(halalas: number): number {
@@ -688,7 +689,7 @@ export default function CheckoutScreen() {
       <SafeAreaView style={st.screen}>
         <View style={st.success}>
           <View style={st.bigic}>
-            <Text style={{ color: colors.lime900, fontSize: fs.fs34, fontWeight: "900" }}>✓</Text>
+            <Qirtas mood="excited" size={72} lines />
           </View>
           <Text style={st.bigTitle}>تم إنشاء طلبك</Text>
           <Card style={{ alignSelf: "stretch", gap: 8 }}>
@@ -709,6 +710,7 @@ export default function CheckoutScreen() {
             </View>
           </Card>
           <LimeButton
+            lime
             title="متابعة الطلب مباشرة"
             onPress={() => router.replace(`/track/${done.id}` as never)}
             style={{ alignSelf: "stretch", marginTop: 16 }}
@@ -736,6 +738,7 @@ export default function CheckoutScreen() {
         {/* ===== الحالة الفارغة — السلة بلا عناصر (C-26) ===== */}
         {!loading && isEmpty && !error && (
           <View style={st.empty}>
+            <Qirtas mood="sleepy" size={96} />
             <Text style={st.emptyTitle}>سلتك فاضية</Text>
             <Text style={st.emptyTxt}>لا طلبات حالية — اطلب من متجرك المفضل وخلّنا على السيارة</Text>
             <GhostButton
@@ -1016,6 +1019,7 @@ export default function CheckoutScreen() {
             <>
               <PulseRing />
               <LimeButton
+                lime
                 title={busy ? "جارٍ الدفع…" : walletOn && dueTotal === 0 ? "ادفع من المحفظة" : "ادفع الآن"}
                 arrow
                 car
@@ -1457,8 +1461,8 @@ const st = StyleSheet.create({
   link: { color: colors.lime900, fontSize: fs.fs13, fontWeight: "700" },
   optCard: {
     backgroundColor: light.surface,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     borderRadius: radius,
     padding: 12,
     minHeight: touch,
@@ -1466,7 +1470,7 @@ const st = StyleSheet.create({
     alignItems: "center",
     gap: 10
   },
-  optSel: { borderColor: colors.lime500, backgroundColor: colors.lime100 },
+  optSel: { borderColor: colors.blue500, backgroundColor: colors.cloud2 },
   optDis: { opacity: 0.55 },
   optTitle: { color: light.text, fontSize: fs.fs15, fontWeight: "800", textAlign: "right" },
   optDesc: { color: light.text2, fontSize: fs.fs12, textAlign: "right", marginTop: 2 },
@@ -1477,7 +1481,7 @@ const st = StyleSheet.create({
     borderWidth: 2,
     borderColor: light.border
   },
-  rdotOn: { borderColor: colors.lime900, backgroundColor: colors.lime500 },
+  rdotOn: { borderColor: colors.ink900, backgroundColor: colors.blue500 },
   /* تفاصيل الدفع — الطريقة المختارة + محفظة بيكلي (قرار المالك 2026-07-12) */
   paySel: {
     flexDirection: "row-reverse",
@@ -1489,11 +1493,11 @@ const st = StyleSheet.create({
   pmMark: {
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: light.border,
+    borderColor: colors.ink900,
     borderRadius: 7,
     paddingHorizontal: 9,
     paddingVertical: 4,
-    ...shadow2
+    ...popXs
   },
   pmMarkTxt: { color: light.text, fontSize: fs.fs13, fontWeight: "800", writingDirection: "ltr" },
   changeLink: {
@@ -1514,7 +1518,9 @@ const st = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: "#FFD54D",
+    backgroundColor: colors.lime300, // المحفظة = سياق دفع — الليموني مسموح
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -1542,7 +1548,7 @@ const st = StyleSheet.create({
     lineHeight: 19
   },
   panInp: { letterSpacing: 1, textAlign: "left", writingDirection: "ltr" },
-  assureTitle: { color: "#1a9a4a", fontSize: fs.fs14, fontWeight: "800", textAlign: "right" },
+  assureTitle: { color: colors.success, fontSize: fs.fs14, fontWeight: "800", textAlign: "right" },
   assureTxt: { color: light.text2, fontSize: fs.fs12, textAlign: "right", lineHeight: 19 },
   /* زر Apple Pay الأسود — بشعارهم كما في المرجع */
   appleBtn: {
@@ -1594,9 +1600,9 @@ const st = StyleSheet.create({
   v: { color: light.text, fontSize: fs.fs14, fontVariant: ["tabular-nums"] },
   totRow: { borderTopWidth: 1, borderTopColor: light.border, paddingTop: 8 },
   totK: { color: light.text, fontSize: fs.fs16, fontWeight: "900" },
-  totV: { color: light.text, fontSize: fs.fs16, fontWeight: "900", fontVariant: ["tabular-nums"] },
+  totV: { color: colors.blue500, fontSize: fs.fs16, fontWeight: "900", fontVariant: ["tabular-nums"] },
   sandNote: { color: light.text2, fontSize: fs.fs12, textAlign: "center", marginTop: 8 },
-  footbar: { position: "absolute", bottom: 16, left: 16, right: 16, borderRadius: radius, ...shadow2 },
+  footbar: { position: "absolute", bottom: 16, left: 16, right: 16, borderRadius: radius, ...pop },
   pulseRing: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: radius,
@@ -1614,20 +1620,17 @@ const st = StyleSheet.create({
   del: { alignSelf: "flex-start", minHeight: 32, justifyContent: "center" },
   delTxt: { color: colors.error, fontSize: fs.fs13, fontWeight: "700" },
   success: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
-  bigic: {
-    width: 84,
-    height: 84,
-    borderRadius: radiusPill,
-    backgroundColor: colors.lime100,
-    alignItems: "center",
-    justifyContent: "center"
-  },
+  bigic: { alignItems: "center", justifyContent: "center", marginBottom: 4 },
   bigTitle: { color: light.text, fontSize: fs.fs24, fontWeight: "900" },
-  dim: { flex: 1, backgroundColor: "rgba(16,36,27,0.55)", justifyContent: "flex-end" },
+  dim: { flex: 1, backgroundColor: "rgba(14,27,61,0.55)", justifyContent: "flex-end" },
   sheet: {
     backgroundColor: light.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: radiusLg,
+    borderTopRightRadius: radiusLg,
+    borderTopWidth: bw3,
+    borderLeftWidth: bw3,
+    borderRightWidth: bw3,
+    borderColor: colors.ink900,
     padding: 16,
     paddingBottom: 28,
     gap: 6
@@ -1645,8 +1648,8 @@ const st = StyleSheet.create({
   inp: {
     minHeight: touch + 4,
     backgroundColor: light.bg,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     borderRadius: radius,
     paddingHorizontal: 12,
     fontSize: fs.fs16,
@@ -1665,7 +1668,7 @@ const st = StyleSheet.create({
     minHeight: 40,
     overflow: "hidden"
   },
-  pmChipOn: { backgroundColor: light.surface, borderWidth: 1.5, borderColor: colors.ink600 },
+  pmChipOn: { backgroundColor: light.surface, borderWidth: bw2, borderColor: colors.ink900 },
   pmCar: { fontSize: fs.fs15 },
   pmTxtOn: { color: colors.ink900, fontSize: fs.fs14, fontWeight: "800" },
   /* ===== بطاقة اللوحة السعودية ===== */
@@ -1680,15 +1683,15 @@ const st = StyleSheet.create({
     width: "78%",
     padding: 3,
     borderRadius: 18,
-    borderWidth: 2,
+    borderWidth: bw2,
     borderColor: "transparent"
   },
-  pWrapOn: { borderColor: colors.lime500, backgroundColor: colors.lime100 },
+  pWrapOn: { borderColor: colors.blue500, backgroundColor: colors.cloud2 },
   pCard: {
     flexDirection: "row",
     backgroundColor: light.surface,
-    borderWidth: 2,
-    borderColor: colors.ink600,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     borderRadius: 14,
     overflow: "hidden",
     minHeight: 96
@@ -1698,8 +1701,8 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 6,
-    borderRightWidth: 2,
-    borderRightColor: colors.ink600,
+    borderRightWidth: bw2,
+    borderRightColor: colors.ink900,
     backgroundColor: light.surface
   },
   pBandPalm: { fontSize: fs.fs12 },
@@ -1713,8 +1716,8 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.ink600,
+    borderBottomWidth: bw2,
+    borderBottomColor: colors.ink900,
     paddingHorizontal: 10
   },
   pLetters: { color: colors.ink900, fontSize: fs.fs24, fontWeight: "800", letterSpacing: 2 },
@@ -1753,13 +1756,14 @@ const st = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: radiusPill,
-    borderWidth: 1.5,
-    borderColor: colors.ink600,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: light.surface
+    backgroundColor: light.surface,
+    ...popXs
   },
-  vAddTxt: { color: colors.ink600, fontSize: fs.fs24, fontWeight: "400", lineHeight: 28 },
+  vAddTxt: { color: colors.blue500, fontSize: fs.fs24, fontWeight: "700", lineHeight: 28 },
   hintWrap: { alignItems: "center", gap: 4, marginTop: 2 },
   hintBar: { width: 18, height: 4, borderRadius: radiusPill, backgroundColor: colors.ink600 },
   hintTxt: { color: light.text2, fontSize: fs.fs13 },
@@ -1767,8 +1771,8 @@ const st = StyleSheet.create({
   sel: {
     minHeight: touch + 4,
     backgroundColor: light.surface,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     borderRadius: radius + 2,
     paddingHorizontal: 14,
     flexDirection: "row-reverse",
@@ -1785,11 +1789,15 @@ const st = StyleSheet.create({
   delVeh: { alignItems: "center", minHeight: touch, justifyContent: "center" },
   delVehTxt: { color: colors.error, fontSize: fs.fs14, fontWeight: "700" },
   pickWrap: { ...StyleSheet.absoluteFillObject, justifyContent: "flex-end" },
-  pickDim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(16,36,27,0.35)" },
+  pickDim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(14,27,61,0.35)" },
   pickSheet: {
     backgroundColor: light.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: radiusLg,
+    borderTopRightRadius: radiusLg,
+    borderTopWidth: bw3,
+    borderLeftWidth: bw3,
+    borderRightWidth: bw3,
+    borderColor: colors.ink900,
     padding: 16,
     paddingBottom: 24,
     gap: 4

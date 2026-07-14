@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import s from "./board.module.css";
 import { VehicleId, type CardVehicle } from "./vehicle-id";
+import { Qirtas, QirtasBadge, QirtasLoader } from "../qirtas";
 
 interface Card {
   id: string;
@@ -112,22 +113,6 @@ const pad2 = (n: number): string => String(n).padStart(2, "0");
 const mmss = (totalSeconds: number): string =>
   `${pad2(Math.floor(Math.max(0, totalSeconds) / 60))}:${pad2(Math.max(0, totalSeconds) % 60)}`;
 const sar = (halalas: number): string => (halalas / 100).toFixed(2);
-
-/** شارة بيكلي — كتاب الهوية */
-function Badge() {
-  return (
-    <svg width="38" height="38" viewBox="0 0 100 100" aria-hidden="true">
-      <rect width="100" height="100" rx="24" fill="var(--pk-lime-500)" />
-      <g transform="skewX(-8) translate(4,0)" stroke="var(--pk-ink-900)" fill="none">
-        <path d="M36,34 L62,34 L59,72 L39,72 Z" strokeWidth="4" strokeLinejoin="round" />
-        <path d="M43,34 Q49,24 55,34" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M70,40 H88" strokeWidth="5" strokeLinecap="round" />
-        <path d="M74,52 H88" strokeWidth="5" strokeLinecap="round" opacity="0.55" />
-        <path d="M70,64 H80" strokeWidth="5" strokeLinecap="round" opacity="0.3" />
-      </g>
-    </svg>
-  );
-}
 
 export default function BoardPage() {
   const router = useRouter();
@@ -399,7 +384,7 @@ export default function BoardPage() {
       {/* ترويسة اللوحة */}
       <header className={s.bhdr}>
         <div className={s.brand}>
-          <Badge />
+          <QirtasBadge size={40} />
           <div>
             <b>بيكلي — شاشة الفرع</b>
             <div className={s.sub}>لوحة التشغيل · شاشة الاستلام</div>
@@ -508,12 +493,12 @@ export default function BoardPage() {
                     <div className={s.meta}>
                       {/* وسم وقت الاستلام — BR-5 و«سأتحرك لاحقاً» (FR-C06) */}
                       {c.pickup_time === "scheduled" && (
-                        <b style={{ color: "var(--pk-warn, #B7791F)" }} data-testid="pickup-tag">
+                        <b style={{ color: "var(--pk-warn)" }} data-testid="pickup-tag">
                           مجدول{c.scheduled_slot_start ? ` ${new Date(c.scheduled_slot_start).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : ""} ·{" "}
                         </b>
                       )}
                       {c.pickup_time === "later" && (
-                        <b style={{ color: "var(--pk-lime-900, #4C7A1C)" }} data-testid="pickup-tag">
+                        <b style={{ color: "var(--pk-blue-600)" }} data-testid="pickup-tag">
                           سيتحرك لاحقاً — جهّزوا براحتكم ·{" "}
                         </b>
                       )}
@@ -574,7 +559,10 @@ export default function BoardPage() {
                 {detailsFor === c.id && (
                   <div className={s.details} data-testid="order-details">
                     {detailsLoading || !details ? (
-                      <div className={s.detailsLoading}>…جارٍ استعراض الطلب</div>
+                      <div className={s.detailsLoading}>
+                        <QirtasLoader size={40} />
+                        جارٍ استعراض الطلب
+                      </div>
                     ) : (
                       <>
                         <div className={s.detailsHd}>محتوى الطلب</div>
@@ -712,6 +700,8 @@ export default function BoardPage() {
 
         {cards.length === 0 && (
           <div className={s.empty}>
+            {/* القرطاس النعسان — الحالة الفارغة الرسمية */}
+            <Qirtas mood="sleepy" size={110} />
             {tab === "scheduled" ? (
               <>
                 <b>لا طلبات مجدولة قادمة</b>

@@ -24,14 +24,15 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
 
   return (
     <html lang="ar" dir="rtl">
+      {/* صفحة مستقلة عن أوراق الأنماط — قيم tokens.css مع fallback حرفي لنفس الرموز */}
       <body
         style={{
           margin: 0,
           minHeight: "100vh",
           display: "grid",
           placeItems: "center",
-          background: "#f6f7f4",
-          color: "#161a14",
+          background: "var(--pk-cloud, #F7F3E9)",
+          color: "var(--pk-ink-900, #0E1B3D)",
           fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
           textAlign: "center"
         }}
@@ -47,9 +48,10 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
             style={{
               padding: "12px 28px",
               borderRadius: 12,
-              border: "none",
-              background: "#c8f051",
-              color: "#161a14",
+              border: "2px solid var(--pk-ink-900, #0E1B3D)",
+              boxShadow: "4px 4px 0 var(--pk-ink-900, #0E1B3D)",
+              background: "var(--pk-blue-500, #0B63CE)",
+              color: "var(--pk-white, #FFFFFF)",
               fontSize: 16,
               fontWeight: 700,
               cursor: "pointer",

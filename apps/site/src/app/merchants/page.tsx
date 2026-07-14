@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { InterestForm } from "./interest-form";
+import { Qirtas, SpeedLines } from "@/components/qirtas";
 
 export const metadata: Metadata = {
   title: "للمتاجر",
@@ -11,16 +12,21 @@ export const metadata: Metadata = {
 export default function MerchantsPage() {
   return (
     <main>
-      <div className="wrap hero2">
-        <span className="kicker">FOR MERCHANTS</span>
-        <h1 className="sec">
-          كاونتر أهدأ، عملاء أوفى —
-          <br />
-          <span className="lm">وصفر عمولة على قيمة الطلب.</span>
-        </h1>
-        <p className="lead" style={{ marginBottom: 0 }}>
-          بيكلي يدير لحظة الاستلام كاملة: من يقترب، متى يصل، وأي سيارة بالضبط — بينما أرباح طلبك تبقى لك.
-        </p>
+      <div className="wrap hero2" style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 480px" }}>
+          <SpeedLines width={54} style={{ display: "block", marginBottom: 6 }} />
+          <span className="kicker">FOR MERCHANTS</span>
+          <h1 className="sec">
+            كاونتر أهدأ، عملاء أوفى —
+            <br />
+            <span className="lm lm-pink">وصفر عمولة على قيمة الطلب.</span>
+          </h1>
+          <p className="lead" style={{ marginBottom: 0 }}>
+            بيكلي يدير لحظة الاستلام كاملة: من يقترب، متى يصل، وأي سيارة بالضبط — بينما أرباح طلبك تبقى لك.
+          </p>
+        </div>
+        {/* القرطاس الغامز — ترحيب مرح بالتجار */}
+        <Qirtas mood="wink" size={120} title="القرطاس المبتسم يغمز للتجار" />
       </div>
 
       <section className="wrap" style={{ paddingTop: 36, paddingBottom: 36 }}>

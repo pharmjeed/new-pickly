@@ -22,7 +22,8 @@ import { router } from "expo-router";
 import * as Location from "expo-location";
 import { api, fmtSar } from "../../src/api";
 import { Badge, ErrorNote, Loader } from "../../src/ui";
-import { colors, fs, light, radius, shadow1 } from "../../src/theme";
+import { Qirtas } from "../../src/qirtas";
+import { bw2, colors, fs, light, popXs, popSm, radius, radiusMd, radiusPill } from "../../src/theme";
 
 interface BranchCard {
   id: string;
@@ -107,7 +108,7 @@ function Banners() {
     <View>
       <Pressable onPress={open} accessibilityRole={current.link ? "button" : undefined}>
         {current.image_url ? (
-          <ImageBackground source={{ uri: current.image_url }} style={st.banner} imageStyle={{ borderRadius: radius }}>
+          <ImageBackground source={{ uri: current.image_url }} style={st.banner} imageStyle={{ borderRadius: radiusMd - bw2 }}>
             {txt}
           </ImageBackground>
         ) : (
@@ -236,6 +237,7 @@ export default function HomeScreen() {
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <View style={st.empty}>
+              <Qirtas mood="sad" size={84} />
               <Text style={st.emptyTitle}>لا نتائج لـ«{q.trim()}»</Text>
               <Text style={st.emptyTxt}>جرّب كلمة أخرى</Text>
             </View>
@@ -294,6 +296,7 @@ export default function HomeScreen() {
           <Text style={st.section}>التصنيفات</Text>
           {cats.length === 0 ? (
             <View style={st.empty}>
+              <Qirtas mood="sleepy" size={84} />
               <Text style={st.emptyTitle}>ما فيه مطاعم قريبة منك الآن</Text>
               <Text style={st.emptyTxt}>بيكلي يتوسع — جرّب من موقع آخر أو عُد لاحقاً</Text>
             </View>
@@ -302,7 +305,7 @@ export default function HomeScreen() {
               {cats.map(({ name, count }) => (
                 <Pressable
                   key={name}
-                  style={({ pressed }) => [st.catCard, pressed ? { backgroundColor: colors.lime100 } : null]}
+                  style={({ pressed }) => [st.catCard, pressed ? { backgroundColor: colors.cloud2 } : null]}
                   onPress={() => router.push(`/restaurants?c=${encodeURIComponent(name)}` as never)}
                   accessibilityRole="button"
                 >
@@ -334,8 +337,8 @@ const st = StyleSheet.create({
   screen: { flex: 1, backgroundColor: light.bg },
   head: {
     backgroundColor: light.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: light.border,
+    borderBottomWidth: bw2,
+    borderBottomColor: colors.ink900,
     padding: 16,
     paddingBottom: 12
   },
@@ -345,9 +348,9 @@ const st = StyleSheet.create({
     marginTop: 10,
     backgroundColor: light.bg,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: light.border,
-    minHeight: 44,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
+    minHeight: 48,
     paddingHorizontal: 12,
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -361,47 +364,57 @@ const st = StyleSheet.create({
   emptyTxt: { color: light.text2, fontSize: fs.fs14 },
   card: {
     backgroundColor: light.surface,
-    borderRadius: radius,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderRadius: radiusMd,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     padding: 14,
     gap: 6,
-    ...shadow1
+    ...popXs
   },
   cardTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
   cardName: { color: light.text, fontSize: fs.fs16, fontWeight: "800", flexShrink: 1, textAlign: "right" },
   meta: { color: light.text2, fontSize: fs.fs13 },
   /* بانرات */
-  banner: { minHeight: 128, borderRadius: radius, overflow: "hidden", justifyContent: "flex-end" },
+  banner: {
+    minHeight: 128,
+    borderRadius: radiusMd,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
+    overflow: "hidden",
+    justifyContent: "flex-end"
+  },
   bannerFill: { backgroundColor: colors.ink900 },
-  bTxt: { padding: 16, gap: 3, backgroundColor: "rgba(20,24,15,0.35)" },
-  bTitle: { color: "#fff", fontSize: fs.fs17, fontWeight: "900", textAlign: "right" },
-  bBody: { color: "#fff", opacity: 0.9, fontSize: fs.fs13, textAlign: "right" },
+  bTxt: { padding: 16, gap: 3, backgroundColor: "rgba(14,27,61,0.45)" },
+  bTitle: { color: colors.white, fontSize: fs.fs17, fontWeight: "900", textAlign: "right" },
+  bBody: { color: colors.white, opacity: 0.9, fontSize: fs.fs13, textAlign: "right" },
   bDots: { flexDirection: "row-reverse", justifyContent: "center", gap: 6, marginTop: 8 },
   bDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: light.border },
-  bDotOn: { width: 18, backgroundColor: colors.lime500 },
+  bDotOn: { width: 18, backgroundColor: colors.blue500 },
   /* التصنيفات */
   cats: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 },
   catCard: {
     flexBasis: "30%",
     flexGrow: 1,
     backgroundColor: light.surface,
-    borderRadius: radius,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderRadius: radiusMd,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     paddingVertical: 16,
     alignItems: "center",
     gap: 4,
-    ...shadow1
+    ...popXs
   },
   catNm: { color: light.text, fontSize: fs.fs15, fontWeight: "800" },
-  catCt: { color: light.text2, fontSize: fs.fs12 },
+  catCt: { color: colors.blue500, fontSize: fs.fs12, fontWeight: "700" },
   allBtn: {
-    backgroundColor: colors.ink900,
-    borderRadius: 999,
+    backgroundColor: colors.blue500,
+    borderRadius: radiusPill,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     minHeight: 52,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    ...popSm
   },
-  allBtnTxt: { color: colors.lime500, fontSize: fs.fs15, fontWeight: "800" }
+  allBtnTxt: { color: colors.white, fontSize: fs.fs15, fontWeight: "800" }
 });

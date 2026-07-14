@@ -1,16 +1,16 @@
 /* B-03 — لوحة التشغيل الجامعة (design/branch/B-03.html) — تابلت 1280 أفقي · لمس ≥56px
-   كل الألوان من tokens (--pk-*) بما فيها ألوان الأولوية --pk-st-* */
+   الهوية الفنكية v2.0: عاجي منقّط + حدود كحلية سميكة + ظل صلب مُزاح — لا ظلال ناعمة
+   ألوان الأولوية من tokens --pk-st-* · بطاقة «العميل وصل» = لحظة الليموني الغامرة */
 
 .board {
   min-height: 100vh;
   max-width: 1280px;
   margin: 0 auto;
-  background: var(--pk-cloud);
   display: flex;
   flex-direction: column;
 }
 
-/* ===== ترويسة اللوحة ===== */
+/* ===== ترويسة اللوحة — كحلية بخط ليموني (فوق الداكن الإشارة ليمونية) ===== */
 .bhdr {
   background: var(--pk-ink-900);
   color: var(--pk-cloud);
@@ -19,9 +19,10 @@
   gap: 18px;
   padding: 12px 22px;
   flex-shrink: 0;
+  border-bottom: 3px solid var(--pk-lime-500);
 }
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand b { font-family: var(--pk-font-display); font-size: 20px; font-weight: 700; }
+.brand b { font-family: var(--pk-font-display); font-size: 20px; font-weight: 800; }
 .sub { font-size: 12.5px; color: var(--pk-gray-2); }
 .sp { margin-inline-start: auto; display: flex; gap: 12px; align-items: center; }
 .pill {
@@ -29,8 +30,9 @@
   align-items: center;
   gap: 8px;
   background: var(--pk-ink-700);
+  border: 2px solid var(--pk-ink-600);
   border-radius: var(--pk-radius-pill);
-  padding: 6px 16px;
+  padding: 4px 16px;
   font-size: 14px;
 }
 .dot {
@@ -45,24 +47,26 @@
   unicode-bidi: embed;
 }
 
-/* ===== التبويبات = الحالات ===== */
-.btabs { display: flex; gap: 8px; padding: 12px 20px 0; flex-shrink: 0; flex-wrap: wrap; }
+/* ===== التبويبات = الحالات — ملصقات فنكية بحد كحلي ===== */
+.btabs { display: flex; gap: 10px; padding: 16px 20px 4px; flex-shrink: 0; flex-wrap: wrap; }
 .btab {
   display: inline-flex;
   align-items: center;
   gap: 9px;
   min-height: var(--pk-touch-branch);
-  padding: 0 20px;
-  border-radius: 14px 14px 0 0;
-  background: transparent;
-  border: none;
-  font-family: var(--pk-font-body);
+  padding: 0 22px;
+  border-radius: var(--pk-radius-pill);
+  background: var(--pk-white);
+  border: var(--pk-b2);
+  font-family: var(--pk-font-display);
   font-size: 18px;
   font-weight: 700;
-  color: var(--pk-gray);
+  color: var(--pk-ink-900);
   cursor: pointer;
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
 }
-.btabOn { background: var(--pk-white); color: var(--pk-ink-900); }
+.btab:hover { box-shadow: var(--pk-pop-xs); }
+.btabOn { background: var(--pk-blue-500); color: var(--pk-white); box-shadow: var(--pk-pop-sm); }
 .n {
   font-family: var(--pk-font-mono);
   font-size: 15px;
@@ -72,27 +76,30 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--pk-line);
+  background: var(--pk-white);
   color: var(--pk-ink-900);
+  border: 2px solid var(--pk-ink-900);
   padding: 0 8px;
   direction: ltr;
 }
 .nNew { background: var(--pk-st-new); color: var(--pk-white); }
 /* BR-5: شارة المجدولة — دائمة الظهور بلون التنبيه */
 .nSched { background: var(--pk-warn); color: var(--pk-ink-900); }
-.nPrep { background: var(--pk-st-prep); color: var(--pk-white); }
+.nPrep { background: var(--pk-lime-500); color: var(--pk-ink-900); }
 .nNear { background: var(--pk-st-near); color: var(--pk-ink-900); }
-.nArr { background: var(--pk-st-arrived); color: var(--pk-white); }
+.nArr { background: var(--pk-st-arrived); color: var(--pk-ink-900); }
 .nDone { background: var(--pk-st-done); color: var(--pk-white); }
 /* شارة واصلين على تبويب «التشغيل» — نبضة تلفت الموظف أن عميلاً وصل */
 .nArrLive { animation: pk-arrived-pulse 1.3s ease-in-out infinite; }
 
-/* ===== منطقة العمل ===== */
+/* ===== منطقة العمل — بطاقة كبيرة بحد كحلي وظل صلب ===== */
 .bmain {
   flex: 1;
   background: var(--pk-white);
-  margin: 0 20px 20px;
-  border-radius: 0 18px 18px 18px;
+  margin: 0 20px 24px;
+  border: var(--pk-b3);
+  border-radius: var(--pk-radius-lg);
+  box-shadow: var(--pk-pop);
   padding: 18px;
   overflow-y: auto;
   display: flex;
@@ -102,7 +109,8 @@
 .noteErr {
   display: flex;
   gap: 10px;
-  align-items: flex-start;
+  align-items: center;
+  border: 2px solid var(--pk-error);
   border-radius: var(--pk-radius);
   padding: 11px 14px;
   font-size: 15px;
@@ -112,36 +120,37 @@
   font-weight: 500;
 }
 
-/* BR-5: شريط اقتراب موعد مجدول — نابض، والضغط يقود للتبويب */
+/* BR-5: شريط اقتراب موعد مجدول — ملصق نابض بميلان مرح، والضغط يقود للتبويب */
 .schedBanner {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   text-align: right;
-  border: 1.5px solid var(--pk-warn);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius);
   padding: 11px 14px;
   font: inherit;
   font-size: 15px;
   font-weight: 700;
   color: var(--pk-ink-900);
-  background: rgba(239, 159, 39, 0.13);
+  background: color-mix(in srgb, var(--pk-warn) 16%, var(--pk-white));
+  box-shadow: var(--pk-pop-xs);
   cursor: pointer;
+  transform: rotate(var(--pk-sticker-tilt));
   animation: schedPulse 2s ease-in-out infinite;
 }
 @keyframes schedPulse {
-  50% { box-shadow: 0 0 0 5px rgba(239, 159, 39, 0.22); }
+  50% { box-shadow: 4px 4px 0 var(--pk-warn); }
 }
 
-/* واصل وطلبه جاهز = قابل للتسليم فوراً — البطاقة تومض أحمر تلفت الموظف (دمج «وصلوا» في البطاقة) */
+/* واصل وطلبه جاهز = قابل للتسليم فوراً — حلقة وردية (طاقة) تومض تلفت الموظف */
 .ocardDeliverable {
-  border-color: #e53935 !important;
   animation: acardReadyBlink 1s ease-in-out infinite;
 }
 @keyframes acardReadyBlink {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
-  50% { box-shadow: 0 0 0 5px rgba(229, 57, 53, 0.4); }
+  0%, 100% { box-shadow: var(--pk-pop); }
+  50% { box-shadow: 6px 6px 0 var(--pk-pink-500); }
 }
 
 /* شارة «🚘 وصل» على البطاقة نفسها — نبضة تلفت الموظف أن العميل حضر */
@@ -150,7 +159,8 @@
   align-items: center;
   gap: 6px;
   background: var(--pk-st-arrived);
-  color: var(--pk-white);
+  color: var(--pk-ink-900);
+  border: var(--pk-b2);
   font-family: var(--pk-font-display);
   font-weight: 700;
   font-size: 16px;
@@ -160,44 +170,54 @@
   animation: pk-arrived-pulse 1.2s ease-in-out infinite;
 }
 @keyframes pk-arrived-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.5); }
-  50% { box-shadow: 0 0 0 7px rgba(229, 57, 53, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pk-st-arrived) 55%, transparent); }
+  50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--pk-st-arrived) 0%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ocardDeliverable, .arrivedBadge, .nArrLive { animation: none; }
+  .ocardDeliverable, .arrivedBadge, .nArrLive, .schedBanner { animation: none; }
 }
 
 /* ===== شبكة البطاقات ===== */
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
 
-/* ===== بطاقة طلب بأولوية لونية (data-state) ===== */
+/* ===== بطاقة طلب بأولوية لونية (data-state) — حد كحلي سميك + شريط حالة + ظل صلب ===== */
 .ocard {
   background: var(--pk-white);
-  border: 2.5px solid var(--pk-line);
-  border-radius: 16px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-sm);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   position: relative;
-  border-inline-start-width: 12px;
+  border-inline-start: 12px solid var(--pk-st-new);
 }
-.ocard[data-state="scheduled"] { border-color: var(--pk-warn); background: rgba(239, 159, 39, 0.07); }
-.ocard[data-state="new"] { border-color: var(--pk-st-new); background: var(--pk-st-new-bg); }
-.ocard[data-state="prep"] { border-color: var(--pk-st-prep); background: var(--pk-st-prep-bg); }
-.ocard[data-state="near"] { border-color: var(--pk-st-near); background: var(--pk-st-near-bg); }
-.ocard[data-state="arrived"] { border-color: var(--pk-st-arrived); background: var(--pk-st-arrived-bg); }
-.ocard[data-state="done"] { border-color: var(--pk-st-done); background: var(--pk-st-done-bg); }
+.ocard[data-state="scheduled"] { border-inline-start-color: var(--pk-warn); background: color-mix(in srgb, var(--pk-warn) 7%, var(--pk-white)); }
+.ocard[data-state="new"] { border-inline-start-color: var(--pk-st-new); background: var(--pk-st-new-bg); }
+.ocard[data-state="prep"] { border-inline-start-color: var(--pk-st-prep); background: var(--pk-st-prep-bg); }
+.ocard[data-state="near"] { border-inline-start-color: var(--pk-st-near); background: var(--pk-st-near-bg); }
+/* لحظة الليموني: العميل وصل — بطاقة غامرة ليمونية بحد كحلي وظل pop، أبرز عنصر في اللوحة */
+.ocard[data-state="arrived"] {
+  border-inline-start-color: var(--pk-st-arrived);
+  background: var(--pk-lime-500);
+  box-shadow: var(--pk-pop);
+}
+.ocard[data-state="arrived"] .meta,
+.ocard[data-state="arrived"] .oidSmall,
+.ocard[data-state="arrived"] .countLbl,
+.ocard[data-state="arrived"] .colorChip { color: var(--pk-ink-700); }
+.ocard[data-state="done"] { border-inline-start-color: var(--pk-st-done); background: var(--pk-st-done-bg); }
 /* تجاوز زمن الخدمة المستهدف (BR-9) — يلوّن البطاقة أحمر */
-.ocard.over { border-color: var(--pk-st-overdue); background: var(--pk-st-overdue-bg); }
+.ocard.over { border-inline-start-color: var(--pk-st-overdue); background: var(--pk-st-overdue-bg); }
 
 .hd { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .grow { flex: 1; min-width: 0; }
 .pos {
   font-family: var(--pk-font-display);
   font-size: 26px;
-  font-weight: 700;
+  font-weight: 800;
   width: 34px;
   text-align: center;
   flex-shrink: 0;
@@ -209,16 +229,19 @@
   direction: ltr;
   unicode-bidi: embed;
 }
-/* الرقم اليومي بارزاً + الكود الفريد صغيراً تحته — قرار المالك 2026-07-14 */
+/* الرقم اليومي بارزاً + الكود الفريد صغيراً تحته — قرار المالك 2026-07-14
+   الأرقام بالأزرق الصارخ (الأرقام إبراز — كتاب الهوية §7) */
 .onum { display: flex; flex-direction: column; align-items: center; gap: 1px; flex-shrink: 0; }
 .dnum {
   font-family: var(--pk-font-display);
   font-size: 26px;
   font-weight: 800;
   line-height: 1.1;
+  color: var(--pk-blue-500);
   direction: ltr;
   unicode-bidi: embed;
 }
+.ocard[data-state="arrived"] .dnum { color: var(--pk-ink-900); }
 .oidSmall {
   font-family: var(--pk-font-mono);
   font-size: 11.5px;
@@ -230,7 +253,7 @@
 .vehicle {
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-b-card);
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.3;
 }
 
@@ -248,7 +271,7 @@
 .vehModel {
   font-family: var(--pk-font-display);
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.25;
 }
 .colorChip {
@@ -263,7 +286,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 1.5px solid var(--pk-line);
+  border: 2px solid var(--pk-ink-900);
   display: inline-block;
   flex-shrink: 0;
 }
@@ -273,8 +296,9 @@
   display: inline-flex;
   align-items: stretch;
   background: var(--pk-white);
-  border: 2px solid var(--pk-ink-900);
+  border: var(--pk-b2);
   border-radius: 6px;
+  box-shadow: var(--pk-pop-xs);
   overflow: hidden;
   direction: ltr;
   unicode-bidi: embed;
@@ -293,8 +317,8 @@
 }
 .plateLetters { border-inline-start: 2px solid var(--pk-ink-900); letter-spacing: 2px; }
 .plateBand {
-  background: #2456a6;
-  color: #fff;
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
   font-size: 8px;
   font-weight: 800;
   display: inline-flex;
@@ -314,28 +338,30 @@
 .end { margin-inline-start: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .waitOver { color: var(--pk-st-overdue); font-weight: 700; }
 
-/* موقف السيارة */
+/* موقف السيارة — ملصق بحد كحلي */
 .slot {
   background: var(--pk-lime-100);
-  color: var(--pk-lime-900);
+  color: var(--pk-ink-900);
+  border: var(--pk-b2);
   font-family: var(--pk-font-display);
   font-weight: 700;
   font-size: 20px;
-  border-radius: 14px;
+  border-radius: var(--pk-radius-pill);
   padding: 2px 16px;
   white-space: nowrap;
 }
 
 /* العميل عند نقطة موقفه المثبتة (GPS) — نبضة تلفت الموظف للخروج للمكان الصحيح */
 @keyframes pk-at-spot-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 243, 57, 0.65); }
-  50% { box-shadow: 0 0 0 8px rgba(201, 243, 57, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pk-lime-500) 70%, transparent); }
+  50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--pk-lime-500) 0%, transparent); }
 }
 .slotLive {
   background: var(--pk-lime-500);
   color: var(--pk-ink-900);
   animation: pk-at-spot-pulse 1.8s ease-in-out infinite;
 }
+.ocard[data-state="arrived"] .slotLive { background: var(--pk-white); }
 @media (prefers-reduced-motion: reduce) {
   .slotLive { animation: none; }
 }
@@ -361,19 +387,21 @@
 }
 .timerbar {
   height: 8px;
+  border: 2px solid var(--pk-ink-900);
   border-radius: var(--pk-radius-pill);
-  background: var(--pk-line);
+  background: var(--pk-white);
   overflow: hidden;
+  box-sizing: content-box;
 }
 .timerfill {
   display: block;
   height: 100%;
-  background: var(--pk-warn);
+  background: var(--pk-pink-500);
   border-radius: var(--pk-radius-pill);
 }
 
-/* ===== أزرار ضخمة للفرع (لمس ≥56px) ===== */
-.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+/* ===== أزرار ضخمة للفرع (لمس ≥56px) — أزرق الفعل بحد كحلي وظل صلب ينزلق ===== */
+.actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 
 /* منتقي وقت التجهيز المتوقع قبل تأكيد القبول (10/15/20/25 د) */
 .prepPick { display: flex; flex-direction: column; gap: 10px; width: 100%; }
@@ -384,21 +412,22 @@
   min-width: 88px;
   padding: 0 18px;
   border-radius: 14px;
-  border: 2px solid var(--pk-line);
-  background: var(--pk-cloud);
+  border: var(--pk-b2);
+  background: var(--pk-white);
   color: var(--pk-ink-900);
   font-family: var(--pk-font-body);
   font-size: 19px;
   cursor: pointer;
 }
-.prepOpt:hover { border-color: var(--pk-ink-900); }
-.prepOptOn { background: var(--pk-lime-500); border-color: var(--pk-ink-900); font-weight: 800; }
+.prepOpt:hover { box-shadow: var(--pk-pop-xs); }
+.prepOptOn { background: var(--pk-lime-500); box-shadow: var(--pk-pop-xs); font-weight: 800; }
 .prepActions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-/* حالة موافقة العميل على الوقت — على بطاقة MERCHANT_ACCEPTED */
+/* حالة انتظار على البطاقة — شارات بحد كحلي */
 .prepWait {
-  background: var(--pk-st-overdue-bg, #FDF3E7);
-  color: var(--pk-warn);
+  background: var(--pk-st-arrived-bg);
+  color: var(--pk-ink-900);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-pill);
   padding: 6px 14px;
   font-size: 15px;
@@ -406,12 +435,14 @@
 }
 .prepOk {
   background: var(--pk-lime-100);
-  color: var(--pk-lime-900);
+  color: var(--pk-ink-900);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-pill);
   padding: 6px 14px;
   font-size: 15px;
   font-weight: 700;
 }
+.ocard[data-state="arrived"] .prepOk { background: var(--pk-white); }
 .bbtn {
   display: inline-flex;
   align-items: center;
@@ -420,24 +451,31 @@
   min-height: var(--pk-touch-branch);
   padding: 0 26px;
   border-radius: 14px;
-  border: none;
+  border: var(--pk-b2);
   cursor: pointer;
-  font-family: var(--pk-font-body);
+  font-family: var(--pk-font-display);
   font-size: 19px;
   font-weight: 700;
-  background: var(--pk-lime-500);
-  color: var(--pk-ink-900);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  box-shadow: var(--pk-pop-sm);
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
 }
-.bbtn:hover { background: var(--pk-lime-300); }
-.bbtn:disabled { background: var(--pk-line); color: var(--pk-gray); cursor: not-allowed; }
-.gray { background: var(--pk-cloud); border: 2px solid var(--pk-ink-900); color: var(--pk-ink-900); }
-.gray:hover { background: var(--pk-line); }
+.bbtn:hover { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--pk-ink-900); }
+.bbtn:disabled {
+  background: var(--pk-cloud-2);
+  color: var(--pk-gray);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+/* ثانوي: أبيض بحد كحلي بلا ظل */
+.gray { background: var(--pk-white); color: var(--pk-ink-900); box-shadow: none; font-family: var(--pk-font-body); }
+.gray:hover { transform: none; box-shadow: var(--pk-pop-xs); }
 .red { background: var(--pk-error); color: var(--pk-white); }
-.red:hover { background: var(--pk-st-overdue); }
-.orange { background: var(--pk-st-arrived); color: var(--pk-white); }
-.orange:hover { background: var(--pk-warn); }
-.green { background: var(--pk-success); color: var(--pk-white); }
-.green:hover { background: var(--pk-st-done); }
+.orange { background: var(--pk-st-arrived); color: var(--pk-ink-900); }
+/* «تم التسليم» = لحظة النجاح — الليموني المحجوز للنجاح/الوصول */
+.green { background: var(--pk-lime-500); color: var(--pk-ink-900); }
 
 /* إدخال رمز التحقق (B-13) */
 .codeRow { display: flex; gap: 8px; width: 100%; align-items: center; }
@@ -445,7 +483,7 @@
   min-height: var(--pk-touch-branch);
   max-width: 180px;
   width: 100%;
-  border: 2px solid var(--pk-line);
+  border: var(--pk-b2);
   border-radius: 14px;
   background: var(--pk-white);
   color: var(--pk-text);
@@ -458,7 +496,7 @@
   padding: 0 12px;
   outline: none;
 }
-.codeInput:focus { border-color: var(--pk-ink-900); background: var(--pk-lime-100); }
+.codeInput:focus { border-color: var(--pk-blue-500); background: var(--pk-lime-100); }
 
 /* شارة مكتمل */
 .done {
@@ -468,37 +506,43 @@
   border-radius: var(--pk-radius-pill);
   padding: 6px 16px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 700;
   white-space: nowrap;
-  background: var(--pk-st-done-bg);
-  color: var(--pk-st-done);
-  border: 1.5px solid var(--pk-st-done);
+  background: var(--pk-st-done);
+  color: var(--pk-white);
+  border: var(--pk-b2);
 }
 
-/* ===== الحالة الفارغة ===== */
+/* ===== الحالة الفارغة — القرطاس النعسان ===== */
 .empty {
   text-align: center;
   padding: 34px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
 }
-.empty b { font-family: var(--pk-font-display); font-size: var(--pk-fs-17); font-weight: 700; }
-.empty p { font-size: var(--pk-fs-13); color: var(--pk-text-2); margin: 2px 0 0; max-width: 260px; }
+.empty b { font-family: var(--pk-font-display); font-size: var(--pk-fs-20); font-weight: 800; }
+.empty p { font-size: var(--pk-fs-14); color: var(--pk-text-2); margin: 2px 0 0; max-width: 300px; }
 
 /* ===== استعراض محتوى الطلب قبل القبول ===== */
 .details {
   margin: 10px 0 4px;
   padding: 12px 14px;
   background: var(--pk-cloud);
-  border: 1px solid var(--pk-line);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius);
 }
-.detailsLoading { font-size: var(--pk-fs-14); color: var(--pk-text-2); }
+.detailsLoading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--pk-fs-14);
+  color: var(--pk-text-2);
+}
 .detailsHd {
   font-family: var(--pk-font-display);
-  font-weight: 700;
+  font-weight: 800;
   font-size: var(--pk-fs-15);
   margin-bottom: 8px;
 }
@@ -507,7 +551,7 @@
 .itemQty {
   font-family: var(--pk-font-mono);
   font-weight: 700;
-  color: var(--pk-lime-900);
+  color: var(--pk-blue-500);
   min-width: 34px;
 }
 .itemName { flex: 1; }
@@ -516,7 +560,7 @@
 .custNote {
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px dashed var(--pk-line);
+  border-top: 2px dashed var(--pk-ink-900);
   font-size: var(--pk-fs-14);
   color: var(--pk-ink-700);
 }

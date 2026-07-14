@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { Qirtas, QirtasBadge, SpeedLines } from "@/components/qirtas";
 
-/* الرئيسية — S-01 / pickly-landing (النصوص حرفياً) */
+/* الرئيسية — S-01 / pickly-landing (النصوص حرفياً · الهوية الفنكية v2.0) */
 export default function HomePage() {
   return (
     <main>
@@ -31,7 +32,12 @@ export default function HomePage() {
             <span>تكامل Foodics</span>
           </div>
         </div>
-        <div className="phone">
+        <div>
+          {/* القرطاس البطل — واجهة العلامة الأولى: مندفع بخطوط سرعته نحو السيارة */}
+          <div className="hero-mascot">
+            <Qirtas mood="excited" lines size={104} title="القرطاس المبتسم — كاركتر بيكلي" />
+          </div>
+          <div className="phone">
           <div className="screen">
             <p className="scr-mode">وضع القيادة</p>
             <p className="disp scr-time">١٢ دقيقة</p>
@@ -50,6 +56,7 @@ export default function HomePage() {
             <div className="scr-code">
               <span dir="ltr">P-4821</span>
             </div>
+          </div>
           </div>
         </div>
       </header>
@@ -75,6 +82,7 @@ export default function HomePage() {
       <p className="wrap footnote">* أرقام مستهدفة من تصميم التجربة — ليست بيانات إنتاج.</p>
 
       <section className="wrap" id="features">
+        <SpeedLines width={54} style={{ display: "block", marginBottom: 6 }} />
         <span className="kicker">FEATURES</span>
         <h2 className="sec">ثلاث قدرات تلغي الانتظار.</h2>
         <p className="lead">
@@ -243,6 +251,7 @@ export default function HomePage() {
       </section>
 
       <section className="wrap" id="pricing">
+        <SpeedLines width={54} style={{ display: "block", marginBottom: 6 }} />
         <span className="kicker">PRICING</span>
         <h2 className="sec">تسعير بلا مفاجآت.</h2>
         <p className="lead">نربح فقط عندما يكتمل استلام — لا اشتراكات إجبارية ولا عمولات مخفية.</p>
@@ -303,9 +312,7 @@ export default function HomePage() {
 
       <section className="wrap" id="join">
         <div className="cta-final">
-          <svg width="72" height="72" style={{ marginBottom: 14 }} aria-hidden="true">
-            <use href="#badge" />
-          </svg>
+          <QirtasBadge size={76} style={{ marginBottom: 14, transform: "rotate(var(--pk-sticker-tilt))" }} />
           <h2>
             خلّك في سيارتك.
             <br />
@@ -317,7 +324,7 @@ export default function HomePage() {
             <a className="btn" href={process.env.NEXT_PUBLIC_CUSTOMER_APP_URL ?? "https://app.pickly.sa"}>
               اطلب الآن — عميل
             </a>
-            <Link className="btn btn-lime-line" href="/merchants">
+            <Link className="btn btn-ghost" href="/merchants">
               سجّل متجرك
             </Link>
           </div>

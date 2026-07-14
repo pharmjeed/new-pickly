@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import { Qirtas, QirtasLoader } from "@/components/qirtas";
 
 type Customer = {
   id: string;
@@ -85,11 +86,11 @@ export default function Customers() {
         </div>
       )}
 
-      {!customers && !error && <div className="skl" style={{ height: 260 }} />}
+      {!customers && !error && <div className="loadwrap" style={{ minHeight: 260 }}><QirtasLoader /></div>}
 
       {customers && customers.length === 0 && (
         <div className="empty">
-          <div className="ic">👥</div>
+          <div className="qr"><Qirtas mood="sleepy" size={72} /></div>
           <b>لا عملاء بعد</b>
           <p>يظهر عملاء المنصة هنا فور تسجيلهم</p>
         </div>

@@ -17,7 +17,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { api, setTokens } from "../src/api";
 import { ErrorNote, GhostButton, LimeButton } from "../src/ui";
-import { colors, fs, light, radius, touch } from "../src/theme";
+import { QirtasBadge } from "../src/qirtas";
+import { bw2, colors, fs, light, radius, touch } from "../src/theme";
 
 const RESEND_SECONDS = 47;
 
@@ -102,7 +103,7 @@ export default function AuthScreen() {
         {step === "phone" && (
           <View style={st.center}>
             <View style={st.logoBadge}>
-              <Text style={st.logoTxt}>بيكلي</Text>
+              <QirtasBadge size={84} />
             </View>
             <Text style={st.hero}>خلّك في سيارتك —{"\n"}طلبك يجيك</Text>
 
@@ -209,21 +210,7 @@ const st = StyleSheet.create({
   screen: { flex: 1, backgroundColor: light.bg },
   center: { flex: 1, justifyContent: "center", padding: 24 },
   body: { flex: 1, padding: 24, paddingTop: 16 },
-  logoBadge: {
-    backgroundColor: colors.lime500,
-    borderRadius: radius,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    alignSelf: "center",
-    transform: [{ skewX: "-8deg" }],
-    marginBottom: 20
-  },
-  logoTxt: {
-    color: colors.ink900,
-    fontSize: fs.fs20,
-    fontWeight: "900",
-    transform: [{ skewX: "8deg" }]
-  },
+  logoBadge: { alignSelf: "center", marginBottom: 20 },
   hero: {
     color: light.text,
     fontSize: fs.fs24,
@@ -249,8 +236,8 @@ const st = StyleSheet.create({
     flexGrow: 1,
     minHeight: touch + 4,
     backgroundColor: light.surface,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     borderRadius: radius,
     paddingHorizontal: 14,
     fontSize: fs.fs16,

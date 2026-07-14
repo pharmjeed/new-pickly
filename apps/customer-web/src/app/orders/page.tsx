@@ -7,7 +7,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, fmtSar, getToken } from "@/lib/api";
-import { GuestGate, IReceipt, IStore, TabBar } from "../shell";
+import { GuestGate, IStore, TabBar } from "../shell";
+import { QirtasEmpty } from "../qirtas";
 import styles from "../page.module.css";
 
 interface OrderSummary {
@@ -149,14 +150,13 @@ export default function OrdersPage() {
 
             {orders && filtered.length === 0 && (
               <div className={styles.empty}>
-                <div className={styles.emptyIc}>
-                  <IReceipt />
-                </div>
-                <b>{tab === "active" ? "لا طلبات نشطة" : "لا طلبات هنا"}</b>
-                <p>اطلب من مطعمك المفضل وخلّنا على السيارة</p>
-                <Link href="/restaurants" className={styles.gateBtn}>
-                  تصفح المطاعم
-                </Link>
+                <QirtasEmpty mood="sleepy">
+                  <b>{tab === "active" ? "لا طلبات نشطة" : "لا طلبات هنا"}</b>
+                  <p>اطلب من مطعمك المفضل وخلّنا على السيارة</p>
+                  <Link href="/restaurants" className={styles.gateBtn}>
+                    تصفح المطاعم
+                  </Link>
+                </QirtasEmpty>
               </div>
             )}
 

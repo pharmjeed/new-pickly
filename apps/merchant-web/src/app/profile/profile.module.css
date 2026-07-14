@@ -2,8 +2,9 @@
 
 .card {
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
-  border-radius: 14px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-lg);
+  box-shadow: var(--pk-pop-sm);
   overflow: hidden;
   margin-bottom: 18px;
 }
@@ -57,7 +58,8 @@
   font-size: 30px;
   font-weight: 700;
   color: var(--pk-text-2);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  outline: 2px solid var(--pk-ink-900);
+  box-shadow: var(--pk-pop-xs);
 }
 .logoWrap img {
   width: 100%;

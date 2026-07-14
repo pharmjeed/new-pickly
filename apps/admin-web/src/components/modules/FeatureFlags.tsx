@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost, shortDateTime } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import { QirtasLoader } from "@/components/qirtas";
 
 type Flag = {
   key: string;
@@ -76,7 +77,7 @@ export default function FeatureFlags() {
     <>
       {error && <div className="note err" data-testid="flags-error">{error}</div>}
       {notice && <div className="note info" data-testid="flags-notice">{notice}</div>}
-      {!flags && !error && <div className="skl" style={{ height: 260 }} />}
+      {!flags && !error && <div className="loadwrap" style={{ minHeight: 260 }}><QirtasLoader /></div>}
 
       {flags && (
         <div className="kpis">

@@ -1,4 +1,4 @@
-/* M-08 المنيو والتوفر — فلاتر + جدول منتجات بمفاتيح توفر (design/merchant/M-08) */
+/* M-08 المنيو والتوفر — فلاتر + جدول منتجات بمفاتيح توفر (الهوية الفنكية v2.0) */
 .filters {
   display: flex;
   gap: 8px;
@@ -6,22 +6,23 @@
   flex-wrap: wrap;
 }
 .filters select {
-  min-height: 38px;
+  min-height: 40px;
   font-size: 12.5px;
   width: auto;
   min-width: 180px;
   padding: 6px 12px;
   background: var(--pk-surface);
   color: var(--pk-text);
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 10px;
   font-family: var(--pk-font-body);
 }
+.filters select:focus { outline: none; border-color: var(--pk-blue-500); }
 
 .catTitle {
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-16);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--pk-text);
   margin: 4px 0 8px;
 }
@@ -40,25 +41,29 @@
   min-width: 52px;
 }
 
-/* ===== زر ونموذج إضافة صنف (docs/11§6 CRUD) ===== */
+/* ===== زر ونموذج إضافة صنف (docs/11§6 CRUD) — الفعل أزرق بظل صلب ===== */
 .addBtn {
-  min-height: 38px;
+  min-height: 40px;
   padding: 6px 18px;
-  background: var(--pk-lime-500);
-  color: var(--pk-ink-900);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
   font-family: var(--pk-font-display);
   font-weight: 700;
   font-size: 13px;
-  border: none;
+  border: var(--pk-b2);
   border-radius: 10px;
+  box-shadow: var(--pk-pop-xs);
   cursor: pointer;
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
 }
-.addBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.addBtn:hover { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--pk-ink-900); }
+.addBtn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
 
 .addForm {
   background: var(--pk-surface);
-  border: 1.5px solid var(--pk-border);
-  border-radius: 14px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-lg);
+  box-shadow: var(--pk-pop-sm);
   padding: 18px;
   margin: 12px 0 18px;
 }
@@ -80,12 +85,12 @@
   padding: 8px 12px;
   background: var(--pk-bg);
   color: var(--pk-text);
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 10px;
   font-family: var(--pk-font-body);
   font-size: 14px;
 }
-.field input:focus, .field select:focus { outline: 2px solid var(--pk-lime-500); border-color: transparent; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--pk-blue-500); }
 
 .groups { margin-top: 16px; }
 .groupsHead {
@@ -99,8 +104,8 @@
 }
 .group {
   background: var(--pk-bg);
-  border: 1px solid var(--pk-border);
-  border-radius: 10px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius);
   padding: 12px;
   margin-bottom: 10px;
 }
@@ -110,7 +115,7 @@
   min-width: 140px;
   min-height: 36px;
   padding: 6px 10px;
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 8px;
   background: var(--pk-surface);
   color: var(--pk-text);
@@ -121,7 +126,7 @@
   width: 62px;
   min-height: 36px;
   padding: 6px 8px;
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 8px;
   background: var(--pk-surface);
   color: var(--pk-text);
@@ -151,20 +156,23 @@
   text-align: center;
 }
 .smallBtn {
-  background: var(--pk-lime-100);
-  color: var(--pk-lime-900);
-  border: none;
+  background: var(--pk-surface);
+  color: var(--pk-text);
+  border: var(--pk-b2);
   border-radius: 8px;
   padding: 6px 14px;
+  font-family: var(--pk-font-display);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }
+.smallBtn:hover { background: var(--pk-cloud-2); }
+:global([data-theme="dark"]) .smallBtn:hover { background: var(--pk-ink-600); }
 .removeBtn {
   width: 34px;
   min-height: 34px;
   background: transparent;
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 8px;
   color: var(--pk-error);
   cursor: pointer;
@@ -175,21 +183,24 @@
 .saveBtn {
   min-height: 44px;
   padding: 8px 28px;
-  background: var(--pk-lime-500);
-  color: var(--pk-ink-900);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
   font-family: var(--pk-font-display);
   font-weight: 700;
-  border: none;
+  border: var(--pk-b2);
   border-radius: 10px;
+  box-shadow: var(--pk-pop-xs);
   cursor: pointer;
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
 }
-.saveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.saveBtn:hover { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--pk-ink-900); }
+.saveBtn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
 .cancelBtn {
   min-height: 44px;
   padding: 8px 20px;
   background: transparent;
   color: var(--pk-text-2);
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 10px;
   cursor: pointer;
   font-family: var(--pk-font-body);
@@ -199,7 +210,7 @@
 .imageRow { display: flex; gap: 16px; align-items: center; margin-bottom: 14px; }
 .imagePreview {
   width: 96px; height: 96px; flex-shrink: 0;
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 12px;
   overflow: hidden;
   background: var(--pk-bg);
@@ -210,7 +221,7 @@
 .imageActions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .imageHint { font-size: 11px; color: var(--pk-text-2); }
 .removeImgBtn {
-  background: transparent; border: 1px solid var(--pk-border);
+  background: transparent; border: var(--pk-b2);
   color: var(--pk-error); border-radius: 8px; padding: 6px 14px;
   font-size: 12px; cursor: pointer;
 }
@@ -219,19 +230,20 @@
   position: relative;
   width: 52px; height: 52px;
   border-radius: 8px; overflow: hidden;
-  background: var(--pk-bg); border: 1px dashed var(--pk-border);
+  background: var(--pk-bg); border: 2px dashed var(--pk-border);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; padding: 0;
-  transition: border-color 0.15s;
+  transition: border-color var(--pk-dur) var(--pk-ease);
 }
-.thumb:hover { border-color: var(--pk-lime-500); }
+.thumb:hover { border-color: var(--pk-blue-500); }
 .thumb:disabled { opacity: 0.5; cursor: wait; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
 .thumbEmpty { color: var(--pk-text-2); font-size: 14px; }
-.thumbAdd { color: var(--pk-lime-900); font-size: 10.5px; font-weight: 700; text-align: center; line-height: 1.3; }
+.thumbAdd { color: var(--pk-blue-500); font-size: 10.5px; font-weight: 700; text-align: center; line-height: 1.3; }
 .thumbEdit {
   position: absolute; inset-inline: 0; bottom: 0;
-  background: rgba(16, 36, 27, 0.72); color: #fff;
+  background: color-mix(in srgb, var(--pk-ink-900) 75%, transparent);
+  color: var(--pk-white);
   font-size: 9px; text-align: center; padding: 1px 0;
 }
 
@@ -239,19 +251,23 @@
 
 .rowActions { display: flex; gap: 6px; }
 .editBtn {
-  background: var(--pk-lime-100); color: var(--pk-lime-900);
-  border: none; border-radius: 8px; padding: 6px 14px;
+  background: var(--pk-surface); color: var(--pk-text);
+  border: var(--pk-b2); border-radius: 8px; padding: 6px 14px;
+  font-family: var(--pk-font-display);
   font-size: 12px; font-weight: 700; cursor: pointer;
 }
+.editBtn:hover { background: var(--pk-cloud-2); }
+:global([data-theme="dark"]) .editBtn:hover { background: var(--pk-ink-600); }
 .delBtn {
   background: transparent; color: var(--pk-error);
-  border: 1px solid var(--pk-border); border-radius: 8px; padding: 6px 12px;
+  border: var(--pk-b2); border-radius: 8px; padding: 6px 12px;
   font-size: 12px; cursor: pointer;
 }
 .delBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* عرض على الصنف (M-11) — السعر المخفّض مع شطب الأصلي */
+/* عرض على الصنف (M-11) — السعر المخفّض أزرق («الأرقام زرقاء») وملصق العرض مائل مرحاً */
 .priceCell { display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-.salePrice { color: var(--pk-lime-900); font-weight: 800; }
+.salePrice { color: var(--pk-blue-500); font-weight: 800; }
+:global([data-theme="dark"]) .salePrice { color: var(--pk-live); }
 .origPrice { color: var(--pk-text-2); text-decoration: line-through; font-size: 11px; }
-.saleBadge { font-size: 9.5px; }
+.saleBadge { font-size: 9.5px; transform: rotate(var(--pk-sticker-tilt)); }

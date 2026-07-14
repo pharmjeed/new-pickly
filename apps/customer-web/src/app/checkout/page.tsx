@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, fmtSar } from "@/lib/api";
+import { Qirtas, QirtasLoader } from "../qirtas";
 import styles from "./checkout.module.css";
 
 /** عدّاد السعر المتحرك — يصعد بسلاسة عند كل إعادة تسعير، ويحترم تفضيل تقليل الحركة */
@@ -139,17 +140,17 @@ const formatPan = (s: string): string =>
 
 type PickupTime = "asap" | "scheduled";
 
-/* قصاصات كونفيتي الاحتفال (C-37) — ألوان الهوية بغلبة ليمونية، مواضع وتوقيتات متنوّعة */
+/* قصاصات كونفيتي الاحتفال (C-37) — ألوان الهوية الفنكية: ليموني ووردي وأزرق وكحلي */
 const CONFETTI: Array<{ l: string; d: string; t: string; c: string }> = [
   { l: "10%", d: "0s", t: "2.6s", c: "var(--pk-lime-500)" },
-  { l: "22%", d: ".5s", t: "3s", c: "#ffd54d" },
+  { l: "22%", d: ".5s", t: "3s", c: "var(--pk-pink-500)" },
   { l: "34%", d: ".2s", t: "2.4s", c: "var(--pk-lime-300)" },
   { l: "46%", d: ".8s", t: "2.9s", c: "var(--pk-ink-900)" },
-  { l: "58%", d: ".35s", t: "2.5s", c: "var(--pk-success)" },
+  { l: "58%", d: ".35s", t: "2.5s", c: "var(--pk-blue-500)" },
   { l: "70%", d: ".65s", t: "3.1s", c: "var(--pk-lime-500)" },
-  { l: "82%", d: ".15s", t: "2.7s", c: "#ffd54d" },
+  { l: "82%", d: ".15s", t: "2.7s", c: "var(--pk-pink-500)" },
   { l: "90%", d: ".9s", t: "2.8s", c: "var(--pk-lime-300)" },
-  { l: "16%", d: "1.1s", t: "3s", c: "var(--pk-success)" },
+  { l: "16%", d: "1.1s", t: "3s", c: "var(--pk-blue-500)" },
   { l: "64%", d: "1.3s", t: "2.6s", c: "var(--pk-ink-900)" }
 ];
 
@@ -334,13 +335,6 @@ function DocIcon({ size = 16 }: { size?: number }) {
         <path d="M62,14 V30 H78" />
         <path d="M42,50 H66 M42,64 H66" />
       </g>
-    </svg>
-  );
-}
-function CheckIcon({ size = 46 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
-      <path d="M22,52 L42,72 L80,30" fill="none" stroke="currentColor" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -820,7 +814,8 @@ export default function CheckoutPage() {
               />
             ))}
           </div>
-          <div className={`${styles.bigic} ${styles.bigicPop}`}><CheckIcon /></div>
+          {/* القرطاس المحتفل — لحظة نجاح الدفع (اللون الليموني يؤدي وظيفته) */}
+          <div className={`${styles.bigic} ${styles.bigicPop}`}><Qirtas mood="excited" size={72} /></div>
           <h1 className={styles.bigTitle}>يا هلا! طلبك انطلق 🎉</h1>
           <p className={styles.bigSub}>
             {donePickup === "scheduled" ? "محجوز لفترتك بنجاح" : "وصل للمطعم وينتظر القبول"}
@@ -862,19 +857,12 @@ export default function CheckoutPage() {
       </header>
 
       {!showAdd && errorNote}
-      {loading && <div className="pk-loader"><span /><span /><span /></div>}
+      {loading && <QirtasLoader />}
 
-      {/* ===== الحالة الفارغة — السلة بلا عناصر (C-26) ===== */}
+      {/* ===== الحالة الفارغة — السلة بلا عناصر (C-26): القرطاس النعسان ===== */}
       {!loading && isEmpty && !error && (
         <div className={styles.empty}>
-          <div className={styles.emptyIcon}>
-            <svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true">
-              <g fill="none" stroke="currentColor" strokeWidth="7" strokeLinejoin="round">
-                <path d="M32,32 L68,32 L64,80 L36,80 Z" />
-                <path d="M41,32 Q50,20 59,32" strokeLinecap="round" />
-              </g>
-            </svg>
-          </div>
+          <Qirtas mood="sleepy" size={110} style={{ marginBottom: 10 }} />
           <b className={styles.emptyTitle}>سلتك فاضية</b>
           <p className={styles.emptyText}>لا طلبات حالية — اطلب من متجرك المفضل وخلّنا على السيارة</p>
           <button className={styles.browse} onClick={() => router.push("/")}>
@@ -973,7 +961,7 @@ export default function CheckoutPage() {
       </div>
 
       {/* بطاقات اللوحة السعودية: اختيار بالضغط · تعديل بالضغط المطول · ⊕ للإضافة */}
-      {!vehicles && !error && <div className="pk-loader"><span /><span /><span /></div>}
+      {!vehicles && !error && <QirtasLoader />}
       <div className={styles.vRow}>
         {vehicles?.map((v) => {
           const on = vehicleId === v.id;
@@ -1423,7 +1411,7 @@ export default function CheckoutPage() {
                 <XIcon />
               </button>
             </div>
-            {!slots && !slotsError && <div className="pk-loader"><span /><span /><span /></div>}
+            {!slots && !slotsError && <QirtasLoader />}
             {slotsError && <div className={`${styles.note} ${styles.noteErr}`}>{slotsError}</div>}
             {dayGroups.length > 0 && (
               <>

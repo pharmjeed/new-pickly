@@ -1,8 +1,8 @@
-/* نافذة السبب الإلزامي — طبقة فوق اللوحة */
+/* نافذة السبب الإلزامي — طبقة فوق اللوحة: حد كحلي 3px + ظل صلب كبير */
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(16, 36, 27, 0.45);
+  background: rgba(14, 27, 61, 0.55); /* كحلي الهوية --pk-ink-900 بشفافية */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14,19 +14,19 @@
   width: 100%;
   max-width: 440px;
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b3);
   border-radius: var(--pk-radius-lg);
   padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  box-shadow: var(--pk-shadow-2);
+  box-shadow: var(--pk-pop);
 }
 
 .title {
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-17);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--pk-text);
 }
 

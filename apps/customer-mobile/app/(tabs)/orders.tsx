@@ -9,6 +9,7 @@ import { router, useFocusEffect } from "expo-router";
 import { api, getToken } from "../../src/api";
 import { getLastOrderId } from "../../src/session";
 import { Badge, Card, LimeButton, Loader } from "../../src/ui";
+import { Qirtas } from "../../src/qirtas";
 import { fs, light } from "../../src/theme";
 
 interface Order {
@@ -71,6 +72,7 @@ export default function OrdersScreen() {
 
       {state === "empty" && (
         <View style={st.empty}>
+          <Qirtas mood="sleepy" size={96} />
           <Text style={st.emptyTitle}>لا طلبات حالية</Text>
           <Text style={st.emptyTxt}>اطلب من متجرك المفضل وخلّنا على السيارة</Text>
           <LimeButton

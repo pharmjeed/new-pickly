@@ -1,4 +1,4 @@
-/* M-10 الطاقم — جدول + إدارة كاملة (إضافة/تعديل/إيقاف) بلغة M-12 (الموظفون والصلاحيات) */
+/* M-10 الطاقم — جدول + إدارة كاملة (إضافة/تعديل/إيقاف) بالهوية الفنكية v2.0 */
 .name { font-weight: 700; color: var(--pk-text); }
 .username {
   font-family: var(--pk-font-mono);
@@ -9,25 +9,29 @@
 }
 .branches { font-size: var(--pk-fs-12); color: var(--pk-text-2); }
 
-/* ===== زر ونموذج إضافة/تعديل موظف (نفس لغة M-08 CRUD) ===== */
+/* ===== زر ونموذج إضافة/تعديل موظف — الفعل أزرق بظل صلب ===== */
 .addBtn {
-  min-height: 38px;
+  min-height: 40px;
   padding: 6px 18px;
-  background: var(--pk-lime-500);
-  color: var(--pk-ink-900);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
   font-family: var(--pk-font-display);
   font-weight: 700;
   font-size: 13px;
-  border: none;
+  border: var(--pk-b2);
   border-radius: 10px;
+  box-shadow: var(--pk-pop-xs);
   cursor: pointer;
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
 }
-.addBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.addBtn:hover { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--pk-ink-900); }
+.addBtn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
 
 .addForm {
   background: var(--pk-surface);
-  border: 1.5px solid var(--pk-border);
-  border-radius: 14px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-lg);
+  box-shadow: var(--pk-pop-sm);
   padding: 18px;
   margin: 0 0 18px;
 }
@@ -48,15 +52,15 @@
   padding: 8px 12px;
   background: var(--pk-bg);
   color: var(--pk-text);
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 10px;
   font-family: var(--pk-font-body);
   font-size: 14px;
 }
 .field input:disabled { opacity: 0.6; cursor: not-allowed; }
-.field input:focus, .field select:focus { outline: 2px solid var(--pk-lime-500); border-color: transparent; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--pk-blue-500); }
 
-/* الفروع كرقائق قابلة للتبديل */
+/* الفروع كرقائق قابلة للتبديل — المختار أزرق الفعل */
 .branchesBlock { margin-top: 14px; }
 .branchesLabel {
   display: block;
@@ -71,21 +75,24 @@
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: var(--pk-bg);
+  min-height: 38px;
+  background: var(--pk-surface);
   color: var(--pk-text);
-  border: 1.5px solid var(--pk-border);
-  border-radius: 10px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-pill);
   font-family: var(--pk-font-body);
   font-size: 12.5px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: background var(--pk-dur) var(--pk-ease), color var(--pk-dur) var(--pk-ease);
 }
-.chip:hover { border-color: var(--pk-lime-500); }
-.chipOn {
-  background: var(--pk-lime-100);
-  color: var(--pk-lime-900);
-  border-color: var(--pk-lime-500);
+.chip:hover { background: var(--pk-cloud-2); }
+:global([data-theme="dark"]) .chip:hover { background: var(--pk-ink-600); }
+.chipOn,
+.chipOn:hover {
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
   font-weight: 700;
+  box-shadow: var(--pk-pop-xs);
 }
 .noBranches { font-size: 12px; color: var(--pk-text-2); }
 
@@ -93,21 +100,24 @@
 .saveBtn {
   min-height: 44px;
   padding: 8px 28px;
-  background: var(--pk-lime-500);
-  color: var(--pk-ink-900);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
   font-family: var(--pk-font-display);
   font-weight: 700;
-  border: none;
+  border: var(--pk-b2);
   border-radius: 10px;
+  box-shadow: var(--pk-pop-xs);
   cursor: pointer;
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
 }
-.saveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.saveBtn:hover { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--pk-ink-900); }
+.saveBtn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
 .cancelBtn {
   min-height: 44px;
   padding: 8px 20px;
   background: transparent;
   color: var(--pk-text-2);
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 10px;
   cursor: pointer;
   font-family: var(--pk-font-body);
@@ -116,20 +126,23 @@
 /* إجراءات الصفوف */
 .rowActions { display: flex; gap: 6px; }
 .editBtn {
-  background: var(--pk-lime-100);
-  color: var(--pk-lime-900);
-  border: none;
+  background: var(--pk-surface);
+  color: var(--pk-text);
+  border: var(--pk-b2);
   border-radius: 8px;
   padding: 6px 14px;
+  font-family: var(--pk-font-display);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }
+.editBtn:hover { background: var(--pk-cloud-2); }
+:global([data-theme="dark"]) .editBtn:hover { background: var(--pk-ink-600); }
 .editBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .delBtn {
   background: transparent;
   color: var(--pk-error);
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 12px;

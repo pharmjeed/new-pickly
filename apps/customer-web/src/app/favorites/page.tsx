@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, getToken } from "@/lib/api";
 import { GuestGate, IHeart, IPin, IStore, RIYADH, TabBar, statusBadge } from "../shell";
+import { QirtasEmpty } from "../qirtas";
 import styles from "../page.module.css";
 
 interface FavoriteBrand {
@@ -81,14 +82,13 @@ export default function FavoritesPage() {
 
             {favs && favs.length === 0 && (
               <div className={styles.empty}>
-                <div className={styles.emptyIc}>
-                  <IHeart />
-                </div>
-                <b>ما فيه مفضلة بعد</b>
-                <p>اضغط القلب في صفحة أي مطعم يعجبك ويظهر هنا</p>
-                <Link href="/restaurants" className={styles.gateBtn}>
-                  تصفح المطاعم
-                </Link>
+                <QirtasEmpty mood="sleepy">
+                  <b>ما فيه مفضلة بعد</b>
+                  <p>اضغط القلب في صفحة أي مطعم يعجبك ويظهر هنا</p>
+                  <Link href="/restaurants" className={styles.gateBtn}>
+                    تصفح المطاعم
+                  </Link>
+                </QirtasEmpty>
               </div>
             )}
 

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost, sar, shortDateTime } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import { Qirtas, QirtasLoader } from "@/components/qirtas";
 
 type Refund = {
   id: string;
@@ -89,7 +90,7 @@ export default function Refunds() {
         </div>
       )}
 
-      {!refunds && !error && <div className="skl" style={{ height: 260 }} />}
+      {!refunds && !error && <div className="loadwrap" style={{ minHeight: 260 }}><QirtasLoader /></div>}
 
       {refunds && (
         <div className="kpis">
@@ -106,7 +107,7 @@ export default function Refunds() {
 
       {refunds && refunds.length === 0 && (
         <div className="empty">
-          <div className="ic">↩</div>
+          <div className="qr"><Qirtas mood="sleepy" size={72} /></div>
           <b>لا استرجاعات</b>
           <p>يظهر طابور القرارات هنا فور ورود طلبات استرجاع</p>
         </div>

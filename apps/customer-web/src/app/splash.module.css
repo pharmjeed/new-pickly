@@ -1,4 +1,4 @@
-/* شاشة البداية — كل الألوان والخطوط والحركة من tokens.css حصراً */
+/* شاشة البداية — عاجية منقّطة بشارة القرطاس · كل القيم من tokens.css حصراً */
 
 .splash {
   position: fixed;
@@ -8,8 +8,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 22px;
-  background: var(--pk-lime-500);
+  gap: 24px;
+  background-color: var(--pk-cloud);
+  background-image: var(--pk-dots);
+  background-size: var(--pk-dots-size);
   color: var(--pk-ink-900);
   pointer-events: none;
 }
@@ -27,25 +29,16 @@
 .inner {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
   animation: pk-pop 500ms var(--pk-ease) both;
 }
 
-.word {
-  text-align: left;
-  font-family: var(--pk-font-display);
-}
-.wordLatin {
-  display: block;
-  font-size: var(--pk-fs-34);
-  font-weight: 800;
-  line-height: 1;
-}
-.wordAr {
-  display: block;
-  font-size: var(--pk-fs-24);
-  font-weight: 700;
-  line-height: 1.4;
+/* الشارة تميل ميلان الملصق المرح وتحمل الظل الصلب */
+.badge {
+  display: inline-flex;
+  border-radius: 24px;
+  transform: rotate(var(--pk-sticker-tilt));
+  filter: drop-shadow(var(--pk-pop-sm));
 }
 
 .tagline {
@@ -58,11 +51,11 @@
 @keyframes pk-pop {
   from {
     opacity: 0;
-    transform: scale(0.88) skewX(var(--pk-skew));
+    transform: scale(0.88);
   }
   to {
     opacity: 1;
-    transform: scale(1) skewX(0deg);
+    transform: scale(1);
   }
 }
 

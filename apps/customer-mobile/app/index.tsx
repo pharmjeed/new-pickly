@@ -9,7 +9,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Location from "expo-location";
 import { LimeButton, GhostButton } from "../src/ui";
-import { colors, fs, light, radius, radiusPill } from "../src/theme";
+import { QirtasBadge } from "../src/qirtas";
+import { colors, fs, light, radiusPill } from "../src/theme";
 import { markOnboarded, wasOnboarded } from "../src/session";
 
 const SPLASH_MS = 1500;
@@ -29,13 +30,12 @@ const SLIDES = [
   }
 ] as const;
 
-/** شاشة البداية — اللوقو + العبارة على خلفية ليمونية */
+/** شاشة البداية — شارة القرطاس المبتسم + العبارة على خلفية ليمونية */
 function SplashView() {
   return (
     <View style={st.splash}>
-      <View style={st.splashBadge}>
-        <Text style={st.splashBadgeTxt}>بيكلي</Text>
-      </View>
+      <QirtasBadge size={128} />
+      <Text style={st.splashName}>بيكلي</Text>
       <Text style={st.splashTag}>خليك في السيارة وطلبك يجيك</Text>
     </View>
   );
@@ -98,7 +98,7 @@ export default function Onboarding() {
       <SafeAreaView style={st.screen}>
         <View style={st.body}>
           <View style={st.badge}>
-            <Text style={st.badgeTxt}>بيكلي</Text>
+            <QirtasBadge size={72} />
           </View>
           <Text style={st.locIcon}>📍</Text>
           <Text style={st.title}>خلّنا نعرف وين أنت</Text>
@@ -123,9 +123,9 @@ export default function Onboarding() {
   return (
     <SafeAreaView style={st.screen}>
       <View style={st.body}>
-        {/* شارة الهوية */}
+        {/* شارة الهوية — القرطاس المبتسم */}
         <View style={st.badge}>
-          <Text style={st.badgeTxt}>بيكلي</Text>
+          <QirtasBadge size={72} />
         </View>
 
         <Text style={st.step}>{slide + 1} / 3</Text>
@@ -159,20 +159,13 @@ const st = StyleSheet.create({
     backgroundColor: colors.lime500,
     alignItems: "center",
     justifyContent: "center",
-    gap: 18
+    gap: 14
   },
-  splashBadge: {
-    backgroundColor: colors.ink900,
-    borderRadius: radius,
-    paddingHorizontal: 26,
-    paddingVertical: 14,
-    transform: [{ skewX: "-8deg" }]
-  },
-  splashBadgeTxt: {
-    color: colors.lime500,
+  splashName: {
+    color: colors.ink900,
     fontSize: fs.fs32,
     fontWeight: "900",
-    transform: [{ skewX: "8deg" }]
+    textAlign: "center"
   },
   splashTag: {
     color: colors.ink900,
@@ -182,20 +175,7 @@ const st = StyleSheet.create({
   },
   screen: { flex: 1, backgroundColor: light.bg },
   body: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  badge: {
-    backgroundColor: colors.lime500,
-    borderRadius: radius,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-    transform: [{ skewX: "-8deg" }],
-    marginBottom: 32
-  },
-  badgeTxt: {
-    color: colors.ink900,
-    fontSize: fs.fs24,
-    fontWeight: "900",
-    transform: [{ skewX: "8deg" }]
-  },
+  badge: { marginBottom: 32 },
   step: { color: light.text2, fontSize: fs.fs13, marginBottom: 8 },
   title: {
     color: light.text,
@@ -214,6 +194,6 @@ const st = StyleSheet.create({
     borderRadius: radiusPill,
     backgroundColor: light.border
   },
-  dotOn: { backgroundColor: colors.lime500, width: 22 },
+  dotOn: { backgroundColor: colors.blue500, width: 22 },
   foot: { padding: 20, paddingBottom: 28 }
 });

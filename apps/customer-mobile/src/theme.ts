@@ -1,42 +1,48 @@
 /**
- * Pickly — theme.ts
+ * Pickly — theme.ts · الهوية الفنكية v2.0
  * كل رموز design/tokens.css كثوابت TypeScript — القيم منقولة حرفياً.
+ * المصدر: «اخر اخر هوية»/pickly-brand-book.html §6 §7 §13.
  * قاعدة: لا لون ولا خط ولا مقاس خارج هذا الملف.
  */
 
 /* ---- الألوان الأساسية (--pk-*) ---- */
 export const colors = {
-  lime500: "#C9F339", // الشارة والأزرار والحالات الحية
-  lime300: "#DDF87A", // hover وتمييز
-  lime100: "#F2FCD1", // خلفيات ناعمة وشرائح
-  lime900: "#5E7A12", // نص فوق الليموني
-  ink900: "#10241B", // النصوص / وضع القيادة / الداكن
-  ink700: "#1C3329", // بطاقات فوق الداكن
-  ink600: "#2E4A3C", // عناصر ثانوية داكنة
-  success: "#1D9E75", // نجاح — تم رصد الوصول
-  warn: "#EF9F27", // تنبيه — انتظار وتجهيز
-  error: "#E24B4A", // خطأ — فشل GPS أو الدفع
-  white: "#FFFFFF", // الخلفية الأساسية
-  cloud: "#F4F7F2", // أقسام ثانوية
-  line: "#E3E8E0", // حدود
-  gray: "#6E7A72", // نص ثانوي على أبيض (الحد الأدنى)
-  gray2: "#8FA398" // نص ثانوي على داكن
+  lime500: "#C8F542", // ليموني فسفوري — محجوز لإشارة «وصلت»/النجاح/الدفع
+  lime300: "#DDF77E", // hover وتمييز
+  lime100: "#EBF9B8", // خلفيات ناعمة وشرائح
+  lime900: "#0E1B3D", // نص فوق الليموني — كحلي (تباين >12:1)
+  ink900: "#0E1B3D", // كحلي — النصوص / رسم الشارة / وضع القيادة
+  ink700: "#17264A", // بطاقات فوق الداكن
+  ink600: "#4A5A7C", // عناصر ثانوية داكنة
+  blue500: "#0B63CE", // الأزرق الصارخ — الفعل: أزرار رئيسية وإبرازات وأرقام
+  blue600: "#0A57B5", // أزرق مضغوط/بديل hover
+  pink500: "#FF4D9D", // الوردي البنكي — الطاقة: خطوط السرعة والمحمّل والزخارف
+  success: "#12A472", // نجاح — تم رصد الوصول
+  warn: "#FF9E1B", // تنبيه — انتظار وتجهيز
+  error: "#E5322B", // خطأ — فشل GPS أو الدفع
+  white: "#FFFFFF", // أسطح البطاقات
+  cloud: "#F7F3E9", // عاجي — الخلفية الأساسية
+  cloud2: "#EFEADB", // عاجي أغمق — أقسام ثانوية
+  line: "#E7E0CE", // فواصل خفيفة (الحدود الفنكية كحلية بسماكة bw2/bw3)
+  gray: "#5B6A85", // نص ثانوي على أبيض (الحد الأدنى للتباين)
+  gray2: "#8891B5", // نص ثانوي على داكن
+  live: "#35E0FF" // سماوي — إشارة حية (استخدام ضيق)
 } as const;
 
-/* ---- ألوان أولوية بطاقات شاشة الفرع (08§2 بدرجات الهوية) ---- */
+/* ---- ألوان أولوية بطاقات شاشة الفرع (08§2 بدرجات الهوية الفنكية) ---- */
 export const statusColors = {
-  new: "#6E7A72",
-  newBg: "#F4F7F2",
-  prep: "#2E4A3C",
-  prepBg: "#E9EFEA",
-  near: "#C9F339",
-  nearBg: "#F2FCD1",
-  arrived: "#EF9F27",
-  arrivedBg: "#FCF0DB",
-  overdue: "#E24B4A",
-  overdueBg: "#FBE5E4",
-  done: "#1D9E75",
-  doneBg: "#E2F3ED"
+  new: "#4A5A7C",
+  newBg: "#EFEADB",
+  prep: "#0B63CE",
+  prepBg: "#DEEBFB",
+  near: "#C8F542",
+  nearBg: "#EBF9B8",
+  arrived: "#FF9E1B",
+  arrivedBg: "#FFEFD6",
+  overdue: "#E5322B",
+  overdueBg: "#FBDFDD",
+  done: "#12A472",
+  doneBg: "#DFF3EA"
 } as const;
 
 /* ---- الخطوط (أسماء الرموز كما في tokens.css — التحميل الفعلي عبر expo-font لاحقاً) ---- */
@@ -68,38 +74,62 @@ export const fs = {
 
 /* ---- الشبكة والأشكال ---- */
 export const space = 4; // الوحدة
-export const radius = 12; // البطاقات والأزرار
-export const radiusLg = 20;
+export const radius = 12; // الأزرار والحقول
+export const radiusMd = 16; // بطاقات صغيرة
+export const radiusLg = 20; // البطاقات
 export const radiusPill = 999; // الشارات
-export const touch = 44; // هدف لمس العميل
+export const touch = 48; // هدف لمس العميل (استخدام داخل سيارة — كتاب الهوية §11)
 export const touchBranch = 56; // هدف لمس شاشة الفرع
+
+/* ---- التوقيع الفنكي: حدود كحلية سميكة + ظل صلب مزاح ---- */
+export const bw2 = 2; // حدود المكونات (--pk-b2)
+export const bw3 = 3; // حدود البطاقات البارزة (--pk-b3)
+export const tiltDeg = 7; // ميلان القرطاس نحو الحركة (--pk-tilt)
+export const stickerTiltDeg = -2; // ميلان الملصقات المرحة (--pk-sticker-tilt)
 
 /* ---- الحركة ---- */
 export const motion = {
-  skewDeg: -8, // زاوية الحركة (--pk-skew:-8deg)
-  skew: "-8deg",
+  tilt: "7deg", // --pk-tilt — ميلان القرطاس (بديل الانحراف القديم)
   ease: [0.2, 0.8, 0.2, 1] as const, // cubic-bezier(.2,.8,.2,1)
   duration: 200, // 150–250ms
   fade1: 1,
   fade2: 0.55,
-  fade3: 0.3 // تلاشي الخطوط الثلاثة
+  fade3: 0.3 // تلاشي خطوط السرعة الثلاثة
 } as const;
 
-/* ---- ظلال (خفيفة — الأزرار بلا ظلال) ---- */
-export const shadow1 = {
+/* ---- الظل الصلب الفنكي (offset بلا ضبابية — --pk-pop*) ---- */
+export const popXs = {
   shadowColor: colors.ink900,
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.06,
-  shadowRadius: 2,
-  elevation: 1
+  shadowOffset: { width: 2, height: 2 },
+  shadowOpacity: 1,
+  shadowRadius: 0,
+  elevation: 2
 } as const;
-export const shadow2 = {
+export const popSm = {
   shadowColor: colors.ink900,
-  shadowOffset: { width: 0, height: 10 },
-  shadowOpacity: 0.12,
-  shadowRadius: 30,
-  elevation: 8
+  shadowOffset: { width: 4, height: 4 },
+  shadowOpacity: 1,
+  shadowRadius: 0,
+  elevation: 4
 } as const;
+export const pop = {
+  shadowColor: colors.ink900,
+  shadowOffset: { width: 6, height: 6 },
+  shadowOpacity: 1,
+  shadowRadius: 0,
+  elevation: 6
+} as const;
+/* فوق الأسطح الداكنة يصير الظل ليمونياً (كتاب الهوية §8) */
+export const popLime = {
+  shadowColor: colors.lime500,
+  shadowOffset: { width: 6, height: 6 },
+  shadowOpacity: 1,
+  shadowRadius: 0,
+  elevation: 6
+} as const;
+/* أسماء قديمة مُبقاة كمراجع للظل الجديد — الأزرار الفنكية تستخدم popSm */
+export const shadow1 = popXs;
+export const shadow2 = pop;
 
 /* ---- رموز دلالية (الوضع الفاتح — افتراضي) ---- */
 export const light = {
@@ -117,10 +147,10 @@ export const dark = {
   text: colors.cloud,
   text2: colors.gray2,
   border: colors.ink600,
-  stNewBg: "#243830",
-  stPrepBg: "#263B31",
-  stNearBg: "#31402A",
-  stArrivedBg: "#3E3322",
-  stOverdueBg: "#3E2726",
-  stDoneBg: "#1F3D33"
+  stNewBg: "#20305B",
+  stPrepBg: "#12305E",
+  stNearBg: "#33421A",
+  stArrivedBg: "#3D2F10",
+  stOverdueBg: "#3D1715",
+  stDoneBg: "#0F3328"
 } as const;

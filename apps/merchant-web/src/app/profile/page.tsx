@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
+import { Qirtas } from "@/components/qirtas";
 import { clearToken, ApiError, apiGet, apiPatch } from "@/lib/api";
 import { resizeImage } from "@/lib/image";
 import s from "./profile.module.css";
@@ -259,7 +260,7 @@ export default function ProfilePage() {
 
       {profile && profile.brands.length === 0 && (
         <div className="empty">
-          <div className="ic">🏪</div>
+          <Qirtas mood="sleepy" size={96} />
           <b>لا علامة تجارية بعد</b>
           <p>تُنشأ العلامة عند تفعيل حساب التاجر — تواصل مع دعم بيكلي</p>
         </div>

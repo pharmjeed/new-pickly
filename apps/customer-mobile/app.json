@@ -18,7 +18,7 @@
       "package": "sa.pickly.customer",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#C9F339"
+        "backgroundColor": "#C8F542"
       }
     },
     "plugins": [

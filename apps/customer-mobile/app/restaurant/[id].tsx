@@ -21,7 +21,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { api, fmtSar, getToken } from "../../src/api";
 import { getCartId, setCartId } from "../../src/session";
 import { Badge, ErrorNote, LimeButton, Loader } from "../../src/ui";
-import { colors, fs, light, radius, radiusPill, shadow2, touch } from "../../src/theme";
+import { bw2, bw3, colors, fs, light, pop, popXs, radius, radiusLg, radiusPill, touch } from "../../src/theme";
 
 interface Modifier {
   id: string;
@@ -421,15 +421,15 @@ const st = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     backgroundColor: light.bg
   },
   back: { width: touch, height: touch, alignItems: "center", justifyContent: "center" },
   backTxt: { color: light.text, fontSize: fs.fs24, fontWeight: "800" },
   title: { color: light.text, fontSize: fs.fs20, fontWeight: "900", textAlign: "right" },
   carLine: {
-    color: colors.lime900,
+    color: colors.blue500,
     fontSize: fs.fs13,
     fontWeight: "700",
     textAlign: "right",
@@ -448,36 +448,44 @@ const st = StyleSheet.create({
   pcard: {
     backgroundColor: light.surface,
     borderRadius: radius,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     padding: 12,
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 10,
-    marginBottom: 8
+    marginBottom: 8,
+    ...popXs
   },
   ptitleRow: { flexDirection: "row-reverse", alignItems: "center", gap: 6 },
   ptitle: { color: light.text, fontSize: fs.fs15, fontWeight: "800", flexShrink: 1, textAlign: "right" },
   pdesc: { color: light.text2, fontSize: fs.fs13, textAlign: "right" },
   price: { color: light.text, fontSize: fs.fs14, fontWeight: "700", textAlign: "right" },
   priceRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  salePrice: { color: colors.lime900, fontSize: fs.fs14, fontWeight: "800", textAlign: "right" },
+  salePrice: { color: colors.blue500, fontSize: fs.fs14, fontWeight: "800", textAlign: "right" },
   origPrice: { color: light.text2, fontSize: fs.fs13, textAlign: "right", textDecorationLine: "line-through" },
   addBtn: {
     width: touch,
     height: touch,
     borderRadius: radius,
-    backgroundColor: colors.lime100,
+    backgroundColor: colors.blue500,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    ...popXs
   },
-  addTxt: { color: colors.lime900, fontSize: fs.fs24, fontWeight: "800", lineHeight: 28 },
-  cartBar: { position: "absolute", bottom: 16, left: 16, right: 16, ...shadow2 },
-  dim: { flex: 1, backgroundColor: "rgba(16,36,27,0.55)", justifyContent: "flex-end" },
+  addTxt: { color: colors.white, fontSize: fs.fs24, fontWeight: "800", lineHeight: 28 },
+  cartBar: { position: "absolute", bottom: 16, left: 16, right: 16, ...pop },
+  dim: { flex: 1, backgroundColor: "rgba(14,27,61,0.55)", justifyContent: "flex-end" },
   sheet: {
     backgroundColor: light.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: radiusLg,
+    borderTopRightRadius: radiusLg,
+    borderTopWidth: bw3,
+    borderLeftWidth: bw3,
+    borderRightWidth: bw3,
+    borderColor: colors.ink900,
     padding: 16,
     paddingBottom: 28
   },
@@ -503,7 +511,7 @@ const st = StyleSheet.create({
   },
   groupName: { color: light.text, fontSize: fs.fs15, fontWeight: "800" },
   groupHint: { color: light.text2, fontSize: fs.fs12 },
-  optCard: { borderWidth: 1, borderColor: light.border, borderRadius: radius, overflow: "hidden" },
+  optCard: { borderWidth: bw2, borderColor: colors.ink900, borderRadius: radius, overflow: "hidden" },
   optRow: {
     minHeight: touch,
     flexDirection: "row-reverse",
@@ -522,16 +530,16 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
-  dotOn: { borderColor: colors.lime900 },
-  dotInner: { width: 10, height: 10, borderRadius: radiusPill, backgroundColor: colors.lime500 },
+  dotOn: { borderColor: colors.ink900 },
+  dotInner: { width: 10, height: 10, borderRadius: radiusPill, backgroundColor: colors.blue500 },
   optT: { color: light.text, fontSize: fs.fs14, flex: 1, textAlign: "right" },
   optP: { color: light.text2, fontSize: fs.fs13, fontVariant: ["tabular-nums"] },
   label: { color: light.text, fontSize: fs.fs14, fontWeight: "700", textAlign: "right", marginBottom: 6 },
   inp: {
     minHeight: touch,
     backgroundColor: light.bg,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     borderRadius: radius,
     paddingHorizontal: 12,
     fontSize: fs.fs14,
@@ -543,8 +551,8 @@ const st = StyleSheet.create({
   qty: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     borderRadius: radius
   },
   qtyBtn: { width: touch, height: touch, alignItems: "center", justifyContent: "center" },

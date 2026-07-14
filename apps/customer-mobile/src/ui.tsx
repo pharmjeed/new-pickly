@@ -1,11 +1,11 @@
 /**
- * مكوّنات مشتركة صغيرة — الألوان من theme.ts حصراً.
- * قاعدة: زر ليموني واحد لكل شاشة (LimeButton) · هدف لمس ≥ 44.
+ * مكوّنات مشتركة صغيرة — الهوية الفنكية v2.0: حدود كحلية سميكة + ظل صلب مُزاح.
+ * الألوان من theme.ts حصراً · الزر الرئيسي أزرق، والليموني محجوز للدفع/الوصول/النجاح
+ * (مرّر lime على LimeButton) · هدف لمس ≥ 48.
  */
 import React, { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
-  ActivityIndicator,
   Animated,
   Easing,
   Pressable,
@@ -16,10 +16,24 @@ import {
   type TextStyle,
   type ViewStyle
 } from "react-native";
-import { colors, fs, light, motion, radius, radiusPill, shadow1, touch } from "./theme";
+import { QirtasLoader, QirtasMono } from "./qirtas";
+import {
+  bw2,
+  colors,
+  fs,
+  light,
+  motion,
+  popSm,
+  popXs,
+  radius,
+  radiusMd,
+  radiusPill,
+  statusColors,
+  touch
+} from "./theme";
 
 /** سهم واحد من موجة الأسهم الثلاثة — يضيء بدوره ثم يخفت (دورة 1.4ث بإزاحة delay) */
-function WaveArrow({ delay }: { delay: number }) {
+function WaveArrow({ delay, color }: { delay: number; color: string }) {
   const v = useRef(new Animated.Value(motion.fade3)).current;
   useEffect(() => {
     let loop: Animated.CompositeAnimation | null = null;
@@ -45,23 +59,23 @@ function WaveArrow({ delay }: { delay: number }) {
       loop?.stop();
     };
   }, [v, delay]);
-  return <Animated.Text style={[st.limeArrow, { opacity: v }]}>←</Animated.Text>;
+  return <Animated.Text style={[st.btnArrow, { opacity: v, color }]}>←</Animated.Text>;
 }
 
 /** الأسهم الثلاثة الموجّهة — موجة تلاشٍ باتجاه الإتمام (يسار)، بدرجات الخطوط الثلاثة */
-function ArrowWave() {
+function ArrowWave({ color }: { color: string }) {
   return (
-    <View style={st.limeArrows} accessibilityElementsHidden>
-      <WaveArrow delay={300} />
-      <WaveArrow delay={150} />
-      <WaveArrow delay={0} />
+    <View style={st.btnArrows} accessibilityElementsHidden>
+      <WaveArrow delay={300} color={color} />
+      <WaveArrow delay={150} color={color} />
+      <WaveArrow delay={0} color={color} />
     </View>
   );
 }
 
 const CAR_W = 64; // عرض السيارة مع خطوط السرعة
 
-/** سيارة بيكلي — تنطلق عبر الزر يساراً (اتجاه السير) وخلفها خطوط السرعة الثلاثة.
+/** سيارة بيكلي — تنطلق عبر الزر يساراً (اتجاه السير) وخلفها خطوط السرعة الوردية الثلاثة.
  *  المقدمة لليسار: الكبوت منخفض أماماً والمقصورة للخلف. تختفي مع «تقليل الحركة». */
 function CarDrive() {
   const [laneW, setLaneW] = useState(0);
@@ -130,11 +144,17 @@ function CarDrive() {
   );
 }
 
+/**
+ * الزر الرئيسي الفنكي — أزرق صارخ بنص أبيض افتراضاً؛
+ * مرّر lime للدفع/«وصلت»/النجاح حصراً (ليموني بنص كحلي).
+ * الضغط: ينزلق فوق ظله الصلب (translate 4,4 + إخفاء الظل).
+ */
 export function LimeButton({
   title,
   trailing,
   arrow,
   car,
+  lime,
   onPress,
   disabled,
   style
@@ -143,27 +163,28 @@ export function LimeButton({
   trailing?: string;
   arrow?: boolean;
   car?: boolean;
+  lime?: boolean;
   onPress: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const fg = lime === true ? colors.ink900 : colors.white;
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
-        st.lime,
-        pressed && !disabled
-          ? { backgroundColor: colors.lime300, transform: [{ scale: 0.98 }] }
-          : null,
+        st.btn,
+        lime === true ? st.btnLime : null,
+        pressed && !disabled ? st.btnPressed : null,
         disabled ? { opacity: 0.45 } : null,
         style
       ]}
     >
-      <Text style={st.limeTxt}>{title}</Text>
-      {arrow === true && <ArrowWave />}
-      {trailing !== undefined && <Text style={st.limeTrail}>{trailing}</Text>}
+      <Text style={[st.btnTxt, { color: fg }]}>{title}</Text>
+      {arrow === true && <ArrowWave color={fg} />}
+      {trailing !== undefined && <Text style={[st.btnTrail, { color: fg }]}>{trailing}</Text>}
       {car === true && <CarDrive />}
     </Pressable>
   );
@@ -198,18 +219,21 @@ export function Card({ children, style }: { children: React.ReactNode; style?: S
   return <View style={[st.card, style]}>{children}</View>;
 }
 
+/** ملاحظة الخطأ — مع القرطاس الحزين المصغّر (أحادي بلون الخطأ) */
 export function ErrorNote({ text }: { text: string }) {
   return (
     <View style={st.err} accessibilityRole="alert">
+      <QirtasMono mood="sad" size={26} color={colors.error} />
       <Text style={st.errTxt}>{text}</Text>
     </View>
   );
 }
 
+/** المحمّل الرسمي — الخطوط الوردية الثلاثة تتلألأ (بديل الـspinner الدوار) */
 export function Loader() {
   return (
     <View style={st.loader}>
-      <ActivityIndicator color={colors.lime900} size="large" />
+      <QirtasLoader />
     </View>
   );
 }
@@ -217,11 +241,11 @@ export function Loader() {
 export type BadgeTone = "lime" | "warn" | "soft" | "ok" | "err";
 export function Badge({ label, tone = "soft" }: { label: string; tone?: BadgeTone }) {
   const map: Record<BadgeTone, { bg: string; fg: string }> = {
-    lime: { bg: colors.lime100, fg: colors.lime900 },
-    warn: { bg: "#FCF0DB", fg: colors.warn },
-    soft: { bg: light.bg, fg: colors.gray },
-    ok: { bg: "#E2F3ED", fg: colors.success },
-    err: { bg: "#FBE5E4", fg: colors.error }
+    lime: { bg: colors.lime100, fg: colors.ink900 },
+    warn: { bg: statusColors.arrivedBg, fg: colors.ink900 },
+    soft: { bg: light.bg, fg: colors.ink600 },
+    ok: { bg: statusColors.doneBg, fg: colors.success },
+    err: { bg: statusColors.overdueBg, fg: colors.error }
   };
   const c = map[tone];
   return (
@@ -232,19 +256,30 @@ export function Badge({ label, tone = "soft" }: { label: string; tone?: BadgeTon
 }
 
 const st = StyleSheet.create({
-  lime: {
-    minHeight: 52, // ≥ هدف اللمس 44
-    backgroundColor: colors.lime500,
-    borderRadius: radius,
+  btn: {
+    minHeight: 52, // ≥ هدف اللمس 48
+    backgroundColor: colors.blue500,
+    borderRadius: radius + 2, // 14 — زوايا الأزرار الفنكية
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    paddingHorizontal: 18
+    paddingHorizontal: 18,
+    ...popSm
   },
-  limeTxt: { color: colors.ink900, fontSize: fs.fs16, fontWeight: "800" },
-  limeArrows: { flexDirection: "row", alignItems: "center" },
-  limeArrow: { color: colors.ink900, fontSize: fs.fs16, fontWeight: "800" },
+  btnLime: { backgroundColor: colors.lime500 },
+  btnPressed: {
+    // ينزلق فوق ظله — توقيع الضغط الفنكي
+    transform: [{ translateX: 4 }, { translateY: 4 }],
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    elevation: 0
+  },
+  btnTxt: { fontSize: fs.fs16, fontWeight: "800" },
+  btnArrows: { flexDirection: "row", alignItems: "center" },
+  btnArrow: { fontSize: fs.fs16, fontWeight: "800" },
   carLane: { ...StyleSheet.absoluteFillObject, borderRadius: radius, overflow: "hidden" },
   car: {
     position: "absolute",
@@ -283,45 +318,52 @@ const st = StyleSheet.create({
     borderRadius: 3.5,
     backgroundColor: colors.ink900,
     borderWidth: 1.5,
-    borderColor: colors.lime500
+    borderColor: colors.white
   },
   carTrail: { flexDirection: "column", gap: 3 },
   trailLine: {
+    // خطوط السرعة الوردية الثلاثة — مستقيمة بلا انحراف (skew أُلغي من الهوية)
     height: 2,
     borderRadius: 1,
-    backgroundColor: colors.ink900,
-    transform: [{ skewX: motion.skew }]
+    backgroundColor: colors.pink500
   },
-  limeTrail: { color: colors.lime900, fontSize: fs.fs15, fontWeight: "700" },
+  btnTrail: { fontSize: fs.fs15, fontWeight: "700" },
   ghost: {
     minHeight: touch,
-    borderRadius: radius,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderRadius: radius + 2,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     backgroundColor: light.surface,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16
   },
-  ghostTxt: { color: light.text, fontSize: fs.fs15, fontWeight: "600" },
+  ghostTxt: { color: colors.ink900, fontSize: fs.fs15, fontWeight: "800" },
   card: {
     backgroundColor: light.surface,
-    borderRadius: radius,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderRadius: radiusMd,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     padding: 14,
-    ...shadow1
+    ...popXs
   },
   err: {
-    backgroundColor: "#FBE5E4",
+    backgroundColor: statusColors.overdueBg,
+    borderWidth: bw2,
+    borderColor: colors.error,
     borderRadius: radius,
     padding: 12,
-    marginVertical: 8
+    marginVertical: 8,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 10
   },
-  errTxt: { color: colors.error, fontSize: fs.fs14, textAlign: "right" },
+  errTxt: { color: colors.error, fontSize: fs.fs14, textAlign: "right", flex: 1 },
   loader: { paddingVertical: 32, alignItems: "center" },
   badge: {
     borderRadius: radiusPill,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     paddingHorizontal: 10,
     paddingVertical: 3,
     alignSelf: "flex-start"

@@ -27,7 +27,7 @@
   z-index: 1;
   transition: background 0.35s ease, outline-color 0.35s ease, color 0.35s ease;
 }
-/* الواصل = مسار رمادي (::after) + تعبئة خضراء تتقدّم مع الاكتمال (::before) */
+/* الواصل = مسار رمادي (::after) + تعبئة ليمونية تتقدّم مع الاكتمال (::before) */
 .step:not(:last-child)::after {
   content: "";
   position: absolute;
@@ -45,7 +45,7 @@
   inset-inline-start: calc(50% + 10px);
   width: calc(100% - 20px);
   height: 3px;
-  background: var(--pk-success);
+  background: var(--pk-lime-500);
   transform: scaleX(0);
   transform-origin: right; /* RTL: يبدأ عند النقطة ويمتد للخطوة التالية */
   transition: transform 0.55s ease;
@@ -54,16 +54,18 @@
 .stepDone:not(:last-child)::before {
   transform: scaleX(1);
 }
-/* كل نقطة تم الوصول لها تبقى متوهجة + ومضة قوية لحظة اكتمالها */
+/* المكتملة ليمونية والنشطة زرقاء — ومضة قوية لحظة الاكتمال */
 .stepDone .dot {
-  background: var(--pk-success);
-  box-shadow: 0 0 7px 1px var(--pk-success);
+  background: var(--pk-lime-500);
+  border: 2px solid var(--pk-ink-900);
+  color: var(--pk-ink-900);
   animation: dotDone 0.6s ease;
 }
 .stepCur .dot {
-  background: var(--pk-lime-500);
-  outline: 4px solid var(--pk-lime-100);
-  color: var(--pk-ink-900);
+  background: var(--pk-blue-500);
+  border: 2px solid var(--pk-ink-900);
+  outline: 4px solid var(--pk-st-prep-bg);
+  color: var(--pk-white);
   animation: dotPulse 1.5s ease-out infinite;
 }
 /* دفعة احتفالية قوية للحظة انتقال الطلب لمرحلة جديدة (لمرة واحدة) */
@@ -73,7 +75,7 @@
 @keyframes dotDone {
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 var(--pk-success);
+    box-shadow: 0 0 0 0 var(--pk-lime-500);
   }
   35% {
     transform: scale(1.6);
@@ -81,12 +83,12 @@
   }
   100% {
     transform: scale(1);
-    box-shadow: 0 0 7px 1px var(--pk-success);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 @keyframes dotPulse {
   0% {
-    box-shadow: 0 0 0 0 var(--pk-lime-500);
+    box-shadow: 0 0 0 0 var(--pk-blue-500);
   }
   70% {
     box-shadow: 0 0 0 13px transparent;
@@ -133,11 +135,11 @@
   line-height: 1.45;
 }
 .stepCur .lbl {
-  color: var(--pk-text);
+  color: var(--pk-blue-500);
   font-weight: 700;
 }
 .stepDone .lbl {
-  color: var(--pk-success);
+  color: var(--pk-text);
 }
 /* وضع القيادة الداكن */
 :global(.pk-drive) .dot {
@@ -147,16 +149,19 @@
   background: var(--pk-ink-600);
 }
 :global(.pk-drive) .stepDone .dot {
-  background: var(--pk-success);
+  background: var(--pk-lime-500);
 }
 :global(.pk-drive) .stepCur .dot {
-  background: var(--pk-lime-500);
+  background: var(--pk-blue-500);
   outline-color: var(--pk-ink-600);
 }
 :global(.pk-drive) .lbl {
   color: var(--pk-gray-2);
 }
 :global(.pk-drive) .stepCur .lbl {
+  color: var(--pk-cloud);
+}
+:global(.pk-drive) .stepDone .lbl {
   color: var(--pk-cloud);
 }
 /* احترام تفضيل تقليل الحركة — نبقي التعبئة الفورية بلا حركات متكررة */
@@ -215,27 +220,29 @@
   display: block;
 }
 
-/* ===== بطاقة الرمز الليمونية ===== */
+/* ===== بطاقة رمز التسليم — كحلية والرمز ليموني كبير (نموذج hand-code) ===== */
 .codeCard {
-  background: var(--pk-lime-500);
-  border: none;
+  background: var(--pk-ink-900);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-lg);
+  box-shadow: var(--pk-pop-sm);
   padding: 20px;
   text-align: center;
   margin-bottom: 12px;
 }
 .codeLabel {
-  color: var(--pk-ink-900);
+  color: var(--pk-cloud);
   font-size: var(--pk-fs-14);
   margin-bottom: 6px;
+  opacity: 0.85;
 }
 .codeDigits {
-  font-family: var(--pk-font-mono);
+  font-family: var(--pk-font-display);
   direction: ltr;
   unicode-bidi: embed;
   font-size: 40px;
-  font-weight: 500;
-  color: var(--pk-ink-900);
+  font-weight: 800;
+  color: var(--pk-lime-500);
   letter-spacing: 14px;
   padding-inline-start: 14px;
   line-height: 1.3;
@@ -253,11 +260,13 @@
   margin: 10px 0 14px;
 }
 .pulseIcon {
-  width: 96px;
-  height: 96px;
+  width: 104px;
+  height: 104px;
   border-radius: 30px;
   background: var(--pk-lime-500);
   color: var(--pk-ink-900);
+  border: var(--pk-b3);
+  box-shadow: var(--pk-pop-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -278,10 +287,11 @@
   display: inline-block;
   background: var(--pk-lime-100);
   color: var(--pk-lime-900);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-pill);
-  padding: 3px 12px;
+  padding: 2px 12px;
   font-size: var(--pk-fs-12);
-  font-weight: 500;
+  font-weight: 700;
   white-space: nowrap;
 }
 /* ===== ملاحظات صغيرة ===== */
@@ -308,8 +318,8 @@
 .waitRing {
   position: absolute;
   inset: 34px;
-  border-radius: 32px;
-  border: 2.5px solid var(--pk-lime-500);
+  border-radius: 50%;
+  border: 3px solid var(--pk-lime-500);
   opacity: 0;
   animation: pk-wait-ripple 2.4s var(--pk-ease) infinite;
 }
@@ -323,19 +333,11 @@
   position: relative;
   z-index: 1;
   animation: pk-wait-bob 2.4s var(--pk-ease) infinite;
-  filter: drop-shadow(var(--pk-shadow-1));
+  filter: drop-shadow(var(--pk-pop-xs));
 }
 @keyframes pk-wait-bob {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }
-}
-/* خطوط السرعة الثلاثة في الشعار تتنفس بتتابع — هوية الحركة (skew -8°) */
-.sl1, .sl2, .sl3 { animation: pk-speed-breathe 1.8s var(--pk-ease) infinite; }
-.sl2 { animation-delay: 0.22s; }
-.sl3 { animation-delay: 0.44s; }
-@keyframes pk-speed-breathe {
-  0%, 100% { opacity: 0.25; }
-  35% { opacity: 1; }
 }
 /* الرسالة المتبدلة تحت العنوان */
 .waitMsg {
@@ -375,7 +377,7 @@
   stroke-width: 3;
   stroke-linecap: round;
 }
-.potBody { stroke: #10241b; }
+.potBody { stroke: var(--pk-ink-900); }
 /* وضع القيادة: القدر على خلفية داكنة — نُبرز حدّه بالليموني */
 :global(.pk-drive) .potBody { stroke: var(--pk-lime-500); }
 
@@ -395,14 +397,14 @@
   pointer-events: none;
 }
 .prepDigits b {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-family: var(--pk-font-mono);
   font-size: var(--pk-fs-16);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   direction: ltr;
   line-height: 1.2;
   letter-spacing: 0.5px;
-  color: #fff;
+  color: var(--pk-lime-500);
 }
 .prepOvertime .prepDigits b {
   font-family: var(--pk-font-display);
@@ -498,29 +500,29 @@
   gap: 9px;
   width: 100%;
   min-height: var(--pk-touch);
-  background: var(--pk-surface);
-  color: var(--pk-text);
-  border: 1.5px solid var(--pk-ink-900);
-  border-radius: var(--pk-radius);
-  font-family: var(--pk-font-body);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  border: var(--pk-b2);
+  border-radius: 14px;
+  box-shadow: var(--pk-pop-sm);
+  font-family: var(--pk-font-display);
   font-weight: 700;
   font-size: var(--pk-fs-15);
   text-decoration: none;
   margin-bottom: 12px;
-  transition: background var(--pk-dur) var(--pk-ease);
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
 }
-.mapsBtn:hover { background: var(--pk-lime-100); }
+.mapsBtn:hover { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--pk-ink-900); }
 .mapsBtnHint {
   font-weight: 400;
+  font-family: var(--pk-font-body);
   font-size: var(--pk-fs-12);
-  color: var(--pk-text-2);
+  color: color-mix(in srgb, var(--pk-white) 80%, transparent);
 }
 :global(.pk-drive) .mapsBtn {
-  background: var(--pk-ink-700);
-  color: var(--pk-cloud);
-  border-color: var(--pk-cloud);
+  box-shadow: 4px 4px 0 var(--pk-lime-500);
 }
-:global(.pk-drive) .mapsBtn:hover { background: var(--pk-ink-600); }
+:global(.pk-drive) .mapsBtn:hover { box-shadow: 0 0 0 var(--pk-lime-500); }
 
 /* ===== تأكيد الوصول بالسحب (يسار ← يمين) — نمط «تمرير للإجابة» ===== */
 .swipeWrap {
@@ -534,8 +536,9 @@
   overflow: hidden;
   user-select: none;
   touch-action: pan-y;
-  border: 1.5px solid var(--pk-line);
+  border: var(--pk-b2);
   background: var(--pk-cloud);
+  box-shadow: var(--pk-pop-xs);
   transition: background var(--pk-dur) var(--pk-ease), border-color var(--pk-dur) var(--pk-ease);
 }
 .swipeOn {
@@ -593,8 +596,9 @@
   align-items: center;
   justify-content: center;
   background: var(--pk-white);
-  color: var(--pk-lime-900);
-  box-shadow: var(--pk-shadow-1);
+  color: var(--pk-ink-900);
+  border: var(--pk-b2);
+  box-shadow: var(--pk-pop-xs);
   touch-action: none;
   z-index: 1;
 }
@@ -642,6 +646,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .waitRing, .waitLogo, .sl1, .sl2, .sl3, .dim, .sheet { animation: none; }
+  .waitRing, .waitLogo, .dim, .sheet { animation: none; }
   .waitRing { opacity: 0.25; transform: scale(1.3); }
 }

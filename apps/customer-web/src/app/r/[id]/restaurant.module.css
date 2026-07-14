@@ -5,7 +5,9 @@
   max-width: 480px;
   margin: 0 auto;
   min-height: 100dvh;
-  background: var(--pk-bg);
+  background-color: var(--pk-bg);
+  background-image: var(--pk-dots);
+  background-size: var(--pk-dots-size);
   padding-bottom: 96px;
   position: relative;
 }
@@ -14,7 +16,8 @@
 .cover {
   height: 180px;
   position: relative;
-  background: repeating-linear-gradient(-45deg, var(--pk-cloud) 0 14px, var(--pk-line) 14px 28px);
+  background: var(--pk-cloud-2);
+  border-bottom: var(--pk-b2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -37,8 +40,9 @@
   width: 36px;
   height: 36px;
   border-radius: 11px;
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b2);
   background: var(--pk-surface);
+  box-shadow: var(--pk-pop-xs);
   color: var(--pk-text);
   display: flex;
   align-items: center;
@@ -50,7 +54,7 @@
 .closedOverlay {
   position: absolute;
   inset: 0;
-  background: rgba(16, 36, 27, 0.55); /* ink-900 بشفافية — كما في التصميم */
+  background: color-mix(in srgb, var(--pk-ink-900) 55%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -78,8 +82,10 @@
   height: 52px;
   border-radius: 14px;
   flex-shrink: 0;
-  background: var(--pk-lime-100);
-  color: var(--pk-lime-900);
+  background: var(--pk-cloud);
+  color: var(--pk-ink-900);
+  border: var(--pk-b2);
+  box-shadow: var(--pk-pop-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -111,8 +117,9 @@
 /* بطاقة الفرع */
 .branchCard {
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
-  border-radius: var(--pk-radius-lg);
+  border: var(--pk-b2);
+  border-radius: 18px;
+  box-shadow: var(--pk-pop-sm);
   padding: 12px 14px;
 }
 .branchTop {
@@ -147,9 +154,11 @@
 .carLine {
   background: var(--pk-lime-100);
   color: var(--pk-lime-900);
-  border-radius: 9px;
-  padding: 5px 10px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-pill);
+  padding: 4px 12px;
   font-size: var(--pk-fs-12);
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -164,10 +173,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-pill);
-  padding: 3px 12px;
+  padding: 2px 12px;
   font-size: var(--pk-fs-12);
-  font-weight: 500;
+  font-weight: 700;
   white-space: nowrap;
 }
 .badgeLime {
@@ -176,8 +186,7 @@
 }
 .badgeSoft {
   background: var(--pk-cloud);
-  color: var(--pk-gray);
-  border: 1px solid var(--pk-line);
+  color: var(--pk-ink-900);
 }
 .badgeOk {
   background: var(--pk-success);
@@ -201,7 +210,7 @@
   position: sticky;
   top: 0;
   background: var(--pk-surface);
-  border-bottom: 1px solid var(--pk-border);
+  border-bottom: var(--pk-b2);
   padding: 8px 18px;
   z-index: 5;
 }
@@ -216,20 +225,21 @@
 }
 .chip {
   flex-shrink: 0;
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   background: var(--pk-surface);
   border-radius: var(--pk-radius-pill);
   padding: 7px 16px;
   font-size: var(--pk-fs-13);
+  font-weight: 700;
   cursor: pointer;
   color: var(--pk-text);
   font-family: var(--pk-font-body);
   white-space: nowrap;
 }
 .chipOn {
-  background: var(--pk-ink-900);
-  color: var(--pk-lime-500);
-  border-color: var(--pk-ink-900);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  box-shadow: var(--pk-pop-xs);
 }
 
 /* ===== قائمة المنتجات ===== */
@@ -255,8 +265,9 @@
 /* بطاقة منتج صف (C-23) */
 .pcard {
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 16px;
+  box-shadow: var(--pk-pop-sm);
   padding: 10px;
   display: flex;
   gap: 11px;
@@ -276,7 +287,8 @@
   height: 82px;
   border-radius: 12px;
   flex-shrink: 0;
-  background: repeating-linear-gradient(-45deg, var(--pk-cloud) 0 14px, var(--pk-line) 14px 28px);
+  background: var(--pk-cloud-2);
+  border: var(--pk-b2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -313,7 +325,8 @@
 .price {
   font-family: var(--pk-font-mono);
   font-size: var(--pk-fs-13);
-  font-weight: 500;
+  font-weight: 700;
+  color: var(--pk-blue-500);
   white-space: nowrap;
   direction: ltr;
   unicode-bidi: embed;
@@ -326,7 +339,7 @@
 }
 /* عرض على الصنف (M-11) — السعر المخفّض مع شطب الأصلي */
 .salePrice {
-  color: var(--pk-lime-900);
+  color: var(--pk-pink-500);
   font-weight: 700;
   margin-inline-end: 6px;
 }
@@ -339,17 +352,18 @@
 .addBtn {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: 50%;
   background: var(--pk-lime-500);
-  border: none;
+  border: var(--pk-b2);
   font-size: 19px;
+  font-weight: 800;
   line-height: 1;
   cursor: pointer;
   color: var(--pk-ink-900);
   position: absolute;
   bottom: -6px;
   inset-inline-end: -6px;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  box-shadow: var(--pk-pop-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -382,19 +396,20 @@
   gap: 8px;
   min-height: 48px;
   padding: 0 22px;
-  border-radius: var(--pk-radius);
-  border: none;
+  border-radius: 14px;
+  border: var(--pk-b2);
   cursor: pointer;
-  background: var(--pk-lime-500);
-  color: var(--pk-ink-900);
-  font-family: var(--pk-font-body);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  font-family: var(--pk-font-display);
   font-size: var(--pk-fs-15);
-  font-weight: 500;
-  box-shadow: var(--pk-shadow-2);
-  transition: background var(--pk-dur) var(--pk-ease);
+  font-weight: 700;
+  box-shadow: var(--pk-pop-sm);
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
 }
 .cartBtn:hover {
-  background: var(--pk-lime-300);
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 var(--pk-ink-900);
 }
 .cartTotal {
   font-family: var(--pk-font-mono);
@@ -406,7 +421,7 @@
 .dim {
   position: fixed;
   inset: 0;
-  background: rgba(16, 36, 27, 0.45); /* ink-900 بشفافية — كما في التصميم */
+  background: color-mix(in srgb, var(--pk-ink-900) 45%, transparent);
   z-index: 30;
   display: flex;
   flex-direction: column;
@@ -417,11 +432,10 @@
   max-width: 480px;
   margin: 0 auto;
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b3);
   border-bottom: none;
   border-radius: 24px 24px 0 0;
   padding: 10px 18px 18px;
-  box-shadow: var(--pk-shadow-2);
   max-height: 92dvh;
   overflow-y: auto;
 }
@@ -429,12 +443,14 @@
   width: 44px;
   height: 5px;
   border-radius: var(--pk-radius-pill);
-  background: var(--pk-line);
+  background: var(--pk-ink-900);
+  opacity: 0.35;
   margin: 2px auto 12px;
 }
 .sheetImg {
   width: 100%;
   height: 170px;
+  border: var(--pk-b2);
   border-radius: 14px;
   overflow: hidden;
   margin-bottom: 12px;
@@ -491,8 +507,8 @@
 }
 .optCard {
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
-  border-radius: var(--pk-radius-lg);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
   padding: 2px 14px;
 }
 .optRow {
@@ -531,7 +547,7 @@
 .chk {
   width: 22px;
   height: 22px;
-  border: 2px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 50%;
   flex-shrink: 0;
   display: inline-flex;
@@ -550,12 +566,12 @@
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  background: var(--pk-ink-900);
+  background: var(--pk-blue-500);
 }
 .chkOn {
-  background: var(--pk-ink-900);
+  background: var(--pk-blue-500);
   border-color: var(--pk-ink-900);
-  color: var(--pk-lime-500);
+  color: var(--pk-white);
   font-size: 13px;
   font-weight: 700;
 }
@@ -580,7 +596,7 @@
   font-size: var(--pk-fs-15);
   color: var(--pk-text);
   background: var(--pk-surface);
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius);
   min-height: 48px;
   padding: 10px 14px;
@@ -588,7 +604,8 @@
   width: 100%;
 }
 .noteFld input:focus {
-  border-color: var(--pk-ink-900);
+  border-color: var(--pk-lime-500);
+  box-shadow: 0 0 0 2px var(--pk-lime-500);
 }
 
 /* أسفل الورقة: كمية + تأكيد */
@@ -601,7 +618,7 @@
 .qty {
   display: inline-flex;
   align-items: center;
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius-pill);
   overflow: hidden;
   background: var(--pk-surface);
@@ -630,23 +647,26 @@
   gap: 8px;
   min-height: 48px;
   padding: 0 18px;
-  border-radius: var(--pk-radius);
-  border: none;
+  border-radius: 14px;
+  border: var(--pk-b2);
+  box-shadow: var(--pk-pop-sm);
   cursor: pointer;
-  background: var(--pk-lime-500);
-  color: var(--pk-ink-900);
-  font-family: var(--pk-font-body);
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  font-family: var(--pk-font-display);
   font-size: var(--pk-fs-15);
-  font-weight: 500;
-  transition: background var(--pk-dur) var(--pk-ease);
+  font-weight: 700;
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
 }
-.confirmBtn:hover {
-  background: var(--pk-lime-300);
+.confirmBtn:hover:not(:disabled) {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 var(--pk-ink-900);
 }
 .confirmBtn:disabled {
   background: var(--pk-line);
   color: var(--pk-gray);
   cursor: not-allowed;
+  box-shadow: none;
 }
 .confirmTotal {
   font-family: var(--pk-font-mono);
@@ -665,6 +685,7 @@
   margin: 12px 18px 0;
   background: var(--pk-st-overdue-bg);
   color: var(--pk-error);
+  border: 2px solid var(--pk-error);
   border-radius: var(--pk-radius);
   padding: 11px 14px;
   font-size: var(--pk-fs-13);
@@ -680,10 +701,11 @@
 /* ===== قلب المفضلة (C-18) في رأس المطعم ===== */
 .heartBtn {
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: 999px;
   width: 40px;
   height: 40px;
+  box-shadow: var(--pk-pop-xs);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -692,7 +714,6 @@
   flex-shrink: 0;
 }
 .heartOn {
-  color: var(--pk-error);
-  border-color: var(--pk-error);
-  background: var(--pk-st-overdue-bg);
+  color: var(--pk-pink-500);
+  background: var(--pk-surface);
 }

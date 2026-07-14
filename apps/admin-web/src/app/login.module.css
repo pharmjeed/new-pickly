@@ -1,24 +1,23 @@
-/* دخول الأدمن — بطاقة مركزية بلغة اللوحة (تكوين مستمد من panel.html) */
+/* دخول الأدمن — بطاقة فنكية مركزية: حد كحلي 3px + ظل صلب مُزاح فوق الخلفية المنقّطة */
 .page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--pk-bg);
 }
 
 .card {
   width: 100%;
   max-width: 420px;
   background: var(--pk-surface);
-  border: 1px solid var(--pk-border);
+  border: var(--pk-b3);
   border-radius: var(--pk-radius-lg);
   padding: 28px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow: var(--pk-shadow-2);
+  box-shadow: var(--pk-pop);
 }
 
 .brand {
@@ -29,7 +28,7 @@
 .brand b {
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-20);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--pk-text);
 }
 .brand .sub {
@@ -40,7 +39,7 @@
 .title {
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-24);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--pk-text);
 }
 
@@ -58,7 +57,7 @@
   text-align: center;
   direction: ltr;
   min-height: 56px;
-  border: 1.5px solid var(--pk-border);
+  border: var(--pk-b2);
   border-radius: var(--pk-radius);
   background: var(--pk-surface);
   color: var(--pk-text);
@@ -66,13 +65,14 @@
   width: 100%;
 }
 .otpInput:focus {
-  border-color: var(--pk-ink-900);
-  background: var(--pk-lime-100);
+  border-color: var(--pk-blue-500);
+  box-shadow: var(--pk-pop-xs);
 }
 
 .err {
   background: var(--pk-st-overdue-bg);
   color: var(--pk-error);
+  border: 2px solid var(--pk-error);
   border-radius: var(--pk-radius);
   padding: 10px 14px;
   font-size: var(--pk-fs-13);
@@ -81,10 +81,11 @@
 .back {
   border: none;
   background: transparent;
-  color: var(--pk-lime-900);
+  color: var(--pk-blue-500);
   font-size: var(--pk-fs-13);
+  font-weight: 500;
   cursor: pointer;
   align-self: flex-start;
   padding: 0;
 }
-.back:hover { color: var(--pk-ink-900); }
+.back:hover { color: var(--pk-blue-600); }

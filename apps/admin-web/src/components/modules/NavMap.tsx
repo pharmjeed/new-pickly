@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import { QirtasLoader } from "@/components/qirtas";
 
 type NavStatus = { state: string; step: string; message: string; at: string };
 
@@ -118,7 +119,7 @@ export default function NavMap() {
     <>
       {error && <div className="note err" data-testid="navmap-error">{error}</div>}
       {notice && <div className="note info" data-testid="navmap-notice">{notice}</div>}
-      {!status && !error && <div className="skl" style={{ height: 160 }} />}
+      {!status && !error && <div className="loadwrap" style={{ minHeight: 160 }}><QirtasLoader /></div>}
 
       {status && (
         <div className="pcardx" data-testid="navmap">

@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
+import { Qirtas } from "@/components/qirtas";
 import { clearToken, getToken, ApiError, apiGet, apiPost, apiPatch } from "@/lib/api";
 import s from "./staff.module.css";
 
@@ -336,7 +337,7 @@ export default function StaffPage() {
 
       {staff && staff.length === 0 && !formOpen && (
         <div className="empty">
-          <div className="ic">👥</div>
+          <Qirtas mood="sleepy" size={96} />
           <b>لا موظفين بعد</b>
           <p>{canManage ? "ابدأ بإضافة موظف عبر زر «إضافة موظف» بالأعلى" : "لا موظفين ضمن نطاقك"}</p>
         </div>

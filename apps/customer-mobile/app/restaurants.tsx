@@ -9,7 +9,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as Location from "expo-location";
 import { api } from "../src/api";
 import { Badge, ErrorNote, Loader, type BadgeTone } from "../src/ui";
-import { colors, fs, light, radius, shadow1 } from "../src/theme";
+import { Qirtas } from "../src/qirtas";
+import { bw2, colors, fs, light, popXs, radiusMd, radiusPill } from "../src/theme";
 
 interface BranchCard {
   id: string;
@@ -142,6 +143,7 @@ export default function RestaurantsScreen() {
           }
           ListEmptyComponent={
             <View style={st.empty}>
+              <Qirtas mood="sleepy" size={84} />
               <Text style={st.emptyTitle}>ما فيه فروع قريبة منك الآن</Text>
               <Text style={st.emptyTxt}>بيكلي يتوسع — جرّب من موقع آخر أو عُد لاحقاً</Text>
             </View>
@@ -150,7 +152,7 @@ export default function RestaurantsScreen() {
             const badge = statusBadge(b.status);
             return (
               <Pressable
-                style={({ pressed }) => [st.card, pressed ? { backgroundColor: colors.lime100 } : null]}
+                style={({ pressed }) => [st.card, pressed ? { backgroundColor: colors.cloud2 } : null]}
                 onPress={() => router.push(`/restaurant/${b.id}` as never)}
                 accessibilityRole="button"
               >
@@ -191,8 +193,8 @@ const st = StyleSheet.create({
   screen: { flex: 1, backgroundColor: light.bg },
   head: {
     backgroundColor: light.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: light.border,
+    borderBottomWidth: bw2,
+    borderBottomColor: colors.ink900,
     padding: 16,
     paddingBottom: 12,
     flexDirection: "row-reverse",
@@ -203,8 +205,9 @@ const st = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
+    backgroundColor: light.surface,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -213,32 +216,32 @@ const st = StyleSheet.create({
   list: { padding: 16, gap: 10, paddingBottom: 24 },
   chips: { flexDirection: "row-reverse", gap: 8, paddingBottom: 6 },
   chip: {
-    borderWidth: 1,
-    borderColor: light.border,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     backgroundColor: light.surface,
-    borderRadius: 999,
+    borderRadius: radiusPill,
     paddingVertical: 7,
     paddingHorizontal: 16
   },
-  chipOn: { backgroundColor: colors.ink900, borderColor: colors.ink900 },
+  chipOn: { backgroundColor: colors.blue500, borderColor: colors.ink900 },
   chipTxt: { color: light.text, fontSize: fs.fs13 },
-  chipTxtOn: { color: colors.lime500, fontWeight: "800" },
+  chipTxtOn: { color: colors.white, fontWeight: "800" },
   empty: { alignItems: "center", paddingVertical: 48, gap: 6 },
   emptyTitle: { color: light.text, fontSize: fs.fs16, fontWeight: "800" },
   emptyTxt: { color: light.text2, fontSize: fs.fs14 },
   card: {
     backgroundColor: light.surface,
-    borderRadius: radius,
-    borderWidth: 1,
-    borderColor: light.border,
+    borderRadius: radiusMd,
+    borderWidth: bw2,
+    borderColor: colors.ink900,
     padding: 14,
     gap: 6,
-    ...shadow1
+    ...popXs
   },
   cardTop: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", gap: 8 },
   cardCover: {
     height: 120,
-    borderRadius: radius - 4,
+    borderRadius: radiusMd - 4,
     marginBottom: 4,
     backgroundColor: light.bg
   },
@@ -247,12 +250,12 @@ const st = StyleSheet.create({
     height: 30,
     borderRadius: 9,
     borderWidth: 1,
-    borderColor: light.border,
+    borderColor: colors.ink900,
     backgroundColor: light.bg
   },
   cardName: { color: light.text, fontSize: fs.fs16, fontWeight: "800", flexShrink: 1, textAlign: "right" },
   metaRow: { flexDirection: "row-reverse", gap: 12 },
   meta: { color: light.text2, fontSize: fs.fs13 },
-  carLine: { color: colors.lime900, fontSize: fs.fs13, fontWeight: "700", textAlign: "right" },
+  carLine: { color: colors.blue500, fontSize: fs.fs13, fontWeight: "700", textAlign: "right" },
   busy: { color: colors.warn, fontSize: fs.fs13, textAlign: "right" }
 });

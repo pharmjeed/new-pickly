@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
+import { Qirtas, QirtasBadge, QirtasLoader } from "../../qirtas";
 import SpotsMap from "./SpotsMap";
 import LiveNav from "./LiveNav";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
@@ -123,19 +124,6 @@ interface BranchSpot {
 const navUrl = (lat: number, lng: number) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 
 /* أيقونات خطية من رموز P7.html — currentColor فقط */
-/** شعار بيكلي — الشارة الليمونية بخطوط السرعة (هوية الحركة skew -8°) */
-const PicklyBadge = ({ size = 96 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
-    <rect width="100" height="100" rx="24" fill="var(--pk-lime-500)" />
-    <g transform="skewX(-8) translate(4,0)" stroke="var(--pk-ink-900)" fill="none">
-      <path d="M36,34 L62,34 L59,72 L39,72 Z" strokeWidth="4" strokeLinejoin="round" />
-      <path d="M43,34 Q49,24 55,34" strokeWidth="3.5" strokeLinecap="round" />
-      <path className={s.sl1} d="M70,40 H88" strokeWidth="5" strokeLinecap="round" />
-      <path className={s.sl2} d="M74,52 H88" strokeWidth="5" strokeLinecap="round" />
-      <path className={s.sl3} d="M70,64 H80" strokeWidth="5" strokeLinecap="round" />
-    </g>
-  </svg>
-);
 /** سهم ملاحة — زر «الاتجاه إلى نقطة الالتقاء» */
 const IconNav = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
@@ -149,17 +137,6 @@ const IconNav = ({ size = 18 }: { size?: number }) => (
     />
   </svg>
 );
-const IconRadar = ({ size = 44 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
-    <g fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round">
-      <path d="M34,32 A22,22 0 0 1 66,32" />
-      <path d="M24,19 A36,36 0 0 1 76,19" opacity=".5" />
-      <circle cx="50" cy="57" r="12" />
-      <path d="M50,69 V86" />
-    </g>
-  </svg>
-);
-
 export default function TrackPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -355,7 +332,7 @@ export default function TrackPage() {
   if (!order)
     return (
       <main className="pk-wrap" style={{ paddingBottom: 92 }}>
-        <div className="pk-loader"><span /><span /><span /></div>
+        <QirtasLoader />
         <TabBar />
       </main>
     );
@@ -427,20 +404,20 @@ export default function TrackPage() {
           })}
         </div>
 
-        {/* نبضة «تم رصد وصولك» — تُعرض مع لحظة الجاهزية؛ الوصول المبكر يعرض عدّاد «على وشك» بدلها */}
+        {/* نبضة «تم رصد وصولك» — القرطاس المتحمس داخل البطاقة الليمونية (لحظة الوصول) */}
         {order.order_status === "CUSTOMER_ARRIVED" && !arrivedBeforeReady && (
           <div className={s.pulseWrap}>
-            <div className={s.pulseIcon}><IconRadar /></div>
+            <div className={s.pulseIcon}><Qirtas mood="excited" size={68} /></div>
           </div>
         )}
 
-        {/* شاشة انتظار قبول المطعم — الشعار الحي يرسّخ العلامة أثناء الترقب */}
+        {/* شاشة انتظار قبول المطعم — شارة القرطاس الحية ترسّخ العلامة أثناء الترقب */}
         {isWaiting && (
           <div className={s.waitHero} data-testid="waiting-logo">
             <span className={s.waitRing} />
             <span className={s.waitRing} />
             <span className={s.waitRing} />
-            <div className={s.waitLogo}><PicklyBadge /></div>
+            <div className={s.waitLogo}><QirtasBadge size={96} /></div>
           </div>
         )}
 
@@ -460,24 +437,17 @@ export default function TrackPage() {
             <p style={{ fontWeight: 700 }}>طلبك جاهز!</p>
             <div className={s.prepRingWrap}>
               <svg viewBox="0 0 160 160" className={s.readyBagSvg} aria-hidden="true">
-                <defs>
-                  <linearGradient id="pk-bag-body" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#2E4A3C" />
-                    <stop offset="1" stopColor="#10241B" />
-                  </linearGradient>
-                </defs>
-
-                {/* بريق يتلألأ حول الكيس */}
+                {/* بريق يتلألأ حول الكيس — ليموني ووردي (ألوان الهوية الفنكية) */}
                 {!reduceMotion && (
                   <g className={s.bagSparks}>
-                    <path d="M124 44 l2.4 5.2 l5.2 2.4 l-5.2 2.4 l-2.4 5.2 l-2.4 -5.2 l-5.2 -2.4 l5.2 -2.4 Z" fill="#DDF87A">
+                    <path d="M124 44 l2.4 5.2 l5.2 2.4 l-5.2 2.4 l-2.4 5.2 l-2.4 -5.2 l-5.2 -2.4 l5.2 -2.4 Z" fill="var(--pk-pink-500)">
                       <animate attributeName="opacity" values="0;1;0" dur="2.2s" begin="0s" repeatCount="indefinite" />
                       <animateTransform attributeName="transform" type="scale" values="0.6;1;0.6" additive="sum" dur="2.2s" begin="0s" repeatCount="indefinite" />
                     </path>
-                    <circle cx="30" cy="58" r="3" fill="#C9F339">
+                    <circle cx="30" cy="58" r="3" fill="var(--pk-lime-500)">
                       <animate attributeName="opacity" values="0;1;0" dur="2.4s" begin="0.6s" repeatCount="indefinite" />
                     </circle>
-                    <circle cx="34" cy="98" r="2.4" fill="#DDF87A">
+                    <circle cx="34" cy="98" r="2.4" fill="var(--pk-lime-300)">
                       <animate attributeName="opacity" values="0;1;0" dur="2s" begin="1.1s" repeatCount="indefinite" />
                     </circle>
                   </g>
@@ -486,15 +456,15 @@ export default function TrackPage() {
                 {/* الكيس يتمايل فرحاً حول قاعدته */}
                 <g className={s.bagBody}>
                   {/* المقبض المربوط بعقدة */}
-                  <path d="M62 56 q18 -30 36 0" fill="none" stroke="#10241B" strokeWidth="5" strokeLinecap="round" />
-                  <path d="M74 40 q6 -9 12 0" fill="none" stroke="#C9F339" strokeWidth="4" strokeLinecap="round" />
+                  <path d="M62 56 q18 -30 36 0" fill="none" stroke="var(--pk-ink-900)" strokeWidth="5" strokeLinecap="round" />
+                  <path d="M74 40 q6 -9 12 0" fill="none" stroke="var(--pk-lime-500)" strokeWidth="4" strokeLinecap="round" />
                   {/* جسم الكيس */}
-                  <path d="M50 58 h60 l6 62 a10 10 0 0 1 -10 11 H54 a10 10 0 0 1 -10 -11 Z" fill="url(#pk-bag-body)" stroke="#10241B" strokeWidth="2" />
+                  <path d="M50 58 h60 l6 62 a10 10 0 0 1 -10 11 H54 a10 10 0 0 1 -10 -11 Z" fill="var(--pk-ink-700)" stroke="var(--pk-ink-900)" strokeWidth="2" />
                   {/* طية علوية */}
-                  <path d="M50 58 h60 l1.4 12 H48.6 Z" fill="#1C3329" />
+                  <path d="M50 58 h60 l1.4 12 H48.6 Z" fill="var(--pk-ink-900)" />
                   {/* شارة بيكلي بعلامة صح */}
-                  <rect x="62" y="82" width="36" height="24" rx="6" fill="#C9F339" />
-                  <path d="M71 94 l5 5 l10 -12" fill="none" stroke="#10241B" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <rect x="62" y="82" width="36" height="24" rx="6" fill="var(--pk-lime-500)" />
+                  <path d="M71 94 l5 5 l10 -12" fill="none" stroke="var(--pk-ink-900)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 </g>
               </svg>
             </div>
@@ -563,8 +533,8 @@ export default function TrackPage() {
             const cook = overtime ? 1 : 1 - frac;                    // نسبة اكتمال الطبخ
             // مستوى السائل داخل القدر: يرتفع مع النضج (تغيّره خلال الثانية دون البكسل — بلا حاجة لتنعيم)
             const liquidTy = 9 - 25 * cook;
-            const liquidFill = overtime ? "var(--pk-warn)" : "url(#pk-pot-liquid)";
-            const waveFill = overtime ? "#F6C260" : "#DDF87A";
+            const liquidFill = overtime ? "var(--pk-warn)" : "var(--pk-lime-500)";
+            const waveFill = overtime ? "var(--pk-warn)" : "var(--pk-lime-300)";
             const anim = !reduceMotion;
             return (
               <div className={`pk-card ${s.prepCard} ${overtime ? s.prepOvertime : ""}`} data-testid="prep-expected">
@@ -572,18 +542,6 @@ export default function TrackPage() {
                 <div className={s.prepRingWrap}>
                   <svg viewBox="0 0 160 160" className={s.pot} aria-hidden="true">
                     <defs>
-                      <linearGradient id="pk-pot-liquid" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stopColor="#DDF87A" />
-                        <stop offset="1" stopColor="#C9F339" />
-                      </linearGradient>
-                      <linearGradient id="pk-pot-body" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stopColor="#2E4A3C" />
-                        <stop offset="1" stopColor="#10241B" />
-                      </linearGradient>
-                      <linearGradient id="pk-pot-lid" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stopColor="#2E4A3C" />
-                        <stop offset="1" stopColor="#1C3329" />
-                      </linearGradient>
                       <clipPath id="pk-pot-clip">
                         <path d="M42 74 h76 v34 a10 10 0 0 1 -10 10 H52 a10 10 0 0 1 -10 -10 Z" />
                       </clipPath>
@@ -608,11 +566,11 @@ export default function TrackPage() {
                     </g>
 
                     {/* المقبضان */}
-                    <rect x="30" y="82" width="12" height="9" rx="4.5" fill="#1C3329" />
-                    <rect x="118" y="82" width="12" height="9" rx="4.5" fill="#1C3329" />
+                    <rect x="30" y="82" width="12" height="9" rx="4.5" fill="var(--pk-ink-600)" />
+                    <rect x="118" y="82" width="12" height="9" rx="4.5" fill="var(--pk-ink-600)" />
 
                     {/* جسم القدر */}
-                    <path className={s.potBody} d="M42 74 h76 v34 a10 10 0 0 1 -10 10 H52 a10 10 0 0 1 -10 -10 Z" fill="url(#pk-pot-body)" strokeWidth="2" />
+                    <path className={s.potBody} d="M42 74 h76 v34 a10 10 0 0 1 -10 10 H52 a10 10 0 0 1 -10 -10 Z" fill="var(--pk-ink-700)" strokeWidth="2" />
 
                     {/* السائل — مستواه يرتفع مع النضج، والموجة والفقاعات تغلي داخله */}
                     <g clipPath="url(#pk-pot-clip)">
@@ -630,15 +588,15 @@ export default function TrackPage() {
                         </path>
                         {anim && (
                           <>
-                            <circle cx="60" cy="118" r="2.4" fill="#F2FCD1">
+                            <circle cx="60" cy="118" r="2.4" fill="var(--pk-lime-100)">
                               <animate attributeName="cy" values="120;99" dur="2.4s" repeatCount="indefinite" />
                               <animate attributeName="opacity" values="0;0.9;0" dur="2.4s" repeatCount="indefinite" />
                             </circle>
-                            <circle cx="80" cy="118" r="3" fill="#FFFFFF">
+                            <circle cx="80" cy="118" r="3" fill="var(--pk-white)">
                               <animate attributeName="cy" values="121;100" dur="2.9s" begin="0.6s" repeatCount="indefinite" />
                               <animate attributeName="opacity" values="0;0.85;0" dur="2.9s" begin="0.6s" repeatCount="indefinite" />
                             </circle>
-                            <circle cx="98" cy="118" r="2" fill="#F2FCD1">
+                            <circle cx="98" cy="118" r="2" fill="var(--pk-lime-100)">
                               <animate attributeName="cy" values="119;101" dur="2.2s" begin="1.1s" repeatCount="indefinite" />
                               <animate attributeName="opacity" values="0;0.9;0" dur="2.2s" begin="1.1s" repeatCount="indefinite" />
                             </circle>
@@ -652,9 +610,9 @@ export default function TrackPage() {
                       {anim && (
                         <animateTransform attributeName="transform" type="rotate" values="0 80 70; 0 80 70; 1.2 80 70; -1.2 80 70; 0 80 70; 0 80 70" dur="4s" repeatCount="indefinite" />
                       )}
-                      <path d="M40 70 q40 -16 80 0 Z" fill="url(#pk-pot-lid)" stroke="#10241B" strokeWidth="2" />
-                      <rect x="38" y="68" width="84" height="6" rx="3" fill="#1C3329" />
-                      <circle cx="80" cy="55" r="4.5" fill="#C9F339" stroke="#10241B" strokeWidth="1.5" />
+                      <path d="M40 70 q40 -16 80 0 Z" fill="var(--pk-ink-700)" stroke="var(--pk-ink-900)" strokeWidth="2" />
+                      <rect x="38" y="68" width="84" height="6" rx="3" fill="var(--pk-ink-600)" />
+                      <circle cx="80" cy="55" r="4.5" fill="var(--pk-lime-500)" stroke="var(--pk-ink-900)" strokeWidth="1.5" />
                     </g>
                   </svg>
                   <div className={s.prepDigits}>
@@ -739,7 +697,7 @@ export default function TrackPage() {
                     justifyContent: "center",
                     width: "100%",
                     fontSize: 13,
-                    color: "var(--pk-muted)",
+                    color: "var(--pk-text-2)",
                     textDecoration: "underline",
                     padding: "8px 0",
                     marginBottom: 8
@@ -764,12 +722,23 @@ export default function TrackPage() {
           />
         )}
 
+        {/* بطاقة رمز التسليم الكحلية — الرمز ليموني كبير متباعد الأحرف (نموذج hand-code) */}
+        {arrived && order.handoff_code && (
+          <div className={s.codeCard} data-testid="handoff-code">
+            <p className={s.codeLabel}>ورّه هذا الرمز لموظف التسليم</p>
+            <span className={s.codeDigits}>{order.handoff_code}</span>
+          </div>
+        )}
+
         {completed && (
           <div className="pk-card" data-testid="completed-box" style={{ textAlign: "center" }}>
             <span className="pk-badge ok">تم التسليم ✓</span>
-            {/* P8: التقييم بضغطة — BR-11 (نافذة 7 أيام) */}
+            {/* P8: التقييم بضغطة — BR-11 (نافذة 7 أيام) · القرطاس الغامز يرافق التقييم */}
             {!reviewDone ? (
               <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+                  <Qirtas mood="wink" size={72} />
+                </div>
                 <div style={{ display: "flex", justifyContent: "center", gap: 8 }} dir="ltr">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button

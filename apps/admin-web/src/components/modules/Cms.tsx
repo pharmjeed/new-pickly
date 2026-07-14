@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost } from "@/lib/api";
 import { resizeImage } from "@/lib/image";
 import ReasonModal from "@/components/ReasonModal";
+import { QirtasLoader } from "@/components/qirtas";
 
 type Template = {
   key: string;
@@ -248,7 +249,7 @@ export default function Cms() {
     <>
       {error && <div className="note err" data-testid="cms-error">{error}</div>}
       {notice && <div className="note info" data-testid="cms-notice">{notice}</div>}
-      {!templates && !error && <div className="skl" style={{ height: 260 }} />}
+      {!templates && !error && <div className="loadwrap" style={{ minHeight: 260 }}><QirtasLoader /></div>}
 
       {banners && (
         <div className="pcardx" data-testid="cms-banners">

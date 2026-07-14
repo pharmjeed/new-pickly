@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell from "@/components/Shell";
+import { Qirtas } from "@/components/qirtas";
 import {clearToken,  ApiError, apiGet } from "@/lib/api";
 import s from "./reviews.module.css";
 
@@ -87,7 +88,7 @@ export default function ReviewsPage() {
 
           {reviews.length === 0 ? (
             <div className="empty">
-              <div className="ic">★</div>
+              <Qirtas mood="sleepy" size={96} />
               <b>لا تقييمات بعد</b>
               <p>تظهر تقييمات العملاء هنا بعد اكتمال الطلبات</p>
             </div>
