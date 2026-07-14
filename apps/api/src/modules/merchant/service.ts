@@ -7,7 +7,7 @@ import { handoffCodeFor } from "../../lib/codes.js";
 import { completeHandoff } from "../pickup/service.js";
 import { payments } from "../orders/service.js";
 import { decryptPlate } from "../../lib/plate-crypto.js";
-import { VEHICLE_COLORS } from "../vehicles/routes.js";
+import { vehicleColorHex } from "../vehicles/colors.js";
 import { ACTIVE_STATES, JOURNEY_STATES, TAB_WHERE } from "./tab-filter.js";
 
 /**
@@ -43,7 +43,7 @@ function vehicleOf(o: OrderForCard, isActive: boolean): BranchOrderCard["vehicle
     make_ar: o.vehicle.make_ar,
     model_ar: o.vehicle.model_ar,
     color_ar: o.vehicle.color_ar,
-    color_hex: VEHICLE_COLORS.find((c) => c.name_ar === o.vehicle?.color_ar)?.hex ?? null,
+    color_hex: vehicleColorHex(o.vehicle.color_ar),
     plate_letters_ar: letters || null,
     plate_digits: digits || o.vehicle.plate_short
   };

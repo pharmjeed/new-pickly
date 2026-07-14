@@ -64,7 +64,7 @@ interface CatalogMake {
 }
 interface VehicleCatalog {
   makes: CatalogMake[];
-  colors: Array<{ name_ar: string; hex: string }>;
+  colors: Array<{ name_ar: string; hex: string; aliases: string[] }>;
 }
 
 const OTHER = "أخرى";
@@ -613,8 +613,11 @@ export default function CheckoutPage() {
 
   const makeEnOf = (make_ar: string | null): string | null =>
     make_ar ? catalog?.makes.find((mk) => mk.name_ar === make_ar)?.name_en ?? null : null;
-  const colorHexOf = (name_ar: string): string =>
-    catalog?.colors.find((c) => c.name_ar === name_ar)?.hex ?? "var(--pk-gray)";
+  // المرادفات (بيضاء→أبيض…) لأن السيارات المسجّلة قبل قائمة الكتالوج لونها نص حر
+  const colorHexOf = (name_ar: string): string => {
+    const n = name_ar.trim();
+    return catalog?.colors.find((c) => c.name_ar === n || c.aliases?.includes(n))?.hex ?? "var(--pk-gray)";
+  };
   const modelsOfSel = catalog?.makes.find((mk) => mk.name_ar === makeSel)?.models ?? [];
 
   const effMake = makeSel === OTHER ? makeCustom.trim() : makeSel;
