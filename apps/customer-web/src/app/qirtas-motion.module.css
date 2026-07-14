@@ -1,0 +1,149 @@
+/* ============================================================
+   حركات القرطاس — طبقة الحياة فوق الكاركتر الرسمي
+   (توجيه المالك 2026-07-14: نفس الهوية بحركة وديناميكية أكثر —
+   مرجع لوحتي العرض). كل الألوان من tokens.css حصراً،
+   وكل الحركات تتوقف مع prefers-reduced-motion.
+   ============================================================ */
+
+/* ---- جسم القرطاس يتمايل/يقفز ---- */
+.body {
+  transform-box: view-box;
+  transform-origin: 150px 190px;
+}
+.bodyWalk { animation: m-bob 0.62s ease-in-out infinite; }
+.bodyIdle { animation: m-bob 2.6s ease-in-out infinite; }
+.bodyJump { animation: m-jump 1.15s cubic-bezier(0.34, 1.3, 0.5, 1) infinite; }
+@keyframes m-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes m-jump {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  38% { transform: translateY(-16px) rotate(-3deg); }
+  58% { transform: translateY(-11px) rotate(3deg); }
+  78% { transform: translateY(0) rotate(0deg); }
+}
+
+/* ---- الأرجل: خطوتان متعاكستا الطور ---- */
+.leg { transform-box: view-box; }
+.legA { animation: m-step-a 0.62s ease-in-out infinite; }
+.legB { animation: m-step-b 0.62s ease-in-out infinite; }
+@keyframes m-step-a {
+  0%, 100% { transform: rotate(-17deg); }
+  50% { transform: rotate(21deg); }
+}
+@keyframes m-step-b {
+  0%, 100% { transform: rotate(19deg); }
+  50% { transform: rotate(-17deg); }
+}
+
+/* ---- الذراعان ---- */
+.arm { transform-box: view-box; }
+.armSwing { animation: m-swing 0.62s ease-in-out infinite; }
+@keyframes m-swing {
+  0%, 100% { transform: rotate(14deg); }
+  50% { transform: rotate(-16deg); }
+}
+.armWave { animation: m-wave 1.1s ease-in-out infinite; }
+@keyframes m-wave {
+  0%, 100% { transform: rotate(-10deg); }
+  50% { transform: rotate(16deg); }
+}
+.armUp { animation: m-cheer 1.15s ease-in-out infinite; }
+@keyframes m-cheer {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg); }
+}
+
+/* ---- كيس بيكلي في اليد يتأرجح مع الخطوة ---- */
+.handBag { transform-box: view-box; animation: m-bag-swing 0.62s ease-in-out infinite; }
+@keyframes m-bag-swing {
+  0%, 100% { transform: rotate(5deg); }
+  50% { transform: rotate(-6deg); }
+}
+
+/* ---- خطوط السرعة الوردية تتلألأ تتابعياً (نبض المحمّل الرسمي) ---- */
+.line1 { animation: m-line 1.2s ease-in-out infinite; }
+.line2 { animation: m-line 1.2s ease-in-out 0.2s infinite; }
+.line3 { animation: m-line 1.2s ease-in-out 0.4s infinite; }
+@keyframes m-line {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.18; }
+}
+
+/* ---- قلوب/نجوم الاحتفال تطفو وتتلاشى ---- */
+.spark { transform-box: view-box; opacity: 0; }
+.spark1 { animation: m-spark 1.8s ease-out infinite; }
+.spark2 { animation: m-spark 1.8s ease-out 0.5s infinite; }
+.spark3 { animation: m-spark 1.8s ease-out 1s infinite; }
+.spark4 { animation: m-spark 1.8s ease-out 1.35s infinite; }
+@keyframes m-spark {
+  0% { opacity: 0; transform: translateY(8px) scale(0.55); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-30px) scale(1.2); }
+}
+
+/* ---- Zzz النوم تطفو من فم القرطاس النعسان ---- */
+.zz { transform-box: view-box; opacity: 0; }
+.zz1 { animation: m-zz 2.6s ease-in-out infinite; }
+.zz2 { animation: m-zz 2.6s ease-in-out 0.85s infinite; }
+.zz3 { animation: m-zz 2.6s ease-in-out 1.7s infinite; }
+@keyframes m-zz {
+  0% { opacity: 0; transform: translate(0, 6px) scale(0.6); }
+  35% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(-14px, -30px) scale(1.25); }
+}
+
+/* ---- مشهد «الموظف متجه إليك»: أرض منقّطة تزحف + سيارة تتنفس ---- */
+.road { animation: m-road 0.9s linear infinite; }
+@keyframes m-road {
+  to { stroke-dashoffset: -26; }
+}
+.car { transform-box: view-box; animation: m-car 1.6s ease-in-out infinite; }
+@keyframes m-car {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
+}
+.pinDrop { transform-box: view-box; animation: m-pin 1.5s ease-in-out infinite; }
+@keyframes m-pin {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* ---- كونفيتي الاحتفال (غلاف مطلق فوق البطاقة) ---- */
+.confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.confetti i {
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 13px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: m-confetti 2.8s linear infinite;
+}
+@keyframes m-confetti {
+  0% { opacity: 0; transform: translateY(0) rotate(0deg); }
+  8% { opacity: 1; }
+  100% { opacity: 0.15; transform: translateY(340px) rotate(540deg); }
+}
+
+/* ---- احترام تفضيل تقليل الحركة: كل شيء يثبت بوقار ---- */
+@media (prefers-reduced-motion: reduce) {
+  .bodyWalk, .bodyIdle, .bodyJump,
+  .legA, .legB,
+  .armSwing, .armWave, .armUp,
+  .handBag,
+  .line1, .line2, .line3,
+  .road, .car, .pinDrop,
+  .confetti i {
+    animation: none;
+  }
+  .spark, .zz { animation: none; opacity: 0.6; }
+  .confetti { display: none; }
+}

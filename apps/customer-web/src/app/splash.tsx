@@ -1,16 +1,18 @@
 "use client";
 
 /**
- * شاشة البداية — شارة القرطاس المبتسم مع الاسم الثنائي وشعار العلامة
- * «خلّك في سيارتك — طلبك يجيك.» ثم تتلاشى وتنكشف الرئيسية.
+ * شاشة البداية الحية — القرطاس المبتسم يدخل ماشياً حاملاً كيس بيكلي
+ * بخطوط سرعته الوردية، فوق فقاعة ليمونية، ثم الاسم الثنائي والشعار
+ * «خلّك في سيارتك — طلبك يجيك.» وتتلاشى لتنكشف الرئيسية.
  * تظهر مرة واحدة لكل جلسة تبويب (sessionStorage) — تحديث الصفحة لا يعيدها.
  */
 import { useEffect, useState } from "react";
-import { QirtasBadge, Wordmark } from "./qirtas";
+import { Wordmark } from "./qirtas";
+import { QirtasLive } from "./qirtas-motion";
 import s from "./splash.module.css";
 
 const KEY = "pk_splash_seen";
-const SHOW_MS = 1400;
+const SHOW_MS = 1750;
 const FADE_MS = 450;
 
 // يُنفَّذ أثناء تحليل HTML قبل الترطيب: يقرر الإظهار قبل أول رسم — لا وميض للمحتوى تحتها
@@ -45,11 +47,13 @@ export default function Splash() {
         aria-hidden="true"
         data-testid="splash"
       >
-        <div className={s.inner}>
-          <div className={s.badge}>
-            <QirtasBadge size={104} />
-          </div>
-          <Wordmark size={34} />
+        <span className={s.blob} />
+        <span className={s.blobTop} />
+        <div className={s.walker}>
+          <QirtasLive pose="walk" carrying lines size={132} />
+        </div>
+        <div className={s.brand}>
+          <Wordmark size={36} />
         </div>
         <p className={s.tagline}>خلّك في سيارتك — طلبك يجيك.</p>
       </div>

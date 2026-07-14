@@ -472,6 +472,13 @@
 .readyCard {
   border-color: var(--pk-lime-500);
 }
+/* القرطاس المتحمس يلوّح بجانب الكيس */
+.readyRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0;
+}
 .readyBagSvg {
   display: block;
   width: 160px;

@@ -1,4 +1,5 @@
-/* شاشة البداية — عاجية منقّطة بشارة القرطاس · كل القيم من tokens.css حصراً */
+/* شاشة البداية الحية — عاجية منقّطة بفقاعات ليمونية والقرطاس الماشي
+   كل القيم من tokens.css حصراً */
 
 .splash {
   position: fixed;
@@ -8,12 +9,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
+  gap: 14px;
   background-color: var(--pk-cloud);
   background-image: var(--pk-dots);
   background-size: var(--pk-dots-size);
   color: var(--pk-ink-900);
   pointer-events: none;
+  overflow: hidden;
 }
 
 /* تُعرض فقط عندما يقرر سكربت الإقلاع ذلك — قبل أول رسم */
@@ -26,43 +28,79 @@
   transition: opacity 450ms var(--pk-ease);
 }
 
-.inner {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  animation: pk-pop 500ms var(--pk-ease) both;
+/* فقاعتان عضويتان ليمونيتان تطفوان بهدوء — روح لوحة العرض */
+.blob {
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  border-radius: 43% 57% 51% 49% / 55% 46% 54% 45%;
+  background: var(--pk-lime-100);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -62%);
+  animation: pk-blob-drift 7s ease-in-out infinite;
+}
+.blobTop {
+  position: absolute;
+  width: 190px;
+  height: 190px;
+  border-radius: 55% 45% 48% 52% / 47% 55% 45% 53%;
+  background: var(--pk-lime-300);
+  opacity: 0.5;
+  top: -60px;
+  inset-inline-end: -50px;
+  animation: pk-blob-drift 9s ease-in-out reverse infinite;
+}
+@keyframes pk-blob-drift {
+  0%, 100% { transform: translate(-50%, -62%) rotate(0deg) scale(1); }
+  50% { transform: translate(-50%, -64%) rotate(4deg) scale(1.04); }
+}
+.blobTop {
+  /* الفقاعة العلوية لا تتمركز — تلغي إزاحة الأولى */
+  animation-name: pk-blob-drift-2;
+}
+@keyframes pk-blob-drift-2 {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(-6deg) scale(1.06); }
 }
 
-/* الشارة تميل ميلان الملصق المرح وتحمل الظل الصلب */
-.badge {
-  display: inline-flex;
-  border-radius: 24px;
-  transform: rotate(var(--pk-sticker-tilt));
-  filter: drop-shadow(var(--pk-pop-sm));
+/* القرطاس يدخل منزلقاً من جهة البداية ثم يواصل مشيته في مكانه */
+.walker {
+  position: relative;
+  z-index: 1;
+  animation: pk-walk-in 700ms var(--pk-ease) both;
+  filter: drop-shadow(3px 3px 0 color-mix(in srgb, var(--pk-ink-900) 18%, transparent));
 }
-
-.tagline {
-  font-family: var(--pk-font-display);
-  font-size: var(--pk-fs-20);
-  font-weight: 700;
-  animation: pk-rise 550ms var(--pk-ease) 200ms both;
-}
-
-@keyframes pk-pop {
+@keyframes pk-walk-in {
   from {
     opacity: 0;
-    transform: scale(0.88);
+    transform: translateX(46px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateX(0);
   }
+}
+
+.brand {
+  position: relative;
+  z-index: 1;
+  animation: pk-rise 550ms var(--pk-ease) 250ms both;
+}
+
+.tagline {
+  position: relative;
+  z-index: 1;
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-20);
+  font-weight: 700;
+  animation: pk-rise 550ms var(--pk-ease) 420ms both;
 }
 
 @keyframes pk-rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -71,8 +109,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .inner,
-  .tagline {
+  .walker,
+  .brand,
+  .tagline,
+  .blob,
+  .blobTop {
     animation: none;
   }
   .out {

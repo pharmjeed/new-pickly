@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, getToken } from "@/lib/api";
 import { GuestGate, IHeart, IPin, IStore, RIYADH, TabBar, statusBadge } from "../shell";
-import { QirtasEmpty } from "../qirtas";
+import { QirtasEmptyLive } from "../qirtas-motion";
 import styles from "../page.module.css";
 
 interface FavoriteBrand {
@@ -81,18 +81,18 @@ export default function FavoritesPage() {
             )}
 
             {favs && favs.length === 0 && (
-              <div className={styles.empty}>
-                <QirtasEmpty mood="sleepy">
+              <div className={`${styles.empty} pk-in`}>
+                <QirtasEmptyLive mood="sleepy">
                   <b>ما فيه مفضلة بعد</b>
                   <p>اضغط القلب في صفحة أي مطعم يعجبك ويظهر هنا</p>
                   <Link href="/restaurants" className={styles.gateBtn}>
                     تصفح المطاعم
                   </Link>
-                </QirtasEmpty>
+                </QirtasEmptyLive>
               </div>
             )}
 
-            {favs?.map((f) => {
+            {favs?.map((f, fi) => {
               const st = f.branch_status ? statusBadge(f.branch_status) : null;
               const card = (
                 <>
@@ -126,7 +126,12 @@ export default function FavoritesPage() {
                 </>
               );
               return (
-                <div key={f.brand_id} className={styles.favRow} data-testid="favorite-row">
+                <div
+                  key={f.brand_id}
+                  className={`${styles.favRow} pk-in`}
+                  style={{ animationDelay: `${Math.min(fi, 7) * 60}ms` }}
+                  data-testid="favorite-row"
+                >
                   {f.branch_id ? (
                     <Link href={`/r/${f.branch_id}`} className={styles.favLink}>
                       {card}

@@ -360,12 +360,13 @@ export default function RestaurantPage() {
           {menu.categories.map((c) => (
             <section key={c.id} id={`cat-${c.id}`} className={styles.catSection}>
               <h2 className={styles.catTitle}>{c.name_ar}</h2>
-              {c.products.map((p) => {
+              {c.products.map((p, pi) => {
                 const customizable = p.modifier_groups.length > 0;
                 return (
                   <div
                     key={p.id}
-                    className={`${styles.pcard} ${!p.is_available ? styles.pcardNa : ""}`}
+                    className={`${styles.pcard} ${!p.is_available ? styles.pcardNa : ""} pk-pop`}
+                    style={{ animationDelay: `${Math.min(pi, 6) * 55}ms` }}
                     data-testid="product-card"
                     role={p.is_available ? "button" : undefined}
                     tabIndex={p.is_available ? 0 : undefined}
@@ -427,9 +428,9 @@ export default function RestaurantPage() {
         </div>
       )}
 
-      {/* ===== شريط السلة العائم ===== */}
+      {/* ===== شريط السلة العائم — key={count} يعيد إطلاق الارتدادة مع كل إضافة ===== */}
       {count > 0 && (
-        <div className={styles.cartBar}>
+        <div className={styles.cartBar} key={count}>
           <button className={styles.cartBtn} data-testid="go-cart" onClick={() => router.push("/checkout")}>
             <span>عرض السلة · {count}</span>
             <span className={styles.cartTotal}>{fmtSar(totalHalalas)}</span>

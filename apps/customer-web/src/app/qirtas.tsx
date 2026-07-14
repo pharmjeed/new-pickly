@@ -67,8 +67,9 @@ function Face({ mood, stroke }: { mood: QirtasMood; stroke: string }) {
   }
 }
 
-/** جسم القرطاس (القاعدة المسنّنة + الغطاء) داخل ميلان ٧° — هندسة الشعار حرفياً */
-function Bag({ mood, stroke, fill }: { mood: QirtasMood; stroke: string; fill: string }) {
+/** جسم القرطاس (القاعدة المسنّنة + الغطاء) داخل ميلان ٧° — هندسة الشعار حرفياً.
+ *  مُصدَّر لطبقة الحركة (qirtas-motion.tsx) كي تبقى الهندسة بمصدر واحد. */
+export function Bag({ mood, stroke, fill }: { mood: QirtasMood; stroke: string; fill: string }) {
   return (
     <g transform="rotate(7 144 124)">
       <path d="M88 84 L116 66 L102 42 Z" fill={fill} stroke={stroke} strokeWidth="7" strokeLinejoin="round" />

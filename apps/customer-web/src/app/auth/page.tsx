@@ -4,7 +4,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, setTokens } from "@/lib/api";
-import { QirtasBadge } from "../qirtas";
+import { QirtasLive } from "../qirtas-motion";
 import s from "./auth.module.css";
 
 const OTP_LEN = 6;
@@ -102,7 +102,8 @@ function AuthFlow() {
               <span className={s.logoLatin}>pickly</span>
               <span className={s.logoAr}>بيكلي</span>
             </div>
-            <QirtasBadge size={72} />
+            {/* القرطاس يلوّح مرحّباً بالداخل — «مرحباً بك!» */}
+            <QirtasLive pose="wave" size={86} title="القرطاس يرحب بك" />
           </div>
 
           <h1 className={s.hero}>

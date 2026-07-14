@@ -8,7 +8,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AppHead, RestaurantCard, TabBar, useCategories, useNearby } from "../shell";
-import { QirtasEmpty } from "../qirtas";
+import { QirtasEmptyLive } from "../qirtas-motion";
 import styles from "../page.module.css";
 
 function RestaurantsList() {
@@ -66,15 +66,15 @@ function RestaurantsList() {
 
             {filtered.length === 0 && (
               <div className={styles.empty}>
-                <QirtasEmpty mood="sad">
+                <QirtasEmptyLive mood="sad">
                   <b>ما فيه فروع قريبة منك الآن</b>
                   <p>بيكلي يتوسع — جرّب من موقع آخر أو عُد لاحقاً</p>
-                </QirtasEmpty>
+                </QirtasEmptyLive>
               </div>
             )}
 
-            {filtered.map((b) => (
-              <RestaurantCard key={b.id} b={b} />
+            {filtered.map((b, i) => (
+              <RestaurantCard key={b.id} b={b} i={i} />
             ))}
           </>
         )}

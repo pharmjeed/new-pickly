@@ -10,6 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
 import { Qirtas, QirtasBadge, QirtasLoader } from "../../qirtas";
+import { ConfettiBurst, HandoffScene, QirtasLive } from "../../qirtas-motion";
 import SpotsMap from "./SpotsMap";
 import LiveNav from "./LiveNav";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
@@ -433,8 +434,11 @@ export default function TrackPage() {
         {/* عدّاد التجهيز التنازلي — من لحظة القبول + «متوسط وقت التجهيز» الذي حدده المطعم (قرار المالك 2026-07-12) */}
         {readyMoment ? (
           /* لحظة الجاهزية — كيس بيكلي المربوط يحلّ محلّ القدر (المفهوم المعتمد 2026-07-13) */
-          <div className={`pk-card ${s.prepCard} ${s.readyCard}`} data-testid="ready-bag">
+          <div className={`pk-card pk-in ${s.prepCard} ${s.readyCard}`} data-testid="ready-bag">
             <p style={{ fontWeight: 700 }}>طلبك جاهز!</p>
+            <div className={s.readyRow}>
+            {/* القرطاس المتحمس يلوّح: «تعال خذه!» — بجانب الكيس المربوط المعتمد */}
+            <QirtasLive pose="wave" mood="excited" size={92} style={{ marginBottom: 8 }} />
             <div className={s.prepRingWrap}>
               <svg viewBox="0 0 160 160" className={s.readyBagSvg} aria-hidden="true">
                 {/* بريق يتلألأ حول الكيس — ليموني ووردي (ألوان الهوية الفنكية) */}
@@ -467,6 +471,7 @@ export default function TrackPage() {
                   <path d="M71 94 l5 5 l10 -12" fill="none" stroke="var(--pk-ink-900)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 </g>
               </svg>
+            </div>
             </div>
             <p className={`pk-muted ${s.prepMsg} ${readyMsgOut ? s.prepMsgOut : ""}`}>
               {READY_MSGS[readyMsgIdx]}
@@ -722,6 +727,13 @@ export default function TrackPage() {
           />
         )}
 
+        {/* مشهد «الموظف متجه إليك» — القرطاس بقبعة التجهيز يمشي بطلبك نحو سيارتك */}
+        {order.order_status === "HANDOFF_IN_PROGRESS" && (
+          <div className="pk-card pk-in" data-testid="handoff-scene" style={{ padding: "14px 10px 6px" }}>
+            <HandoffScene />
+          </div>
+        )}
+
         {/* بطاقة رمز التسليم الكحلية — الرمز ليموني كبير متباعد الأحرف (نموذج hand-code) */}
         {arrived && order.handoff_code && (
           <div className={s.codeCard} data-testid="handoff-code">
@@ -731,13 +743,19 @@ export default function TrackPage() {
         )}
 
         {completed && (
-          <div className="pk-card" data-testid="completed-box" style={{ textAlign: "center" }}>
+          <div
+            className="pk-card pk-in"
+            data-testid="completed-box"
+            style={{ textAlign: "center", position: "relative", overflow: "hidden" }}
+          >
+            {/* كونفيتي الهوية — لحظة «بالعافية!» تستحق مطراً ملوناً */}
+            <ConfettiBurst count={14} />
             <span className="pk-badge ok">تم التسليم ✓</span>
-            {/* P8: التقييم بضغطة — BR-11 (نافذة 7 أيام) · القرطاس الغامز يرافق التقييم */}
+            {/* P8: التقييم بضغطة — BR-11 (نافذة 7 أيام) · القرطاس المحتفل يرافق التقييم */}
             {!reviewDone ? (
               <div style={{ marginTop: 12 }}>
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
-                  <Qirtas mood="wink" size={72} />
+                  <QirtasLive pose="celebrate" mood="excited" size={104} title="القرطاس يحتفل بطلبك" />
                 </div>
                 <div style={{ display: "flex", justifyContent: "center", gap: 8 }} dir="ltr">
                   {[1, 2, 3, 4, 5].map((n) => (
@@ -746,6 +764,7 @@ export default function TrackPage() {
                       type="button"
                       data-testid={`rate-${n}`}
                       aria-label={`${n} من 5`}
+                      className="pk-pop"
                       onClick={() => submitReview(n)}
                       disabled={savingReview}
                       style={{
@@ -754,7 +773,10 @@ export default function TrackPage() {
                         cursor: "pointer",
                         fontSize: 30,
                         lineHeight: 1,
-                        color: n <= hoverStar ? "var(--pk-warn)" : "var(--pk-line)"
+                        color: n <= hoverStar ? "var(--pk-warn)" : "var(--pk-line)",
+                        animationDelay: `${250 + n * 90}ms`,
+                        transition: "transform 0.15s var(--pk-ease), color 0.15s var(--pk-ease)",
+                        transform: n <= hoverStar ? "scale(1.25)" : "scale(1)"
                       }}
                       onMouseEnter={() => setHoverStar(n)}
                       onMouseLeave={() => setHoverStar(0)}
@@ -766,9 +788,12 @@ export default function TrackPage() {
                 <p className="pk-muted" style={{ marginTop: 4 }}>قيّم استلامك بضغطة</p>
               </div>
             ) : (
-              <p className="pk-muted" style={{ marginTop: 8 }} data-testid="review-thanks">
-                شكراً لك — تقييمك يطوّر التجربة 🌟 نرجعك للرئيسية…
-              </p>
+              <div style={{ marginTop: 10 }} data-testid="review-thanks">
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+                  <Qirtas mood="wink" size={64} />
+                </div>
+                <p className="pk-muted">شكراً لك — تقييمك يطوّر التجربة 🌟 نرجعك للرئيسية…</p>
+              </div>
             )}
             <button
               type="button"

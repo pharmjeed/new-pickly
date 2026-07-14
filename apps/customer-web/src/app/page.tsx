@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { AppHead, IStore, TabBar, cuisineIcon, useCategories, useNearby } from "./shell";
-import { QirtasEmpty } from "./qirtas";
+import { QirtasEmptyLive, QirtasLive } from "./qirtas-motion";
 import styles from "./page.module.css";
 
 interface Banner {
@@ -108,7 +108,23 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* بانرات متحركة من السوبر أدمن (A-13) — تحت البحث مباشرة */}
+        {/* بطل العلامة — القرطاس الماشي بكيس بيكلي (روح لوحة العرض) */}
+        <Link href="/restaurants" className={`${styles.hero} pk-in`} data-testid="home-hero">
+          <span className={styles.heroBlob} aria-hidden="true" />
+          <div className={styles.heroTxt}>
+            <b>
+              استلم طلبك
+              <br />
+              <span className={styles.heroPink}>من سيارتك!</span>
+            </b>
+            <span className={styles.heroTag}>طلبك جاهز.. ونحن بانتظارك 🚗</span>
+          </div>
+          <div className={styles.heroArt}>
+            <QirtasLive pose="walk" carrying lines size={96} />
+          </div>
+        </Link>
+
+        {/* بانرات متحركة من السوبر أدمن (A-13) — تحت البطل */}
         <Banners />
 
         {/* تصنيفات المطاعم */}
@@ -122,23 +138,24 @@ export default function HomePage() {
 
         {branches && cats !== null && (
           <>
-            <div className={styles.sech}>
+            <div className={`${styles.sech} pk-in pk-d1`}>
               <h2>التصنيفات</h2>
             </div>
             {cats.length === 0 ? (
               <div className={styles.empty}>
-                <QirtasEmpty mood="sleepy">
+                <QirtasEmptyLive mood="sleepy">
                   <b>ما فيه مطاعم قريبة منك الآن</b>
                   <p>بيكلي يتوسع — جرّب من موقع آخر أو عُد لاحقاً</p>
-                </QirtasEmpty>
+                </QirtasEmptyLive>
               </div>
             ) : (
               <div className={styles.cats} data-testid="home-cats">
-                {cats.map(({ name, count }) => (
+                {cats.map(({ name, count }, i) => (
                   <Link
                     key={name}
                     href={`/restaurants?c=${encodeURIComponent(name)}`}
-                    className={styles.catCard}
+                    className={`${styles.catCard} pk-pop`}
+                    style={{ animationDelay: `${100 + Math.min(i, 8) * 55}ms` }}
                     data-testid="cat-card"
                   >
                     <span className={styles.catIc}>{cuisineIcon(name)}</span>
@@ -150,7 +167,7 @@ export default function HomePage() {
             )}
 
             {branches.length > 0 && (
-              <Link href="/restaurants" className={styles.allBtn} data-testid="all-restaurants">
+              <Link href="/restaurants" className={`${styles.allBtn} pk-in pk-d4`} data-testid="all-restaurants">
                 <IStore size={20} />
                 كل المطاعم القريبة ({branches.length})
               </Link>

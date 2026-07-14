@@ -10,6 +10,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { api, fmtSar, getToken } from "@/lib/api";
 import { Qirtas, QirtasBadge } from "./qirtas";
+import { QirtasLive } from "./qirtas-motion";
 import styles from "./page.module.css";
 
 export interface BranchCard {
@@ -336,7 +337,11 @@ export function AppHead({ locLabel, coords }: { locLabel: string; coords: { lat:
         {loggedIn ? (
           <button
             type="button"
-            className={styles.bell}
+            className={
+              notifs !== null && notifs.unread_count > 0
+                ? `${styles.bell} ${styles.bellRing}`
+                : styles.bell
+            }
             style={{ cursor: "pointer" }}
             onClick={toggleNotifs}
             aria-label="الإشعارات"
@@ -422,10 +427,11 @@ export function AppHead({ locLabel, coords }: { locLabel: string; coords: { lat:
   );
 }
 
-/** التنقل السفلي — التبويبات الخمس فعّالة والتمييز حسب المسار الحالي */
+/** التنقل السفلي — التبويبات الخمس فعّالة، وتبويب «طلباتي» شارة القرطاس المرتفعة (لوحة العرض) */
 export function TabBar() {
   const path = usePathname();
   const cls = (on: boolean) => (on ? `${styles.tab} ${styles.tabOn}` : styles.tab);
+  const ordersOn = path.startsWith("/orders") || path.startsWith("/track");
   return (
     <nav className={styles.tabbar}>
       <Link href="/" className={cls(path === "/" || path.startsWith("/restaurants") || path.startsWith("/r/"))}>
@@ -436,12 +442,10 @@ export function TabBar() {
         <ITag />
         العروض
       </Link>
-      <Link
-        href="/orders"
-        className={cls(path.startsWith("/orders") || path.startsWith("/track"))}
-        data-testid="nav-orders"
-      >
-        <IReceipt />
+      <Link href="/orders" className={cls(ordersOn)} data-testid="nav-orders">
+        <span className={ordersOn ? `${styles.tabQirtas} ${styles.tabQirtasOn}` : styles.tabQirtas}>
+          <QirtasBadge size={34} mood={ordersOn ? "excited" : "happy"} />
+        </span>
         طلباتي
       </Link>
       <Link href="/favorites" className={cls(path.startsWith("/favorites"))} data-testid="nav-favorites">
@@ -456,11 +460,11 @@ export function TabBar() {
   );
 }
 
-/** رأس صفحة داخلية موحّد + دعوة تسجيل الدخول للزائر — تستخدمه صفحات التبويبات */
+/** رأس صفحة داخلية موحّد + دعوة تسجيل الدخول للزائر — القرطاس يلوّح مرحّباً */
 export function GuestGate({ next, message }: { next: string; message: string }) {
   return (
-    <div className={styles.empty}>
-      <QirtasBadge size={72} style={{ marginBottom: 10 }} />
+    <div className={`${styles.empty} pk-in`}>
+      <QirtasLive pose="wave" size={104} style={{ marginBottom: 8 }} />
       <b>سجّل دخولك أولاً</b>
       <p>{message}</p>
       <Link href={`/auth?next=${encodeURIComponent(next)}`} className={styles.gateBtn} data-testid="gate-login">
@@ -470,11 +474,16 @@ export function GuestGate({ next, message }: { next: string; message: string }) 
   );
 }
 
-/** بطاقة مطعم (rcard) — مشتركة بين نتائج التصفح وقائمة المطاعم */
-export function RestaurantCard({ b }: { b: BranchCard }) {
+/** بطاقة مطعم (rcard) — مشتركة بين نتائج التصفح وقائمة المطاعم · i لتدرّج الظهور */
+export function RestaurantCard({ b, i = 0 }: { b: BranchCard; i?: number }) {
   const st = statusBadge(b.status);
   return (
-    <Link href={`/r/${b.id}`} className={styles.rcard} data-testid="branch-card">
+    <Link
+      href={`/r/${b.id}`}
+      className={`${styles.rcard} pk-in`}
+      style={{ animationDelay: `${Math.min(i, 7) * 70}ms` }}
+      data-testid="branch-card"
+    >
       <div className={styles.img}>
         {b.cover_url || b.logo_url ? (
           // eslint-disable-next-line @next/next/no-img-element

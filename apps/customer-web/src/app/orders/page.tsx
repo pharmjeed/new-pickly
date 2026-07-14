@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, fmtSar, getToken } from "@/lib/api";
 import { GuestGate, IStore, TabBar } from "../shell";
-import { QirtasEmpty } from "../qirtas";
+import { QirtasEmptyLive } from "../qirtas-motion";
 import styles from "../page.module.css";
 
 interface OrderSummary {
@@ -149,19 +149,25 @@ export default function OrdersPage() {
             )}
 
             {orders && filtered.length === 0 && (
-              <div className={styles.empty}>
-                <QirtasEmpty mood="sleepy">
+              <div className={`${styles.empty} pk-in`}>
+                <QirtasEmptyLive mood="sleepy">
                   <b>{tab === "active" ? "لا طلبات نشطة" : "لا طلبات هنا"}</b>
                   <p>اطلب من مطعمك المفضل وخلّنا على السيارة</p>
                   <Link href="/restaurants" className={styles.gateBtn}>
                     تصفح المطاعم
                   </Link>
-                </QirtasEmpty>
+                </QirtasEmptyLive>
               </div>
             )}
 
-            {filtered.map((o) => (
-              <Link key={o.id} href={`/track/${o.id}`} className={styles.ordCard} data-testid="order-card">
+            {filtered.map((o, i) => (
+              <Link
+                key={o.id}
+                href={`/track/${o.id}`}
+                className={`${styles.ordCard} pk-in`}
+                style={{ animationDelay: `${Math.min(i, 7) * 60}ms` }}
+                data-testid="order-card"
+              >
                 <div className={styles.ordLogo}>
                   {o.logo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element

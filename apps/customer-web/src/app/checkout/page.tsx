@@ -13,7 +13,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, fmtSar } from "@/lib/api";
-import { Qirtas, QirtasLoader } from "../qirtas";
+import { QirtasLoader } from "../qirtas";
+import { QirtasLive } from "../qirtas-motion";
 import styles from "./checkout.module.css";
 
 /** عدّاد السعر المتحرك — يصعد بسلاسة عند كل إعادة تسعير، ويحترم تفضيل تقليل الحركة */
@@ -814,8 +815,10 @@ export default function CheckoutPage() {
               />
             ))}
           </div>
-          {/* القرطاس المحتفل — لحظة نجاح الدفع (اللون الليموني يؤدي وظيفته) */}
-          <div className={`${styles.bigic} ${styles.bigicPop}`}><Qirtas mood="excited" size={72} /></div>
+          {/* القرطاس المحتفل بذراعيه وقلوبه — لحظة نجاح الدفع */}
+          <div className={styles.bigicPop} style={{ margin: "0 auto" }}>
+            <QirtasLive pose="celebrate" mood="excited" size={118} title="القرطاس يحتفل بطلبك" />
+          </div>
           <h1 className={styles.bigTitle}>يا هلا! طلبك انطلق 🎉</h1>
           <p className={styles.bigSub}>
             {donePickup === "scheduled" ? "محجوز لفترتك بنجاح" : "وصل للمطعم وينتظر القبول"}
@@ -861,8 +864,8 @@ export default function CheckoutPage() {
 
       {/* ===== الحالة الفارغة — السلة بلا عناصر (C-26): القرطاس النعسان ===== */}
       {!loading && isEmpty && !error && (
-        <div className={styles.empty}>
-          <Qirtas mood="sleepy" size={110} style={{ marginBottom: 10 }} />
+        <div className={`${styles.empty} pk-in`}>
+          <QirtasLive pose="sleep" mood="sleepy" size={110} style={{ marginBottom: 10 }} />
           <b className={styles.emptyTitle}>سلتك فاضية</b>
           <p className={styles.emptyText}>لا طلبات حالية — اطلب من متجرك المفضل وخلّنا على السيارة</p>
           <button className={styles.browse} onClick={() => router.push("/")}>

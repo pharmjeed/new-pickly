@@ -914,3 +914,188 @@
   cursor: pointer;
   margin-top: 18px;
 }
+
+/* ============================================================
+   طبقة الحيوية (توجيه المالك 2026-07-14 — روح لوحتي العرض)
+   ============================================================ */
+
+/* ===== بطل الرئيسية: القرطاس الماشي + «استلم طلبك من سيارتك!» ===== */
+.hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  overflow: hidden;
+  background: var(--pk-lime-100);
+  border: var(--pk-b3);
+  border-radius: var(--pk-radius-lg);
+  box-shadow: var(--pk-pop-sm);
+  padding: 16px 16px 8px;
+  color: var(--pk-ink-900);
+  text-decoration: none;
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
+}
+.hero:hover {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--pk-ink-900);
+}
+.heroBlob {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border-radius: 46% 54% 51% 49% / 55% 44% 56% 45%;
+  background: var(--pk-lime-300);
+  opacity: 0.55;
+  bottom: -60px;
+  inset-inline-start: -34px;
+  pointer-events: none;
+}
+.heroTxt {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-bottom: 8px;
+}
+.heroTxt b {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-20);
+  font-weight: 800;
+  line-height: 1.5;
+}
+/* ملصق وردي مائل — «من سيارتك!» كما في لوحة العرض */
+.heroPink {
+  display: inline-block;
+  background: var(--pk-pink-500);
+  color: var(--pk-white);
+  border: 2px solid var(--pk-ink-900);
+  border-radius: 9px;
+  box-shadow: var(--pk-pop-xs);
+  padding: 0 10px;
+  transform: rotate(var(--pk-sticker-tilt));
+  white-space: nowrap;
+}
+.heroTag {
+  font-size: var(--pk-fs-12);
+  color: var(--pk-ink-600);
+  font-weight: 500;
+}
+.heroArt {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  margin-bottom: -4px;
+}
+
+/* ===== الجرس يرن عند وجود غير مقروء ===== */
+.bellRing {
+  animation: pk-bell-ring 3.2s ease-in-out infinite;
+  transform-origin: top center;
+}
+@keyframes pk-bell-ring {
+  0%, 24%, 100% { transform: rotate(0); }
+  4% { transform: rotate(13deg); }
+  9% { transform: rotate(-11deg); }
+  14% { transform: rotate(7deg); }
+  19% { transform: rotate(-4deg); }
+}
+
+/* ===== تبويب «طلباتي»: شارة القرطاس المرتفعة وسط الشريط ===== */
+.tabQirtas {
+  display: inline-flex;
+  margin-top: -20px;
+  border-radius: 12px;
+  background: var(--pk-lime-500);
+  box-shadow: var(--pk-pop-xs);
+  transform: rotate(var(--pk-sticker-tilt));
+  transition: transform var(--pk-dur) var(--pk-ease);
+  line-height: 0;
+}
+.tab:hover .tabQirtas {
+  transform: rotate(var(--pk-sticker-tilt)) translateY(-3px);
+}
+.tabQirtasOn {
+  animation: pk-tab-hop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes pk-tab-hop {
+  0% { transform: rotate(var(--pk-sticker-tilt)) translateY(0) scale(1); }
+  45% { transform: rotate(0deg) translateY(-9px) scale(1.12); }
+  100% { transform: rotate(var(--pk-sticker-tilt)) translateY(0) scale(1); }
+}
+
+/* ===== أيقونة التصنيف تقفز فرحاً عند المرور ===== */
+.catCard:hover .catIc {
+  animation: pk-cat-hop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes pk-cat-hop {
+  0%, 100% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-5px) scale(1.08); }
+}
+
+/* ===== بطاقة المطعم: انغماس + تقريب الغلاف ===== */
+.rcard {
+  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
+}
+.rcard:hover {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--pk-ink-900);
+}
+.imgCover {
+  transition: transform 0.6s var(--pk-ease);
+}
+.rcard:hover .imgCover {
+  transform: scale(1.06);
+}
+
+/* ===== شارة الطلب النشط تنبض بنقطة حية ===== */
+.stChipActive::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pk-success);
+  margin-inline-end: 6px;
+  vertical-align: middle;
+  animation: pk-live-dot 1.5s var(--pk-ease) infinite;
+}
+@keyframes pk-live-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+
+/* ===== شارة العرض الوردية تهتز مرحاً عند المرور ===== */
+.offCard:hover .offBadge {
+  animation: pk-off-wiggle 0.5s ease-in-out;
+}
+@keyframes pk-off-wiggle {
+  0%, 100% { transform: rotate(var(--pk-sticker-tilt)); }
+  25% { transform: rotate(6deg) scale(1.06); }
+  60% { transform: rotate(-7deg); }
+}
+
+/* ===== قلب الحذف ينبض تحذيراً عند المرور ===== */
+.favDel:hover {
+  animation: pk-heart-beat 0.55s ease-in-out;
+}
+@keyframes pk-heart-beat {
+  0%, 100% { transform: scale(1); }
+  30% { transform: scale(1.25); }
+  55% { transform: scale(0.92); }
+  75% { transform: scale(1.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bellRing,
+  .tabQirtasOn,
+  .stChipActive::before {
+    animation: none;
+  }
+  .hero,
+  .rcard,
+  .imgCover {
+    transition: none;
+  }
+}

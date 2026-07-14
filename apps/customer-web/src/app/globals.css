@@ -121,6 +121,38 @@ html, body {
 .pk-loader span:nth-child(2) { width: 72%; animation-delay: 0.2s; opacity: 0.55; }
 .pk-loader span:nth-child(3) { width: 50%; animation-delay: 0.4s; opacity: 0.3; }
 
+/* ============================================================
+   طبقة الحركة العامة (توجيه المالك 2026-07-14: حيوية أكثر)
+   ظهور متدرج + نطّة مرحة + ضغط ملموس — كلها تحترم تقليل الحركة
+   ============================================================ */
+@keyframes pk-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pk-pop-in {
+  from { opacity: 0; transform: scale(0.86); }
+  to { opacity: 1; transform: scale(1); }
+}
+.pk-in { animation: pk-in 0.5s var(--pk-ease) both; }
+.pk-pop { animation: pk-pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+/* تدرّج جاهز — للتأخير الدقيق مرّر animationDelay عبر style */
+.pk-d1 { animation-delay: 0.06s; }
+.pk-d2 { animation-delay: 0.12s; }
+.pk-d3 { animation-delay: 0.18s; }
+.pk-d4 { animation-delay: 0.24s; }
+.pk-d5 { animation-delay: 0.3s; }
+
+/* الضغط الملموس: الزر يغوص تحت الإصبع (الظل الصلب ينطبق) */
+.pk-btn:active:not(:disabled),
+.pk-btn-ghost:active {
+  transform: translate(4px, 4px) scale(0.985);
+  box-shadow: 0 0 0 var(--pk-ink-900);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-in, .pk-pop { animation: none; }
+}
+
 /* شريط حالات الطلب — النشطة زرقاء والمكتملة ليمونية */
 .pk-steps { display: flex; gap: 4px; margin: 12px 0; }
 .pk-steps i { flex: 1; height: 6px; border-radius: 3px; background: var(--pk-cloud-2); border: 1px solid var(--pk-line); }

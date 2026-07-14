@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { api, fmtSar } from "@/lib/api";
 import { TabBar } from "../shell";
-import { QirtasEmpty } from "../qirtas";
+import { QirtasEmptyLive } from "../qirtas-motion";
 import styles from "../page.module.css";
 
 interface OfferCard {
@@ -75,18 +75,23 @@ export default function OffersPage() {
         )}
 
         {offers && offers.length === 0 && (
-          <div className={styles.empty}>
-            <QirtasEmpty mood="sleepy">
+          <div className={`${styles.empty} pk-in`}>
+            <QirtasEmptyLive mood="sleepy">
               <b>لا عروض حالياً</b>
               <p>نضيف كوبونات وعروض المطاعم هنا أولاً بأول — عُد قريباً</p>
-            </QirtasEmpty>
+            </QirtasEmptyLive>
           </div>
         )}
 
-        {offers?.map((o) => {
+        {offers?.map((o, i) => {
           const v = offerValue(o);
           return (
-            <div key={o.id} className={styles.offCard} data-testid="offer-card">
+            <div
+              key={o.id}
+              className={`${styles.offCard} pk-in`}
+              style={{ animationDelay: `${Math.min(i, 7) * 60}ms` }}
+              data-testid="offer-card"
+            >
               <div className={styles.offBadge}>
                 {o.brand_logo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
