@@ -6,6 +6,8 @@ import { transitionOrder } from "../../lib/state-machine.js";
 import { handoffCodeFor } from "../../lib/codes.js";
 import { completeHandoff } from "../pickup/service.js";
 import { payments } from "../orders/service.js";
+import { decryptPlate } from "../../lib/plate-crypto.js";
+import { VEHICLE_COLORS } from "../vehicles/routes.js";
 import { ACTIVE_STATES, JOURNEY_STATES, TAB_WHERE } from "./tab-filter.js";
 
 /**
@@ -19,7 +21,33 @@ function maskPhone(phone: string): string {
   return `${local.slice(0, 3)} *** ${local.slice(-4, -2)}${local.slice(-2)}`;
 }
 
-type OrderForCard = Prisma.OrderGetPayload<{ include: { user: true; scheduled_slot: true } }>;
+type OrderForCard = Prisma.OrderGetPayload<{
+  include: { user: true; scheduled_slot: true; vehicle: true };
+}>;
+
+/** بداية اليوم بتوقيت الرياض (UTC+3 ثابت — لا توقيت صيفي) — حد تصفير الترقيم اليومي */
+function riyadhStartOfDay(now = new Date()): Date {
+  const r = new Date(now.getTime() + 3 * 3600_000);
+  return new Date(Date.UTC(r.getUTCFullYear(), r.getUTCMonth(), r.getUTCDate()) - 3 * 3600_000);
+}
+
+/**
+ * بيانات السيارة المنظّمة للبطاقة — أثناء الطلب النشط فقط (docs/10§3-4):
+ * حروف اللوحة تُفك من التشفير هنا حصراً، وhex اللون من كتالوج السيارات.
+ */
+function vehicleOf(o: OrderForCard, isActive: boolean): BranchOrderCard["vehicle"] {
+  if (!isActive || !o.vehicle) return null;
+  const full = decryptPlate(o.vehicle.plate_encrypted);
+  const [letters, digits] = full?.includes("|") ? full.split("|") : ["", ""];
+  return {
+    make_ar: o.vehicle.make_ar,
+    model_ar: o.vehicle.model_ar,
+    color_ar: o.vehicle.color_ar,
+    color_hex: VEHICLE_COLORS.find((c) => c.name_ar === o.vehicle?.color_ar)?.hex ?? null,
+    plate_letters_ar: letters || null,
+    plate_digits: digits || o.vehicle.plate_short
+  };
+}
 
 function toCard(o: OrderForCard, etaMinutes: number | null, atSpotAt: Date | null = null): BranchOrderCard {
   const status = o.order_status as OrderState;
@@ -31,6 +59,7 @@ function toCard(o: OrderForCard, etaMinutes: number | null, atSpotAt: Date | nul
     customer_first_name: (o.user.full_name ?? "عميل").split(" ")[0] ?? "عميل",
     customer_phone_masked: maskPhone(o.user.phone),
     vehicle_summary: isActive ? o.vehicle_summary : null, // الخصوصية خارج الطلب النشط
+    vehicle: vehicleOf(o, isActive),
     parking_spot: o.parking_spot_label,
     at_spot_at: atSpotAt?.toISOString() ?? null,
     items_count: 0, // يُملأ من العد أدناه
@@ -43,8 +72,22 @@ function toCard(o: OrderForCard, etaMinutes: number | null, atSpotAt: Date | nul
     prep_minutes: o.prep_minutes,
     preparing_at: o.preparing_at?.toISOString() ?? null,
     ready_at: o.ready_at?.toISOString() ?? null,
+    daily_number: null, // يُملأ في list() من ترقيم اليوم
     created_at: o.created_at.toISOString()
   };
+}
+
+/**
+ * ترقيم اليوم التسلسلي للفرع — ترتيب إنشاء طلبات اليوم (بتوقيت الرياض) بثبات:
+ * محسوب لا مخزّن، فيتصفر تلقائياً كل منتصف ليل دون هجرة (قرار المالك 2026-07-14).
+ */
+async function dailyNumbersOf(branch_id: string): Promise<Map<string, number>> {
+  const today = await prisma.order.findMany({
+    where: { branch_id, created_at: { gte: riyadhStartOfDay() } },
+    select: { id: true },
+    orderBy: { created_at: "asc" }
+  });
+  return new Map(today.map((o, i) => [o.id, i + 1]));
 }
 
 export class MerchantOrderService {
@@ -52,12 +95,15 @@ export class MerchantOrderService {
     const tabWhere = TAB_WHERE[tab] ?? { order_status: { in: [...ACTIVE_STATES, "COMPLETED"] } };
     const orders = await prisma.order.findMany({
       where: { branch_id, ...tabWhere },
-      include: { user: true, scheduled_slot: true, _count: { select: { items: true } } },
+      include: { user: true, scheduled_slot: true, vehicle: true, _count: { select: { items: true } } },
       // المجدولة تُرتَّب بموعد فترتها — الأقرب دخولاً للتحضير أولاً (BR-5)
       orderBy:
         tab === "scheduled" ? { scheduled_slot: { slot_start: "asc" } } : { created_at: "desc" },
       take: 100
     });
+
+    // الترقيم اليومي (#N) — دفعة واحدة لكل طلبات اليوم بالفرع
+    const dailyNumbers = await dailyNumbersOf(branch_id);
 
     // «وصل لنقطة الموقف» لكل طلبات الصفحة دفعة واحدة — الموظف يعرف أن العميل عند النقطة
     const atSpotEvents = await prisma.arrivalEvent.findMany({
@@ -74,7 +120,11 @@ export class MerchantOrderService {
         include: { eta_snapshots: { orderBy: { created_at: "desc" }, take: 1 } }
       });
       if (session?.eta_snapshots[0]) eta = Math.round(session.eta_snapshots[0].eta_seconds / 60);
-      cards.push({ ...toCard(o, eta, atSpotByOrder.get(o.id) ?? null), items_count: o._count.items });
+      cards.push({
+        ...toCard(o, eta, atSpotByOrder.get(o.id) ?? null),
+        items_count: o._count.items,
+        daily_number: dailyNumbers.get(o.id) ?? null
+      });
     }
     return cards;
   }
@@ -506,12 +556,17 @@ export class MerchantOrderService {
   private async card(order_id: string): Promise<BranchOrderCard> {
     const o = await prisma.order.findUniqueOrThrow({
       where: { id: order_id },
-      include: { user: true, scheduled_slot: true, _count: { select: { items: true } } }
+      include: { user: true, scheduled_slot: true, vehicle: true, _count: { select: { items: true } } }
     });
     const atSpot = await prisma.arrivalEvent.findFirst({
       where: { order_id, event_type: "reached_parking_spot" },
       select: { created_at: true }
     });
-    return { ...toCard(o, null, atSpot?.created_at ?? null), items_count: o._count.items };
+    const dailyNumbers = await dailyNumbersOf(o.branch_id);
+    return {
+      ...toCard(o, null, atSpot?.created_at ?? null),
+      items_count: o._count.items,
+      daily_number: dailyNumbers.get(o.id) ?? null
+    };
   }
 }

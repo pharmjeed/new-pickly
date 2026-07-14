@@ -42,6 +42,25 @@ export const BranchOrderCardSchema = z.object({
   /** مسار التجهيز الموازي (docs/05§3) — يتقدم ولو كانت order_status في مسار رحلة العميل */
   preparing_at: z.string().datetime().nullable().default(null),
   ready_at: z.string().datetime().nullable().default(null),
+  /** رقم تسلسلي يومي بالفرع (#1، #2...) — يتصفر منتصف الليل بتوقيت الرياض؛ محسوب لا مخزّن (قرار المالك 2026-07-14) */
+  daily_number: z.number().int().nullable().default(null),
+  /**
+   * بيانات السيارة المنظّمة لبطاقة الفرع — أثناء الطلب النشط فقط (docs/10§3-4):
+   * اللوحة السعودية المصغّرة (حروف + أرقام) وشعار الماركة ودائرة اللون (قرار المالك 2026-07-14).
+   */
+  vehicle: z
+    .object({
+      make_ar: z.string().nullable(),
+      model_ar: z.string().nullable(),
+      color_ar: z.string(),
+      /** hex اللون من كتالوج السيارات — لرسم دائرة اللون */
+      color_hex: z.string().nullable(),
+      /** حروف اللوحة السعودية («ح ع ن») — تُفك من التشفير للطلب النشط فقط */
+      plate_letters_ar: z.string().nullable(),
+      plate_digits: z.string()
+    })
+    .nullable()
+    .default(null),
   created_at: z.string().datetime()
 });
 export type BranchOrderCard = z.infer<typeof BranchOrderCardSchema>;

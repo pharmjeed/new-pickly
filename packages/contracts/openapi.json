@@ -8513,6 +8513,60 @@
                         "format": "date-time",
                         "default": null
                       },
+                      "daily_number": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "default": null
+                      },
+                      "vehicle": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "make_ar": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "model_ar": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "color_ar": {
+                            "type": "string"
+                          },
+                          "color_hex": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "plate_letters_ar": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "plate_digits": {
+                            "type": "string"
+                          }
+                        },
+                        "default": null,
+                        "required": [
+                          "make_ar",
+                          "model_ar",
+                          "color_ar",
+                          "color_hex",
+                          "plate_letters_ar",
+                          "plate_digits"
+                        ]
+                      },
                       "created_at": {
                         "type": "string",
                         "format": "date-time"
@@ -8831,6 +8885,60 @@
                       ],
                       "format": "date-time",
                       "default": null
+                    },
+                    "daily_number": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "default": null
+                    },
+                    "vehicle": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "make_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "model_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "color_ar": {
+                          "type": "string"
+                        },
+                        "color_hex": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_letters_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_digits": {
+                          "type": "string"
+                        }
+                      },
+                      "default": null,
+                      "required": [
+                        "make_ar",
+                        "model_ar",
+                        "color_ar",
+                        "color_hex",
+                        "plate_letters_ar",
+                        "plate_digits"
+                      ]
                     },
                     "created_at": {
                       "type": "string",
@@ -9162,6 +9270,60 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "daily_number": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "default": null
+                    },
+                    "vehicle": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "make_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "model_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "color_ar": {
+                          "type": "string"
+                        },
+                        "color_hex": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_letters_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_digits": {
+                          "type": "string"
+                        }
+                      },
+                      "default": null,
+                      "required": [
+                        "make_ar",
+                        "model_ar",
+                        "color_ar",
+                        "color_hex",
+                        "plate_letters_ar",
+                        "plate_digits"
+                      ]
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time"
@@ -9451,6 +9613,60 @@
                       ],
                       "format": "date-time",
                       "default": null
+                    },
+                    "daily_number": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "default": null
+                    },
+                    "vehicle": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "make_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "model_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "color_ar": {
+                          "type": "string"
+                        },
+                        "color_hex": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_letters_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_digits": {
+                          "type": "string"
+                        }
+                      },
+                      "default": null,
+                      "required": [
+                        "make_ar",
+                        "model_ar",
+                        "color_ar",
+                        "color_hex",
+                        "plate_letters_ar",
+                        "plate_digits"
+                      ]
                     },
                     "created_at": {
                       "type": "string",
@@ -9757,6 +9973,60 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "daily_number": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "default": null
+                    },
+                    "vehicle": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "make_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "model_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "color_ar": {
+                          "type": "string"
+                        },
+                        "color_hex": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_letters_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_digits": {
+                          "type": "string"
+                        }
+                      },
+                      "default": null,
+                      "required": [
+                        "make_ar",
+                        "model_ar",
+                        "color_ar",
+                        "color_hex",
+                        "plate_letters_ar",
+                        "plate_digits"
+                      ]
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time"
@@ -10046,6 +10316,60 @@
                       ],
                       "format": "date-time",
                       "default": null
+                    },
+                    "daily_number": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "default": null
+                    },
+                    "vehicle": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "make_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "model_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "color_ar": {
+                          "type": "string"
+                        },
+                        "color_hex": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_letters_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_digits": {
+                          "type": "string"
+                        }
+                      },
+                      "default": null,
+                      "required": [
+                        "make_ar",
+                        "model_ar",
+                        "color_ar",
+                        "color_hex",
+                        "plate_letters_ar",
+                        "plate_digits"
+                      ]
                     },
                     "created_at": {
                       "type": "string",
@@ -10371,6 +10695,60 @@
                       ],
                       "format": "date-time",
                       "default": null
+                    },
+                    "daily_number": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "default": null
+                    },
+                    "vehicle": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "make_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "model_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "color_ar": {
+                          "type": "string"
+                        },
+                        "color_hex": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_letters_ar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "plate_digits": {
+                          "type": "string"
+                        }
+                      },
+                      "default": null,
+                      "required": [
+                        "make_ar",
+                        "model_ar",
+                        "color_ar",
+                        "color_hex",
+                        "plate_letters_ar",
+                        "plate_digits"
+                      ]
                     },
                     "created_at": {
                       "type": "string",

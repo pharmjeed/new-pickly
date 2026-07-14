@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import s from "./board.module.css";
+import { VehicleId, type CardVehicle } from "./vehicle-id";
 
 interface Card {
   id: string;
@@ -19,6 +20,10 @@ interface Card {
   customer_first_name: string;
   customer_phone_masked: string;
   vehicle_summary: string | null;
+  /** هوية السيارة المنظّمة (لوحة/شعار/لون) — أثناء الطلب النشط فقط */
+  vehicle: CardVehicle | null;
+  /** رقم اليوم التسلسلي بالفرع — يتصفر منتصف الليل بتوقيت الرياض */
+  daily_number: number | null;
   parking_spot: string | null;
   /** بلغ العميل نقطة الموقف المثبتة على الخريطة (GPS) — إشارة معلوماتية */
   at_spot_at: string | null;
@@ -484,10 +489,22 @@ export default function BoardPage() {
                 data-testid="order-card"
               >
                 <div className={s.hd}>
-                  <span className={s.oid}>{c.display_code}</span>
+                  {/* الرقم اليومي بارزاً (#N — يتصفر يومياً) والكود الفريد P-XXXX صغيراً تحته */}
+                  {c.daily_number !== null ? (
+                    <div className={s.onum}>
+                      <b className={s.dnum} data-testid="daily-number">#{c.daily_number}</b>
+                      <span className={s.oidSmall}>{c.display_code}</span>
+                    </div>
+                  ) : (
+                    <span className={s.oid}>{c.display_code}</span>
+                  )}
                   <div className={s.grow}>
-                    {/* بطاقة السيارة أكبر عنصر — كتاب الهوية §11 */}
-                    {c.vehicle_summary && <div className={s.vehicle}>{c.vehicle_summary}</div>}
+                    {/* هوية السيارة: شعار + موديل + دائرة اللون + لوحة سعودية مصغّرة — كتاب الهوية §11 */}
+                    {c.vehicle ? (
+                      <VehicleId v={c.vehicle} />
+                    ) : (
+                      c.vehicle_summary && <div className={s.vehicle}>{c.vehicle_summary}</div>
+                    )}
                     <div className={s.meta}>
                       {/* وسم وقت الاستلام — BR-5 و«سأتحرك لاحقاً» (FR-C06) */}
                       {c.pickup_time === "scheduled" && (

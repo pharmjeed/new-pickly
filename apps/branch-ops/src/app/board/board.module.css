@@ -209,6 +209,23 @@
   direction: ltr;
   unicode-bidi: embed;
 }
+/* الرقم اليومي بارزاً + الكود الفريد صغيراً تحته — قرار المالك 2026-07-14 */
+.onum { display: flex; flex-direction: column; align-items: center; gap: 1px; flex-shrink: 0; }
+.dnum {
+  font-family: var(--pk-font-display);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+.oidSmall {
+  font-family: var(--pk-font-mono);
+  font-size: 11.5px;
+  color: var(--pk-gray);
+  direction: ltr;
+  unicode-bidi: embed;
+}
 /* بطاقة السيارة أكبر عنصر — كتاب الهوية §11 (28–40px) */
 .vehicle {
   font-family: var(--pk-font-display);
@@ -216,6 +233,78 @@
   font-weight: 700;
   line-height: 1.3;
 }
+
+/* ===== هوية السيارة: شعار + موديل + لون + لوحة سعودية مصغّرة ===== */
+.vehId { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.makeMark { display: inline-flex; align-items: center; color: var(--pk-ink-900); flex-shrink: 0; }
+.makeTxt {
+  font-family: var(--pk-font-display);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+.vehModel {
+  font-family: var(--pk-font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.colorChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--pk-gray);
+  font-weight: 600;
+}
+.colorDot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--pk-line);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* لوحة سعودية مصغّرة: أرقام | حروف | شريط أزرق SA — كاللوحة الحقيقية */
+.plate {
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--pk-white);
+  border: 2px solid var(--pk-ink-900);
+  border-radius: 6px;
+  overflow: hidden;
+  direction: ltr;
+  unicode-bidi: embed;
+  flex-shrink: 0;
+}
+.plateDigits,
+.plateLetters {
+  font-family: var(--pk-font-mono);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--pk-ink-900);
+  padding: 2px 9px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.plateLetters { border-inline-start: 2px solid var(--pk-ink-900); letter-spacing: 2px; }
+.plateBand {
+  background: #2456a6;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+  padding: 1px 4px;
+}
+.plateBand i { font-style: normal; }
 .meta { font-size: 15px; color: var(--pk-gray); }
 .mono {
   font-family: var(--pk-font-mono);
