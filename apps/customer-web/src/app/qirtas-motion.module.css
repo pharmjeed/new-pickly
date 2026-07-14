@@ -86,6 +86,37 @@
   100% { opacity: 0; transform: translateY(-13px); }
 }
 
+/* ---- مشهد «المطبخ الحي»: غطاء القدر يقفز بالغليان ---- */
+.lidJump {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: m-lid 1.5s ease-in-out infinite;
+}
+@keyframes m-lid {
+  0%, 55%, 100% { transform: translateY(0) rotate(0deg); }
+  62% { transform: translateY(-6px) rotate(-2.5deg); }
+  72% { transform: translateY(-2px) rotate(1.5deg); }
+  82% { transform: translateY(-4px) rotate(0deg); }
+}
+
+/* ---- مشهد «من مقعدك» POV: اقتراب متدرج (يكبر) + لمعة مرآة الرؤية ---- */
+.povApproach {
+  transform-box: view-box;
+  animation: m-pov 4.8s ease-in-out infinite;
+}
+@keyframes m-pov {
+  0%, 100% { transform: scale(0.72); }
+  47%, 53% { transform: scale(1.02); }
+}
+.mirrorGlint {
+  opacity: 0;
+  animation: m-glint 4.8s linear infinite;
+}
+@keyframes m-glint {
+  0%, 40%, 60%, 100% { opacity: 0; }
+  48% { opacity: 0.8; }
+}
+
 /* ---- ملصق «طلبك جاهز»: الكيس المربوط الكبير يتمايل حول قاعدته ---- */
 .bagSway {
   transform-box: fill-box;
@@ -231,6 +262,7 @@
   .legA, .legB,
   .armSwing, .armWave, .armUp, .armServe,
   .handBag, .handBagCalm, .bagSway,
+  .lidJump, .povApproach, .mirrorGlint,
   .line1, .line2, .line3,
   .road, .car, .pinDrop,
   .spin, .driveCar, .driveRider, .roadBack,

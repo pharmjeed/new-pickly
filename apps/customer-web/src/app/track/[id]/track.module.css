@@ -336,30 +336,71 @@
   50% { transform: scale(1.03); opacity: 1; }
 }
 
-/* العدّاد الكبير تحت شريط الحالات */
-.cookTimer {
+/* ===== بطل التجهيز — مشهد «المطبخ الحي» و«تذكرة المطبخ» (خيار ١-ب المعتمد 2026-07-15) ===== */
+.kitchenCard {
+  position: relative;
+  background: var(--pk-surface);
+  border: var(--pk-b3);
+  border-radius: 18px;
+  box-shadow: var(--pk-pop-sm);
+  margin: 32px 0 12px; /* متسع فوق البطاقة للتذكرة المدبّسة البارزة */
+  overflow: visible;
+}
+/* تذكرة العدّاد الورقية — مدبّسة بدبوس وردي، بميلان الملصقات وحافة سفلية مسنّنة */
+.ticket {
+  position: absolute;
+  top: -14px;
+  inset-inline-start: 12px;
+  width: 120px;
+  background: var(--pk-surface);
+  border: var(--pk-b2);
+  box-shadow: var(--pk-pop-xs);
+  padding: 8px 10px 13px;
   text-align: center;
-  margin: 2px 0 14px;
+  transform: rotate(-2.4deg);
+  transform-origin: 50% 0;
+  animation: pk-ticket 3.4s ease-in-out infinite;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), 94% 100%, 88% calc(100% - 7px), 82% 100%, 76% calc(100% - 7px), 70% 100%, 64% calc(100% - 7px), 58% 100%, 52% calc(100% - 7px), 46% 100%, 40% calc(100% - 7px), 34% 100%, 28% calc(100% - 7px), 22% 100%, 16% calc(100% - 7px), 10% 100%, 4% calc(100% - 7px), 0 100%);
 }
-.cookLead {
+@keyframes pk-ticket {
+  0%, 100% { transform: rotate(-2.4deg); }
+  50% { transform: rotate(-0.6deg); }
+}
+.ticketPin {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--pk-pink-500);
+  border: 2px solid var(--pk-ink-900);
+  margin: -13px auto 4px;
+}
+.ticketTitle {
+  font-size: 11px;
   font-weight: 700;
-  margin-bottom: 2px;
 }
-.cookDigits {
+.ticketDigits {
   display: block;
   font-family: var(--pk-font-mono);
   font-variant-numeric: tabular-nums;
   direction: ltr;
-  font-size: 40px;
+  font-size: 24px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.35;
   color: var(--pk-blue-500);
 }
-.cookDigitsOver {
+.ticketDigitsOver {
   font-family: var(--pk-font-display);
   direction: rtl;
-  font-size: var(--pk-fs-24);
+  font-size: var(--pk-fs-15);
   color: var(--pk-warn);
+}
+.ticketSub {
+  font-size: 10px;
+  color: var(--pk-text-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticket { animation: none; }
 }
 
 /* شريط الطمأنة — حبة دائرية بجرس يهتز كل بضع ثوان */

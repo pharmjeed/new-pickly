@@ -10,7 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
 import { Qirtas, QirtasLoader } from "../../qirtas";
-import { ConfettiBurst, HandoffScene, QirtasCook, QirtasLive, ReadyScene, SentScene } from "../../qirtas-motion";
+import { ConfettiBurst, KitchenScene, PovScene, QirtasLive, ReadyScene, SentScene } from "../../qirtas-motion";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
 import s from "./track.module.css";
 
@@ -70,7 +70,7 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   CUSTOMER_ON_THE_WAY: { step: "READY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
   CUSTOMER_NEARBY: { step: "READY", title: "اقتربت!", sub: "تم رصد اقترابك — أبلغنا المطعم تلقائيًا" },
   CUSTOMER_ARRIVED: { step: "READY", title: "وصلت؟ إحنا عرفنا.", sub: "الموظف في طريقه إليك" },
-  HANDOFF_IN_PROGRESS: { step: "READY", title: "الموظف متجه إليك", sub: "يحمل طلبك ويسلّمه لسيارتك" },
+  HANDOFF_IN_PROGRESS: { step: "READY", title: "الموظف متجه إليك", sub: "من مقعدك — يقترب الآن" },
   COMPLETED: { step: "COMPLETED", title: "بالعافية!", sub: "قيّم استلامك بضغطة" },
   CANCELLED: { step: "SUBMITTED", title: "أُلغي الطلب", sub: "مبلغك يرجع لك حسب السياسة" }
 };
@@ -533,24 +533,26 @@ export default function TrackPage() {
             const ss = Math.floor((shown % 60_000) / 1000);
             return (
               <div data-testid="prep-expected">
-                {/* بطل التجهيز — القرطاس الطبّاخ داخل الدائرة الليمونية (مرجع لوحة العرض) */}
-                <div className={s.stateHero}>
-                  <QirtasCook size={172} title="المطعم يجهّز طلبك الآن" />
+                {/* بطل التجهيز — مشهد «المطبخ الحي» و«تذكرة المطبخ» بالعدّاد الحي (خيار ١-ب المعتمد 2026-07-15) */}
+                <div className={s.kitchenCard}>
+                  <KitchenScene title="المطعم يجهّز طلبك الآن" />
+                  <div className={s.ticket}>
+                    <span className={s.ticketPin} />
+                    <p className={s.ticketTitle}>تذكرة المطبخ</p>
+                    <b className={`${s.ticketDigits} ${overtime ? s.ticketDigitsOver : ""}`} data-testid="prep-countdown">
+                      {overtime ? "جاهز تقريباً" : `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`}
+                    </b>
+                    <p className={s.ticketSub}>{overtime ? "اللمسات الأخيرة" : "حتى الجهوز تقريباً"}</p>
+                  </div>
                 </div>
 
                 {/* شريط الحالات تحت البطل — كما في اللوحة */}
                 {stepsBar}
 
-                {/* العدّاد الكبير — من لحظة القبول + «متوسط وقت التجهيز» الذي حدده المطعم */}
-                <div className={s.cookTimer}>
-                  <p className={s.cookLead}>{overtime ? "اللمسات الأخيرة على طلبك" : "طلبك سيكون جاهزاً خلال"}</p>
-                  <b className={`${s.cookDigits} ${overtime ? s.cookDigitsOver : ""}`} data-testid="prep-countdown">
-                    {overtime ? "جاهز تقريباً" : `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`}
-                  </b>
-                  <p className={`pk-muted ${s.prepMsg} ${prepMsgOut ? s.prepMsgOut : ""}`}>
-                    {overtime ? "أطول من المتوقع بقليل — يوشك على الجهوز" : PREP_MSGS[prepMsgIdx]}
-                  </p>
-                </div>
+                {/* الرسالة المطمئنة المتبدلة */}
+                <p className={`pk-muted ${s.prepMsg} ${prepMsgOut ? s.prepMsgOut : ""}`} style={{ textAlign: "center", margin: "2px 0 14px" }}>
+                  {overtime ? "أطول من المتوقع بقليل — يوشك على الجهوز" : PREP_MSGS[prepMsgIdx]}
+                </p>
 
                 {/* شريط الطمأنة — جرس يهتز: الإشعار يصل فور الجاهزية */}
                 <div className={s.notifyPill}>
@@ -605,10 +607,11 @@ export default function TrackPage() {
           />
         )}
 
-        {/* مشهد «الموظف متجه إليك» — القرطاس بقبعة التجهيز يمشي بطلبك نحو سيارتك */}
+        {/* مشهد «من مقعدك» POV — القرطاس يقترب من زجاجك الأمامي بطلبك (خيار ٥-ج المعتمد 2026-07-15) */}
         {order.order_status === "HANDOFF_IN_PROGRESS" && (
-          <div className="pk-card pk-in" data-testid="handoff-scene" style={{ padding: "14px 10px 6px" }}>
-            <HandoffScene />
+          <div className="pk-card pk-in" data-testid="handoff-scene" style={{ padding: "12px 10px 10px" }}>
+            <PovScene />
+            <p className="pk-muted" style={{ textAlign: "center", marginTop: 8 }}>افتح شباكك — استلامك بالعافية</p>
           </div>
         )}
 
