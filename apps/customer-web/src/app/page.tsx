@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { AppHead, IStore, TabBar, cuisineIcon, useCategories, useNearby } from "./shell";
-import { QirtasEmptyLive, QirtasLive } from "./qirtas-motion";
+import { QirtasDrive, QirtasEmptyLive } from "./qirtas-motion";
 import styles from "./page.module.css";
 
 interface Banner {
@@ -108,7 +108,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* بطل العلامة — القرطاس الماشي بكيس بيكلي (روح لوحة العرض) */}
+        {/* بطل العلامة — القرطاس راكب سيارته منطلقاً لاستلام طلبه (روح لوحة العرض) */}
         <Link href="/restaurants" className={`${styles.hero} pk-in`} data-testid="home-hero">
           <span className={styles.heroBlob} aria-hidden="true" />
           <div className={styles.heroTxt}>
@@ -120,7 +120,7 @@ export default function HomePage() {
             <span className={styles.heroTag}>طلبك جاهز.. ونحن بانتظارك 🚗</span>
           </div>
           <div className={styles.heroArt}>
-            <QirtasLive pose="walk" carrying lines size={96} />
+            <QirtasDrive size={84} />
           </div>
         </Link>
 

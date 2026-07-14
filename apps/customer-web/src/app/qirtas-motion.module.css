@@ -110,6 +110,37 @@
   50% { transform: translateY(-5px); }
 }
 
+/* ---- مشهد «القرطاس راكب سيارته»: عجلات تدور وارتجاج طريق ودخان يتلاشى ---- */
+.spin { transform-box: view-box; animation: m-spin 0.55s linear infinite; }
+@keyframes m-spin {
+  to { transform: rotate(360deg); }
+}
+.driveCar { transform-box: view-box; animation: m-drive-car 0.58s ease-in-out infinite; }
+@keyframes m-drive-car {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.2px); }
+}
+/* الراكب يقفز بطور متأخر قليلاً عن السيارة — إحساس المطبّ */
+.driveRider { transform-box: view-box; animation: m-drive-rider 0.58s ease-in-out -0.12s infinite; }
+@keyframes m-drive-rider {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3.4px); }
+}
+/* الأرض تنزلق للخلف (عكس اتجاه السيارة) */
+.roadBack { animation: m-road-back 0.7s linear infinite; }
+@keyframes m-road-back {
+  to { stroke-dashoffset: 26; }
+}
+.puff { transform-box: view-box; opacity: 0; }
+.puff1 { animation: m-puff 1.4s ease-out infinite; }
+.puff2 { animation: m-puff 1.4s ease-out 0.45s infinite; }
+.puff3 { animation: m-puff 1.4s ease-out 0.9s infinite; }
+@keyframes m-puff {
+  0% { opacity: 0; transform: translate(6px, 2px) scale(0.35); }
+  22% { opacity: 0.4; }
+  100% { opacity: 0; transform: translate(-22px, -10px) scale(1.3); }
+}
+
 /* ---- كونفيتي الاحتفال (غلاف مطلق فوق البطاقة) ---- */
 .confetti {
   position: absolute;
@@ -141,9 +172,11 @@
   .handBag,
   .line1, .line2, .line3,
   .road, .car, .pinDrop,
+  .spin, .driveCar, .driveRider, .roadBack,
   .confetti i {
     animation: none;
   }
   .spark, .zz { animation: none; opacity: 0.6; }
+  .puff1, .puff2, .puff3 { animation: none; opacity: 0.25; }
   .confetti { display: none; }
 }

@@ -5,6 +5,7 @@
  * الأشكال:
  *  - <QirtasLive/>      القرطاس بأطراف حية: يمشي/يلوّح/يحتفل/ينام — بقبعة موظف وكيس بيكلي اختياريين
  *  - <QirtasEmptyLive/> حالة فارغة حية (بديل QirtasEmpty الساكن): نعسان بـZzz عائمة أو متأسف
+ *  - <QirtasDrive/>     القرطاس راكب سيارته المكشوفة: عجلات تدور وارتجاج طريق ودخان عادم — بطل الرئيسية
  *  - <HandoffScene/>    مشهد «الموظف متجه إليك»: قرطاس بقبعة يحمل الكيس نحو سيارة العميل
  *  - <ConfettiBurst/>   كونفيتي احتفالي بألوان الهوية — غلاف مطلق فوق أي بطاقة
  *
@@ -286,6 +287,128 @@ export function QirtasEmptyLive({
       <QirtasLive mood={mood} pose={pose} size={size} />
       {children}
     </div>
+  );
+}
+
+/** عجلة سيارة تدور — إطار كحلي بجنط ليموني وسبوكات تلفّ مع الحركة */
+function Wheel({ cx, cy }: { cx: number; cy: number }) {
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r="16" fill={INK} />
+      <circle cx={cx} cy={cy} r="9.5" fill={INK} stroke={LIME} strokeWidth="3" />
+      <g className={m.spin} style={{ transformOrigin: `${cx}px ${cy}px` }}>
+        <path
+          d={`M${cx - 6.5} ${cy} H${cx + 6.5} M${cx} ${cy - 6.5} V${cy + 6.5}`}
+          fill="none"
+          stroke={LIME}
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+      </g>
+      <circle cx={cx} cy={cy} r="2.4" fill={LIME} />
+    </g>
+  );
+}
+
+/**
+ * القرطاس راكب سيارته — الكاركتر يقود سيارة كحلية مكشوفة نحو طلبه:
+ * عجلات تدور، وجسم يرتجّ بمطبّات الطريق (الراكب بطور متأخر ليحسّ بالقفزة)،
+ * وأرض منقّطة تنزلق للخلف، ودخان عادم يتلاشى، وخطوط السرعة الوردية الثلاثة
+ * على يسار الحركة كقاعدة الهوية — بطل بانر «استلم طلبك من سيارتك!».
+ */
+export function QirtasDrive({
+  size = 84,
+  mood = "excited",
+  title,
+  style
+}: {
+  size?: number;
+  mood?: QirtasMood;
+  title?: string;
+  style?: CSSProperties;
+}) {
+  const VB_W = 264;
+  const VB_H = 152;
+  return (
+    <svg
+      width={Math.round((size * VB_W) / VB_H)}
+      height={size}
+      viewBox="0 0 264 152"
+      role={title ? "img" : undefined}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+      style={{ overflow: "visible", ...style }}
+    >
+      {/* خطوط السرعة الوردية خلف السيارة */}
+      <g fill={PINK}>
+        <rect className={m.line1} x="4" y="84" width="38" height="9" />
+        <rect className={m.line2} x="4" y="105" width="30" height="9" opacity="0.55" />
+        <rect className={m.line3} x="4" y="126" width="22" height="9" opacity="0.3" />
+      </g>
+
+      {/* الأرض المنقّطة تنزلق للخلف — إحساس الانطلاق */}
+      <line
+        className={m.roadBack}
+        x1="10"
+        y1="148"
+        x2="258"
+        y2="148"
+        stroke={INK}
+        strokeOpacity="0.35"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeDasharray="2 11"
+      />
+
+      {/* دخان العادم يتضخم ويتلاشى خلف السيارة */}
+      <g fill={INK}>
+        <circle className={`${m.puff} ${m.puff1}`} cx="38" cy="108" r="7" style={{ transformOrigin: "38px 108px" }} />
+        <circle className={`${m.puff} ${m.puff2}`} cx="33" cy="120" r="5.5" style={{ transformOrigin: "33px 120px" }} />
+        <circle className={`${m.puff} ${m.puff3}`} cx="40" cy="116" r="4.5" style={{ transformOrigin: "40px 116px" }} />
+      </g>
+
+      {/* العجلتان تدوران في مكانهما والجسم يرتجّ فوقهما */}
+      <Wheel cx={98} cy={129} />
+      <Wheel cx={212} cy={129} />
+
+      {/* جسم السيارة والراكب — يرتجّان بمطبات الطريق */}
+      <g className={m.driveCar}>
+        {/* القرطاس الراكب: نصفه الأسفل خلف باب السيارة */}
+        <g className={m.driveRider}>
+          <g className={`${m.arm} ${m.armWave}`} style={{ transformOrigin: "131.5px 57px" }}>
+            <path d="M131.5 57 q-11.5 -5 -15.5 -15.5" fill="none" stroke={INK} strokeWidth="5.4" strokeLinecap="round" />
+          </g>
+          <g transform="translate(72 -20) scale(0.6)">
+            <Bag mood={mood} stroke={INK} fill="var(--pk-white, #FFFFFF)" />
+          </g>
+          {/* الذراع الأمامية ممسكة بالمقود */}
+          <path d="M192 58 q7 6 5 11" fill="none" stroke={INK} strokeWidth="5.4" strokeLinecap="round" />
+        </g>
+
+        {/* المقود — خلف حافة الزجاج الأمامي */}
+        <path d="M200 81 L198.5 74" stroke={INK} strokeWidth="4" strokeLinecap="round" />
+        <circle cx="198" cy="68" r="6.5" fill="none" stroke={INK} strokeWidth="4" />
+
+        {/* جسم السيارة الكحلي المكشوف — بشريط ليموني وإضاءات الهوية */}
+        <path
+          d="M48 116 L48 92 Q48 80 66 80 L204 80 Q232 80 244 92 Q252 101 253 112 Q253 124 241 124 L60 124 Q48 124 48 116 Z"
+          fill={INK}
+        />
+        <rect x="62" y="99" width="74" height="8" rx="4" fill={LIME} opacity="0.9" />
+        <rect x="43" y="87" width="7" height="13" rx="3" fill={PINK} />
+        <circle cx="250" cy="98" r="5" fill={LIME} stroke={INK} strokeWidth="3" />
+
+        {/* الزجاج الأمامي المائل للخلف */}
+        <path
+          d="M208 83 L198 50 L212 50 L222 83 Z"
+          fill="var(--pk-white, #FFFFFF)"
+          opacity="0.92"
+          stroke={INK}
+          strokeWidth="4"
+          strokeLinejoin="round"
+        />
+      </g>
+    </svg>
   );
 }
 
