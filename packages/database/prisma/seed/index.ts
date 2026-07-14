@@ -193,6 +193,13 @@ async function seedSystemDefaults() {
   }
 }
 
+// صور الأطعمة التجريبية — روابط خارجية من CDN عام (كما بانرات CMS)؛ كل معرّف
+// تم التحقق منه بصرياً أنه يطابق الصنف. في الإنتاج يرفعها التاجر من بوابته (M-10).
+const foodImg = (id: string, w = 640): string =>
+  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=70`;
+const logoImg = (id: string): string =>
+  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=240&h=240&q=70`;
+
 type MenuSpec = Array<{
   category: string;
   products: Array<{
@@ -200,6 +207,7 @@ type MenuSpec = Array<{
     desc?: string;
     price: number; // ر.س — تُحول هللات
     calories?: number;
+    img?: string;
     groups?: Array<{
       name: string;
       min: number;
@@ -213,6 +221,8 @@ async function seedMerchant(spec: {
   name_ar: string;
   brand_ar: string;
   cuisine: string;
+  logo_url: string;
+  cover_url: string;
   ownerPhone: string;
   ownerName: string;
   branches: Array<{ name: string; code: string; city: string; address: string; lat: number; lng: number; spots: string[] }>;
@@ -230,6 +240,11 @@ async function seedMerchant(spec: {
       name_ar: spec.brand_ar,
       cuisine_ar: spec.cuisine
     }
+  });
+  // تُحدَّث دائماً — إعادة الـseed ترجع صور العرض الموحدة ولو بدّلها أحد أثناء التجربة
+  await prisma.brand.update({
+    where: { id: brand.id },
+    data: { logo_url: spec.logo_url, cover_url: spec.cover_url }
   });
 
   // المالك — حساب مستخدم + دور
@@ -376,6 +391,21 @@ async function seedMerchant(spec: {
         }
       });
 
+      // صورة الصنف (تظهر في بطاقة المنتج C-23 وورقة التخصيص C-25 وبوابة التاجر)
+      if (p.img) {
+        const image = await prisma.productImage.findFirst({
+          where: { product_id: product.id },
+          orderBy: { sort: "asc" }
+        });
+        if (!image) {
+          await prisma.productImage.create({
+            data: { product_id: product.id, file_url: p.img, sort: 0 }
+          });
+        } else if (image.file_url !== p.img) {
+          await prisma.productImage.update({ where: { id: image.id }, data: { file_url: p.img } });
+        }
+      }
+
       for (const g of p.groups ?? []) {
         let group = await prisma.modifierGroup.findFirst({
           where: { name_ar: g.name, products: { some: { product_id: product.id } } }
@@ -503,6 +533,8 @@ async function main() {
     name_ar: "شركة بيست برجر للتجارة",
     brand_ar: "بيست برجر",
     cuisine: "برجر",
+    logo_url: logoImg("1568901346375-23c9450c58cd"),
+    cover_url: foodImg("1571091718767-18b5b1457add", 900),
     ownerPhone: "+966520000001",
     ownerName: "عبدالله الحربي",
     branches: [
@@ -514,35 +546,35 @@ async function main() {
       {
         category: "برجر",
         products: [
-          { name: "بيست برجر كلاسيك", desc: "لحم واجيو مشوي على الفحم مع صوصنا الخاص", price: 32, calories: 620, groups: [
+          { name: "بيست برجر كلاسيك", desc: "لحم واجيو مشوي على الفحم مع صوصنا الخاص", price: 32, calories: 620, img: foodImg("1568901346375-23c9450c58cd"), groups: [
             { name: "الحجم", min: 1, max: 1, modifiers: [["عادي", 0], ["دبل", 12]] },
             { name: "إضافات", min: 0, max: 4, modifiers: [["جبن إضافي", 4], ["بصل مكرمل", 3], ["حلبينو", 2], ["بيكون بقري", 6]] }
           ] },
-          { name: "برجر الدجاج المقرمش", desc: "صدر دجاج مقرمش مع كول سلو", price: 28, calories: 540, groups: [
+          { name: "برجر الدجاج المقرمش", desc: "صدر دجاج مقرمش مع كول سلو", price: 28, calories: 540, img: foodImg("1615297928064-24977384d0da"), groups: [
             { name: "الحدة", min: 1, max: 1, modifiers: [["عادي", 0], ["حار", 0], ["حار جداً", 0]] }
           ] },
-          { name: "برجر الفطر والجبن", desc: "فطر سوتيه وجبن سويسري ذائب", price: 35, calories: 680 },
-          { name: "سموكي برجر", desc: "صوص باربكيو مدخن وحلقات بصل مقلية", price: 37, calories: 720 }
+          { name: "برجر الفطر والجبن", desc: "فطر سوتيه وجبن سويسري ذائب", price: 35, calories: 680, img: foodImg("1550547660-d9450f859349") },
+          { name: "سموكي برجر", desc: "صوص باربكيو مدخن وحلقات بصل مقلية", price: 37, calories: 720, img: foodImg("1553979459-d2229ba7433b") }
         ]
       },
       {
         category: "أطباق جانبية",
         products: [
-          { name: "بطاطس بيست", desc: "مقلية طازجة مع ملح البحر", price: 12, calories: 380, groups: [
+          { name: "بطاطس بيست", desc: "مقلية طازجة مع ملح البحر", price: 12, calories: 380, img: foodImg("1573080496219-bb080dd4f877"), groups: [
             { name: "الحجم", min: 1, max: 1, modifiers: [["وسط", 0], ["كبير", 5]] },
             { name: "الصوص", min: 0, max: 2, modifiers: [["جبنة", 4], ["ثوم", 3], ["باربكيو", 3]] }
           ] },
-          { name: "حلقات البصل", price: 14, calories: 410 },
-          { name: "تشيكن تندر (4 قطع)", price: 22, calories: 460 }
+          { name: "حلقات البصل", price: 14, calories: 410, img: foodImg("1639024471283-03518883512d") },
+          { name: "تشيكن تندر (4 قطع)", price: 22, calories: 460, img: foodImg("1562967914-608f82629710") }
         ]
       },
       {
         category: "مشروبات",
         products: [
-          { name: "بيبسي", price: 7, calories: 150, groups: [{ name: "الحجم", min: 1, max: 1, modifiers: [["عادي", 0], ["كبير", 3]] }] },
-          { name: "عصير برتقال طازج", price: 14, calories: 120 },
-          { name: "ماء", price: 3, calories: 0 },
-          { name: "ميلك شيك فانيلا", price: 18, calories: 520 }
+          { name: "بيبسي", price: 7, calories: 150, img: foodImg("1581636625402-29b2a704ef13"), groups: [{ name: "الحجم", min: 1, max: 1, modifiers: [["عادي", 0], ["كبير", 3]] }] },
+          { name: "عصير برتقال طازج", price: 14, calories: 120, img: foodImg("1600271886742-f049cd451bba") },
+          { name: "ماء", price: 3, calories: 0, img: foodImg("1548839140-29a749e1cf4d") },
+          { name: "ميلك شيك فانيلا", price: 18, calories: 520, img: foodImg("1579954115545-a95591f28bfc") }
         ]
       }
     ]
@@ -553,6 +585,8 @@ async function main() {
     name_ar: "مؤسسة الديوان للأغذية",
     brand_ar: "شاورما الديوان",
     cuisine: "شاورما",
+    logo_url: logoImg("1633321702518-7feccafb94d5"),
+    cover_url: foodImg("1662116765994-1e4200c43589", 900),
     ownerPhone: "+966520000002",
     ownerName: "خالد القحطاني",
     branches: [
@@ -564,29 +598,29 @@ async function main() {
       {
         category: "شاورما",
         products: [
-          { name: "شاورما دجاج عربي", desc: "خبز صاج مع ثومية الديوان", price: 9, calories: 320, groups: [
+          { name: "شاورما دجاج عربي", desc: "خبز صاج مع ثومية الديوان", price: 9, calories: 320, img: foodImg("1529006557810-274b9b2fc783"), groups: [
             { name: "الإضافات", min: 0, max: 3, modifiers: [["بطاطس داخل الساندويتش", 2], ["جبن", 3], ["ثومية إضافية", 1]] }
           ] },
-          { name: "شاورما لحم عربي", desc: "لحم بلدي متبل على السيخ", price: 12, calories: 380 },
-          { name: "صحن شاورما دجاج", desc: "مع بطاطس وثومية ومخلل", price: 24, calories: 650 },
-          { name: "صحن شاورما لحم", price: 29, calories: 700 },
-          { name: "شاورما بوكس عائلي", desc: "8 ساندويتشات + بطاطس عائلي + مشروبات", price: 75, calories: 2800 }
+          { name: "شاورما لحم عربي", desc: "لحم بلدي متبل على السيخ", price: 12, calories: 380, img: foodImg("1633321702518-7feccafb94d5") },
+          { name: "صحن شاورما دجاج", desc: "مع بطاطس وثومية ومخلل", price: 24, calories: 650, img: foodImg("1561651823-34feb02250e4") },
+          { name: "صحن شاورما لحم", price: 29, calories: 700, img: foodImg("1603360946369-dc9bb6258143") },
+          { name: "شاورما بوكس عائلي", desc: "8 ساندويتشات + بطاطس عائلي + مشروبات", price: 75, calories: 2800, img: foodImg("1544025162-d76694265947") }
         ]
       },
       {
         category: "مقبلات",
         products: [
-          { name: "بطاطس", price: 8, calories: 350 },
-          { name: "حمص بالطحينة", price: 10, calories: 210 },
-          { name: "تبولة", price: 12, calories: 150 }
+          { name: "بطاطس", price: 8, calories: 350, img: foodImg("1541592106381-b31e9677c0e5") },
+          { name: "حمص بالطحينة", price: 10, calories: 210, img: foodImg("1637949385162-e416fb15b2ce") },
+          { name: "تبولة", price: 12, calories: 150, img: foodImg("1512621776951-a57141f2eefd") }
         ]
       },
       {
         category: "مشروبات",
         products: [
-          { name: "عيران", price: 5, calories: 90 },
-          { name: "ليمون نعناع", price: 10, calories: 130 },
-          { name: "مشروب غازي", price: 6, calories: 150 }
+          { name: "عيران", price: 5, calories: 90, img: foodImg("1550583724-b2692b85b150") },
+          { name: "ليمون نعناع", price: 10, calories: 130, img: foodImg("1575596510825-f748919a2bf7") },
+          { name: "مشروب غازي", price: 6, calories: 150, img: foodImg("1554866585-cd94860890b7") }
         ]
       }
     ]
@@ -597,6 +631,8 @@ async function main() {
     name_ar: "شركة سحابة للمشروبات",
     brand_ar: "قهوة سحابة",
     cuisine: "مقهى",
+    logo_url: logoImg("1572442388796-11668a67e53d"),
+    cover_url: foodImg("1495474472287-4d71bcdd2085", 900),
     ownerPhone: "+966520000003",
     ownerName: "ريم العنزي",
     branches: [
@@ -608,33 +644,33 @@ async function main() {
       {
         category: "قهوة ساخنة",
         products: [
-          { name: "لاتيه", price: 16, calories: 190, groups: [
+          { name: "لاتيه", price: 16, calories: 190, img: foodImg("1541167760496-1628856ab772"), groups: [
             { name: "الحجم", min: 1, max: 1, modifiers: [["وسط", 0], ["كبير", 4]] },
             { name: "الحليب", min: 0, max: 1, modifiers: [["شوفان", 4], ["لوز", 4], ["خالي اللاكتوز", 3]] },
             { name: "نكهة", min: 0, max: 2, modifiers: [["فانيلا", 3], ["كراميل", 3], ["بندق", 3]] }
           ] },
-          { name: "كابتشينو", price: 15, calories: 160 },
-          { name: "فلات وايت", price: 17, calories: 170 },
-          { name: "قهوة اليوم", price: 10, calories: 5 },
-          { name: "V60", desc: "محاصيل مختصة تُخمّر عند الطلب", price: 22, calories: 5 }
+          { name: "كابتشينو", price: 15, calories: 160, img: foodImg("1572442388796-11668a67e53d") },
+          { name: "فلات وايت", price: 17, calories: 170, img: foodImg("1510591509098-f4fdc6d0ff04") },
+          { name: "قهوة اليوم", price: 10, calories: 5, img: foodImg("1522992319-0365e5f11656") },
+          { name: "V60", desc: "محاصيل مختصة تُخمّر عند الطلب", price: 22, calories: 5, img: foodImg("1497935586351-b67a49e012bf") }
         ]
       },
       {
         category: "قهوة باردة",
         products: [
-          { name: "آيس لاتيه", price: 18, calories: 180, groups: [
+          { name: "آيس لاتيه", price: 18, calories: 180, img: foodImg("1517959105821-eaf2591984ca"), groups: [
             { name: "الحليب", min: 0, max: 1, modifiers: [["شوفان", 4], ["لوز", 4]] }
           ] },
-          { name: "آيس سبانش لاتيه", price: 21, calories: 260 },
-          { name: "كولد برو", price: 20, calories: 10 }
+          { name: "آيس سبانش لاتيه", price: 21, calories: 260, img: foodImg("1461023058943-07fcbe16d735") },
+          { name: "كولد برو", price: 20, calories: 10, img: foodImg("1521302080334-4bebac2763a6") }
         ]
       },
       {
         category: "حلى وسناك",
         products: [
-          { name: "كوكيز شوكولاتة", price: 12, calories: 420 },
-          { name: "كرواسون زعتر", price: 14, calories: 380 },
-          { name: "سان سبستيان (قطعة)", price: 24, calories: 450 }
+          { name: "كوكيز شوكولاتة", price: 12, calories: 420, img: foodImg("1499636136210-6f4ee915583e") },
+          { name: "كرواسون زعتر", price: 14, calories: 380, img: foodImg("1555507036-ab1f4038808a") },
+          { name: "سان سبستيان (قطعة)", price: 24, calories: 450, img: foodImg("1533134242443-d4fd215305ad") }
         ]
       }
     ]
