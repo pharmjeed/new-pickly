@@ -10,7 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
 import { Qirtas, QirtasBadge, QirtasLoader } from "../../qirtas";
-import { ConfettiBurst, HandoffScene, QirtasCook, QirtasLive } from "../../qirtas-motion";
+import { ConfettiBurst, HandoffScene, QirtasCook, QirtasLive, ReadyScene } from "../../qirtas-motion";
 import SpotsMap from "./SpotsMap";
 import LiveNav from "./LiveNav";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
@@ -369,6 +369,9 @@ export default function TrackPage() {
     : baseView;
   const stepIdx = STEPS.indexOf(view.step);
   const completed = order.order_status === "COMPLETED";
+  // صفحة «جاهز للاستلام» الهادئة (قبل الانطلاق) — بطل الدائرة الليمونية على نمط لوحة التجهيز؛
+  // أثناء الرحلة/التسليم تكفي البطاقة المضغوطة كي تبقى الخريطة والرمز في الصدارة
+  const readyHeroOn = readyMoment && ["READY", "CUSTOMER_NOTIFIED"].includes(order.order_status);
   // صدق شريط الخطوات: «قيد التجهيز» و«جاهز» تُعلَّمان بحقائق التجهيز لا بموقع الرحلة
   const stepDone = (i: number): boolean => {
     if (completed) return true;
@@ -419,8 +422,8 @@ export default function TrackPage() {
       <main className="pk-wrap" style={{ paddingBottom: 92 }}>
         <p className="pk-mono pk-muted" data-testid="order-code" style={{ marginBottom: 4 }}>{order.display_code}</p>
 
-        {/* شريط الحالات في أعلى الصفحة — عدا حالة التجهيز حيث ينزل تحت البطل */}
-        {!prepCountdownOn && stepsBar}
+        {/* شريط الحالات في أعلى الصفحة — عدا صفحات بطل الدائرة (تجهيز/جاهز/تسليم) حيث ينزل تحته */}
+        {!prepCountdownOn && !readyHeroOn && !completed && stepsBar}
 
         {/* نبضة «تم رصد وصولك» — القرطاس المتحمس داخل البطاقة الليمونية (لحظة الوصول) */}
         {order.order_status === "CUSTOMER_ARRIVED" && !arrivedBeforeReady && (
@@ -439,7 +442,7 @@ export default function TrackPage() {
           </div>
         )}
 
-        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting || prepCountdownOn ? "center" : undefined }}>
+        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting || prepCountdownOn || readyHeroOn || completed ? "center" : undefined }}>
           {view.title}
         </h1>
         {isWaiting ? (
@@ -448,55 +451,38 @@ export default function TrackPage() {
           /* حالة التجهيز: اسم المطعم تحت العنوان مباشرة (مرجع لوحة العرض) */
           <p className="pk-muted" style={{ marginBottom: 4, textAlign: "center" }}>من {order.brand_name_ar}</p>
         ) : (
-          <p className="pk-muted" style={{ marginBottom: 16 }}>{view.sub}</p>
+          <p className="pk-muted" style={{ marginBottom: 16, textAlign: readyHeroOn || completed ? "center" : undefined }}>{view.sub}</p>
         )}
 
         {/* عدّاد التجهيز التنازلي — من لحظة القبول + «متوسط وقت التجهيز» الذي حدده المطعم (قرار المالك 2026-07-12) */}
         {readyMoment ? (
-          /* لحظة الجاهزية — كيس بيكلي المربوط يحلّ محلّ القدر (المفهوم المعتمد 2026-07-13) */
-          <div className={`pk-card pk-in ${s.prepCard} ${s.readyCard}`} data-testid="ready-bag">
-            <p style={{ fontWeight: 700 }}>طلبك جاهز!</p>
-            <div className={s.readyRow}>
-            {/* القرطاس المتحمس يلوّح: «تعال خذه!» — بجانب الكيس المربوط المعتمد */}
-            <QirtasLive pose="wave" mood="excited" size={92} style={{ marginBottom: 8 }} />
-            <div className={s.prepRingWrap}>
-              <svg viewBox="0 0 160 160" className={s.readyBagSvg} aria-hidden="true">
-                {/* بريق يتلألأ حول الكيس — ليموني ووردي (ألوان الهوية الفنكية) */}
-                {!reduceMotion && (
-                  <g className={s.bagSparks}>
-                    <path d="M124 44 l2.4 5.2 l5.2 2.4 l-5.2 2.4 l-2.4 5.2 l-2.4 -5.2 l-5.2 -2.4 l5.2 -2.4 Z" fill="var(--pk-pink-500)">
-                      <animate attributeName="opacity" values="0;1;0" dur="2.2s" begin="0s" repeatCount="indefinite" />
-                      <animateTransform attributeName="transform" type="scale" values="0.6;1;0.6" additive="sum" dur="2.2s" begin="0s" repeatCount="indefinite" />
-                    </path>
-                    <circle cx="30" cy="58" r="3" fill="var(--pk-lime-500)">
-                      <animate attributeName="opacity" values="0;1;0" dur="2.4s" begin="0.6s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx="34" cy="98" r="2.4" fill="var(--pk-lime-300)">
-                      <animate attributeName="opacity" values="0;1;0" dur="2s" begin="1.1s" repeatCount="indefinite" />
-                    </circle>
-                  </g>
-                )}
+          readyHeroOn ? (
+            /* صفحة «جاهز للاستلام» — بطل الدائرة: ملصق الكيس المربوط والقرطاس الملوّح (نمط لوحة التجهيز) */
+            <div data-testid="ready-bag">
+              <div className={`${s.stateHero} ${s.stateHeroMid}`}>
+                <ReadyScene size={150} title="طلبك جاهز — الكيس مربوط باسمك" />
+              </div>
 
-                {/* الكيس يتمايل فرحاً حول قاعدته */}
-                <g className={s.bagBody}>
-                  {/* المقبض المربوط بعقدة */}
-                  <path d="M62 56 q18 -30 36 0" fill="none" stroke="var(--pk-ink-900)" strokeWidth="5" strokeLinecap="round" />
-                  <path d="M74 40 q6 -9 12 0" fill="none" stroke="var(--pk-lime-500)" strokeWidth="4" strokeLinecap="round" />
-                  {/* جسم الكيس */}
-                  <path d="M50 58 h60 l6 62 a10 10 0 0 1 -10 11 H54 a10 10 0 0 1 -10 -11 Z" fill="var(--pk-ink-700)" stroke="var(--pk-ink-900)" strokeWidth="2" />
-                  {/* طية علوية */}
-                  <path d="M50 58 h60 l1.4 12 H48.6 Z" fill="var(--pk-ink-900)" />
-                  {/* شارة بيكلي بعلامة صح */}
-                  <rect x="62" y="82" width="36" height="24" rx="6" fill="var(--pk-lime-500)" />
-                  <path d="M71 94 l5 5 l10 -12" fill="none" stroke="var(--pk-ink-900)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                </g>
-              </svg>
+              {/* شريط الحالات تحت البطل — كما في اللوحة */}
+              {stepsBar}
+
+              <p
+                className={`pk-muted ${s.prepMsg} ${readyMsgOut ? s.prepMsgOut : ""}`}
+                style={{ textAlign: "center", marginBottom: 14 }}
+              >
+                {READY_MSGS[readyMsgIdx]}
+              </p>
             </div>
+          ) : (
+            /* لحظة الجاهزية أثناء الرحلة/الوصول — البطاقة المضغوطة بالملصق نفسه مصغّراً */
+            <div className={`pk-card pk-in ${s.prepCard} ${s.readyCard}`} data-testid="ready-bag">
+              <p style={{ fontWeight: 700 }}>طلبك جاهز!</p>
+              <ReadyScene size={118} style={{ display: "block", margin: "6px auto 2px" }} />
+              <p className={`pk-muted ${s.prepMsg} ${readyMsgOut ? s.prepMsgOut : ""}`}>
+                {READY_MSGS[readyMsgIdx]}
+              </p>
             </div>
-            <p className={`pk-muted ${s.prepMsg} ${readyMsgOut ? s.prepMsgOut : ""}`}>
-              {READY_MSGS[readyMsgIdx]}
-            </p>
-          </div>
+          )
         ) : arrivedBeforeReady && order.prep_minutes !== null && order.accepted_at ? (
           (() => {
             // عدّاد «على وشك» بعد الوصول المبكر — نفس مرساة القبول ومتوسط وقت التجهيز، معروضاً كحلقة تتقلص مع الوقت
@@ -557,7 +543,7 @@ export default function TrackPage() {
             return (
               <div data-testid="prep-expected">
                 {/* بطل التجهيز — القرطاس الطبّاخ داخل الدائرة الليمونية (مرجع لوحة العرض) */}
-                <div className={s.cookHero}>
+                <div className={s.stateHero}>
                   <QirtasCook size={172} title="المطعم يجهّز طلبك الآن" />
                 </div>
 
@@ -687,20 +673,25 @@ export default function TrackPage() {
         )}
 
         {completed && (
-          <div
-            className="pk-card pk-in"
-            data-testid="completed-box"
-            style={{ textAlign: "center", position: "relative", overflow: "hidden" }}
-          >
-            {/* كونفيتي الهوية — لحظة «بالعافية!» تستحق مطراً ملوناً */}
-            <ConfettiBurst count={14} />
+          <>
+            {/* صفحة «تم التسليم» — بطل الدائرة: القرطاس يحتفل بكيسه تحت كونفيتي الهوية */}
+            <div className={s.stateHero} data-testid="completed-hero">
+              <ConfettiBurst count={14} />
+              <QirtasLive pose="celebrate" carrying mood="excited" size={150} title="القرطاس يحتفل بتسليم طلبك" />
+            </div>
+
+            {/* شريط الحالات تحت البطل — كما في اللوحة */}
+            {stepsBar}
+
+            <div
+              className="pk-card pk-in"
+              data-testid="completed-box"
+              style={{ textAlign: "center" }}
+            >
             <span className="pk-badge ok">تم التسليم ✓</span>
-            {/* P8: التقييم بضغطة — BR-11 (نافذة 7 أيام) · القرطاس المحتفل يرافق التقييم */}
+            {/* P8: التقييم بضغطة — BR-11 (نافذة 7 أيام) */}
             {!reviewDone ? (
               <div style={{ marginTop: 12 }}>
-                <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
-                  <QirtasLive pose="celebrate" mood="excited" size={104} title="القرطاس يحتفل بطلبك" />
-                </div>
                 <div style={{ display: "flex", justifyContent: "center", gap: 8 }} dir="ltr">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button
@@ -748,7 +739,8 @@ export default function TrackPage() {
             >
               العودة للرئيسية
             </button>
-          </div>
+            </div>
+          </>
         )}
 
         {/* التنقل السفلي — يبقى متاحاً أثناء التتبع للتنقل في التطبيق */}

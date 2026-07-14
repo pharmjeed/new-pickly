@@ -329,14 +329,10 @@
   margin-bottom: 12px;
   padding: 18px 16px 14px;
 }
-.prepRingWrap {
-  position: relative;
-  width: 160px;
-  height: 160px;
-  margin: 4px auto 2px;
-}
-/* ===== حالة «جاري تجهيز طلبك» — البطل والدائرة الليمونية (مرجع لوحة العرض) ===== */
-.cookHero {
+/* ===== بطل الدائرة الليمونية — نمط موحّد لصفحات الحالة الثلاث:
+   «جاري التجهيز» و«جاهز للاستلام» و«تم التسليم» (مرجع لوحة العرض)؛
+   الملصق المتحرك داخل الدائرة يتبدّل بحسب الحالة ===== */
+.stateHero {
   position: relative;
   width: 252px;
   height: 252px;
@@ -349,8 +345,13 @@
   justify-content: center;
   padding-bottom: 22px;
 }
+/* مشهد الجاهزية أوسع من واقفٍ واحد — نوسّطه عمودياً كي لا يخرج عن قوس الدائرة */
+.stateHeroMid {
+  align-items: center;
+  padding-bottom: 0;
+}
 /* حلقة ليمونية خارجية تتنفس حول الدائرة */
-.cookHero::after {
+.stateHero::after {
   content: "";
   position: absolute;
   inset: -13px;
@@ -418,7 +419,7 @@
   12% { transform: rotate(6deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cookHero::after,
+  .stateHero::after,
   .bellIcon {
     animation: none;
   }
@@ -479,35 +480,9 @@
   margin-top: 2px;
 }
 
-/* ===== لحظة الجاهزية — كيس بيكلي المربوط يحلّ محلّ القدر ===== */
+/* ===== لحظة الجاهزية أثناء الرحلة/التسليم — بطاقة الكيس المضغوطة (ReadyScene مصغّراً) ===== */
 .readyCard {
   border-color: var(--pk-lime-500);
-}
-/* القرطاس المتحمس يلوّح بجانب الكيس */
-.readyRow {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 0;
-}
-.readyBagSvg {
-  display: block;
-  width: 160px;
-  height: 160px;
-  overflow: visible;
-}
-/* الكيس يتمايل حول قاعدته فرحاً */
-.bagBody {
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  animation: pk-bag-sway 2.6s var(--pk-ease) infinite;
-}
-@keyframes pk-bag-sway {
-  0%, 100% { transform: rotate(-3.5deg); }
-  50%      { transform: rotate(3.5deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .bagBody { animation: none; }
 }
 
 /* ===== زر «الاتجاه للمطعم» ===== */

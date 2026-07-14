@@ -5,6 +5,7 @@
  * الأشكال:
  *  - <QirtasLive/>      القرطاس بأطراف حية: يمشي/يلوّح/يحتفل/ينام — بقبعة موظف وكيس بيكلي اختياريين
  *  - <QirtasCook/>      القرطاس الطبّاخ: مريلة ليمونية، يقدّم برجراً يتصاعد بخاره — بطل «جاري تجهيز طلبك»
+ *  - <ReadyScene/>      ملصق «طلبك جاهز»: الكيس المربوط الكبير يتمايل والقرطاس يلوّح بجانبه «تعال خذه!»
  *  - <QirtasEmptyLive/> حالة فارغة حية (بديل QirtasEmpty الساكن): نعسان بـZzz عائمة أو متأسف
  *  - <QirtasDrive/>     القرطاس راكب سيارته المكشوفة: عجلات تدور وارتجاج طريق ودخان عادم — بطل الرئيسية
  *  - <HandoffScene/>    مشهد «الموظف متجه إليك»: قرطاس بقبعة يحمل الكيس نحو سيارة العميل
@@ -356,6 +357,68 @@ export function QirtasCook({
           <LimbPath d="M200 130 q17 13 15 33" />
         </g>
         <HandBag swing={m.handBagCalm} />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * ملصق «طلبك جاهز» — بطل صفحة «جاهز للاستلام»:
+ * كيس بيكلي المربوط الكبير بشارة الصح يتمايل حول قاعدته فرحاً،
+ * والقرطاس المتحمس يلوّح بجانبه «تعال خذه!» — ببريق ليموني ووردي يتلألأ.
+ */
+export function ReadyScene({
+  size = 150,
+  title,
+  style
+}: {
+  size?: number;
+  title?: string;
+  style?: CSSProperties;
+}) {
+  const VB_W = 340;
+  const VB_H = 230;
+  const star = "M7 0 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z";
+  const heart = "M0 4 C0 1 4 -1.5 6 1.5 C8 -1.5 12 1 12 4 C12 8 6 12.5 6 12.5 C6 12.5 0 8 0 4 Z";
+  return (
+    <svg
+      width={Math.round((size * VB_W) / VB_H)}
+      height={size}
+      viewBox="0 0 340 230"
+      role={title ? "img" : undefined}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+      style={{ overflow: "visible", ...style }}
+    >
+      {/* بريق يتلألأ حول الكيس — ليموني ووردي (ألوان الهوية الفنكية) */}
+      <g transform="translate(150 52)">
+        <path className={`${m.spark} ${m.spark1}`} d={star} fill={PINK} />
+      </g>
+      <g transform="translate(24 84)">
+        <path className={`${m.spark} ${m.spark2}`} d={star} fill={LIME} stroke={INK} strokeWidth="1.5" />
+      </g>
+      <g transform="translate(148 140) scale(0.8)">
+        <path className={`${m.spark} ${m.spark3}`} d={heart} fill={PINK} />
+      </g>
+      <g transform="translate(58 28) scale(0.8)">
+        <path className={`${m.spark} ${m.spark4}`} d={star} fill={PINK} />
+      </g>
+
+      {/* الكيس المربوط بعقدة وشارة الصح — يتمايل حول قاعدته فرحاً */}
+      <g className={m.bagSway}>
+        <g transform="translate(-14 15) scale(1.35)">
+          <path d="M62 56 q18 -30 36 0" fill="none" stroke={INK} strokeWidth="5" strokeLinecap="round" />
+          <path d="M74 40 q6 -9 12 0" fill="none" stroke={LIME} strokeWidth="4" strokeLinecap="round" />
+          <path d="M50 58 h60 l6 62 a10 10 0 0 1 -10 11 H54 a10 10 0 0 1 -10 -11 Z" fill={INK700} stroke={INK} strokeWidth="2" />
+          <path d="M50 58 h60 l1.4 12 H48.6 Z" fill={INK} />
+          <rect x="62" y="82" width="36" height="24" rx="6" fill={LIME} />
+          <path d="M71 94 l5 5 l10 -12" fill="none" stroke={INK} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+      </g>
+
+      {/* القرطاس المتحمس يلوّح: «تعال خذه!» */}
+      <g transform="translate(120 16) scale(0.78)">
+        <QirtasFigure mood="excited" pose="wave" />
       </g>
     </svg>
   );
