@@ -11,8 +11,6 @@ import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
 import { Qirtas, QirtasBadge, QirtasLoader } from "../../qirtas";
 import { ConfettiBurst, HandoffScene, QirtasCook, QirtasLive, ReadyScene } from "../../qirtas-motion";
-import SpotsMap from "./SpotsMap";
-import LiveNav from "./LiveNav";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
 import s from "./track.module.css";
 
@@ -78,7 +76,6 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
 };
 
 const DRIVE_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
-const ARRIVED_STATES = ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"];
 /** الحالات التي يُتاح فيها تأكيد «وصلت» — من قبول المطعم وحتى الطريق (نراقب الموقع فيها فقط) */
 const ARRIVABLE_STATES = [
   "MERCHANT_ACCEPTED",
@@ -155,10 +152,8 @@ export default function TrackPage() {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // وضع الملاحة الحيّة داخل التطبيق (نمط أوبر/كريم)
-  const [navOpen, setNavOpen] = useState(false);
 
-  // نقطة الالتقاء التي حدّدها الفرع — مصدر الدبوس على الخريطة (لا اختيار موقف من العميل)
+  // نقطة الالتقاء التي حدّدها الفرع — وجهة زر «الاتجاهات» (لا اختيار موقف من العميل)
   const [branchSpots, setBranchSpots] = useState<BranchSpot[] | null>(null);
 
   // نقطة الالتقاء التي حدّدها الفرع
@@ -381,7 +376,6 @@ export default function TrackPage() {
     return true;
   };
   const driveMode = DRIVE_STATES.includes(order.order_status);
-  const arrived = ARRIVED_STATES.includes(order.order_status);
   const canStart = ["MERCHANT_ACCEPTED", "PREPARING", "READY", "CUSTOMER_NOTIFIED"].includes(order.order_status);
   // «وصلت» متاح من القبول وحتى الوصول — بلا زر «انطلقت الآن»: الخادم يفتح جلسة يدوية تلقائياً (J10)
   const canArrive = canStart || driveMode;
@@ -581,79 +575,28 @@ export default function TrackPage() {
         ) : null}
 
         {/*
-         * نقطة الالتقاء — النقطة التي ثبتها الفرع: أول نقطة بإحداثيات مثبتة على الخريطة،
-         * وإلا موقع الفرع نفسه. العميل يتّجه إليها والخريطة تؤكد وصوله (بلا اختيار موقف).
+         * نقطة الالتقاء — النقطة التي ثبتها الفرع بإحداثيات، وإلا موقع الفرع نفسه.
+         * التوجيه عبر خرائط قوقل مباشرة (حُذفت الخريطة الداخلية بقرار المالك 2026-07-15: غير عملية).
          */}
-        {(() => {
-          // نقطة الالتقاء مضمونة دائماً: موقف مثبّت بإحداثيات إن وُجد، وإلا موقع الفرع نفسه
-          const meetingSpot = branchSpots?.find((sp) => sp.lat !== null && sp.lng !== null) ?? null;
-          const destLat = meetingSpot?.lat ?? order.branch_lat;
-          const destLng = meetingSpot?.lng ?? order.branch_lng;
-          const destLabel = meetingSpot?.label ?? order.brand_name_ar;
-          return (
-            <>
-              {/* الخريطة/الملاحة تختفيان فور تأكيد الوصول — يحلّ محلّهما عدّاد «على وشك» (المعتمد 2026-07-13) */}
-              {!arrived &&
-                (navOpen ? (
-                  /* الملاحة الحيّة تحلّ محلّ الخريطة في مكانها وبحجمها نفسه — بلا تكبير ملء الشاشة */
-                  <LiveNav
-                    inline
-                    target={{ lat: destLat, lng: destLng, label: destLabel }}
-                    onClose={() => setNavOpen(false)}
-                  />
-                ) : (
-                  /* خريطة تفاعلية: نقطة الالتقاء 🏁 + موقع العميل الحيّ + مسار الطريق — كله داخل التطبيق */
-                  (canStart || driveMode) && (
-                    <SpotsMap
-                      target={{ lat: destLat, lng: destLng, label: destLabel }}
-                      me={coords}
-                      radiusM={order.arrival_radius_m}
-                    />
-                  )
-                ))}
-
-              {/* زر الملاحة الحيّة داخل التطبيق (نمط أوبر/كريم) — خريطة تتبعك + توجيه صوتي */}
-              {(canStart || driveMode) && !navOpen && (
-                <button
-                  type="button"
-                  className={s.mapsBtn}
-                  data-testid="start-live-nav"
-                  onClick={() => setNavOpen(true)}
-                >
-                  <IconNav />
-                  ابدأ الملاحة إلى نقطة الالتقاء
-                  <span className={s.mapsBtnHint}>ملاحة صوتية داخل التطبيق — بلا خروج</span>
-                </button>
-              )}
-
-              {/* رابط اختياري صغير لمن يفضّل خرائط قوقل (ملاحة خارجية) */}
-              {(canStart || driveMode) && (
-                <a
-                  data-testid="maps-directions"
-                  href={`${navUrl(destLat, destLng)}&travelmode=driving`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    justifyContent: "center",
-                    width: "100%",
-                    fontSize: 13,
-                    color: "var(--pk-text-2)",
-                    textDecoration: "underline",
-                    padding: "8px 0",
-                    marginBottom: 8
-                  }}
-                >
-                  <IconNav size={14} />
-                  أو افتح خرائط قوقل ↗
-                </a>
-              )}
-
-            </>
-          );
-        })()}
+        {(canStart || driveMode) &&
+          (() => {
+            const meetingSpot = branchSpots?.find((sp) => sp.lat !== null && sp.lng !== null) ?? null;
+            const destLat = meetingSpot?.lat ?? order.branch_lat;
+            const destLng = meetingSpot?.lng ?? order.branch_lng;
+            return (
+              <a
+                className={s.mapsBtn}
+                data-testid="maps-directions"
+                href={`${navUrl(destLat, destLng)}&travelmode=driving`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <IconNav />
+                التوجيه إلى المطعم
+                <span className={s.mapsBtnHint}>يفتح خرائط قوقل بالاتجاهات</span>
+              </a>
+            );
+          })()}
 
         {canArrive && (
           <ArriveSwipe
