@@ -402,8 +402,7 @@ export default function BoardPage() {
           </>
         ) : (
           <>
-            ⏱ يتبقى <b className={s.mono} data-testid="prep-countdown">{mmss(Math.floor(leftMs / 1000))}</b> — المتوقع{" "}
-            <span className={s.mono}>{c.prep_minutes}</span> د
+            ⏱ يتبقى <b className={s.mono} data-testid="prep-countdown">{mmss(Math.floor(leftMs / 1000))}</b>
           </>
         )}
       </span>

@@ -215,7 +215,7 @@ export default function KdsPage() {
       </span>
     ) : (
       <span className={s.mod} data-testid="kds-prep-avg">
-        ⏱ يتبقى <span className={s.mono}>{mmss(Math.floor(leftMs / 1000))}</span> من {c.prep_minutes} د
+        ⏱ يتبقى <span className={s.mono}>{mmss(Math.floor(leftMs / 1000))}</span>
       </span>
     );
   };
