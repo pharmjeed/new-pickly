@@ -1,10 +1,12 @@
 "use client";
 
 /**
- * B-03: لوحة التشغيل الجامعة (design/branch/B-03.html) — التبويبات = الحالات،
- * القبول/الرفض على البطاقة، عداد قبول BR-1، الترتيب حسب زمن الوصول (docs/21§1).
- * «وصلوا» ليست تبويباً بل عمود جانبي دائم الظهور (BR-9): الفرع يعمل على «جاهزة»
- * ويرى الواصلين في اللحظة نفسها — والتسليم كله من العمود.
+ * B-03: لوحة التشغيل الجامعة (design/branch/B-03.html) — دمج التبويبات النشطة
+ * (جديدة + قيد التحضير + جاهزة + الواصلون) في تبويب واحد «التشغيل» بقرار المالك 2026-07-14:
+ * البطاقة لا تنتقل بين تبويبات — حالتها وأزرارها تتغيّر في مكانها، والقبول/الجاهز/التسليم
+ * كلها بضغطة على نفس البطاقة. الوصول يظهر **على البطاقة نفسها** (شارة + وميض + صوت) بدل
+ * العمود الجانبي «وصلوا» — يلغي فصل BR-9 السابق بموافقة المالك الصريحة.
+ * «مجدولة» و«مكتملة» تبقيان تبويبين منفصلين (قبل التشغيل / أرشيف بعده).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -38,10 +40,11 @@ interface Card {
 
 /** رحلة العميل قبل الوصول — التجهيز يستمر موازياً لها بالحقائق (preparing_at/ready_at) */
 const EN_ROUTE = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
+/** العميل وصل فعلياً (قابل للتسليم متى جهز) — تُبرزه البطاقة بشارة ووميض */
+const ARRIVED = ["CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"];
 /**
- * رحلة موازية للتجهيز: في الطريق أو وصل أو بدأ تسليمه. تظهر البطاقة في عمود تجهيزها
- * بحقيقة الجاهزية (ready_at) — إعلان الوصول لا يزيح الطلب عن «قيد التحضير»/«جاهزة»
- * (مفصول تماماً عن حالة الفرع — قرار المالك). التسليم كله من العمود الجانبي «وصلوا».
+ * رحلة موازية للتجهيز: في الطريق أو وصل أو بدأ تسليمه. البطاقة تحمل زرها بحقيقة
+ * الجاهزية (ready_at) — إعلان الوصول لا يزيح الطلب، بل يضيف عليه شارة الوصول والتسليم.
  */
 const JOURNEY_PARALLEL = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY", "CUSTOMER_ARRIVED", "HANDOFF_IN_PROGRESS"];
 
@@ -65,16 +68,18 @@ interface OrderDetails {
   vehicle_summary: string | null;
 }
 
-// «وصلوا» ليست هنا عمداً — عمود جانبي دائم لا تبويب يحجب «جاهزة»
+/**
+ * «التشغيل» تبويب جامع يدمج النشطة (جديدة/قيد التحضير/جاهزة/واصلون) في قائمة واحدة —
+ * يُجلب من tabs الثلاثة (new/preparing/ready) التي تقسّم كل الحالات النشطة بلا تداخل.
+ * المجدولة والمكتملة تبقيان تبويبين مستقلين.
+ */
 const TABS = [
   ["scheduled", "مجدولة"],
-  ["new", "جديدة"],
-  ["preparing", "قيد التحضير"],
-  ["ready", "جاهزة"],
+  ["active", "التشغيل"],
   ["completed", "مكتملة"]
 ] as const;
 
-/** BR-5: عتبة «الموعد اقترب» — شريط تنبيه + نغمتان قبل دخول المجدول قائمة «جديدة» */
+/** BR-5: عتبة «الموعد اقترب» — شريط تنبيه + نغمتان قبل دخول المجدول قائمة «التشغيل» */
 const SCHED_SOON_MS = 30 * 60_000;
 
 function cardState(status: string): string {
@@ -122,12 +127,10 @@ function Badge() {
 export default function BoardPage() {
   const router = useRouter();
   const [branchId, setBranchId] = useState<string | null>(null);
-  const [tab, setTab] = useState<string>("new");
+  const [tab, setTab] = useState<string>("active");
   const [cards, setCards] = useState<Card[]>([]);
-  // العمود الجانبي «وصلوا» — استطلاع مستقل عن التبويب المعروض
-  const [arrived, setArrived] = useState<Card[]>([]);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
-  // شارات التبويبات — عدد ما ينتظر الموظف في كل خانة (ماعدا «مكتملة»)، ظاهرة دائماً
+  // شارات التبويبات — عدد ما ينتظر الموظف في كل خانة، ظاهرة دائماً
   const [counts, setCounts] = useState<Record<string, number>>({});
   // null = أول جلب — نزرع بصمت كي لا نصفّر عند فتح اللوحة على واصلين قدامى
   const arrSeen = useRef<Set<string> | null>(null);
@@ -188,16 +191,24 @@ export default function BoardPage() {
   const refresh = useCallback(async () => {
     if (!branchId) return;
     try {
-      const list = await call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=${tab}`);
-      setCards(list);
+      if (tab === "active") {
+        // «التشغيل»: اتحاد النشطة الثلاثة (new/preparing/ready) — تقسيم بلا تداخل، فالدمج بلا تكرار
+        const [n, p, r] = await Promise.all([
+          call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=new`),
+          call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=preparing`),
+          call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=ready`)
+        ]);
+        setCards([...n, ...p, ...r]);
+      } else {
+        setCards(await call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=${tab}`));
+      }
       setError(null);
     } catch (e) {
       setError((e as Error).message);
       return;
     }
-    // العمود الجانبي «وصلوا» + طابور الوصول (B-11 / BR-9) + شارات التبويبات — حيّة مهما كان التبويب
+    // طابور الوصول (B-11 / BR-9) لزمن الانتظار على البطاقات الواصلة + شارات التبويبات — حيّة مهما كان التبويب
     try {
-      setArrived(await call<Card[]>("GET", `/v1/merchant/orders?branch_id=${branchId}&tab=arrived`));
       setQueue(await call<QueueEntry[]>("GET", `/v1/merchant/arrival-queue?branch_id=${branchId}`));
       setCounts(await call<Record<string, number>>("GET", `/v1/merchant/tab-counts?branch_id=${branchId}`));
     } catch {
@@ -259,21 +270,22 @@ export default function BoardPage() {
     };
   }, [branchId, call, beep]);
 
-  // وصول عميل جديد للعمود الجانبي — نغمة تلفت الموظف ولو كان على تبويب آخر
+  // وصول عميل جديد — نغمة تلفت الموظف؛ نستنتج الواصلين من بطاقات «التشغيل» نفسها
   useEffect(() => {
+    const arrivedNow = cards.filter((c) => ARRIVED.includes(c.order_status));
     if (arrSeen.current === null) {
-      arrSeen.current = new Set(arrived.map((c) => c.id));
+      arrSeen.current = new Set(arrivedNow.map((c) => c.id));
       return;
     }
     let fresh = false;
-    for (const c of arrived) {
+    for (const c of arrivedNow) {
       if (!arrSeen.current.has(c.id)) {
         arrSeen.current.add(c.id);
         fresh = true;
       }
     }
     if (fresh) beep();
-  }, [arrived, beep]);
+  }, [cards, beep]);
 
   const act = async (path: string, body?: unknown, idem = false) => {
     try {
@@ -321,30 +333,29 @@ export default function BoardPage() {
 
   const queueByOrder = useMemo(() => new Map(queue.map((q) => [q.order_id, q])), [queue]);
 
-  // ترتيب التبويبات: المجدولة بالأقرب موعداً (BR-5)، والبقية بزمن إنشاء الطلب
+  /**
+   * ترتيب «التشغيل»: الأولوية للتسليم — الواصل الجاهز (قابل تسليم فوري، يومض) أولاً،
+   * ثم الواصل الذي لم يجهز، ثم الجديد (مهلة القبول تنزل)، ثم بقية التحضير/الجاهز.
+   * وداخل كل رتبة الأقدم إنشاءً أولاً. المجدولة بالأقرب موعداً، والمكتملة بزمن الإنشاء.
+   */
   const sorted = useMemo(() => {
     const list = [...cards];
     if (tab === "scheduled") {
       list.sort((a, b) => (a.scheduled_slot_start ?? "").localeCompare(b.scheduled_slot_start ?? ""));
+    } else if (tab === "active") {
+      const rank = (c: Card): number => {
+        const arrived = ARRIVED.includes(c.order_status);
+        if (arrived && c.ready_at) return 0;
+        if (arrived) return 1;
+        if (c.order_status === "MERCHANT_PENDING") return 2;
+        return 3;
+      };
+      list.sort((a, b) => rank(a) - rank(b) || a.created_at.localeCompare(b.created_at));
     } else {
       list.sort((a, b) => a.created_at.localeCompare(b.created_at));
     }
     return list;
   }, [cards, tab]);
-
-  // العمود الجانبي: الجاهز الواصل أولاً (وصل + ready_at = قابل للتسليم فوراً)،
-  // ثم بقية الواصلين — وداخل كل مجموعة ترتيب طابور الوصول (BR-9) الأسبق وصولاً أولاً
-  const arrivedSorted = useMemo(() => {
-    return [...arrived].sort((a, b) => {
-      const da = a.ready_at ? 0 : 1;
-      const db = b.ready_at ? 0 : 1;
-      if (da !== db) return da - db;
-      const pa = queueByOrder.get(a.id)?.position ?? Number.MAX_SAFE_INTEGER;
-      const pb = queueByOrder.get(b.id)?.position ?? Number.MAX_SAFE_INTEGER;
-      if (pa !== pb) return pa - pb;
-      return (a.arrived_at ?? a.created_at).localeCompare(b.arrived_at ?? b.created_at);
-    });
-  }, [arrived, queueByOrder]);
 
   // BR-5: المجدولة التي اقترب موعدها (≤ 30 د) — شريط تنبيه دائم فوق اللوحة
   const schedSoon = useMemo(
@@ -357,11 +368,15 @@ export default function BoardPage() {
     [sched, now]
   );
 
-  /** متى يدخل المجدول قائمة «جديدة» — عدّ تنازلي قريب، ووقت/يوم لما بعُد */
+  // عدد النشطة على تبويب «التشغيل» — مجموع الخانات الثلاث (arrived مجموعة فرعية فلا تُجمع)
+  const activeCount = (counts.new ?? 0) + (counts.preparing ?? 0) + (counts.ready ?? 0);
+  const arrivedCount = counts.arrived ?? 0;
+
+  /** متى يدخل المجدول قائمة «التشغيل» — عدّ تنازلي قريب، ووقت/يوم لما بعُد */
   const schedLabel = (c: Card): string => {
     if (!c.scheduled_slot_start || now === null) return "عند موعده";
     const ms = Date.parse(c.scheduled_slot_start) - now;
-    if (ms <= 0) return "الآن — لحظات وينتقل إلى «جديدة»";
+    if (ms <= 0) return "الآن — لحظات وينتقل إلى «التشغيل»";
     const min = Math.ceil(ms / 60_000);
     if (min <= 90) return `خلال ${min} د`;
     const d = new Date(c.scheduled_slot_start);
@@ -393,11 +408,16 @@ export default function BoardPage() {
         </div>
       </header>
 
-      {/* التبويبات = الحالات — شارة عدد دائمة على كل تبويب (ماعدا «مكتملة»: ليست واجباً منتظراً)
-          كي يعرف الموظف ما عليه في كل خانة دون تنقّل */}
+      {/* التبويبات: مجدولة · التشغيل (النشطة مجموعةً) · مكتملة — شارة عدد دائمة
+          وعلى «التشغيل» شارة واصلين نابضة إن وُجد من وصل، كي لا يغيب عن الموظف */}
       <nav className={s.btabs} role="tablist">
         {TABS.map(([key, label]) => {
-          const n = key === "scheduled" ? Math.max(sched.length, counts[key] ?? 0) : counts[key] ?? 0;
+          const n =
+            key === "scheduled"
+              ? Math.max(sched.length, counts[key] ?? 0)
+              : key === "active"
+                ? activeCount
+                : 0;
           return (
             <button
               key={key}
@@ -409,12 +429,15 @@ export default function BoardPage() {
             >
               {key !== "completed" && n > 0 && (
                 <span
-                  className={`${s.n} ${
-                    key === "scheduled" ? s.nSched : key === "new" ? s.nNew : key === "preparing" ? s.nPrep : s.nNear
-                  }`}
+                  className={`${s.n} ${key === "scheduled" ? s.nSched : s.nPrep}`}
                   data-testid={key === "scheduled" ? "scheduled-count" : `tab-count-${key}`}
                 >
                   {n}
+                </span>
+              )}
+              {key === "active" && arrivedCount > 0 && (
+                <span className={`${s.n} ${s.nArr} ${s.nArrLive}`} data-testid="arrived-count">
+                  🚘 {arrivedCount}
                 </span>
               )}
               {label}
@@ -440,9 +463,7 @@ export default function BoardPage() {
           </div>
         )}
 
-        <div className={s.bcols}>
-          <div className={s.bcontent}>
-            <div className={s.grid}>
+        <div className={s.grid}>
           {sorted.map((c) => {
             const deadline = c.accept_deadline_at ? Date.parse(c.accept_deadline_at) : null;
             const remainMs =
@@ -451,10 +472,14 @@ export default function BoardPage() {
                 : null;
             const windowMs =
               deadline !== null ? Math.max(1000, deadline - Date.parse(c.created_at)) : null;
+            const arrived = ARRIVED.includes(c.order_status);
+            // واصل وطلبه جاهز = قابل للتسليم فوراً — البطاقة تومض أحمر تلفت الموظف
+            const deliverable = arrived && !!c.ready_at;
+            const q = queueByOrder.get(c.id);
             return (
               <article
                 key={c.id}
-                className={s.ocard}
+                className={`${s.ocard} ${deliverable ? s.ocardDeliverable : ""}`}
                 data-state={cardState(c.order_status)}
                 data-testid="order-card"
               >
@@ -486,6 +511,19 @@ export default function BoardPage() {
                     </div>
                   </div>
                   <div className={s.end}>
+                    {/* الوصول على البطاقة نفسها — شارة نابضة + زمن الانتظار (طابور BR-9) */}
+                    {arrived && (
+                      <span className={s.arrivedBadge} data-testid="arrived-badge">
+                        🚘 وصل
+                        {q && (
+                          <span className={`${s.mono} ${q.service_target_exceeded ? s.waitOver : ""}`}>
+                            {" "}
+                            {mmss(q.waiting_seconds)}
+                            {q.service_target_exceeded && " ⚠"}
+                          </span>
+                        )}
+                      </span>
+                    )}
                     {remainMs !== null && (
                       <div className={s.acceptTimer}>
                         <span className={s.countLbl}>مهلة القبول (BR-1)</span>
@@ -546,7 +584,7 @@ export default function BoardPage() {
                 )}
 
                 <div className={s.actions}>
-                  {/* مجدول راقد حتى موعده (BR-5) — استعراض فقط؛ ينتقل إلى «جديدة» آلياً */}
+                  {/* مجدول راقد حتى موعده (BR-5) — استعراض فقط؛ ينتقل إلى «التشغيل» آلياً */}
                   {c.order_status === "ORDER_SUBMITTED" && (
                     <>
                       <button
@@ -557,7 +595,7 @@ export default function BoardPage() {
                         {detailsFor === c.id ? "إخفاء" : "استعراض الطلب"}
                       </button>
                       <span className={s.prepWait} data-testid="scheduled-countdown">
-                        ⏰ يدخل «جديدة» {schedLabel(c)}
+                        ⏰ يدخل «التشغيل» {schedLabel(c)}
                       </span>
                     </>
                   )}
@@ -614,14 +652,13 @@ export default function BoardPage() {
                     </button>
                   )}
                   {/* العميل سبق التجهيز (docs/05§3): التحضير يستمر موازياً — لا بطاقة بلا زر.
-                      الوصول مفصول عن حالة الفرع: الواصل يبقى في عمود تجهيزه هنا (بحقيقة الجاهزية)
-                      ويظهر إضافةً في العمود الجانبي «وصلوا» حيث يتم التسليم (BR-9) */}
+                      البطاقة تحمل تدفّقها كاملاً في مكانها: تجهيز ← ثم تسليم عند الوصول */}
                   {JOURNEY_PARALLEL.includes(c.order_status) && !c.ready_at && (
                     <>
                       <span className={s.prepOk} data-testid="journey-badge">
                         {EN_ROUTE.includes(c.order_status)
                           ? "🚗 العميل في الطريق — جهّزوا على وصوله"
-                          : "🚘 العميل وصل — جهّزوا وسلّموه من «وصلوا»"}
+                          : "🚘 العميل وصل — جهّزوه ثم سلّموه"}
                       </span>
                       {/* زر واحد «جاهز» — الخدمة تختم preparing_at آلياً إن لم يسبق تسجيله */}
                       <button
@@ -633,120 +670,49 @@ export default function BoardPage() {
                       </button>
                     </>
                   )}
-                  {JOURNEY_PARALLEL.includes(c.order_status) && c.ready_at && (
+                  {/* جاهز والعميل في الطريق — تسليم غير ممكن بعد (لم يصل) */}
+                  {JOURNEY_PARALLEL.includes(c.order_status) && c.ready_at && EN_ROUTE.includes(c.order_status) && (
                     <span className={s.prepOk} data-testid="ready-en-route">
-                      {EN_ROUTE.includes(c.order_status)
-                        ? "✓ جاهز — العميل في الطريق"
-                        : "✓ جاهز — العميل وصل، سلّموه من «وصلوا»"}
+                      ✓ جاهز — العميل في الطريق
                     </span>
+                  )}
+                  {/* جاهز والعميل وصل — التسليم بضغطة على نفس البطاقة (بدل عمود «وصلوا») */}
+                  {deliverable && (
+                    <button
+                      className={`${s.bbtn} ${s.green}`}
+                      data-testid="handoff-complete"
+                      onClick={() => deliver(c.id, c.order_status)}
+                    >
+                      تم التسليم
+                    </button>
                   )}
                   {c.order_status === "COMPLETED" && <span className={s.done}>تم التسليم ✓</span>}
                 </div>
               </article>
             );
           })}
-            </div>
+        </div>
 
-            {cards.length === 0 && (
-              <div className={s.empty}>
-                {tab === "scheduled" ? (
-                  <>
-                    <b>لا طلبات مجدولة قادمة</b>
-                    <p>حين يحجز عميل موعد استلام، يظهر طلبه هنا قبل موعده — وينتقل إلى «جديدة» تلقائياً عند حلوله.</p>
-                  </>
-                ) : (
-                  <>
-                    <b>لا طلبات في هذا التبويب</b>
-                    <p>البطاقات تظهر هنا فور تغيّر حالتها — التحديث كل ثوانٍ.</p>
-                  </>
-                )}
-              </div>
+        {cards.length === 0 && (
+          <div className={s.empty}>
+            {tab === "scheduled" ? (
+              <>
+                <b>لا طلبات مجدولة قادمة</b>
+                <p>حين يحجز عميل موعد استلام، يظهر طلبه هنا قبل موعده — وينتقل إلى «التشغيل» تلقائياً عند حلوله.</p>
+              </>
+            ) : tab === "completed" ? (
+              <>
+                <b>لا طلبات مكتملة بعد</b>
+                <p>الطلبات المسلَّمة تُؤرشف هنا — التحديث كل ثوانٍ.</p>
+              </>
+            ) : (
+              <>
+                <b>لا طلبات نشطة الآن</b>
+                <p>كل طلب جديد أو قيد التحضير أو جاهز أو واصل يظهر هنا في قائمة واحدة — التحديث كل ثوانٍ.</p>
+              </>
             )}
           </div>
-
-          {/* العمود الجانبي «وصلوا» — حي بجانب كل التبويبات: الموظف على «جاهزة»
-              ويرى الواصل لحظتها، والتسليم كله من هنا (BR-9) */}
-          <aside className={s.arrPanel} data-testid="arrived-panel">
-            <div className={s.arrHd}>
-              🚘 وصلوا
-              {arrived.length > 0 && (
-                <span className={`${s.n} ${s.nArr}`} data-testid="arrived-count">
-                  {arrived.length}
-                </span>
-              )}
-            </div>
-
-            {arrivedSorted.map((c) => {
-              const q = queueByOrder.get(c.id);
-              // واصل وطلبه جاهز = قابل للتسليم فوراً — البطاقة تومض أحمر تلفت الموظف
-              const deliverable =
-                !!c.ready_at &&
-                (c.order_status === "CUSTOMER_ARRIVED" || c.order_status === "HANDOFF_IN_PROGRESS");
-              return (
-                <article
-                  key={c.id}
-                  className={`${s.acard} ${q?.service_target_exceeded ? s.acardOver : ""} ${
-                    deliverable ? s.acardReady : ""
-                  }`}
-                  data-testid="arrived-card"
-                >
-                  <div className={s.acardHd}>
-                    {q && <span className={s.aPos}>{q.position}</span>}
-                    <span className={s.oid}>{c.display_code}</span>
-                    {q && (
-                      <span className={`${s.mono} ${s.aWait} ${q.service_target_exceeded ? s.waitOver : ""}`}>
-                        {mmss(q.waiting_seconds)}
-                        {q.service_target_exceeded && " ⚠"}
-                      </span>
-                    )}
-                  </div>
-                  {c.vehicle_summary && <div className={s.aVehicle}>{c.vehicle_summary}</div>}
-                  <div className={s.aMeta}>
-                    {c.customer_first_name}
-                    {c.parking_spot &&
-                      (c.at_spot_at ? (
-                        <span className={`${s.slot} ${s.slotLive} ${s.aSlot}`} data-testid="at-spot-badge">
-                          🅿 عند الموقف {c.parking_spot} ✓
-                        </span>
-                      ) : (
-                        <span className={`${s.slot} ${s.aSlot}`}>موقف {c.parking_spot}</span>
-                      ))}
-                  </div>
-                  <div className={s.aActions}>
-                    {/* واصل وطلبه لم يجهز (docs/05§3) — «جاهز» من هنا مباشرة ثم يخرج الموظف */}
-                    {!c.ready_at ? (
-                      <>
-                        <span className={s.prepWait} data-testid="journey-badge">
-                          لم يجهز بعد
-                        </span>
-                        <button
-                          className={`${s.bbtn} ${s.abtn}`}
-                          data-testid="mark-ready"
-                          onClick={() => act(`/v1/merchant/orders/${c.id}/ready`, {})}
-                        >
-                          جاهز
-                        </button>
-                      </>
-                    ) : c.order_status === "CUSTOMER_ARRIVED" ||
-                      c.order_status === "HANDOFF_IN_PROGRESS" ? (
-                      <button
-                        className={`${s.bbtn} ${s.green} ${s.abtn}`}
-                        data-testid="handoff-complete"
-                        onClick={() => deliver(c.id, c.order_status)}
-                      >
-                        تم التسليم
-                      </button>
-                    ) : null}
-                  </div>
-                </article>
-              );
-            })}
-
-            {arrived.length === 0 && (
-              <p className={s.arrEmpty}>لا عملاء واصلين الآن — أول واصل يظهر هنا فوراً مع تنبيه صوتي.</p>
-            )}
-          </aside>
-        </div>
+        )}
       </section>
     </main>
   );

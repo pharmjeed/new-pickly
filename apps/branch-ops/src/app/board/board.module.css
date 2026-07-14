@@ -84,6 +84,8 @@
 .nNear { background: var(--pk-st-near); color: var(--pk-ink-900); }
 .nArr { background: var(--pk-st-arrived); color: var(--pk-white); }
 .nDone { background: var(--pk-st-done); color: var(--pk-white); }
+/* شارة واصلين على تبويب «التشغيل» — نبضة تلفت الموظف أن عميلاً وصل */
+.nArrLive { animation: pk-arrived-pulse 1.3s ease-in-out infinite; }
 
 /* ===== منطقة العمل ===== */
 .bmain {
@@ -132,85 +134,37 @@
   50% { box-shadow: 0 0 0 5px rgba(239, 159, 39, 0.22); }
 }
 
-/* ===== عمودا العمل: التبويب المعروض + «وصلوا» الجانبي الدائم (BR-9) ===== */
-.bcols { display: flex; gap: 16px; align-items: flex-start; flex: 1; }
-.bcontent { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
-
-/* العمود الجانبي «وصلوا» — حي مهما كان التبويب: الموظف على «جاهزة» ويرى الواصلين لحظتها */
-.arrPanel {
-  width: 300px;
-  flex-shrink: 0;
-  background: var(--pk-st-arrived-bg);
-  border: 2px solid var(--pk-st-arrived);
-  border-radius: 16px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: sticky;
-  top: 0;
-  max-height: calc(100vh - 190px);
-  overflow-y: auto;
-}
-.arrHd {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--pk-font-display);
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--pk-ink-900);
-}
-.arrEmpty { font-size: 14px; color: var(--pk-gray); line-height: 1.8; margin: 2px 2px 4px; }
-
-/* بطاقة واصل مضغوطة — السيارة والموقف والأزرار بلا حشو */
-.acard {
-  background: var(--pk-white);
-  border: 2px solid var(--pk-st-arrived);
-  border-radius: 14px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-/* تجاوز زمن الخدمة المستهدف (BR-9) */
-.acardOver { border-color: var(--pk-st-overdue); background: var(--pk-st-overdue-bg); }
-/* واصل وطلبه جاهز — يومض أحمر يلفت الموظف للتسليم فوراً */
-.acardReady {
-  border-color: #e53935;
+/* واصل وطلبه جاهز = قابل للتسليم فوراً — البطاقة تومض أحمر تلفت الموظف (دمج «وصلوا» في البطاقة) */
+.ocardDeliverable {
+  border-color: #e53935 !important;
   animation: acardReadyBlink 1s ease-in-out infinite;
 }
 @keyframes acardReadyBlink {
-  0%, 100% { background: var(--pk-white); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
-  50% { background: rgba(229, 57, 53, 0.14); box-shadow: 0 0 0 4px rgba(229, 57, 53, 0.35); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
+  50% { box-shadow: 0 0 0 5px rgba(229, 57, 53, 0.4); }
 }
-.acardHd { display: flex; align-items: center; gap: 8px; }
-.aPos {
-  font-family: var(--pk-font-display);
-  font-size: 18px;
-  font-weight: 700;
-  min-width: 28px;
-  height: 28px;
+
+/* شارة «🚘 وصل» على البطاقة نفسها — نبضة تلفت الموظف أن العميل حضر */
+.arrivedBadge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
   background: var(--pk-st-arrived);
   color: var(--pk-white);
-  border-radius: 9px;
-  flex-shrink: 0;
+  font-family: var(--pk-font-display);
+  font-weight: 700;
+  font-size: 16px;
+  border-radius: var(--pk-radius-pill);
+  padding: 3px 14px;
+  white-space: nowrap;
+  animation: pk-arrived-pulse 1.2s ease-in-out infinite;
 }
-.aWait { margin-inline-start: auto; font-size: 15px; font-weight: 700; }
-.aVehicle { font-family: var(--pk-font-display); font-size: 20px; font-weight: 700; line-height: 1.3; }
-.aMeta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14.5px; color: var(--pk-gray); }
-.aSlot { font-size: 16px; padding: 1px 12px; }
-.aActions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-/* أزرار العمود أصغر قليلاً من الشبكة لكن فوق حد اللمس */
-.abtn { min-height: 48px; padding: 0 18px; font-size: 17px; flex: 1; }
-
-/* شاشة ضيقة: العمود فوق المحتوى — الواصلون لا يغيبون */
-@media (max-width: 900px) {
-  .bcols { flex-direction: column; }
-  .arrPanel { width: 100%; position: static; max-height: none; order: -1; }
+@keyframes pk-arrived-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.5); }
+  50% { box-shadow: 0 0 0 7px rgba(229, 57, 53, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ocardDeliverable, .arrivedBadge, .nArrLive { animation: none; }
 }
 
 /* ===== شبكة البطاقات ===== */

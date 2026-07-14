@@ -92,11 +92,10 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   // العميل يرى الوقت المتوقع (من متوسط المطعم) تلقائياً — لا موافقة مطلوبة
   await expect(c.getByTestId("prep-expected")).toBeVisible();
 
-  await b.getByTestId("tab-preparing").click();
+  // «التشغيل» تبويب جامع — البطاقة تبقى مكانها وتتغيّر أزرارها بلا تنقّل
   await expect(orderCard.getByTestId("prep-avg")).toBeVisible();
-  // زر واحد «جاهز» — ينقل البطاقة مباشرة إلى تبويب «جاهزة» ويُشعر العميل
+  // زر واحد «جاهز» — يُشعر العميل والبطاقة تبقى في نفس القائمة الموحّدة
   await orderCard.getByTestId("mark-ready").click();
-  await b.getByTestId("tab-ready").click();
   await expect(orderCard).toBeVisible();
 
   // ===== 7. العميل: جاهز ← داخل النطاق ← سحب «وصلت» (J10: الخادم يفتح الجلسة اليدوية تلقائياً) =====
@@ -115,13 +114,12 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await c.mouse.up();
   await expect(c.getByTestId("track-title")).toContainText("وصلت؟ إحنا عرفنا.");
 
-  // ===== 8. الفرع: الواصل يظهر في العمود الجانبي «وصلوا» (بلا تنقّل عن «جاهزة»)
-  //          ← «تم التسليم» بضغطة واحدة بلا رمز =====
-  const arrivedCard = b.getByTestId("arrived-card").filter({ hasText: orderCode });
-  await expect(arrivedCard).toBeVisible();
-  // التبويب المعروض ما زال «جاهزة» — العمود حي بجانبه
-  await expect(b.getByTestId("tab-ready")).toHaveAttribute("aria-selected", "true");
-  await arrivedCard.getByTestId("handoff-complete").click();
+  // ===== 8. الفرع: الوصول يظهر على نفس البطاقة (شارة «🚘 وصل» + وميض)
+  //          ← «تم التسليم» بضغطة واحدة بلا رمز، بلا تنقّل =====
+  await expect(orderCard.getByTestId("arrived-badge")).toBeVisible();
+  // التبويب المعروض ما زال «التشغيل» الجامع — كل شيء في مكانه
+  await expect(b.getByTestId("tab-active")).toHaveAttribute("aria-selected", "true");
+  await orderCard.getByTestId("handoff-complete").click();
 
   // ===== 9. الاكتمال عند الطرفين =====
   await expect(c.getByTestId("track-title")).toContainText("بالعافية!");
