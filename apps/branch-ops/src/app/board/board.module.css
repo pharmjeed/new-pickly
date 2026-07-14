@@ -553,17 +553,17 @@
   font-size: var(--pk-fs-17);
   margin-bottom: 10px;
 }
-.itemList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.itemRow { display: flex; gap: 10px; align-items: baseline; font-size: var(--pk-fs-20); }
+.itemList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.itemRow { display: flex; gap: 10px; align-items: baseline; font-size: var(--pk-fs-24); }
 .itemQty {
   font-family: var(--pk-font-mono);
   font-weight: 800;
   color: var(--pk-blue-500);
-  min-width: 40px;
+  min-width: 46px;
 }
-.itemName { flex: 1; font-weight: 700; }
-.itemMods { color: var(--pk-text-2); font-size: var(--pk-fs-16); }
-.itemNote { color: var(--pk-warn); font-size: var(--pk-fs-16); }
+.itemName { flex: 1; font-weight: 800; }
+.itemMods { color: var(--pk-text-2); font-size: var(--pk-fs-17); }
+.itemNote { color: var(--pk-warn); font-size: var(--pk-fs-17); }
 .custNote {
   margin-top: 10px;
   padding-top: 8px;
