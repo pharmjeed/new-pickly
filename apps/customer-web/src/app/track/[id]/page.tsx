@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { TabBar } from "../../shell";
 import SpotsMap from "./SpotsMap";
 import LiveNav from "./LiveNav";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
@@ -346,14 +347,16 @@ export default function TrackPage() {
 
   if (error)
     return (
-      <main className="pk-wrap">
+      <main className="pk-wrap" style={{ paddingBottom: 92 }}>
         <div className="pk-card" style={{ color: "var(--pk-error)" }}>{error}</div>
+        <TabBar />
       </main>
     );
   if (!order)
     return (
-      <main className="pk-wrap">
+      <main className="pk-wrap" style={{ paddingBottom: 92 }}>
         <div className="pk-loader"><span /><span /><span /></div>
+        <TabBar />
       </main>
     );
 
@@ -400,7 +403,8 @@ export default function TrackPage() {
 
   return (
     <div className={driveMode ? "pk-drive" : ""}>
-      <main className="pk-wrap">
+      {/* مساحة سفلية للتبويب الثابت — كي لا يغطي السحبَ وبطاقات أسفل الصفحة */}
+      <main className="pk-wrap" style={{ paddingBottom: 92 }}>
         <p className="pk-mono pk-muted" data-testid="order-code" style={{ marginBottom: 4 }}>{order.display_code}</p>
 
         {/* شريط الحالات الخمس (steps — P7.html) */}
@@ -808,6 +812,9 @@ export default function TrackPage() {
             </button>
           </div>
         )}
+
+        {/* التنقل السفلي — يبقى متاحاً أثناء التتبع للتنقل في التطبيق */}
+        <TabBar />
       </main>
     </div>
   );

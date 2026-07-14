@@ -430,7 +430,11 @@ export function TabBar() {
         <ITag />
         العروض
       </Link>
-      <Link href="/orders" className={cls(path.startsWith("/orders"))} data-testid="nav-orders">
+      <Link
+        href="/orders"
+        className={cls(path.startsWith("/orders") || path.startsWith("/track"))}
+        data-testid="nav-orders"
+      >
         <IReceipt />
         طلباتي
       </Link>

@@ -585,6 +585,17 @@
   opacity: 0.45; /* تبويبات مؤجلة عن نطاق الطيار */
   cursor: not-allowed;
 }
+/* وضع القيادة الداكن (صفحة التتبع أثناء الطريق) — الشريط يتبع الخلفية الداكنة */
+:global(.pk-drive) .tabbar {
+  background: var(--pk-ink-700);
+  border-top-color: var(--pk-ink-600);
+}
+:global(.pk-drive) .tab {
+  color: var(--pk-gray-2);
+}
+:global(.pk-drive) .tabOn {
+  color: var(--pk-lime-500);
+}
 
 /* ===== صفحات التبويبات: رأس موحد + دعوة تسجيل الدخول ===== */
 .pageHead {
