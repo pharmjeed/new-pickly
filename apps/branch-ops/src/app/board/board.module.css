@@ -443,6 +443,13 @@
   font-weight: 700;
 }
 .ocard[data-state="arrived"] .prepOk { background: var(--pk-white); }
+/* تجاوز الوقت المتوقع — الشارة تحمرّ وتعدّ تصاعدياً بمقدار التأخير */
+.prepOver,
+.ocard[data-state="arrived"] .prepOk.prepOver {
+  background: var(--pk-st-overdue-bg);
+  color: var(--pk-st-overdue);
+  border-color: var(--pk-st-overdue);
+}
 .bbtn {
   display: inline-flex;
   align-items: center;

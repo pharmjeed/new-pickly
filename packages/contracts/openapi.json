@@ -8497,6 +8497,14 @@
                         ],
                         "default": null
                       },
+                      "accepted_at": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date-time",
+                        "default": null
+                      },
                       "preparing_at": {
                         "type": [
                           "string",
@@ -8868,6 +8876,14 @@
                         "integer",
                         "null"
                       ],
+                      "default": null
+                    },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
                       "default": null
                     },
                     "preparing_at": {
@@ -9254,6 +9270,14 @@
                       ],
                       "default": null
                     },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -9596,6 +9620,14 @@
                         "integer",
                         "null"
                       ],
+                      "default": null
+                    },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
                       "default": null
                     },
                     "preparing_at": {
@@ -9957,6 +9989,14 @@
                       ],
                       "default": null
                     },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "preparing_at": {
                       "type": [
                         "string",
@@ -10299,6 +10339,14 @@
                         "integer",
                         "null"
                       ],
+                      "default": null
+                    },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
                       "default": null
                     },
                     "preparing_at": {
@@ -10678,6 +10726,14 @@
                         "integer",
                         "null"
                       ],
+                      "default": null
+                    },
+                    "accepted_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
                       "default": null
                     },
                     "preparing_at": {

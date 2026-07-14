@@ -26,6 +26,8 @@ interface Card {
   arrived_at: string | null;
   /** الوقت المتوقع — يُختم عند القبول من «متوسط وقت التجهيز» في إعدادات المطعم */
   prep_minutes: number | null;
+  /** لحظة القبول — مرساة العدّاد التنازلي، نفسها عند العميل في التتبع فيتطابق الرقمان */
+  accepted_at: string | null;
   /** مسار التجهيز الموازي (docs/05§3) — يتقدم ولو كان العميل في الطريق أو واصلاً */
   preparing_at: string | null;
   ready_at: string | null;
@@ -184,12 +186,38 @@ export default function KdsPage() {
     }
   };
 
-  // المؤقت منذ القبول — من created_at المتاح في البطاقة
+  // المؤقت منذ القبول — مرساة accepted_at (نفس مرساة عدّاد العميل)، وcreated_at للطلبات القديمة
   const elapsedSec = (c: Card): number | null =>
-    now === null ? null : Math.floor((now - Date.parse(c.created_at)) / 1000);
+    now === null ? null : Math.floor((now - Date.parse(c.accepted_at ?? c.created_at)) / 1000);
+  // الأحمر = تجاوز «متوسط وقت التجهيز» المختوم على الطلب نفسه — و15 د لطلبات قديمة بلا ختم
   const isLate = (c: Card): boolean => {
     const e = elapsedSec(c);
-    return e !== null && e >= LATE_MINUTES * 60;
+    return e !== null && e >= (c.prep_minutes ?? LATE_MINUTES) * 60;
+  };
+
+  /**
+   * عدّاد «الوقت المتوقع» التنازلي — نفس مرساة عدّاد العميل في صفحة التتبع
+   * (accepted_at + prep_minutes) فيرى المطبخ الرقم ذاته الذي يراه العميل، وبالأحمر عند التجاوز.
+   */
+  const prepChip = (c: Card): React.ReactNode => {
+    if (c.prep_minutes === null) return null;
+    if (!c.accepted_at || now === null)
+      return (
+        /* طلبات قديمة بلا مرساة قبول — الرقم الثابت كما كان */
+        <span className={s.mod} data-testid="kds-prep-avg">
+          ⏱ الوقت المتوقع {c.prep_minutes} د
+        </span>
+      );
+    const leftMs = Date.parse(c.accepted_at) + c.prep_minutes * 60_000 - now;
+    return leftMs <= 0 ? (
+      <span className={s.alrg} data-testid="kds-prep-avg">
+        ⏱ تجاوز المتوقع بـ <span className={s.mono}>{mmss(Math.floor(-leftMs / 1000))}</span>
+      </span>
+    ) : (
+      <span className={s.mod} data-testid="kds-prep-avg">
+        ⏱ يتبقى <span className={s.mono}>{mmss(Math.floor(leftMs / 1000))}</span> من {c.prep_minutes} د
+      </span>
+    );
   };
 
   const byCreated = (a: Card, b: Card): number => a.created_at.localeCompare(b.created_at);
@@ -339,11 +367,7 @@ export default function KdsPage() {
                   c,
                   <>
                     {/* الوقت المتوقع من «متوسط وقت التجهيز» في الإعدادات — لا موافقة عميل */}
-                    {c.prep_minutes !== null && (
-                      <span className={s.mod} data-testid="kds-prep-avg">
-                        ⏱ الوقت المتوقع {c.prep_minutes} د
-                      </span>
-                    )}
+                    {prepChip(c)}
                     {JOURNEY_STATES.includes(c.order_status) && (
                       <span className={s.alrg} data-testid="kds-journey">
                         {c.order_status === "CUSTOMER_ARRIVED" ? "🚘 العميل واصل!" : "🚗 العميل في الطريق"}
@@ -376,6 +400,7 @@ export default function KdsPage() {
                 renderTicket(
                   c,
                   <>
+                    {prepChip(c)}
                     {JOURNEY_STATES.includes(c.order_status) && (
                       <span className={s.alrg} data-testid="kds-journey">
                         {c.order_status === "CUSTOMER_ARRIVED" ? "🚘 العميل واصل!" : "🚗 العميل في الطريق"}

@@ -39,6 +39,8 @@ export const BranchOrderCardSchema = z.object({
   scheduled_slot_start: z.string().datetime().nullable().default(null),
   /** الوقت المتوقع — «متوسط وقت التجهيز» المختوم عند القبول من إعدادات المطعم (قرار المالك 2026-07-12) */
   prep_minutes: z.number().int().nullable().default(null),
+  /** لحظة القبول — مرساة العدّاد التنازلي للتجهيز، نفس مرساة عدّاد العميل في التتبع فيتطابق الرقمان */
+  accepted_at: z.string().datetime().nullable().default(null),
   /** مسار التجهيز الموازي (docs/05§3) — يتقدم ولو كانت order_status في مسار رحلة العميل */
   preparing_at: z.string().datetime().nullable().default(null),
   ready_at: z.string().datetime().nullable().default(null),

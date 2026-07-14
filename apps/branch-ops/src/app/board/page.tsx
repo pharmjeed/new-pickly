@@ -38,6 +38,8 @@ interface Card {
   scheduled_slot_start: string | null;
   /** الوقت المتوقع — يُختم عند القبول من «متوسط وقت التجهيز» في إعدادات المطعم */
   prep_minutes: number | null;
+  /** لحظة القبول — مرساة العدّاد التنازلي، نفسها عند العميل في التتبع فيتطابق الرقمان */
+  accepted_at: string | null;
   /** مسار التجهيز الموازي (docs/05§3) — يتقدم ولو كان العميل في الطريق أو واصلاً */
   preparing_at: string | null;
   ready_at: string | null;
@@ -376,6 +378,38 @@ export default function BoardPage() {
       : `${d.toLocaleDateString("ar", { weekday: "long" })} ${time}`;
   };
 
+  /**
+   * شارة التجهيز الحية — عدّاد تنازلي بنفس مرساة عدّاد العميل في صفحة التتبع
+   * (accepted_at + prep_minutes) فيرى الموظف الرقم ذاته الذي يراه العميل لحظة بلحظة،
+   * وعند التجاوز تتحول الشارة حمراء وتعدّ تصاعدياً بمقدار التأخير.
+   */
+  const prepChip = (c: Card): React.ReactNode => {
+    if (c.prep_minutes === null) return null;
+    if (!c.accepted_at || now === null)
+      return (
+        /* طلبات قديمة بلا مرساة قبول — الرقم الثابت كما كان */
+        <span className={s.prepOk} data-testid="prep-avg">
+          ⏱ الوقت المتوقع <b className={s.mono}>{c.prep_minutes}</b> د — متوسط المطعم
+        </span>
+      );
+    const leftMs = Date.parse(c.accepted_at) + c.prep_minutes * 60_000 - now;
+    const overtime = leftMs <= 0; // نفس عتبة عدّاد العميل — يتحول عنده إلى «جاهز تقريباً»
+    return (
+      <span className={`${s.prepOk} ${overtime ? s.prepOver : ""}`} data-testid="prep-avg">
+        {overtime ? (
+          <>
+            ⏱ تجاوز المتوقع بـ <b className={s.mono} data-testid="prep-countdown">{mmss(Math.floor(-leftMs / 1000))}</b>
+          </>
+        ) : (
+          <>
+            ⏱ يتبقى <b className={s.mono} data-testid="prep-countdown">{mmss(Math.floor(leftMs / 1000))}</b> — المتوقع{" "}
+            <span className={s.mono}>{c.prep_minutes}</span> د
+          </>
+        )}
+      </span>
+    );
+  };
+
   const clock =
     now === null ? "--:--" : `${pad2(new Date(now).getHours())}:${pad2(new Date(now).getMinutes())}`;
 
@@ -632,11 +666,7 @@ export default function BoardPage() {
                   )}
                   {c.order_status === "MERCHANT_ACCEPTED" && (
                     <>
-                      {c.prep_minutes !== null && (
-                        <span className={s.prepOk} data-testid="prep-avg">
-                          ⏱ الوقت المتوقع <b className={s.mono}>{c.prep_minutes}</b> د — متوسط المطعم
-                        </span>
-                      )}
+                      {prepChip(c)}
                       {/* زر واحد «جاهز» — ينقل البطاقة إلى «جاهزة» ويُشعر العميل فوراً */}
                       <button
                         className={s.bbtn}
@@ -648,18 +678,22 @@ export default function BoardPage() {
                     </>
                   )}
                   {c.order_status === "PREPARING" && (
-                    <button
-                      className={s.bbtn}
-                      data-testid="mark-ready"
-                      onClick={() => act(`/v1/merchant/orders/${c.id}/ready`, {})}
-                    >
-                      جاهز
-                    </button>
+                    <>
+                      {prepChip(c)}
+                      <button
+                        className={s.bbtn}
+                        data-testid="mark-ready"
+                        onClick={() => act(`/v1/merchant/orders/${c.id}/ready`, {})}
+                      >
+                        جاهز
+                      </button>
+                    </>
                   )}
                   {/* العميل سبق التجهيز (docs/05§3): التحضير يستمر موازياً — لا بطاقة بلا زر.
                       البطاقة تحمل تدفّقها كاملاً في مكانها: تجهيز ← ثم تسليم عند الوصول */}
                   {JOURNEY_PARALLEL.includes(c.order_status) && !c.ready_at && (
                     <>
+                      {prepChip(c)}
                       <span className={s.prepOk} data-testid="journey-badge">
                         {EN_ROUTE.includes(c.order_status)
                           ? "🚗 العميل في الطريق — جهّزوا على وصوله"

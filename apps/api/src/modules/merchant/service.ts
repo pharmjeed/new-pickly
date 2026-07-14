@@ -70,6 +70,7 @@ function toCard(o: OrderForCard, etaMinutes: number | null, atSpotAt: Date | nul
     pickup_time: (o.pickup_time as "asap" | "later" | "scheduled") ?? "asap",
     scheduled_slot_start: o.scheduled_slot?.slot_start.toISOString() ?? null,
     prep_minutes: o.prep_minutes,
+    accepted_at: o.accepted_at?.toISOString() ?? null,
     preparing_at: o.preparing_at?.toISOString() ?? null,
     ready_at: o.ready_at?.toISOString() ?? null,
     daily_number: null, // يُملأ في list() من ترقيم اليوم
