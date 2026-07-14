@@ -389,22 +389,28 @@
   font-weight: 700;
 }
 
-/* ===== بطاقة مطعم كاملة (rcard) — حد كحلي + ظل صلب ===== */
+/* ===== بطاقة مطعم (rcard) — النص يمين والصورة مربع جانبي يسار (حد كحلي + ظل صلب) ===== */
 .rcard {
   background: var(--pk-surface);
   border: var(--pk-b2);
   border-radius: 18px;
   box-shadow: var(--pk-pop-sm);
   overflow: hidden;
-  display: block;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px;
   color: var(--pk-text);
   text-decoration: none;
 }
 .img {
-  height: 132px;
+  width: 108px;
+  min-height: 104px;
+  flex-shrink: 0;
   position: relative;
   background: var(--pk-cloud-2);
-  border-bottom: var(--pk-b2);
+  border: var(--pk-b2);
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -413,14 +419,14 @@
 }
 .stBadge {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
+  bottom: 6px;
+  right: 6px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   border: var(--pk-b2);
   border-radius: var(--pk-radius-pill);
-  padding: 2px 12px;
+  padding: 1px 9px;
   font-size: var(--pk-fs-12);
   font-weight: 700;
   white-space: nowrap;
@@ -438,29 +444,25 @@
   color: var(--pk-white);
 }
 .bd {
-  padding: 12px 14px 14px;
+  flex: 1;
+  min-width: 0;
+  padding: 3px 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .nm {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-/* غلاف/شعار العلامة يملأ رأس البطاقة (من بوابة التاجر M-02) */
+/* غلاف/شعار العلامة يملأ المربع الجانبي (من بوابة التاجر M-02) */
 .imgCover {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-/* شعار مصغّر بجانب اسم المطعم */
-.nmLogo {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  object-fit: cover;
-  border: var(--pk-b2);
-  flex-shrink: 0;
 }
 .nm b {
   font-family: var(--pk-font-display);
@@ -483,6 +485,7 @@
 }
 .carLine {
   margin-top: 9px;
+  align-self: flex-start;
   background: var(--pk-lime-100);
   color: var(--pk-lime-900);
   border: var(--pk-b2);

@@ -484,7 +484,7 @@ export function GuestGate({ next, message }: { next: string; message: string }) 
   );
 }
 
-/** بطاقة مطعم (rcard) — مشتركة بين نتائج التصفح وقائمة المطاعم · i لتدرّج الظهور */
+/** بطاقة مطعم (rcard) — الصورة مربع جانبي بجوار الاسم (وليست غلافاً فوقه) · i لتدرّج الظهور */
 export function RestaurantCard({ b, i = 0 }: { b: BranchCard; i?: number }) {
   const st = statusBadge(b.status);
   return (
@@ -494,21 +494,9 @@ export function RestaurantCard({ b, i = 0 }: { b: BranchCard; i?: number }) {
       style={{ animationDelay: `${Math.min(i, 7) * 70}ms` }}
       data-testid="branch-card"
     >
-      <div className={styles.img}>
-        {b.cover_url || b.logo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={b.cover_url ?? b.logo_url ?? ""} alt="" className={styles.imgCover} />
-        ) : (
-          <IStore size={40} />
-        )}
-        <span className={`${styles.stBadge} ${st.cls}`}>{st.label}</span>
-      </div>
+      {/* RTL: النص أولاً (يمين) والصورة بجانبه (يسار) */}
       <div className={styles.bd}>
         <div className={styles.nm}>
-          {b.logo_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={b.logo_url} alt="" className={styles.nmLogo} />
-          )}
           <b>
             {b.brand_name_ar}
             {b.address_short ? ` — ${b.address_short}` : ""}
@@ -535,6 +523,15 @@ export function RestaurantCard({ b, i = 0 }: { b: BranchCard; i?: number }) {
             <IAlert size={15} /> {b.busy_message}
           </div>
         )}
+      </div>
+      <div className={styles.img}>
+        {b.cover_url || b.logo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={b.cover_url ?? b.logo_url ?? ""} alt="" className={styles.imgCover} />
+        ) : (
+          <IStore size={40} />
+        )}
+        <span className={`${styles.stBadge} ${st.cls}`}>{st.label}</span>
       </div>
     </Link>
   );
