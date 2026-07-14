@@ -9,8 +9,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
-import { Qirtas, QirtasBadge, QirtasLoader } from "../../qirtas";
-import { ConfettiBurst, HandoffScene, QirtasCook, QirtasLive, ReadyScene } from "../../qirtas-motion";
+import { Qirtas, QirtasLoader } from "../../qirtas";
+import { ConfettiBurst, HandoffScene, QirtasCook, QirtasLive, ReadyScene, SentScene } from "../../qirtas-motion";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
 import s from "./track.module.css";
 
@@ -426,13 +426,10 @@ export default function TrackPage() {
           </div>
         )}
 
-        {/* شاشة انتظار قبول المطعم — شارة القرطاس الحية ترسّخ العلامة أثناء الترقب */}
+        {/* شاشة انتظار قبول المطعم — القرطاس يُطلق الطلب طيّارةً ورقية نحو المطعم (اختيار المالك 2026-07-15) */}
         {isWaiting && (
-          <div className={s.waitHero} data-testid="waiting-logo">
-            <span className={s.waitRing} />
-            <span className={s.waitRing} />
-            <span className={s.waitRing} />
-            <div className={s.waitLogo}><QirtasBadge size={96} /></div>
+          <div className={s.sentHero} data-testid="waiting-logo">
+            <SentScene />
           </div>
         )}
 

@@ -276,39 +276,10 @@
   color: var(--pk-gray-2);
 }
 
-/* ===== شاشة انتظار القبول — الشعار الحي (ترسيخ العلامة أثناء الترقب) ===== */
-.waitHero {
-  position: relative;
-  width: 168px;
-  height: 168px;
-  margin: 18px auto 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.waitRing {
-  position: absolute;
-  inset: 34px;
-  border-radius: 50%;
-  border: 3px solid var(--pk-lime-500);
-  opacity: 0;
-  animation: pk-wait-ripple 2.4s var(--pk-ease) infinite;
-}
-.waitRing:nth-child(2) { animation-delay: 0.8s; }
-.waitRing:nth-child(3) { animation-delay: 1.6s; }
-@keyframes pk-wait-ripple {
-  0% { transform: scale(1); opacity: 0.65; }
-  100% { transform: scale(1.72); opacity: 0; }
-}
-.waitLogo {
-  position: relative;
-  z-index: 1;
-  animation: pk-wait-bob 2.4s var(--pk-ease) infinite;
-  filter: drop-shadow(var(--pk-pop-xs));
-}
-@keyframes pk-wait-bob {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+/* ===== شاشة انتظار القبول — مشهد «أُرسل طلبك»: الطيّارة الورقية نحو المطعم ===== */
+.sentHero {
+  width: min(430px, 100%);
+  margin: 16px auto 4px;
 }
 /* الرسالة المتبدلة تحت العنوان */
 .waitMsg {
@@ -639,6 +610,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .waitRing, .waitLogo, .dim, .sheet { animation: none; }
-  .waitRing { opacity: 0.25; transform: scale(1.3); }
+  .dim, .sheet { animation: none; }
 }

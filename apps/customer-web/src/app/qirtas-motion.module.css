@@ -176,6 +176,32 @@
   100% { opacity: 0; transform: translate(-22px, -10px) scale(1.3); }
 }
 
+/* ---- مشهد «أُرسل طلبك»: مسار الطيّارة يجري نحو المطعم + نقاط «يقرأ الطلب...» ---- */
+.sendTrail { animation: m-road 0.8s linear infinite; }
+/* الطيّارة تحلّق على المنحنى نفسه (FLIGHT في SentScene) — CSS Motion Path لا SMIL */
+.plane {
+  offset-path: path("M146 88 C 190 24, 240 22, 288 68");
+  offset-rotate: auto;
+  animation: m-fly 3s ease-in-out infinite;
+}
+@keyframes m-fly {
+  0% { offset-distance: 0%; opacity: 0; }
+  8% { opacity: 1; }
+  82% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+.typing {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: m-typing 1.5s ease-in-out infinite;
+}
+.typing2 { animation-delay: 0.22s; }
+.typing3 { animation-delay: 0.44s; }
+@keyframes m-typing {
+  0%, 55%, 100% { opacity: 0.25; transform: translateY(0); }
+  25% { opacity: 1; transform: translateY(-3px); }
+}
+
 /* ---- كونفيتي الاحتفال (غلاف مطلق فوق البطاقة) ---- */
 .confetti {
   position: absolute;
@@ -208,10 +234,14 @@
   .line1, .line2, .line3,
   .road, .car, .pinDrop,
   .spin, .driveCar, .driveRider, .roadBack,
+  .sendTrail,
   .confetti i {
     animation: none;
   }
   .spark, .zz { animation: none; opacity: 0.6; }
+  .typing { animation: none; opacity: 0.5; }
+  /* الطيّارة تثبت في منتصف رحلتها بوقار */
+  .plane { animation: none; offset-distance: 58%; opacity: 0.9; }
   .steam path { animation: none; opacity: 0.35; }
   .puff1, .puff2, .puff3 { animation: none; opacity: 0.25; }
   .confetti { display: none; }

@@ -5,6 +5,7 @@
  * الأشكال:
  *  - <QirtasLive/>      القرطاس بأطراف حية: يمشي/يلوّح/يحتفل/ينام — بقبعة موظف وكيس بيكلي اختياريين
  *  - <QirtasCook/>      القرطاس الطبّاخ: مريلة ليمونية، يقدّم برجراً يتصاعد بخاره — بطل «جاري تجهيز طلبك»
+ *  - <SentScene/>       مشهد «أُرسل طلبك»: القرطاس يُطلق الطلب طيّارةً ورقية تحلّق حتى باب المطعم — بطل انتظار القبول
  *  - <ReadyScene/>      ملصق «طلبك جاهز»: الكيس المربوط الكبير يتمايل والقرطاس يلوّح بجانبه «تعال خذه!»
  *  - <QirtasEmptyLive/> حالة فارغة حية (بديل QirtasEmpty الساكن): نعسان بـZzz عائمة أو متأسف
  *  - <QirtasDrive/>     القرطاس راكب سيارته المكشوفة: عجلات تدور وارتجاج طريق ودخان عادم — بطل الرئيسية
@@ -419,6 +420,90 @@ export function ReadyScene({
       {/* القرطاس المتحمس يلوّح: «تعال خذه!» */}
       <g transform="translate(120 16) scale(0.78)">
         <QirtasFigure mood="excited" pose="wave" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * مشهد «أُرسل طلبك» — بطل انتظار قبول المطعم (اختيار المالك 2026-07-15):
+ * القرطاس المتحمس يلوّح وقد أطلق طلبه طيّارةً ورقية تحلّق على مسار وردي متقطع
+ * حتى باب المطعم، وفوق المطعم فقاعة «...» تنبض — المطعم يطّلع على الطلب الآن.
+ * التحليق بـCSS Motion Path (offset-path) لا SMIL — كي يحترم تقليل الحركة كبقية الطبقة.
+ */
+export function SentScene({
+  title = "أُرسل طلبك — المطعم يطّلع عليه الآن",
+  style
+}: {
+  title?: string;
+  style?: CSSProperties;
+}) {
+  const LIME300 = "var(--pk-lime-300, #DDF77E)";
+  const WHITE = "var(--pk-white, #FFFFFF)";
+  const FLIGHT = "M146 88 C 190 24, 240 22, 288 68";
+  return (
+    <svg
+      viewBox="0 0 362 186"
+      role="img"
+      aria-label={title}
+      style={{ display: "block", width: "100%", height: "auto", overflow: "visible", ...style }}
+    >
+      {/* الأرض المنقّطة الثابتة — لا أحد يتحرك أرضياً، الطلب هو المحلّق */}
+      <line
+        x1="18"
+        y1="172"
+        x2="344"
+        y2="172"
+        stroke={INK}
+        strokeOpacity="0.35"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeDasharray="2 11"
+      />
+
+      {/* مسار التحليق الوردي المتقطع — يجري باتجاه المطعم */}
+      <path
+        className={m.sendTrail}
+        d={FLIGHT}
+        fill="none"
+        stroke={PINK}
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeDasharray="3 10"
+        opacity="0.65"
+      />
+
+      {/* المطعم: مظلة مقوّسة وواجهة ونافذة وباب — وفقاعة «يقرأ الطلب...» تنبض فوقه */}
+      <g transform="translate(252 66)">
+        <rect x="22" y="-36" width="56" height="27" rx="13.5" fill={WHITE} stroke={INK} strokeWidth="3" />
+        <path d="M43 -10.5 L50 0 L57 -10.5 Z" fill={WHITE} stroke={INK} strokeWidth="3" strokeLinejoin="round" />
+        <path d="M44 -11.5 L50 -2 L56 -11.5 Z" fill={WHITE} />
+        <circle className={m.typing} cx="38" cy="-22.5" r="3.6" fill={INK} />
+        <circle className={`${m.typing} ${m.typing2}`} cx="50" cy="-22.5" r="3.6" fill={INK} />
+        <circle className={`${m.typing} ${m.typing3}`} cx="62" cy="-22.5" r="3.6" fill={INK} />
+        <rect x="4" y="22" width="94" height="70" rx="10" fill={WHITE} stroke={INK} strokeWidth="4.5" />
+        <path
+          d="M-3 10 Q-3 0 7 0 L95 0 Q105 0 105 10 L105 20 Q98.25 32 91.5 20 Q84.75 32 78 20 Q71.25 32 64.5 20 Q57.75 32 51 20 Q44.25 32 37.5 20 Q30.75 32 24 20 Q17.25 32 10.5 20 Q3.75 32 -3 20 Z"
+          fill={LIME}
+          stroke={INK}
+          strokeWidth="4"
+          strokeLinejoin="round"
+        />
+        <rect x="17" y="40" width="30" height="26" rx="5" fill={LIME300} stroke={INK} strokeWidth="3.5" />
+        <path d="M32 40 V66 M17 53 H47" stroke={INK} strokeWidth="2.5" />
+        <rect x="60" y="46" width="27" height="46" rx="6" fill={INK} />
+        <circle cx="66" cy="70" r="2.6" fill={LIME} />
+      </g>
+
+      {/* القرطاس المتحمس يلوّح بعد الإطلاق — بخطوط سرعته الوردية */}
+      <g transform="translate(2 31) scale(0.62)">
+        <QirtasFigure mood="excited" pose="wave" lines />
+      </g>
+
+      {/* الطيّارة الورقية — الطلب محلّقاً من يد القرطاس حتى باب المطعم (مسار .plane في CSS = FLIGHT) */}
+      <g className={m.plane}>
+        <path d="M-17 -4 L17 3 L-12 12 Z" fill={WHITE} stroke={INK} strokeWidth="3" strokeLinejoin="round" />
+        <path d="M-12 12 L-5 20 L-1 7 Z" fill={PINK} stroke={INK} strokeWidth="3" strokeLinejoin="round" />
       </g>
     </svg>
   );
