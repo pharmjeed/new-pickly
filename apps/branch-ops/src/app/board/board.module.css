@@ -550,24 +550,24 @@
 .detailsHd {
   font-family: var(--pk-font-display);
   font-weight: 800;
-  font-size: var(--pk-fs-15);
-  margin-bottom: 8px;
+  font-size: var(--pk-fs-17);
+  margin-bottom: 10px;
 }
-.itemList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.itemRow { display: flex; gap: 8px; align-items: baseline; font-size: var(--pk-fs-16); }
+.itemList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.itemRow { display: flex; gap: 10px; align-items: baseline; font-size: var(--pk-fs-20); }
 .itemQty {
   font-family: var(--pk-font-mono);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--pk-blue-500);
-  min-width: 34px;
+  min-width: 40px;
 }
-.itemName { flex: 1; }
-.itemMods { color: var(--pk-text-2); font-size: var(--pk-fs-14); }
-.itemNote { color: var(--pk-warn); font-size: var(--pk-fs-14); }
+.itemName { flex: 1; font-weight: 700; }
+.itemMods { color: var(--pk-text-2); font-size: var(--pk-fs-16); }
+.itemNote { color: var(--pk-warn); font-size: var(--pk-fs-16); }
 .custNote {
   margin-top: 10px;
   padding-top: 8px;
   border-top: 2px dashed var(--pk-ink-900);
-  font-size: var(--pk-fs-14);
+  font-size: var(--pk-fs-16);
   color: var(--pk-ink-700);
 }
