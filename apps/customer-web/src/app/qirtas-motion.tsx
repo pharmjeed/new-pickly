@@ -4,6 +4,7 @@
  *
  * الأشكال:
  *  - <QirtasLive/>      القرطاس بأطراف حية: يمشي/يلوّح/يحتفل/ينام — بقبعة موظف وكيس بيكلي اختياريين
+ *  - <QirtasCook/>      القرطاس الطبّاخ: مريلة ليمونية، يقدّم برجراً يتصاعد بخاره — بطل «جاري تجهيز طلبك»
  *  - <QirtasEmptyLive/> حالة فارغة حية (بديل QirtasEmpty الساكن): نعسان بـZzz عائمة أو متأسف
  *  - <QirtasDrive/>     القرطاس راكب سيارته المكشوفة: عجلات تدور وارتجاج طريق ودخان عادم — بطل الرئيسية
  *  - <HandoffScene/>    مشهد «الموظف متجه إليك»: قرطاس بقبعة يحمل الكيس نحو سيارة العميل
@@ -78,10 +79,10 @@ function ChefCap() {
   );
 }
 
-/** كيس بيكلي الليموني المصغّر في اليد — بوجه القرطاس المبتسم */
-function HandBag() {
+/** كيس بيكلي الليموني المصغّر في اليد — بوجه القرطاس المبتسم (swing: صنف تأرجح بديل) */
+function HandBag({ swing }: { swing?: string }) {
   return (
-    <g className={m.handBag} style={{ transformOrigin: "215px 166px" }}>
+    <g className={swing ?? m.handBag} style={{ transformOrigin: "215px 166px" }}>
       <path d="M206 173 q9 -14 18 0" fill="none" stroke={INK} strokeWidth="3.5" />
       <path
         d="M197 173 h36 l3.4 32 a8 8 0 0 1 -8 8 h-26.8 a8 8 0 0 1 -8 -8 Z"
@@ -260,6 +261,102 @@ export function QirtasLive({
       style={{ overflow: "visible", ...style }}
     >
       <QirtasFigure mood={mood} pose={pose} carrying={carrying} cap={cap} lines={lines} />
+    </svg>
+  );
+}
+
+/* ---- عدّة الطبّاخ: مريلة وبرجر — لمشهد «جاري تجهيز طلبك» ---- */
+const WARN = "var(--pk-warn, #FF9E1B)";
+const INK700 = "var(--pk-ink-700, #17264A)";
+
+/** مريلة الطبّاخ الليمونية — حمّالتان بزرّين وجيب بدرزة وسطى، داخل ميلان الكاركتر نفسه */
+function CookApron() {
+  return (
+    <g transform="rotate(7 144 124)">
+      {/* الحمّالتان تمرّان جانبي الوجه دون مساسه (قاعدة الهوية: الوجه لا يُحجب) */}
+      <rect x="119" y="64" width="11" height="98" rx="3" fill={LIME} stroke={INK} strokeWidth="2.5" />
+      <rect x="186" y="64" width="11" height="98" rx="3" fill={LIME} stroke={INK} strokeWidth="2.5" />
+      {/* صدرية المريلة — تحت الابتسامة وفوق القاعدة المسنّنة (لا تحجب أياً منهما) */}
+      <rect x="113" y="158" width="90" height="23" rx="5" fill={LIME} stroke={INK} strokeWidth="2.5" />
+      <circle cx="124.5" cy="162" r="4" fill={INK} />
+      <circle cx="191.5" cy="162" r="4" fill={INK} />
+      {/* الجيب المزدوج */}
+      <rect x="142" y="164" width="32" height="12" rx="4" fill="var(--pk-lime-300, #DDF77E)" stroke={INK} strokeWidth="2.5" />
+      <path d="M158 164 V176" stroke={INK} strokeWidth="2" />
+    </g>
+  );
+}
+
+/** برجر فنكي على كفّ القرطاس — كعكة برتقالية وخس ليموني وبخار يتصاعد */
+function HandBurger() {
+  return (
+    <g transform="translate(49 72)">
+      {/* بخار يتصاعد من الكعكة */}
+      <g className={m.steam}>
+        <path d="M11 -6 q-4 -6 0 -12 q4 -6 0 -12" />
+        <path d="M22 -8 q-4 -6 0 -12 q4 -6 0 -12" />
+        <path d="M33 -6 q-4 -6 0 -12 q4 -6 0 -12" />
+      </g>
+      {/* الكعكة العلوية بحبيبات السمسم */}
+      <path d="M2 14 q0 -16 20 -16 q20 0 20 16 Z" fill={WARN} stroke={INK} strokeWidth="2.5" strokeLinejoin="round" />
+      <g fill={INK} opacity="0.4">
+        <circle cx="15" cy="5" r="1.7" />
+        <circle cx="22" cy="2.5" r="1.7" />
+        <circle cx="29" cy="5" r="1.7" />
+      </g>
+      {/* خس ليموني متموّج ثم شريحة اللحم والكعكة السفلية */}
+      <path d="M0 14 q5.5 -6 11 0 t11 0 t11 0 t11 0 v5 h-44 Z" fill={LIME} stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+      <rect x="1" y="19" width="42" height="7" rx="3.5" fill={INK700} />
+      <rect x="2" y="26" width="40" height="9" rx="4.5" fill={WARN} stroke={INK} strokeWidth="2.5" />
+    </g>
+  );
+}
+
+/**
+ * القرطاس الطبّاخ — بطل حالة «جاري تجهيز طلبك» (مرجع لوحة العرض):
+ * بمريلة ليمونية بحمّالتين وجيب، يرفع بيدٍ برجراً يتصاعد بخاره
+ * ويحمل بالأخرى كيس بيكلي يتهادى — تمايل هادئ وذراع تقدّم الطبق بإيقاع التنفّس.
+ */
+export function QirtasCook({
+  size = 170,
+  mood = "happy",
+  title,
+  style
+}: {
+  size?: number;
+  mood?: QirtasMood;
+  title?: string;
+  style?: CSSProperties;
+}) {
+  const VB_W = 250;
+  const VB_H = 226;
+  return (
+    <svg
+      width={Math.round((size * VB_W) / VB_H)}
+      height={size}
+      viewBox="0 16 250 226"
+      role={title ? "img" : undefined}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+      style={{ overflow: "visible", ...style }}
+    >
+      <g className={`${m.body} ${m.bodyIdle}`}>
+        <Leg hipX={112} hipY={188} bend={-2} />
+        <Leg hipX={168} hipY={189} bend={2} />
+        {/* الذراع الخلفية ترفع البرجر وتقدّمه */}
+        <g className={m.armServe} style={{ transformOrigin: "99px 128px" }}>
+          <LimbPath d="M99 128 q-22 -4 -28 -22" />
+          <HandBurger />
+        </g>
+        {/* الجسد الرسمي حرفياً ثم المريلة فوقه */}
+        <Bag mood={mood} stroke={INK} fill="var(--pk-white, #FFFFFF)" />
+        <CookApron />
+        {/* الذراع الأمامية تحمل كيس بيكلي بتهادٍ */}
+        <g className={m.arm}>
+          <LimbPath d="M200 130 q17 13 15 33" />
+        </g>
+        <HandBag swing={m.handBagCalm} />
+      </g>
     </svg>
   );
 }

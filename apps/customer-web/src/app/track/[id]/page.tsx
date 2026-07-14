@@ -10,7 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
 import { Qirtas, QirtasBadge, QirtasLoader } from "../../qirtas";
-import { ConfettiBurst, HandoffScene, QirtasLive } from "../../qirtas-motion";
+import { ConfettiBurst, HandoffScene, QirtasCook, QirtasLive } from "../../qirtas-motion";
 import SpotsMap from "./SpotsMap";
 import LiveNav from "./LiveNav";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
@@ -65,9 +65,9 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   PAYMENT_FAILED: { step: "SUBMITTED", title: "ما تمّ الدفع", sub: "جرّب بطاقة ثانية — طلبك محفوظ" },
   ORDER_SUBMITTED: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم" },
   MERCHANT_PENDING: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم" },
-  MERCHANT_ACCEPTED: { step: "PREPARING", title: "قيد التجهيز", sub: "قبل المطعم طلبك — بدأ تجهيزه الآن" },
+  MERCHANT_ACCEPTED: { step: "PREPARING", title: "جاري تجهيز طلبك", sub: "قبل المطعم طلبك — بدأ تجهيزه الآن" },
   MERCHANT_REJECTED: { step: "SUBMITTED", title: "نعتذر — ما قدر المطعم يستقبل طلبك", sub: "مبلغك يرجع لك كاملاً" },
-  PREPARING: { step: "PREPARING", title: "قيد التجهيز", sub: "خلّك مستعد للانطلاق" },
+  PREPARING: { step: "PREPARING", title: "جاري تجهيز طلبك", sub: "خلّك مستعد للانطلاق" },
   READY: { step: "READY", title: "طلبك جاهز", sub: "خلّك في سيارتك، الباقي علينا" },
   CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "توجه للمطعم — واضغط «وصلت» عند وصولك" },
   CUSTOMER_ON_THE_WAY: { step: "READY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
@@ -97,9 +97,9 @@ const WAIT_MSGS = [
   "عادةً يُقبل الطلب خلال دقيقة",
   "فور القبول يبدأ عدّاد التجهيز"
 ];
-/** رسائل مطمئنة تتبدّل بالتلاشي تحت القدر أثناء التجهيز */
+/** رسائل مطمئنة تتبدّل بالتلاشي تحت العدّاد أثناء التجهيز */
 const PREP_MSGS = [
-  "حتى جاهزية طلبك تقريباً",
+  "دقيقة تقريباً — حدده المطعم عند القبول",
   "نطبخه لك طازجاً الآن",
   "نار هادئة… ونكهة تنضج",
   "المطعم يجهّزه بعناية",
@@ -136,6 +136,19 @@ const IconNav = ({ size = 18 }: { size?: number }) => (
       strokeLinejoin="round"
       transform="rotate(35 50 50)"
     />
+  </svg>
+);
+/** جرس الإشعار — شريط «ستصلك فور جاهزية طلبك للاستلام» */
+const IconBell = ({ size = 19 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      d="M12 3 a6.5 6.5 0 0 0 -6.5 6.5 v4 L3.5 16.5 h17 L18.5 13.5 v-4 A6.5 6.5 0 0 0 12 3 Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinejoin="round"
+    />
+    <path d="M9.5 19.5 a2.5 2.5 0 0 0 5 0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
   </svg>
 );
 export default function TrackPage() {
@@ -379,31 +392,36 @@ export default function TrackPage() {
   const geoBlocked = geoState === "denied" || geoState === "unavailable";
   const withinRange = geoBlocked || (distanceM !== null && distanceM <= order.arrival_radius_m);
 
+  /* شريط الحالات الخمس (steps — P7.html) — في حالة التجهيز ينزل تحت بطل الدائرة (مرجع لوحة العرض) */
+  const stepsBar = (
+    <div className={s.steps} aria-label="حالة الطلب">
+      {STEP_LABELS.map((lb, i) => {
+        const done = stepDone(i);
+        const cur = !completed && i === stepIdx;
+        return (
+          <div
+            key={lb}
+            aria-current={cur ? "step" : undefined}
+            className={`${s.step} ${done ? s.stepDone : ""} ${cur ? s.stepCur : ""} ${
+              cur && celebrate ? s.stepBurst : ""
+            }`}
+          >
+            <div className={s.dot}>{done ? "✓" : cur ? "●" : ""}</div>
+            <div className={s.lbl}>{lb}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className={driveMode ? "pk-drive" : ""}>
       {/* مساحة سفلية للتبويب الثابت — كي لا يغطي السحبَ وبطاقات أسفل الصفحة */}
       <main className="pk-wrap" style={{ paddingBottom: 92 }}>
         <p className="pk-mono pk-muted" data-testid="order-code" style={{ marginBottom: 4 }}>{order.display_code}</p>
 
-        {/* شريط الحالات الخمس (steps — P7.html) */}
-        <div className={s.steps} aria-label="حالة الطلب">
-          {STEP_LABELS.map((lb, i) => {
-            const done = stepDone(i);
-            const cur = !completed && i === stepIdx;
-            return (
-              <div
-                key={lb}
-                aria-current={cur ? "step" : undefined}
-                className={`${s.step} ${done ? s.stepDone : ""} ${cur ? s.stepCur : ""} ${
-                  cur && celebrate ? s.stepBurst : ""
-                }`}
-              >
-                <div className={s.dot}>{done ? "✓" : cur ? "●" : ""}</div>
-                <div className={s.lbl}>{lb}</div>
-              </div>
-            );
-          })}
-        </div>
+        {/* شريط الحالات في أعلى الصفحة — عدا حالة التجهيز حيث ينزل تحت البطل */}
+        {!prepCountdownOn && stepsBar}
 
         {/* نبضة «تم رصد وصولك» — القرطاس المتحمس داخل البطاقة الليمونية (لحظة الوصول) */}
         {order.order_status === "CUSTOMER_ARRIVED" && !arrivedBeforeReady && (
@@ -422,11 +440,14 @@ export default function TrackPage() {
           </div>
         )}
 
-        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting ? "center" : undefined }}>
+        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting || prepCountdownOn ? "center" : undefined }}>
           {view.title}
         </h1>
         {isWaiting ? (
           <p className={`${s.waitMsg} ${waitOut ? s.waitMsgOut : ""}`}>{WAIT_MSGS[waitIdx]}</p>
+        ) : prepCountdownOn ? (
+          /* حالة التجهيز: اسم المطعم تحت العنوان مباشرة (مرجع لوحة العرض) */
+          <p className="pk-muted" style={{ marginBottom: 4, textAlign: "center" }}>من {order.brand_name_ar}</p>
         ) : (
           <p className="pk-muted" style={{ marginBottom: 16 }}>{view.sub}</p>
         )}
@@ -534,100 +555,32 @@ export default function TrackPage() {
             const shown = Math.max(leftMs, 0);
             const mm = Math.floor(shown / 60_000);
             const ss = Math.floor((shown % 60_000) / 1000);
-            const frac = Math.min(Math.max(shown / totalMs, 0), 1); // نسبة الوقت المتبقي
-            const cook = overtime ? 1 : 1 - frac;                    // نسبة اكتمال الطبخ
-            // مستوى السائل داخل القدر: يرتفع مع النضج (تغيّره خلال الثانية دون البكسل — بلا حاجة لتنعيم)
-            const liquidTy = 9 - 25 * cook;
-            const liquidFill = overtime ? "var(--pk-warn)" : "var(--pk-lime-500)";
-            const waveFill = overtime ? "var(--pk-warn)" : "var(--pk-lime-300)";
-            const anim = !reduceMotion;
             return (
-              <div className={`pk-card ${s.prepCard} ${overtime ? s.prepOvertime : ""}`} data-testid="prep-expected">
-                <p style={{ fontWeight: 700 }}>{overtime ? "اللمسات الأخيرة على طلبك" : "طلبك على النار الآن"}</p>
-                <div className={s.prepRingWrap}>
-                  <svg viewBox="0 0 160 160" className={s.pot} aria-hidden="true">
-                    <defs>
-                      <clipPath id="pk-pot-clip">
-                        <path d="M42 74 h76 v34 a10 10 0 0 1 -10 10 H52 a10 10 0 0 1 -10 -10 Z" />
-                      </clipPath>
-                    </defs>
-
-                    {/* بخار يتصاعد */}
-                    <g className={s.potSteam}>
-                      {[
-                        { x: 66, dur: "3.2s", begin: "0s", o: 0.5 },
-                        { x: 80, dur: "3.6s", begin: "0.7s", o: 0.45 },
-                        { x: 94, dur: "3.4s", begin: "1.4s", o: 0.5 },
-                      ].map((p) => (
-                        <path key={p.x} d={`M${p.x} 44 q-6 -8 0 -16 q6 -8 0 -16`} opacity={anim ? 0 : 0.4}>
-                          {anim && (
-                            <>
-                              <animate attributeName="opacity" values={`0;${p.o};0`} dur={p.dur} begin={p.begin} repeatCount="indefinite" />
-                              <animateTransform attributeName="transform" type="translate" values="0 4; 0 -5; 0 -10" dur={p.dur} begin={p.begin} repeatCount="indefinite" />
-                            </>
-                          )}
-                        </path>
-                      ))}
-                    </g>
-
-                    {/* المقبضان */}
-                    <rect x="30" y="82" width="12" height="9" rx="4.5" fill="var(--pk-ink-600)" />
-                    <rect x="118" y="82" width="12" height="9" rx="4.5" fill="var(--pk-ink-600)" />
-
-                    {/* جسم القدر */}
-                    <path className={s.potBody} d="M42 74 h76 v34 a10 10 0 0 1 -10 10 H52 a10 10 0 0 1 -10 -10 Z" fill="var(--pk-ink-700)" strokeWidth="2" />
-
-                    {/* السائل — مستواه يرتفع مع النضج، والموجة والفقاعات تغلي داخله */}
-                    <g clipPath="url(#pk-pot-clip)">
-                      <g transform={`translate(0 ${liquidTy})`}>
-                        <rect x="40" y="96" width="80" height="34" fill={liquidFill} />
-                        <path d="M40 96 q10 -5 20 0 t20 0 t20 0 t20 0 v6 H40 Z" fill={waveFill}>
-                          {anim && (
-                            <animate
-                              attributeName="d"
-                              values="M40 96 q10 -5 20 0 t20 0 t20 0 t20 0 v6 H40 Z; M40 96 q10 5 20 0 t20 0 t20 0 t20 0 v6 H40 Z; M40 96 q10 -5 20 0 t20 0 t20 0 t20 0 v6 H40 Z"
-                              dur="2.6s"
-                              repeatCount="indefinite"
-                            />
-                          )}
-                        </path>
-                        {anim && (
-                          <>
-                            <circle cx="60" cy="118" r="2.4" fill="var(--pk-lime-100)">
-                              <animate attributeName="cy" values="120;99" dur="2.4s" repeatCount="indefinite" />
-                              <animate attributeName="opacity" values="0;0.9;0" dur="2.4s" repeatCount="indefinite" />
-                            </circle>
-                            <circle cx="80" cy="118" r="3" fill="var(--pk-white)">
-                              <animate attributeName="cy" values="121;100" dur="2.9s" begin="0.6s" repeatCount="indefinite" />
-                              <animate attributeName="opacity" values="0;0.85;0" dur="2.9s" begin="0.6s" repeatCount="indefinite" />
-                            </circle>
-                            <circle cx="98" cy="118" r="2" fill="var(--pk-lime-100)">
-                              <animate attributeName="cy" values="119;101" dur="2.2s" begin="1.1s" repeatCount="indefinite" />
-                              <animate attributeName="opacity" values="0;0.9;0" dur="2.2s" begin="1.1s" repeatCount="indefinite" />
-                            </circle>
-                          </>
-                        )}
-                      </g>
-                    </g>
-
-                    {/* الغطاء والمقبض */}
-                    <g>
-                      {anim && (
-                        <animateTransform attributeName="transform" type="rotate" values="0 80 70; 0 80 70; 1.2 80 70; -1.2 80 70; 0 80 70; 0 80 70" dur="4s" repeatCount="indefinite" />
-                      )}
-                      <path d="M40 70 q40 -16 80 0 Z" fill="var(--pk-ink-700)" stroke="var(--pk-ink-900)" strokeWidth="2" />
-                      <rect x="38" y="68" width="84" height="6" rx="3" fill="var(--pk-ink-600)" />
-                      <circle cx="80" cy="55" r="4.5" fill="var(--pk-lime-500)" stroke="var(--pk-ink-900)" strokeWidth="1.5" />
-                    </g>
-                  </svg>
-                  <div className={s.prepDigits}>
-                    <b>{overtime ? "جاهز تقريباً" : `${mm}:${String(ss).padStart(2, "0")}`}</b>
-                  </div>
+              <div data-testid="prep-expected">
+                {/* بطل التجهيز — القرطاس الطبّاخ داخل الدائرة الليمونية (مرجع لوحة العرض) */}
+                <div className={s.cookHero}>
+                  <QirtasCook size={172} title="المطعم يجهّز طلبك الآن" />
                 </div>
-                <p className={`pk-muted ${s.prepMsg} ${prepMsgOut ? s.prepMsgOut : ""}`}>
-                  {overtime ? "أطول من المتوقع بقليل — يوشك على الجهوز" : PREP_MSGS[prepMsgIdx]}
-                </p>
-                <p className="pk-muted">الوقت المتوقع ~{order.prep_minutes} دقيقة — حدده المطعم عند القبول</p>
+
+                {/* شريط الحالات تحت البطل — كما في اللوحة */}
+                {stepsBar}
+
+                {/* العدّاد الكبير — من لحظة القبول + «متوسط وقت التجهيز» الذي حدده المطعم */}
+                <div className={s.cookTimer}>
+                  <p className={s.cookLead}>{overtime ? "اللمسات الأخيرة على طلبك" : "طلبك سيكون جاهزاً خلال"}</p>
+                  <b className={`${s.cookDigits} ${overtime ? s.cookDigitsOver : ""}`} data-testid="prep-countdown">
+                    {overtime ? "جاهز تقريباً" : `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`}
+                  </b>
+                  <p className={`pk-muted ${s.prepMsg} ${prepMsgOut ? s.prepMsgOut : ""}`}>
+                    {overtime ? "أطول من المتوقع بقليل — يوشك على الجهوز" : PREP_MSGS[prepMsgIdx]}
+                  </p>
+                </div>
+
+                {/* شريط الطمأنة — جرس يهتز: الإشعار يصل فور الجاهزية */}
+                <div className={s.notifyPill}>
+                  <span className={s.bellIcon}><IconBell /></span>
+                  ستصلك فور جاهزية طلبك للاستلام
+                </div>
               </div>
             );
           })()
