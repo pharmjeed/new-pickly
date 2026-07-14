@@ -93,7 +93,10 @@ export default function RestaurantPage() {
   const [isFav, setIsFav] = useState(false);
 
   useEffect(() => {
-    api<Menu>("GET", `/v1/branches/${id}/menu`).then(setMenu).catch((e: Error) => setError(e.message));
+    api<Menu>("GET", `/v1/branches/${id}/menu`)
+      // التصنيف الذي أوقف المطعم كل أصنافه لا يُعرض — لا شريحة ولا قسم فارغ
+      .then((m) => setMenu({ ...m, categories: m.categories.filter((c) => c.products.length > 0) }))
+      .catch((e: Error) => setError(e.message));
   }, [id]);
 
   // بيانات الفرع للرأس (الاسم/الحالة/المسافة) — تحسين عرض؛ فشلها لا يعطل الصفحة
