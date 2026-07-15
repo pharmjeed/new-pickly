@@ -3,12 +3,12 @@
 /**
  * P3 · C-09 الاستكشاف الموحد — الرئيسية:
  * بحث C-11 في الأعلى ← بانرات CMS متحركة (A-13، تُدار من السوبر أدمن) ← تصنيفات المطاعم
- * ← زر كل المطاعم. قائمة المطاعم نفسها صفحة تالية: /restaurants (تصفية بالتصنيف).
+ * ← قائمة «قريب منك» بكل المطاعم الأقرب فالأقرب. /restaurants تبقى للتصفية بالتصنيف.
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { AppHead, IStore, TabBar, cuisinePhoto, useCategories, useNearby } from "./shell";
+import { AppHead, RestaurantCard, TabBar, cuisinePhoto, useCategories, useNearby } from "./shell";
 import { QirtasDrive, QirtasEmptyLive } from "./qirtas-motion";
 import styles from "./page.module.css";
 
@@ -96,6 +96,10 @@ export default function HomePage() {
   const { branches, error, locLabel, coords } = useNearby();
   // تصنيفات C-09 — قائمة السوبر أدمن بترتيبها، أو الاشتقاق من الفروع القريبة
   const cats = useCategories(branches);
+  // قائمة «قريب منك» — كل المطاعم الأقرب فالأقرب (مجهولة المسافة آخراً)
+  const nearest = [...(branches ?? [])].sort(
+    (a, b) => (a.distance_meters ?? Infinity) - (b.distance_meters ?? Infinity)
+  );
 
   return (
     <main className={styles.page}>
@@ -170,11 +174,15 @@ export default function HomePage() {
               </div>
             )}
 
-            {branches.length > 0 && (
-              <Link href="/restaurants" className={`${styles.allBtn} pk-in pk-d4`} data-testid="all-restaurants">
-                <IStore size={20} />
-                كل المطاعم القريبة ({branches.length})
-              </Link>
+            {nearest.length > 0 && (
+              <>
+                <div className={`${styles.sech} pk-in pk-d4`}>
+                  <h2>قريب منك</h2>
+                </div>
+                {nearest.map((b, i) => (
+                  <RestaurantCard key={b.id} b={b} i={i} />
+                ))}
+              </>
             )}
           </>
         )}

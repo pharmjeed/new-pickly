@@ -39,9 +39,7 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await c.waitForURL(`${CUSTOMER}/`);
 
   // ===== 2. اختيار أقرب فرع (بيست برجر — العليا) وإضافة منتجين (P3→P4) =====
-  // الرئيسية صارت استكشافاً (بانرات + تصنيفات) — القائمة في /restaurants
-  await c.getByTestId("all-restaurants").click();
-  await c.waitForURL(/\/restaurants/);
+  // الرئيسية تعرض قائمة «قريب منك» الأقرب فالأقرب تحت التصنيفات — أول بطاقة أقرب فرع
   const firstCard = c.getByTestId("branch-card").first();
   await expect(firstCard).toContainText("بيست برجر");
   await firstCard.click();

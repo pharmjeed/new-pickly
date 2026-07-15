@@ -326,30 +326,6 @@
   color: var(--pk-text-2);
 }
 
-/* زر كل المطاعم — أزرق الفعل بحد كحلي وظل صلب */
-.allBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: var(--pk-blue-500);
-  color: var(--pk-white);
-  border: var(--pk-b2);
-  border-radius: var(--pk-radius-pill);
-  box-shadow: var(--pk-pop-sm);
-  min-height: 52px;
-  font-family: var(--pk-font-display);
-  font-size: var(--pk-fs-15);
-  font-weight: 700;
-  text-decoration: none;
-  margin-top: 2px;
-  transition: transform var(--pk-dur) var(--pk-ease), box-shadow var(--pk-dur) var(--pk-ease);
-}
-.allBtn:hover {
-  transform: translate(4px, 4px);
-  box-shadow: 0 0 0 var(--pk-ink-900);
-}
-
 /* ===== chips التصنيفات في قائمة المطاعم ===== */
 .chips {
   display: flex;

@@ -1,12 +1,13 @@
 /**
  * P3 · C-09: الرئيسية — الاستكشاف الموحد:
  * بحث C-11 في الأعلى ← بانرات CMS متحركة (A-13، تُدار من السوبر أدمن)
- * ← تصنيفات المطاعم (من brand.cuisine_ar) ← زر كل المطاعم (/restaurants).
+ * ← تصنيفات المطاعم (من brand.cuisine_ar) ← قائمة «قريب منك» الأقرب فالأقرب.
  * الموقع عبر expo-location مع سقوط للرياض 24.7/46.68 (الموقع تحسين لا شرط — docs/14§8).
  */
 import { useEffect, useRef, useState } from "react";
 import {
   FlatList,
+  Image,
   ImageBackground,
   Linking,
   Pressable,
@@ -21,14 +22,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Location from "expo-location";
 import { api, fmtSar } from "../../src/api";
-import { Badge, ErrorNote, Loader } from "../../src/ui";
+import { Badge, ErrorNote, Loader, type BadgeTone } from "../../src/ui";
 import { Qirtas } from "../../src/qirtas";
-import { bw2, colors, fs, light, popXs, popSm, radius, radiusMd, radiusPill } from "../../src/theme";
+import { bw2, colors, fs, light, popXs, radius, radiusMd } from "../../src/theme";
 
 interface BranchCard {
   id: string;
   brand_name_ar: string;
   cuisine_ar: string | null;
+  logo_url?: string | null;
+  cover_url?: string | null;
   status: string;
   distance_meters: number | null;
   eta_minutes: number | null;
@@ -56,6 +59,13 @@ interface Banner {
 
 const RIYADH = { lat: 24.7, lng: 46.68 };
 const BANNER_MS = 4000;
+
+/* حالة الفرع → شارة البطاقة (كما في /restaurants) */
+function statusBadge(status: string): { label: string; tone: BadgeTone } {
+  if (status === "open") return { label: "مفتوح", tone: "lime" };
+  if (status === "busy") return { label: "ازدحام", tone: "warn" };
+  return { label: "مغلق", tone: "soft" };
+}
 
 async function currentCoords(): Promise<{ lat: number; lng: number; label: string }> {
   try {
@@ -202,6 +212,11 @@ export default function HomeScreen() {
       ? adminCats.map((name) => ({ name, count: counts.get(name) ?? 0 }))
       : [...counts.entries()].map(([name, count]) => ({ name, count }));
 
+  // قائمة «قريب منك» — كل المطاعم الأقرب فالأقرب (مجهولة المسافة آخراً)
+  const nearest = [...(branches ?? [])].sort(
+    (a, b) => (a.distance_meters ?? Infinity) - (b.distance_meters ?? Infinity)
+  );
+
   return (
     <SafeAreaView style={st.screen} edges={["top"]}>
       {/* رأس الرئيسية: موقع الاستلام + بحث C-11 */}
@@ -318,14 +333,46 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {branches.length > 0 && (
-            <Pressable
-              style={st.allBtn}
-              onPress={() => router.push("/restaurants" as never)}
-              accessibilityRole="button"
-            >
-              <Text style={st.allBtnTxt}>كل المطاعم القريبة ({branches.length})</Text>
-            </Pressable>
+          {nearest.length > 0 && (
+            <>
+              <Text style={st.section}>قريب منك</Text>
+              {nearest.map((b) => {
+                const badge = statusBadge(b.status);
+                return (
+                  <Pressable
+                    key={b.id}
+                    style={({ pressed }) => [st.card, pressed ? { backgroundColor: colors.cloud2 } : null]}
+                    onPress={() => router.push(`/restaurant/${b.id}` as never)}
+                    accessibilityRole="button"
+                  >
+                    {(b.cover_url ?? b.logo_url) && (
+                      <Image
+                        source={{ uri: b.cover_url ?? b.logo_url ?? undefined }}
+                        style={st.cardCover}
+                        resizeMode="cover"
+                      />
+                    )}
+                    <View style={st.cardTop}>
+                      {b.logo_url && <Image source={{ uri: b.logo_url }} style={st.cardLogo} resizeMode="cover" />}
+                      <Text style={st.cardName} numberOfLines={1}>
+                        {b.brand_name_ar}
+                        {b.address_short ? ` — ${b.address_short}` : ""}
+                      </Text>
+                      <Badge label={badge.label} tone={badge.tone} />
+                    </View>
+                    <View style={st.metaRow}>
+                      {b.cuisine_ar && <Text style={st.meta}>{b.cuisine_ar}</Text>}
+                      {b.distance_meters !== null && (
+                        <Text style={st.meta}>{(b.distance_meters / 1000).toFixed(1)} كم</Text>
+                      )}
+                      {b.eta_minutes !== null && <Text style={st.meta}>قيادة {b.eta_minutes} د</Text>}
+                    </View>
+                    <Text style={st.carLine}>يصل طلبك إلى سيارتك</Text>
+                    {b.busy_message && <Text style={st.busy}>{b.busy_message}</Text>}
+                  </Pressable>
+                );
+              })}
+            </>
           )}
         </ScrollView>
       )}
@@ -406,15 +453,22 @@ const st = StyleSheet.create({
   },
   catNm: { color: light.text, fontSize: fs.fs15, fontWeight: "800" },
   catCt: { color: colors.blue500, fontSize: fs.fs12, fontWeight: "700" },
-  allBtn: {
-    backgroundColor: colors.blue500,
-    borderRadius: radiusPill,
-    borderWidth: bw2,
-    borderColor: colors.ink900,
-    minHeight: 52,
-    alignItems: "center",
-    justifyContent: "center",
-    ...popSm
+  /* بطاقات «قريب منك» — كما في /restaurants (تشارك card/cardTop/cardName/meta مع نتائج البحث) */
+  cardCover: {
+    height: 120,
+    borderRadius: radiusMd - 4,
+    marginBottom: 4,
+    backgroundColor: light.bg
   },
-  allBtnTxt: { color: colors.white, fontSize: fs.fs15, fontWeight: "800" }
+  cardLogo: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: colors.ink900,
+    backgroundColor: light.bg
+  },
+  metaRow: { flexDirection: "row-reverse", gap: 12 },
+  carLine: { color: colors.blue500, fontSize: fs.fs13, fontWeight: "700", textAlign: "right" },
+  busy: { color: colors.warn, fontSize: fs.fs13, textAlign: "right" }
 });
