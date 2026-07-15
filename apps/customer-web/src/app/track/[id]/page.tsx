@@ -10,7 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
 import { Qirtas, QirtasLoader } from "../../qirtas";
-import { ConfettiBurst, KitchenScene, PovScene, QirtasLive, ReadyScene, SentScene } from "../../qirtas-motion";
+import { ConfettiBurst, KitchenScene, MegaphoneScene, PovScene, QirtasLive, ReadyScene, SentScene } from "../../qirtas-motion";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
 import s from "./track.module.css";
 
@@ -65,7 +65,7 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   MERCHANT_ACCEPTED: { step: "PREPARING", title: "جاري تجهيز طلبك", sub: "قبل المطعم طلبك — بدأ تجهيزه الآن" },
   MERCHANT_REJECTED: { step: "SUBMITTED", title: "نعتذر — ما قدر المطعم يستقبل طلبك", sub: "مبلغك يرجع لك كاملاً" },
   PREPARING: { step: "PREPARING", title: "جاري تجهيز طلبك", sub: "خلّك مستعد للانطلاق" },
-  READY: { step: "READY", title: "طلبك جاهز", sub: "خلّك في سيارتك، الباقي علينا" },
+  READY: { step: "READY", title: "طلبك جاهز", sub: "ننادي عليك — بأعلى صوت" },
   CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "توجه للمطعم — واضغط «وصلت» عند وصولك" },
   CUSTOMER_ON_THE_WAY: { step: "READY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
   CUSTOMER_NEARBY: { step: "READY", title: "اقتربت!", sub: "تم رصد اقترابك — أبلغنا المطعم تلقائيًا" },
@@ -448,10 +448,10 @@ export default function TrackPage() {
         {/* عدّاد التجهيز التنازلي — من لحظة القبول + «متوسط وقت التجهيز» الذي حدده المطعم (قرار المالك 2026-07-12) */}
         {readyMoment ? (
           readyHeroOn ? (
-            /* صفحة «جاهز للاستلام» — بطل الدائرة: ملصق الكيس المربوط والقرطاس الملوّح (نمط لوحة التجهيز) */
+            /* صفحة «جاهز للاستلام» — بطل «المنادي»: ميغافون ينادي والكيس على منصة متوهجة (خيار ٢-هـ المعتمد 2026-07-15) */
             <div data-testid="ready-bag">
-              <div className={`${s.stateHero} ${s.stateHeroMid}`}>
-                <ReadyScene size={150} title="طلبك جاهز — الكيس مربوط باسمك" />
+              <div className={s.callCard}>
+                <MegaphoneScene />
               </div>
 
               {/* شريط الحالات تحت البطل — كما في اللوحة */}

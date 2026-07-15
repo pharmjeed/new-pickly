@@ -300,9 +300,17 @@
   margin-bottom: 12px;
   padding: 18px 16px 14px;
 }
-/* ===== بطل الدائرة الليمونية — نمط موحّد لصفحات الحالة الثلاث:
-   «جاري التجهيز» و«جاهز للاستلام» و«تم التسليم» (مرجع لوحة العرض)؛
-   الملصق المتحرك داخل الدائرة يتبدّل بحسب الحالة ===== */
+/* ===== بطل «جاهز للاستلام» — مشهد «المنادي» (خيار ٢-هـ المعتمد 2026-07-15) ===== */
+.callCard {
+  background: var(--pk-surface);
+  border: var(--pk-b3);
+  border-radius: 18px;
+  box-shadow: var(--pk-pop-sm);
+  margin: 6px 0 10px;
+  overflow: hidden;
+}
+
+/* ===== بطل الدائرة الليمونية — صفحة «تم التسليم» (والملصق داخلها قابل للتبديل) ===== */
 .stateHero {
   position: relative;
   width: 252px;
@@ -315,11 +323,6 @@
   align-items: flex-end;
   justify-content: center;
   padding-bottom: 22px;
-}
-/* مشهد الجاهزية أوسع من واقفٍ واحد — نوسّطه عمودياً كي لا يخرج عن قوس الدائرة */
-.stateHeroMid {
-  align-items: center;
-  padding-bottom: 0;
 }
 /* حلقة ليمونية خارجية تتنفس حول الدائرة */
 .stateHero::after {

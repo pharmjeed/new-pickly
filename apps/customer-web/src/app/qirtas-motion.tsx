@@ -7,7 +7,8 @@
  *  - <QirtasCook/>      القرطاس الطبّاخ: مريلة ليمونية، يقدّم برجراً يتصاعد بخاره
  *  - <KitchenScene/>    مشهد «المطبخ الحي»: الشيف خلف الكاونتر وقدر يغلي — بطل «جاري تجهيز طلبك» (خيار ١-ب)
  *  - <SentScene/>       مشهد «أُرسل طلبك»: القرطاس يُطلق الطلب طيّارةً ورقية تحلّق حتى باب المطعم — بطل انتظار القبول
- *  - <ReadyScene/>      ملصق «طلبك جاهز»: الكيس المربوط الكبير يتمايل والقرطاس يلوّح بجانبه «تعال خذه!»
+ *  - <ReadyScene/>      ملصق «طلبك جاهز» المضغوط: الكيس المربوط يتمايل والقرطاس يلوّح بجانبه
+ *  - <MegaphoneScene/>  مشهد «المنادي»: ميغافون ينادي «طلبك جاهز!» والكيس على منصة متوهجة — بطل «جاهز للاستلام» (خيار ٢-هـ)
  *  - <QirtasEmptyLive/> حالة فارغة حية (بديل QirtasEmpty الساكن): نعسان بـZzz عائمة أو متأسف
  *  - <QirtasDrive/>     القرطاس راكب سيارته المكشوفة: عجلات تدور وارتجاج طريق ودخان عادم — بطل الرئيسية
  *  - <HandoffScene/>    مشهد جانبي: قرطاس بقبعة يحمل الكيس نحو سيارة العميل
@@ -365,8 +366,22 @@ export function QirtasCook({
   );
 }
 
+/** كيس الطلب المربوط بعقدة وشارة الصح (فضاء 160) — قطعة مشتركة بين مشاهد الجاهزية */
+function TiedBag() {
+  return (
+    <g>
+      <path d="M62 56 q18 -30 36 0" fill="none" stroke={INK} strokeWidth="5" strokeLinecap="round" />
+      <path d="M74 40 q6 -9 12 0" fill="none" stroke={LIME} strokeWidth="4" strokeLinecap="round" />
+      <path d="M50 58 h60 l6 62 a10 10 0 0 1 -10 11 H54 a10 10 0 0 1 -10 -11 Z" fill={INK700} stroke={INK} strokeWidth="2" />
+      <path d="M50 58 h60 l1.4 12 H48.6 Z" fill={INK} />
+      <rect x="62" y="82" width="36" height="24" rx="6" fill={LIME} />
+      <path d="M71 94 l5 5 l10 -12" fill="none" stroke={INK} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </g>
+  );
+}
+
 /**
- * ملصق «طلبك جاهز» — بطل صفحة «جاهز للاستلام»:
+ * ملصق «طلبك جاهز» — البطاقة المضغوطة أثناء الرحلة/الوصول:
  * كيس بيكلي المربوط الكبير بشارة الصح يتمايل حول قاعدته فرحاً،
  * والقرطاس المتحمس يلوّح بجانبه «تعال خذه!» — ببريق ليموني ووردي يتلألأ.
  */
@@ -410,18 +425,79 @@ export function ReadyScene({
       {/* الكيس المربوط بعقدة وشارة الصح — يتمايل حول قاعدته فرحاً */}
       <g className={m.bagSway}>
         <g transform="translate(-14 15) scale(1.35)">
-          <path d="M62 56 q18 -30 36 0" fill="none" stroke={INK} strokeWidth="5" strokeLinecap="round" />
-          <path d="M74 40 q6 -9 12 0" fill="none" stroke={LIME} strokeWidth="4" strokeLinecap="round" />
-          <path d="M50 58 h60 l6 62 a10 10 0 0 1 -10 11 H54 a10 10 0 0 1 -10 -11 Z" fill={INK700} stroke={INK} strokeWidth="2" />
-          <path d="M50 58 h60 l1.4 12 H48.6 Z" fill={INK} />
-          <rect x="62" y="82" width="36" height="24" rx="6" fill={LIME} />
-          <path d="M71 94 l5 5 l10 -12" fill="none" stroke={INK} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          <TiedBag />
         </g>
       </g>
 
       {/* القرطاس المتحمس يلوّح: «تعال خذه!» */}
       <g transform="translate(120 16) scale(0.78)">
         <QirtasFigure mood="excited" pose="wave" />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * مشهد «المنادي» — بطل صفحة «جاهز للاستلام» (اختيار المالك 2026-07-15، لوحة الخيارات ٢-هـ):
+ * القرطاس يرفع ميغافوناً وردي المقبض وينادي «طلبك جاهز!» بموجات صوت تتسع،
+ * وكيس الطلب المربوط واقف على منصة كحلية تتوهج حوله هالة ليمونية.
+ */
+export function MegaphoneScene({
+  title = "طلبك جاهز — ننادي عليك",
+  style
+}: {
+  title?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <svg
+      viewBox="0 0 300 196"
+      role="img"
+      aria-label={title}
+      style={{ display: "block", width: "100%", height: "auto", ...style }}
+    >
+      {/* موجات النداء تتسع من فم الميغافون */}
+      <g stroke={INK} strokeWidth="4" fill="none" strokeLinecap="round">
+        <path className={m.callWave} d="M120 74 q-16 16 0 32" />
+        <path className={`${m.callWave} ${m.callWave2}`} d="M102 62 q-26 28 0 56" />
+        <path className={`${m.callWave} ${m.callWave3}`} d="M84 50 q-36 40 0 80" />
+      </g>
+
+      {/* فقاعة النداء الليمونية تنبثق مع كل نداء */}
+      <g className={m.bubblePop}>
+        <rect x="10" y="14" width="96" height="32" rx="12" fill={LIME} stroke={INK} strokeWidth="3" />
+        <text
+          x="58"
+          y="36"
+          textAnchor="middle"
+          fill={INK}
+          style={{ fontFamily: "var(--pk-font-display)", fontWeight: 800, fontSize: 15 }}
+        >
+          طلبك جاهز!
+        </text>
+      </g>
+
+      {/* الميغافون يهتز مع النداء — المقبض وردي (طاقة الهوية) */}
+      <g className={m.megaShake}>
+        <path d="M170 86 L128 68 L128 116 Z" fill={INK} stroke={INK} strokeWidth="3" strokeLinejoin="round" />
+        <rect x="122" y="82" width="10" height="20" rx="4" fill={PINK} stroke={INK} strokeWidth="2.5" />
+        <path d="M170 86 v14" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+      </g>
+
+      {/* القرطاس المنادي — ذراعه الخلفية نحو الميغافون */}
+      <g transform="translate(160 22) scale(0.52)">
+        <Leg hipX={112} hipY={188} bend={-2} />
+        <Leg hipX={168} hipY={189} bend={2} />
+        <LimbPath d="M99 130 q-22 -10 -30 -26" />
+        <Bag mood="excited" stroke={INK} fill="var(--pk-white, #FFFFFF)" />
+        <LimbPath d="M198 132 q17 13 15 33" />
+      </g>
+
+      {/* كيس الطلب على منصة كحلية — هالة ليمونية تتسع حوله */}
+      <circle className={m.haloRing} cx="56" cy="152" r="30" fill="none" stroke={LIME} strokeWidth="3" style={{ transformOrigin: "56px 152px" }} />
+      <rect x="26" y="168" width="60" height="16" rx="4" fill={INK700} stroke={INK} strokeWidth="3" />
+      <g transform="translate(24 92) scale(0.62)">
+        <TiedBag />
       </g>
     </svg>
   );
