@@ -856,7 +856,6 @@ export default function CheckoutPage() {
       <header className={styles.bhead}>
         <button className={styles.bk} onClick={() => router.back()} aria-label="رجوع"><ChevIcon /></button>
         <h1 className={styles.title}>السلة والإتمام</h1>
-        <span className={`${styles.badge} ${styles.badgeLime}`}>صفحة واحدة</span>
       </header>
 
       {!showAdd && errorNote}

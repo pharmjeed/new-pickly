@@ -728,7 +728,6 @@ export default function CheckoutScreen() {
           <Text style={st.backTxt}>‹</Text>
         </Pressable>
         <Text style={st.title}>السلة والإتمام</Text>
-        <Badge label="صفحة واحدة" tone="lime" />
       </View>
 
       <ScrollView contentContainerStyle={st.body}>
