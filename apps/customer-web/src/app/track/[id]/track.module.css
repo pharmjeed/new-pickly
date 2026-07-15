@@ -220,28 +220,15 @@
   display: block;
 }
 
-/* ===== نبضة «تم رصد وصولك» — الاحتفالية الوحيدة ===== */
-@keyframes pk-arrive-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pk-lime-500) 50%, transparent); }
-  50% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--pk-lime-500) 0%, transparent); }
-}
-.pulseWrap {
-  display: flex;
-  justify-content: center;
-  margin: 10px 0 14px;
-}
-.pulseIcon {
-  width: 104px;
-  height: 104px;
-  border-radius: 30px;
-  background: var(--pk-lime-500);
-  color: var(--pk-ink-900);
+/* ===== بطل «تم رصد وصولك» — مشهد «الرصف الذكي» من فوق (خيار ٤-و المعتمد 2026-07-15):
+   بطاقة الأسفلت الكحلية بظل ليموني (الليموني محجوز للحظة الوصول) ===== */
+.parkCard {
+  background: var(--pk-ink-900);
   border: var(--pk-b3);
-  box-shadow: var(--pk-pop-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: pk-arrive-pulse 1.6s var(--pk-ease) infinite;
+  border-radius: 18px;
+  box-shadow: 6px 6px 0 var(--pk-lime-500);
+  margin: 6px 0 12px;
+  overflow: hidden;
 }
 
 /* ===== صف الموقف ===== */

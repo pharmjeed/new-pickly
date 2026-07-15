@@ -13,6 +13,7 @@
  *  - <QirtasDrive/>     القرطاس راكب سيارته المكشوفة: عجلات تدور وارتجاج طريق ودخان عادم — بطل الرئيسية
  *  - <HandoffScene/>    مشهد جانبي: قرطاس بقبعة يحمل الكيس نحو سيارة العميل
  *  - <PovScene/>        مشهد «من مقعدك» POV: القرطاس يقترب من زجاجك الأمامي — بطل «الموظف متجه إليك» (خيار ٥-ج)
+ *  - <ParkedScene/>     مشهد «الرصف الذكي»: سيارتك تركن في مربع الالتقاء من فوق — بطل «تم رصد وصولك» (خيار ٤-و)
  *  - <ConfettiBurst/>   كونفيتي احتفالي بألوان الهوية — غلاف مطلق فوق أي بطاقة
  *
  * قواعد الكاركتر محفوظة (كتاب الهوية §5): الوجه والقاعدة المسنّنة من Bag الرسمي حرفياً،
@@ -498,6 +499,84 @@ export function MegaphoneScene({
       <rect x="26" y="168" width="60" height="16" rx="4" fill={INK700} stroke={INK} strokeWidth="3" />
       <g transform="translate(24 92) scale(0.62)">
         <TiedBag />
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * مشهد «الرصف الذكي» — بطل «تم رصد وصولك» (اختيار المالك 2026-07-15، لوحة الخيارات ٤-و):
+ * لقطة درون فوق المواقف — سيارتك تنزلق داخل مربع الالتقاء الليموني المتقطع
+ * فيتوهج المربع وتنتشر حلقات الرصد وتنبثق «وصلت ✓» على الأسفلت.
+ * يوضع داخل بطاقة كحلية داكنة (الأسفلت) بظل ليموني.
+ */
+export function ParkedScene({
+  title = "رُصد وصولك — ركنت في نقطة الالتقاء",
+  style
+}: {
+  title?: string;
+  style?: CSSProperties;
+}) {
+  const INK600 = "var(--pk-ink-600, #4A5A7C)";
+  return (
+    <svg
+      viewBox="0 0 300 180"
+      role="img"
+      aria-label={title}
+      style={{ display: "block", width: "100%", height: "auto", ...style }}
+    >
+      {/* خطوط المواقف على الأسفلت */}
+      <g stroke={INK600} strokeWidth="3">
+        <path d="M84 18 v56 M156 18 v56 M228 18 v56" />
+        <path d="M84 106 v56 M228 106 v56" />
+      </g>
+
+      {/* مربع نقطة الالتقاء المتقطع — يتوهج لحظة الركن */}
+      <rect className={m.spotGlow} x="92" y="102" width="128" height="64" rx="8" fill={LIME} fillOpacity="0.06" stroke={LIME} strokeWidth="3" strokeDasharray="8 7" />
+
+      {/* حلقتا رصد تنتشران من مركز الموقف */}
+      <circle className={m.haloRing} cx="156" cy="134" r="40" fill="none" stroke={LIME} strokeWidth="3" style={{ transformOrigin: "156px 134px" }} />
+      <circle className={m.haloRing} cx="156" cy="134" r="40" fill="none" stroke={LIME} strokeWidth="3" style={{ transformOrigin: "156px 134px", animationDelay: "0.9s" }} />
+
+      {/* سيارتان جارتان راكنتان */}
+      <g opacity="0.55">
+        <g transform="translate(100 24)">
+          <rect width="64" height="30" rx="10" fill={INK600} />
+          <rect x="14" y="5" width="30" height="20" rx="5" fill={INK700} />
+        </g>
+        <g transform="translate(172 24)">
+          <rect width="64" height="30" rx="10" fill={INK600} />
+          <rect x="14" y="5" width="30" height="20" rx="5" fill={INK700} />
+        </g>
+      </g>
+
+      {/* سيارتك تنزلق داخل المربع — القرطاس يطل من فتحة السقف */}
+      <g className={m.parkIn}>
+        <g transform="translate(112 118)">
+          <rect width="88" height="34" rx="11" fill="var(--pk-cloud-2, #EFEADB)" stroke={INK} strokeWidth="3" />
+          <rect x="20" y="4" width="34" height="26" rx="6" fill={INK700} />
+          <rect x="80" y="4" width="6" height="8" rx="3" fill={LIME} />
+          <rect x="80" y="22" width="6" height="8" rx="3" fill={LIME} />
+          <g transform="translate(26 5) scale(0.1)">
+            <Bag mood="excited" stroke={INK} fill="var(--pk-white, #FFFFFF)" />
+          </g>
+        </g>
+      </g>
+
+      {/* ختم «وصلت ✓» ينبثق على الأسفلت لحظة الركن */}
+      <g className={m.popIn}>
+        <g transform="translate(230 96)">
+          <rect x="-6" y="-14" width="76" height="28" rx="14" fill={LIME} stroke={INK} strokeWidth="2.5" />
+          <text
+            x="32"
+            y="6"
+            textAnchor="middle"
+            fill={INK}
+            style={{ fontFamily: "var(--pk-font-display)", fontWeight: 800, fontSize: 14 }}
+          >
+            وصلت ✓
+          </text>
+        </g>
       </g>
     </svg>
   );

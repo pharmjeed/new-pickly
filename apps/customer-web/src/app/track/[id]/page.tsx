@@ -10,7 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
 import { Qirtas, QirtasLoader } from "../../qirtas";
-import { ConfettiBurst, KitchenScene, MegaphoneScene, PovScene, QirtasLive, ReadyScene, SentScene } from "../../qirtas-motion";
+import { ConfettiBurst, KitchenScene, MegaphoneScene, ParkedScene, PovScene, QirtasLive, ReadyScene, SentScene } from "../../qirtas-motion";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
 import s from "./track.module.css";
 
@@ -69,7 +69,7 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "توجه للمطعم — واضغط «وصلت» عند وصولك" },
   CUSTOMER_ON_THE_WAY: { step: "READY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
   CUSTOMER_NEARBY: { step: "READY", title: "اقتربت!", sub: "تم رصد اقترابك — أبلغنا المطعم تلقائيًا" },
-  CUSTOMER_ARRIVED: { step: "READY", title: "وصلت؟ إحنا عرفنا.", sub: "الموظف في طريقه إليك" },
+  CUSTOMER_ARRIVED: { step: "READY", title: "وصلت؟ إحنا عرفنا.", sub: "ركنت في مكانك — والمكان عرفك" },
   HANDOFF_IN_PROGRESS: { step: "READY", title: "الموظف متجه إليك", sub: "من مقعدك — يقترب الآن" },
   COMPLETED: { step: "COMPLETED", title: "بالعافية!", sub: "قيّم استلامك بضغطة" },
   CANCELLED: { step: "SUBMITTED", title: "أُلغي الطلب", sub: "مبلغك يرجع لك حسب السياسة" }
@@ -354,6 +354,8 @@ export default function TrackPage() {
   // صفحة «جاهز للاستلام» الهادئة (قبل الانطلاق) — بطل الدائرة الليمونية على نمط لوحة التجهيز؛
   // أثناء الرحلة/التسليم تكفي البطاقة المضغوطة كي تبقى الخريطة والرمز في الصدارة
   const readyHeroOn = readyMoment && ["READY", "CUSTOMER_NOTIFIED"].includes(order.order_status);
+  // «وصلت» والطلب جاهز — بطل «الرصف الذكي» بدل بطاقة الكيس (خيار ٤-و المعتمد 2026-07-15)
+  const parkedOn = readyMoment && order.order_status === "CUSTOMER_ARRIVED";
   // صدق شريط الخطوات: «قيد التجهيز» و«جاهز» تُعلَّمان بحقائق التجهيز لا بموقع الرحلة
   const stepDone = (i: number): boolean => {
     if (completed) return true;
@@ -404,13 +406,6 @@ export default function TrackPage() {
         {/* شريط الحالات في أعلى الصفحة — عدا صفحات بطل الدائرة (تجهيز/جاهز/تسليم) حيث ينزل تحته */}
         {!prepCountdownOn && !readyHeroOn && !completed && stepsBar}
 
-        {/* نبضة «تم رصد وصولك» — القرطاس المتحمس داخل البطاقة الليمونية (لحظة الوصول) */}
-        {order.order_status === "CUSTOMER_ARRIVED" && !arrivedBeforeReady && (
-          <div className={s.pulseWrap}>
-            <div className={s.pulseIcon}><Qirtas mood="excited" size={68} /></div>
-          </div>
-        )}
-
         {/* شاشة انتظار قبول المطعم — القرطاس يُطلق الطلب طيّارةً ورقية نحو المطعم (اختيار المالك 2026-07-15) */}
         {isWaiting && (
           <div className={s.sentHero} data-testid="waiting-logo">
@@ -418,7 +413,7 @@ export default function TrackPage() {
           </div>
         )}
 
-        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting || prepCountdownOn || readyHeroOn || completed ? "center" : undefined }}>
+        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting || prepCountdownOn || readyHeroOn || parkedOn || completed ? "center" : undefined }}>
           {view.title}
         </h1>
         {isWaiting ? (
@@ -427,7 +422,7 @@ export default function TrackPage() {
           /* حالة التجهيز: اسم المطعم تحت العنوان مباشرة (مرجع لوحة العرض) */
           <p className="pk-muted" style={{ marginBottom: 4, textAlign: "center" }}>من {order.brand_name_ar}</p>
         ) : (
-          <p className="pk-muted" style={{ marginBottom: 16, textAlign: readyHeroOn || completed ? "center" : undefined }}>{view.sub}</p>
+          <p className="pk-muted" style={{ marginBottom: 16, textAlign: readyHeroOn || parkedOn || completed ? "center" : undefined }}>{view.sub}</p>
         )}
 
         {/* عدّاد التجهيز التنازلي — من لحظة القبول + «متوسط وقت التجهيز» الذي حدده المطعم (قرار المالك 2026-07-12) */}
@@ -449,8 +444,18 @@ export default function TrackPage() {
                 {READY_MSGS[readyMsgIdx]}
               </p>
             </div>
+          ) : parkedOn ? (
+            /* «وصلت؟ إحنا عرفنا.» — لقطة الدرون: سيارتك ركنت في نقطة الالتقاء (خيار ٤-و المعتمد 2026-07-15) */
+            <div data-testid="arrived-scene">
+              <div className={s.parkCard}>
+                <ParkedScene />
+              </div>
+              <p style={{ textAlign: "center", marginBottom: 12 }}>
+                <span className="pk-badge ok" data-testid="arrival-ack">أبلغنا المطعم بوصولك ✓</span>
+              </p>
+            </div>
           ) : (
-            /* لحظة الجاهزية أثناء الرحلة/الوصول — البطاقة المضغوطة بالملصق نفسه مصغّراً */
+            /* لحظة الجاهزية أثناء الرحلة/التسليم — البطاقة المضغوطة بالملصق نفسه مصغّراً */
             <div className={`pk-card pk-in ${s.prepCard} ${s.readyCard}`} data-testid="ready-bag">
               <p style={{ fontWeight: 700 }}>طلبك جاهز!</p>
               <ReadyScene size={118} style={{ display: "block", margin: "6px auto 2px" }} />
