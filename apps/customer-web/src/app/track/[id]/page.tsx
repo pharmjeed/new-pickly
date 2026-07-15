@@ -380,7 +380,7 @@ export default function TrackPage() {
   const geoBlocked = geoState === "denied" || geoState === "unavailable";
   const withinRange = geoBlocked || (distanceM !== null && distanceM <= order.arrival_radius_m);
 
-  /* شريط الحالات الخمس (steps — P7.html) — في حالة التجهيز ينزل تحت بطل الدائرة (مرجع لوحة العرض) */
+  /* شريط الحالات الخمس (steps — P7.html) — مثبّت أعلى الصفحة في كل الحالات (توجيه المالك 2026-07-15) */
   const stepsBar = (
     <div className={s.steps} aria-label="حالة الطلب">
       {STEP_LABELS.map((lb, i) => {
@@ -406,8 +406,8 @@ export default function TrackPage() {
     <div className={driveMode ? "pk-drive" : ""}>
       {/* مساحة سفلية للتبويب الثابت — كي لا يغطي السحبَ وبطاقات أسفل الصفحة */}
       <main className="pk-wrap" style={{ paddingBottom: 92 }}>
-        {/* شريط الحالات في أعلى الصفحة — عدا صفحات بطل الدائرة (تجهيز/جاهز/تسليم) حيث ينزل تحته */}
-        {!prepCountdownOn && !readyHeroOn && !completed && stepsBar}
+        {/* شريط الحالات في أعلى الصفحة — في كل الحالات بلا استثناء */}
+        {stepsBar}
 
         {/* شاشة انتظار قبول المطعم — القرطاس يُطلق الطلب طيّارةً ورقية نحو المطعم (اختيار المالك 2026-07-15) */}
         {isWaiting && (
@@ -436,9 +436,6 @@ export default function TrackPage() {
               <div className={s.callCard}>
                 <MegaphoneScene />
               </div>
-
-              {/* شريط الحالات تحت البطل — كما في اللوحة */}
-              {stepsBar}
 
               <p
                 className={`pk-muted ${s.prepMsg} ${readyMsgOut ? s.prepMsgOut : ""}`}
@@ -530,9 +527,6 @@ export default function TrackPage() {
                   </div>
                 </div>
 
-                {/* شريط الحالات تحت البطل — كما في اللوحة */}
-                {stepsBar}
-
                 {/* الرسالة المطمئنة المتبدلة */}
                 <p className={`pk-muted ${s.prepMsg} ${prepMsgOut ? s.prepMsgOut : ""}`} style={{ textAlign: "center", margin: "2px 0 14px" }}>
                   {overtime ? "أطول من المتوقع بقليل — يوشك على الجهوز" : PREP_MSGS[prepMsgIdx]}
@@ -606,9 +600,6 @@ export default function TrackPage() {
               <ConfettiBurst count={14} />
               <QirtasLive pose="celebrate" carrying mood="excited" size={150} title="القرطاس يحتفل بتسليم طلبك" />
             </div>
-
-            {/* شريط الحالات تحت البطل — كما في اللوحة */}
-            {stepsBar}
 
             <div
               className="pk-card pk-in"
