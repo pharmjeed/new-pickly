@@ -185,6 +185,17 @@
   100% { opacity: 0; transform: scale(0.6); }
 }
 
+/* ---- مشهد «يا هلا»: مظلة المطعم تتمايل بالنسيم ---- */
+.awning {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: m-awn 3.4s ease-in-out infinite;
+}
+@keyframes m-awn {
+  0%, 100% { transform: skewX(0); }
+  50% { transform: skewX(2.2deg); }
+}
+
 /* ---- ملصق «طلبك جاهز»: الكيس المربوط الكبير يتمايل حول قاعدته ---- */
 .bagSway {
   transform-box: fill-box;
@@ -331,7 +342,7 @@
   .armSwing, .armWave, .armUp, .armServe,
   .handBag, .handBagCalm, .bagSway,
   .lidJump, .povApproach, .mirrorGlint,
-  .megaShake, .bubblePop, .parkIn,
+  .megaShake, .bubblePop, .parkIn, .awning,
   .line1, .line2, .line3,
   .road, .car, .pinDrop,
   .spin, .driveCar, .driveRider, .roadBack,

@@ -10,7 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
 import { Qirtas, QirtasLoader } from "../../qirtas";
-import { ConfettiBurst, KitchenScene, MegaphoneScene, PovScene, QirtasLive, ReadyScene, SentScene } from "../../qirtas-motion";
+import { ConfettiBurst, KitchenScene, MegaphoneScene, PovScene, QirtasLive, ReadyScene, SentScene, WelcomeScene } from "../../qirtas-motion";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
 import s from "./track.module.css";
 
@@ -69,7 +69,8 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "توجه للمطعم — واضغط «وصلت» عند وصولك" },
   CUSTOMER_ON_THE_WAY: { step: "READY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
   CUSTOMER_NEARBY: { step: "READY", title: "اقتربت!", sub: "تم رصد اقترابك — أبلغنا المطعم تلقائيًا" },
-  CUSTOMER_ARRIVED: { step: "READY", title: "وصلت؟ إحنا عرفنا.", sub: "ركنت في مكانك — والمكان عرفك" },
+  /* عبارة ٥ من لوحة الوصول المبكر — اعتماد المالك 2026-07-15 (بدل «وصلت؟ إحنا عرفنا.») */
+  CUSTOMER_ARRIVED: { step: "READY", title: "يا هلا باللي وصل!", sub: "المكان عرفك — وطلبك بآخر لمساته" },
   HANDOFF_IN_PROGRESS: { step: "READY", title: "الموظف متجه إليك", sub: "من مقعدك — يقترب الآن" },
   COMPLETED: { step: "COMPLETED", title: "بالعافية!", sub: "قيّم استلامك بضغطة" },
   CANCELLED: { step: "SUBMITTED", title: "أُلغي الطلب", sub: "مبلغك يرجع لك حسب السياسة" }
@@ -350,7 +351,7 @@ export default function TrackPage() {
         step: "PREPARING",
         sub:
           order.order_status === "CUSTOMER_ARRIVED"
-            ? "طلبك يُجهَّز الآن — نطلع لك فور جاهزيته"
+            ? "المكان عرفك — وطلبك بآخر لمساته"
             : "المطعم يجهّز طلبك على وقت وصولك"
       }
     : baseView;
@@ -457,51 +458,30 @@ export default function TrackPage() {
           )
         ) : arrivedBeforeReady && order.prep_minutes !== null && order.accepted_at ? (
           (() => {
-            // عدّاد «على وشك» بعد الوصول المبكر — نفس مرساة القبول ومتوسط وقت التجهيز، معروضاً كحلقة تتقلص مع الوقت
+            // عدّاد «على وشك» بعد الوصول المبكر — نفس مرساة القبول ومتوسط وقت التجهيز،
+            // داخل مشهد «يا هلا» (اعتماد المالك 2026-07-15: لوحة الوصول المبكر، و + عبارة ٥)
             const totalMs = order.prep_minutes * 60_000;
             const leftMs = new Date(order.accepted_at).getTime() + totalMs - nowTs;
             const overtime = leftMs <= 0;
             const shown = Math.max(leftMs, 0);
             const mm = Math.floor(shown / 60_000);
             const ss = Math.floor((shown % 60_000) / 1000);
-            const frac = Math.min(Math.max(shown / totalMs, 0), 1); // نسبة الوقت المتبقي
-            const R = 52;
-            const CIRC = 2 * Math.PI * R;
-            const offset = overtime ? 0 : CIRC * (1 - frac); // الحلقة تتقلص مع تناقص الوقت
             return (
               <div className={`pk-card ${s.arriveCard}`} data-testid="arrived-countdown">
-                <p style={{ fontWeight: 700 }}>{overtime ? "اللمسات الأخيرة على طلبك" : "طلبك على وشك الجهوز"}</p>
-                <div className={s.cdRingWrap}>
-                  <svg viewBox="0 0 126 126" className={s.cdRing} aria-hidden="true">
-                    <circle cx="63" cy="63" r="52" fill="none" stroke="var(--pk-lime-100)" strokeWidth="10" />
-                    <circle
-                      cx="63"
-                      cy="63"
-                      r="52"
-                      fill="none"
-                      stroke={overtime ? "var(--pk-warn)" : "var(--pk-lime-500)"}
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeDasharray={CIRC}
-                      strokeDashoffset={offset}
-                      transform="rotate(-90 63 63)"
-                      style={{ transition: reduceMotion ? "none" : "stroke-dashoffset 1s linear" }}
-                    />
-                  </svg>
-                  <div className={s.cdNum}>
-                    <b>{overtime ? "جاهز تقريباً" : `${mm}:${String(ss).padStart(2, "0")}`}</b>
-                    <span>ويكون طلبك جاهز</span>
-                  </div>
+                <WelcomeScene />
+                <div className={s.welcomeCd}>
+                  <b>{overtime ? "جاهز تقريباً" : `${mm}:${String(ss).padStart(2, "0")}`}</b>
+                  <span>{overtime ? "اللمسات الأخيرة على طلبك" : "ويكون طلبك جاهز"}</span>
                 </div>
                 <span className="pk-badge ok" data-testid="arrival-ack">أبلغنا المطعم بوصولك ✓</span>
               </div>
             );
           })()
         ) : arrivedBeforeReady ? (
-          /* وصل مبكراً بلا مرساة وقت (طلب قديم) — نكتفي بتأكيد الإبلاغ والطمأنة */
+          /* وصل مبكراً بلا مرساة وقت (طلب قديم) — مشهد «يا هلا» مع تأكيد الإبلاغ والطمأنة */
           <div className={`pk-card ${s.arriveCard}`} data-testid="arrived-countdown">
-            <p style={{ fontWeight: 700 }}>طلبك على وشك الجهوز</p>
-            <p className="pk-muted" style={{ marginTop: 4, marginBottom: 10 }}>المطعم يُنهي تجهيزه — نطلع لك فور جهوزه</p>
+            <WelcomeScene />
+            <p className="pk-muted" style={{ marginTop: 6, marginBottom: 10 }}>المطعم يُنهي تجهيزه — نطلع لك فور جهوزه</p>
             <span className="pk-badge ok" data-testid="arrival-ack">أبلغنا المطعم بوصولك ✓</span>
           </div>
         ) : prepCountdownOn && order.prep_minutes !== null && order.accepted_at ? (

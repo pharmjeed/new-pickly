@@ -13,8 +13,9 @@
  *  - <QirtasDrive/>     القرطاس راكب سيارته المكشوفة: عجلات تدور وارتجاج طريق ودخان عادم — بطل الرئيسية
  *  - <HandoffScene/>    مشهد جانبي: قرطاس بقبعة يحمل الكيس نحو سيارة العميل
  *  - <PovScene/>        مشهد «من مقعدك» POV: القرطاس يقترب من زجاجك الأمامي — بطل «الموظف متجه إليك» (خيار ٥-ج)
- *  - <ParkedScene/>     مشهد «الرصف الذكي»: سيارتك تركن في مربع الالتقاء من فوق (خيار ٤-و) —
- *                       مخصص لحالة «وصل قبل الجهوز» (توجيه المالك: واصل+جاهز ⇒ مشهد POV مباشرة)
+ *  - <ParkedScene/>     مشهد «الرصف الذكي»: سيارتك تركن في مربع الالتقاء من فوق (خيار ٤-و)
+ *  - <WelcomeScene/>    مشهد «يا هلا»: القرطاس يخرج من باب المطعم ملوّحاً لسيارتك الراكنة —
+ *                       بطل «وصل قبل الجهوز» (لوحة الوصول المبكر: و + عبارة ٥، اعتماد المالك 2026-07-15)
  *  - <ConfettiBurst/>   كونفيتي احتفالي بألوان الهوية — غلاف مطلق فوق أي بطاقة
  *
  * قواعد الكاركتر محفوظة (كتاب الهوية §5): الوجه والقاعدة المسنّنة من Bag الرسمي حرفياً،
@@ -579,6 +580,115 @@ export function ParkedScene({
           </text>
         </g>
       </g>
+    </svg>
+  );
+}
+
+/**
+ * مشهد «يا هلا» — بطل «وصل قبل الجهوز» (اختيار المالك 2026-07-15، لوحة الوصول المبكر: و + عبارة ٥):
+ * القرطاس المبتهج يخرج من باب المطعم ملوّحاً لسيارتك الراكنة وفقاعة «يا هلا!» تنبثق —
+ * حفاوة تربط بصرياً طرفَي اللحظة: سيارتك الواقفة والمطعم الذي انتبه لوصولك.
+ */
+export function WelcomeScene({
+  title = "يا هلا — المكان عرفك وطلبك بآخر لمساته",
+  style
+}: {
+  title?: string;
+  style?: CSSProperties;
+}) {
+  const star = "M7 0 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z";
+  const WHITE = "var(--pk-white, #FFFFFF)";
+  return (
+    <svg
+      viewBox="0 0 300 190"
+      role="img"
+      aria-label={title}
+      style={{ display: "block", width: "100%", height: "auto", ...style }}
+    >
+      {/* واجهة المطعم ولوحته */}
+      <rect x="168" y="44" width="120" height="126" fill={WHITE} stroke={INK} strokeWidth="3" />
+      <rect x="196" y="66" width="64" height="18" rx="5" fill="var(--pk-lime-100, #EBF9B8)" stroke={INK} strokeWidth="2.5" />
+      <text
+        x="228"
+        y="79"
+        textAnchor="middle"
+        fill={INK}
+        style={{ fontFamily: "var(--pk-font-display)", fontWeight: 800, fontSize: 11 }}
+      >
+        المطعم
+      </text>
+
+      {/* المظلة المخططة تتمايل بالنسيم */}
+      <g className={m.awning}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <rect
+            key={i}
+            x={162 + i * 22}
+            y="38"
+            width="22"
+            height="18"
+            fill={i % 2 ? WHITE : LIME}
+            stroke={INK}
+            strokeWidth="2.5"
+          />
+        ))}
+      </g>
+
+      {/* الباب المفتوح — والقرطاس خارج منه بمشية حية وذراع تلوّح لسيارتك */}
+      <rect x="204" y="100" width="46" height="70" fill={INK700} stroke={INK} strokeWidth="3" />
+      <g className={m.bodyWalk}>
+        <g transform="translate(186 66) scale(0.5)">
+          <Bag mood="excited" stroke={INK} fill={WHITE} />
+        </g>
+      </g>
+      <g className={`${m.arm} ${m.armWave}`} style={{ transformOrigin: "230px 112px" }}>
+        <path d="M230 112 q-8 -3 -14 -15" fill="none" stroke={INK} strokeWidth="5" strokeLinecap="round" />
+      </g>
+
+      {/* فقاعة «يا هلا!» تنبثق من جهة الباب */}
+      <g className={m.bubblePop}>
+        <rect x="128" y="58" width="60" height="28" rx="13" fill={WHITE} stroke={INK} strokeWidth="2.5" />
+        <path d="M180 84 l8 10 l-1 -11 Z" fill={WHITE} stroke={INK} strokeWidth="2.5" strokeLinejoin="round" />
+        <text
+          x="158"
+          y="77"
+          textAnchor="middle"
+          fill={INK}
+          style={{ fontFamily: "var(--pk-font-display)", fontWeight: 800, fontSize: 13 }}
+        >
+          يا هلا!
+        </text>
+      </g>
+
+      {/* سيارتك الراكنة ودبوس الرصد الوردي ينطنط فوقها */}
+      <g transform="translate(22 128) scale(1.25)">
+        <path
+          d="M4 26 L6 19.5 Q7 16.5 12 16 L30 15.6 L37.5 8 Q39.5 6 43.5 6 L57 6 Q65.5 6 68.4 17.5 L70 24 Q70.2 26 68 26 Z"
+          fill={INK}
+        />
+        <circle cx="18" cy="28" r="6" fill={INK} stroke={LIME} strokeWidth="2.6" />
+        <circle cx="56" cy="28" r="6" fill={INK} stroke={LIME} strokeWidth="2.6" />
+        <path d="M40 9 L38 15 L52 15 L51 9 Z" fill={WHITE} opacity="0.9" />
+      </g>
+      <g className={m.pinDrop}>
+        <g transform="translate(68 102)">
+          <path
+            d="M0 -20 C-9 -20 -14.5 -13 -14.5 -5.5 C-14.5 4.5 0 20 0 20 C0 20 14.5 4.5 14.5 -5.5 C14.5 -13 9 -20 0 -20 Z"
+            fill={PINK}
+            stroke={INK}
+            strokeWidth="3"
+            strokeLinejoin="round"
+          />
+          <circle cx="0" cy="-6" r="4.5" fill={WHITE} stroke={INK} strokeWidth="2" />
+        </g>
+      </g>
+
+      {/* بريق الحفاوة بين السيارة والباب */}
+      <path className={`${m.spark} ${m.spark1}`} d={star} fill={PINK} transform="translate(130 116)" />
+      <path className={`${m.spark} ${m.spark2}`} d={star} fill={LIME} stroke={INK} strokeWidth="1.5" transform="translate(148 92)" />
+
+      {/* الأرض */}
+      <line x1="14" y1="170" x2="286" y2="170" stroke="var(--pk-line, #E7E0CE)" strokeWidth="4" strokeLinecap="round" />
     </svg>
   );
 }

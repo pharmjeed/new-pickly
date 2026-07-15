@@ -412,43 +412,29 @@
   .prepMsg { transition: none; }
 }
 
-/* ===== الوصول المبكر — بطاقة عدّاد «على وشك» (الحلقة تتقلص مع الوقت) ===== */
+/* ===== الوصول المبكر — بطاقة «يا هلا» (المشهد + العدّاد الأزرق تحته) ===== */
 .arriveCard {
   text-align: center;
   margin-bottom: 12px;
   padding: 18px 16px 16px;
   border-color: var(--pk-lime-500);
 }
-.cdRingWrap {
-  position: relative;
-  width: 132px;
-  height: 132px;
-  margin: 10px auto 12px;
-}
-.cdRing {
-  display: block;
-  width: 132px;
-  height: 132px;
-}
-.cdNum {
-  position: absolute;
-  inset: 0;
+.welcomeCd {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  pointer-events: none;
+  margin: 6px 0 10px;
 }
-.cdNum b {
+.welcomeCd b {
   font-family: var(--pk-font-mono);
   font-size: var(--pk-fs-24);
-  font-weight: 500;
+  font-weight: 700;
   direction: ltr;
   font-variant-numeric: tabular-nums;
-  color: var(--pk-ink-900);
+  color: var(--pk-blue-500);
   line-height: 1.2;
 }
-.cdNum span {
+.welcomeCd span {
   font-size: var(--pk-fs-12);
   color: var(--pk-text-2);
   margin-top: 2px;

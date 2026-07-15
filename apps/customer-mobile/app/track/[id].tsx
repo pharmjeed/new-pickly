@@ -71,7 +71,8 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "توجه للمطعم — واضغط «وصلت» عند وصولك" },
   CUSTOMER_ON_THE_WAY: { step: "READY", title: "أنت في الطريق", sub: "المطعم يعرف وقت وصولك" },
   CUSTOMER_NEARBY: { step: "READY", title: "اقتربت!", sub: "تم رصد اقترابك — أبلغنا المطعم تلقائيًا" },
-  CUSTOMER_ARRIVED: { step: "ARRIVED", title: "وصلت؟ إحنا عرفنا.", sub: "الموظف في طريقه إليك" },
+  /* عبارة ٥ من لوحة الوصول المبكر — اعتماد المالك 2026-07-15 (بدل «وصلت؟ إحنا عرفنا.») */
+  CUSTOMER_ARRIVED: { step: "ARRIVED", title: "يا هلا باللي وصل!", sub: "الموظف في طريقه إليك" },
   HANDOFF_IN_PROGRESS: { step: "ARRIVED", title: "الموظف متجه إليك", sub: "يحمل طلبك — جهّز الرمز" },
   COMPLETED: { step: "COMPLETED", title: "بالعافية!", sub: "قيّم استلامك بضغطة" },
   CANCELLED: { step: "SUBMITTED", title: "أُلغي الطلب", sub: "مبلغك يرجع لك حسب السياسة" }

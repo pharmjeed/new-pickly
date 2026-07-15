@@ -118,7 +118,8 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await c.mouse.down();
   await c.mouse.move(sb.x + sb.width - 8, cy, { steps: 12 });
   await c.mouse.up();
-  await expect(c.getByTestId("track-title")).toContainText("وصلت؟ إحنا عرفنا.");
+  // واصل + جاهز معاً ⇒ صفحة POV «الموظف متجه إليك» فوراً (توجيه المالك 2026-07-15، التزام 02b59eb)
+  await expect(c.getByTestId("track-title")).toContainText("الموظف متجه إليك");
 
   // ===== 8. الفرع: الوصول يظهر على نفس البطاقة (شارة «🚘 وصل» + وميض)
   //          ← «تم التسليم» بضغطة واحدة بلا رمز، بلا تنقّل =====
