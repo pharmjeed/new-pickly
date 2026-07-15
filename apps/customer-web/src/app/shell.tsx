@@ -187,12 +187,37 @@ export function cuisineIcon(name: string, size = 26): React.ReactNode {
   return <IStore size={size} />;
 }
 
-/** صورة التصنيف الواقعية حسب اسمه (public/cats — ترخيص Unsplash) — سقوط لصورة المتجر العام */
+/** أيقونات التصنيفات ثلاثية الأبعاد المعتمدة من المالك (public/cats) — بأسمائها في قائمة السوبر أدمن حرفياً */
+const CUISINE_PHOTOS: Record<string, string> = {
+  "برجر": "/cats/burger.jpg",
+  "دجاج": "/cats/chicken.jpg",
+  "مندي ومظبي": "/cats/mandi.jpg",
+  "بيتزا": "/cats/pizza.jpg",
+  "ساندوتشات": "/cats/sandwich.jpg",
+  "سوشي": "/cats/sushi.jpg",
+  "باستا": "/cats/pasta.jpg",
+  "سلطات": "/cats/salad.jpg",
+  "مقبلات": "/cats/appetizers.jpg",
+  "بطاطس": "/cats/fries.jpg",
+  "راب": "/cats/wrap.jpg",
+  "بحري": "/cats/seafood.jpg",
+  "حلويات": "/cats/dessert.jpg",
+  "مشروبات": "/cats/drinks.jpg",
+  "عصائر طازجة": "/cats/juice.jpg",
+  "مشروبات ساخنة": "/cats/hotdrinks.jpg",
+  "فطور": "/cats/breakfast.jpg",
+  "وجبات أطفال": "/cats/kids.jpg",
+};
+
+/** صورة التصنيف حسب اسمه — مطابقة حرفية ثم احتواء (أسماء قديمة/مشتقة) وسقوط لصورة المتجر العام */
 export function cuisinePhoto(name: string): string {
+  const exact = CUISINE_PHOTOS[name.trim()];
+  if (exact) return exact;
   if (name.includes("برجر")) return "/cats/burger.jpg";
-  if (name.includes("شاورما")) return "/cats/shawarma.jpg";
-  if (name.includes("مقهى") || name.includes("قهوة")) return "/cats/coffee.jpg";
+  if (name.includes("شاورما") || name.includes("راب")) return "/cats/wrap.jpg";
+  if (name.includes("مقهى") || name.includes("قهوة")) return "/cats/hotdrinks.jpg";
   if (name.includes("بيتزا")) return "/cats/pizza.jpg";
+  if (name.includes("عصائر") || name.includes("عصير")) return "/cats/juice.jpg";
   if (name.includes("صيدلي")) return "/cats/pharmacy.jpg";
   return "/cats/store.jpg";
 }
