@@ -522,28 +522,8 @@ export default function BoardPage() {
                     ) : (
                       c.vehicle_summary && <div className={s.vehicle}>{c.vehicle_summary}</div>
                     )}
-                    <div className={s.meta}>
-                      {/* وسم وقت الاستلام — BR-5 و«سأتحرك لاحقاً» (FR-C06) */}
-                      {c.pickup_time === "scheduled" && (
-                        <b style={{ color: "var(--pk-warn)" }} data-testid="pickup-tag">
-                          مجدول{c.scheduled_slot_start ? ` ${new Date(c.scheduled_slot_start).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : ""} ·{" "}
-                        </b>
-                      )}
-                      {c.pickup_time === "later" && (
-                        <b style={{ color: "var(--pk-blue-600)" }} data-testid="pickup-tag">
-                          سيتحرك لاحقاً — جهّزوا براحتكم ·{" "}
-                        </b>
-                      )}
-                      {c.customer_first_name} · <span className={s.mono}>{c.customer_phone_masked}</span> ·{" "}
-                      {c.items_count} أصناف · <span className={s.mono}>{sar(c.total_halalas)} SAR</span>
-                      {c.eta_minutes !== null && (
-                        <>
-                          {" "}
-                          · ETA <span className={s.mono}>{c.eta_minutes}</span> د
-                        </>
-                      )}
-                    </div>
                   </div>
+                  {/* عمود الحضور مكدّس يساراً (وصول/مهلة قبول/موقف) — لا يتبعثر وسط البطاقة */}
                   <div className={s.end}>
                     {/* الوصول على البطاقة نفسها — شارة نابضة + زمن الانتظار (طابور BR-9) */}
                     {arrived && (
@@ -575,6 +555,29 @@ export default function BoardPage() {
                         <span className={s.slot}>موقف {c.parking_spot}</span>
                       ))}
                   </div>
+                </div>
+
+                {/* سطر العميل والطلب — صف كامل العرض تحت الهوية بدل حشره بجانب السيارة */}
+                <div className={s.meta}>
+                  {/* وسم وقت الاستلام — BR-5 و«سأتحرك لاحقاً» (FR-C06) */}
+                  {c.pickup_time === "scheduled" && (
+                    <b style={{ color: "var(--pk-warn)" }} data-testid="pickup-tag">
+                      مجدول{c.scheduled_slot_start ? ` ${new Date(c.scheduled_slot_start).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : ""} ·{" "}
+                    </b>
+                  )}
+                  {c.pickup_time === "later" && (
+                    <b style={{ color: "var(--pk-blue-600)" }} data-testid="pickup-tag">
+                      سيتحرك لاحقاً — جهّزوا براحتكم ·{" "}
+                    </b>
+                  )}
+                  {c.customer_first_name} · <span className={s.mono}>{c.customer_phone_masked}</span> ·{" "}
+                  {c.items_count} أصناف · <span className={s.mono}>{sar(c.total_halalas)} SAR</span>
+                  {c.eta_minutes !== null && (
+                    <>
+                      {" "}
+                      · ETA <span className={s.mono}>{c.eta_minutes}</span> د
+                    </>
+                  )}
                 </div>
 
                 {remainMs !== null && windowMs !== null && (
@@ -620,43 +623,32 @@ export default function BoardPage() {
                 )}
 
                 <div className={s.actions}>
-                  {/* استعراض محتوى الطلب متاح في كل الحالات — حتى قيد التحضير وما بعده */}
-                  <button
-                    className={`${s.bbtn} ${s.gray}`}
-                    data-testid="view-order"
-                    onClick={() => toggleDetails(c.id)}
-                  >
-                    {detailsFor === c.id ? "إخفاء" : "استعراض الطلب"}
-                  </button>
-                  {/* مجدول راقد حتى موعده (BR-5) — استعراض فقط؛ ينتقل إلى «التشغيل» آلياً */}
-                  {c.order_status === "ORDER_SUBMITTED" && (
-                    <span className={s.prepWait} data-testid="scheduled-countdown">
-                      ⏰ يدخل «التشغيل» {schedLabel(c)}
-                    </span>
-                  )}
-                  {c.order_status === "MERCHANT_PENDING" && (
-                    <>
-                      {/* قبول بضغطة — الوقت المتوقع يُختم آلياً من «متوسط وقت التجهيز» في الإعدادات */}
-                      <button
-                        className={s.bbtn}
-                        data-testid="accept-order"
-                        onClick={() => act(`/v1/merchant/orders/${c.id}/accept`, {}, true)}
-                      >
-                        قبول
-                      </button>
-                      <button
-                        className={`${s.bbtn} ${s.red}`}
-                        data-testid="reject-order"
-                        onClick={() => act(`/v1/merchant/orders/${c.id}/reject`, { reason: "high_load" }, true)}
-                      >
-                        رفض
-                      </button>
-                    </>
-                  )}
-                  {c.order_status === "MERCHANT_ACCEPTED" && (
-                    <>
-                      {prepChip(c)}
-                      {/* زر واحد «جاهز» — ينقل البطاقة إلى «جاهزة» ويُشعر العميل فوراً */}
+                  {/* مجموعة الأزرار يميناً: زر الحالة الأساسي أولاً ثم «استعراض الطلب» الثانوي —
+                      والشارات المعلوماتية مجموعة مقابلة يساراً كي لا تتخلل الأزرار */}
+                  <div className={s.actBtns}>
+                    {c.order_status === "MERCHANT_PENDING" && (
+                      <>
+                        {/* قبول بضغطة — الوقت المتوقع يُختم آلياً من «متوسط وقت التجهيز» في الإعدادات */}
+                        <button
+                          className={s.bbtn}
+                          data-testid="accept-order"
+                          onClick={() => act(`/v1/merchant/orders/${c.id}/accept`, {}, true)}
+                        >
+                          قبول
+                        </button>
+                        <button
+                          className={`${s.bbtn} ${s.red}`}
+                          data-testid="reject-order"
+                          onClick={() => act(`/v1/merchant/orders/${c.id}/reject`, { reason: "high_load" }, true)}
+                        >
+                          رفض
+                        </button>
+                      </>
+                    )}
+                    {/* زر واحد «جاهز» — ينقل البطاقة إلى «جاهزة» ويُشعر العميل فوراً؛ وفي مسار الرحلة
+                        الموازية (docs/05§3) تختم الخدمة preparing_at آلياً إن لم يسبق تسجيله */}
+                    {(["MERCHANT_ACCEPTED", "PREPARING"].includes(c.order_status) ||
+                      (JOURNEY_PARALLEL.includes(c.order_status) && !c.ready_at)) && (
                       <button
                         className={s.bbtn}
                         data-testid="mark-ready"
@@ -664,57 +656,52 @@ export default function BoardPage() {
                       >
                         جاهز
                       </button>
-                    </>
-                  )}
-                  {c.order_status === "PREPARING" && (
-                    <>
-                      {prepChip(c)}
+                    )}
+                    {/* جاهز والعميل وصل — التسليم بضغطة على نفس البطاقة (بدل عمود «وصلوا») */}
+                    {deliverable && (
                       <button
-                        className={s.bbtn}
-                        data-testid="mark-ready"
-                        onClick={() => act(`/v1/merchant/orders/${c.id}/ready`, {})}
+                        className={`${s.bbtn} ${s.green}`}
+                        data-testid="handoff-complete"
+                        onClick={() => deliver(c.id, c.order_status)}
                       >
-                        جاهز
+                        تم التسليم
                       </button>
-                    </>
-                  )}
-                  {/* العميل سبق التجهيز (docs/05§3): التحضير يستمر موازياً — لا بطاقة بلا زر.
-                      البطاقة تحمل تدفّقها كاملاً في مكانها: تجهيز ← ثم تسليم عند الوصول */}
-                  {JOURNEY_PARALLEL.includes(c.order_status) && !c.ready_at && (
-                    <>
-                      {prepChip(c)}
-                      {EN_ROUTE.includes(c.order_status) && (
-                        <span className={s.prepOk} data-testid="journey-badge">
-                          🚗 العميل في الطريق — جهّزوا على وصوله
-                        </span>
-                      )}
-                      {/* زر واحد «جاهز» — الخدمة تختم preparing_at آلياً إن لم يسبق تسجيله */}
-                      <button
-                        className={s.bbtn}
-                        data-testid="mark-ready"
-                        onClick={() => act(`/v1/merchant/orders/${c.id}/ready`, {})}
-                      >
-                        جاهز
-                      </button>
-                    </>
-                  )}
-                  {/* جاهز والعميل في الطريق — تسليم غير ممكن بعد (لم يصل) */}
-                  {JOURNEY_PARALLEL.includes(c.order_status) && c.ready_at && EN_ROUTE.includes(c.order_status) && (
-                    <span className={s.prepOk} data-testid="ready-en-route">
-                      ✓ جاهز — العميل في الطريق
-                    </span>
-                  )}
-                  {/* جاهز والعميل وصل — التسليم بضغطة على نفس البطاقة (بدل عمود «وصلوا») */}
-                  {deliverable && (
+                    )}
+                    {/* استعراض محتوى الطلب متاح في كل الحالات — حتى قيد التحضير وما بعده */}
                     <button
-                      className={`${s.bbtn} ${s.green}`}
-                      data-testid="handoff-complete"
-                      onClick={() => deliver(c.id, c.order_status)}
+                      className={`${s.bbtn} ${s.gray}`}
+                      data-testid="view-order"
+                      onClick={() => toggleDetails(c.id)}
                     >
-                      تم التسليم
+                      {detailsFor === c.id ? "إخفاء" : "استعراض الطلب"}
                     </button>
-                  )}
-                  {c.order_status === "COMPLETED" && <span className={s.done}>تم التسليم ✓</span>}
+                  </div>
+
+                  <div className={s.actInfo}>
+                    {/* مجدول راقد حتى موعده (BR-5) — استعراض فقط؛ ينتقل إلى «التشغيل» آلياً */}
+                    {c.order_status === "ORDER_SUBMITTED" && (
+                      <span className={s.prepWait} data-testid="scheduled-countdown">
+                        ⏰ يدخل «التشغيل» {schedLabel(c)}
+                      </span>
+                    )}
+                    {/* شارة التجهيز الحية — ترافق زر «جاهز» في كل حالاته */}
+                    {(["MERCHANT_ACCEPTED", "PREPARING"].includes(c.order_status) ||
+                      (JOURNEY_PARALLEL.includes(c.order_status) && !c.ready_at)) &&
+                      prepChip(c)}
+                    {/* العميل سبق التجهيز (docs/05§3): التحضير يستمر موازياً — لا بطاقة بلا زر */}
+                    {JOURNEY_PARALLEL.includes(c.order_status) && !c.ready_at && EN_ROUTE.includes(c.order_status) && (
+                      <span className={s.prepOk} data-testid="journey-badge">
+                        🚗 العميل في الطريق — جهّزوا على وصوله
+                      </span>
+                    )}
+                    {/* جاهز والعميل في الطريق — تسليم غير ممكن بعد (لم يصل) */}
+                    {JOURNEY_PARALLEL.includes(c.order_status) && c.ready_at && EN_ROUTE.includes(c.order_status) && (
+                      <span className={s.prepOk} data-testid="ready-en-route">
+                        ✓ جاهز — العميل في الطريق
+                      </span>
+                    )}
+                    {c.order_status === "COMPLETED" && <span className={s.done}>تم التسليم ✓</span>}
+                  </div>
                 </div>
               </article>
             );

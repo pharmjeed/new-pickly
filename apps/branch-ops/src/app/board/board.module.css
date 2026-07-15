@@ -210,7 +210,8 @@
 /* تجاوز زمن الخدمة المستهدف (BR-9) — يلوّن البطاقة أحمر */
 .ocard.over { border-inline-start-color: var(--pk-st-overdue); background: var(--pk-st-overdue-bg); }
 
-.hd { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* صف الهوية: الرقم اليومي ← هوية السيارة ← عمود الحضور — محاذاة علوية تبقي الحواف مصفوفة */
+.hd { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .grow { flex: 1; min-width: 0; }
 .pos {
   font-family: var(--pk-font-display);
@@ -319,13 +320,15 @@
   padding: 1px 4px;
 }
 .plateBand i { font-style: normal; }
-.meta { font-size: 15px; color: var(--pk-gray); }
+.meta { font-size: 15px; color: var(--pk-gray); line-height: 1.9; }
 .mono {
   font-family: var(--pk-font-mono);
   direction: ltr;
-  unicode-bidi: embed;
+  /* isolate لا embed — يمنع التصاق الجوال/الأسعار بالأرقام العربية المجاورة وتبعثر السطر */
+  unicode-bidi: isolate;
 }
-.end { margin-inline-start: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* عمود الحضور: شارة الوصول فوق مهلة القبول فوق الموقف — عمود يساري مرصوص */
+.end { margin-inline-start: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .waitOver { color: var(--pk-st-overdue); font-weight: 700; }
 
 /* موقف السيارة — ملصق بحد كحلي */
@@ -391,6 +394,16 @@
 
 /* ===== أزرار ضخمة للفرع (لمس ≥56px) — أزرق الفعل بحد كحلي وظل صلب ينزلق ===== */
 .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+/* مجموعتا صف الأفعال: الأزرار يميناً والشارات المعلوماتية يساراً — لا شارة تتخلل الأزرار */
+.actBtns { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.actInfo {
+  margin-inline-start: auto;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
 
 /* منتقي وقت التجهيز المتوقع قبل تأكيد القبول (10/15/20/25 د) */
 .prepPick { display: flex; flex-direction: column; gap: 10px; width: 100%; }
