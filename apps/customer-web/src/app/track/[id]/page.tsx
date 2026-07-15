@@ -10,7 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
 import { Qirtas, QirtasLoader } from "../../qirtas";
-import { ConfettiBurst, KitchenScene, MegaphoneScene, ParkedScene, PovScene, QirtasLive, ReadyScene, SentScene } from "../../qirtas-motion";
+import { ConfettiBurst, KitchenScene, MegaphoneScene, PovScene, QirtasLive, ReadyScene, SentScene } from "../../qirtas-motion";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
 import s from "./track.module.css";
 
@@ -333,11 +333,16 @@ export default function TrackPage() {
     );
 
   const baseView = DISPLAY[order.order_status] ?? DISPLAY.MERCHANT_PENDING!;
+  // تحقق الشرطان معاً: العميل أكّد «وصلت» والمطعم ضغط «جاهز» (بأي ترتيب) —
+  // الموظف ينطلق فوراً، فالصفحة صفحة التسليم POV «الموظف متجه إليك» (توجيه المالك 2026-07-15)
+  const parkedOn = Boolean(order.ready_at) && order.order_status === "CUSTOMER_ARRIVED";
   // رحلتك قد تسبق التجهيز (docs/05§3) — النص يصدُق: الطلب ما زال يُجهَّز
   const journeyBeforeReady =
     ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY", "CUSTOMER_ARRIVED"].includes(order.order_status) &&
     !order.ready_at;
-  const view = journeyBeforeReady
+  const view = parkedOn
+    ? { step: "READY", title: "الموظف متجه إليك", sub: "من مقعدك — يقترب الآن" }
+    : journeyBeforeReady
     ? {
         ...baseView,
         // الشريط لا يتقدم لـ«جاهز للاستلام» قبل ضغطة المطعم «جاهز» — الخطوة الصادقة «قيد التجهيز».
@@ -354,8 +359,6 @@ export default function TrackPage() {
   // صفحة «جاهز للاستلام» الهادئة (قبل الانطلاق) — بطل الدائرة الليمونية على نمط لوحة التجهيز؛
   // أثناء الرحلة/التسليم تكفي البطاقة المضغوطة كي تبقى الخريطة والرمز في الصدارة
   const readyHeroOn = readyMoment && ["READY", "CUSTOMER_NOTIFIED"].includes(order.order_status);
-  // «وصلت» والطلب جاهز — بطل «الرصف الذكي» بدل بطاقة الكيس (خيار ٤-و المعتمد 2026-07-15)
-  const parkedOn = readyMoment && order.order_status === "CUSTOMER_ARRIVED";
   // صدق شريط الخطوات: «قيد التجهيز» و«جاهز» تُعلَّمان بحقائق التجهيز لا بموقع الرحلة
   const stepDone = (i: number): boolean => {
     if (completed) return true;
@@ -413,7 +416,7 @@ export default function TrackPage() {
           </div>
         )}
 
-        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting || prepCountdownOn || readyHeroOn || parkedOn || completed ? "center" : undefined }}>
+        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting || prepCountdownOn || readyHeroOn || completed ? "center" : undefined }}>
           {view.title}
         </h1>
         {isWaiting ? (
@@ -422,7 +425,7 @@ export default function TrackPage() {
           /* حالة التجهيز: اسم المطعم تحت العنوان مباشرة (مرجع لوحة العرض) */
           <p className="pk-muted" style={{ marginBottom: 4, textAlign: "center" }}>من {order.brand_name_ar}</p>
         ) : (
-          <p className="pk-muted" style={{ marginBottom: 16, textAlign: readyHeroOn || parkedOn || completed ? "center" : undefined }}>{view.sub}</p>
+          <p className="pk-muted" style={{ marginBottom: 16, textAlign: readyHeroOn || completed ? "center" : undefined }}>{view.sub}</p>
         )}
 
         {/* عدّاد التجهيز التنازلي — من لحظة القبول + «متوسط وقت التجهيز» الذي حدده المطعم (قرار المالك 2026-07-12) */}
@@ -444,17 +447,8 @@ export default function TrackPage() {
                 {READY_MSGS[readyMsgIdx]}
               </p>
             </div>
-          ) : parkedOn ? (
-            /* «وصلت؟ إحنا عرفنا.» — لقطة الدرون: سيارتك ركنت في نقطة الالتقاء (خيار ٤-و المعتمد 2026-07-15) */
-            <div data-testid="arrived-scene">
-              <div className={s.parkCard}>
-                <ParkedScene />
-              </div>
-              <p style={{ textAlign: "center", marginBottom: 12 }}>
-                <span className="pk-badge ok" data-testid="arrival-ack">أبلغنا المطعم بوصولك ✓</span>
-              </p>
-            </div>
-          ) : (
+          ) : parkedOn ? null : (
+            /* واصلٌ وجاهز؟ لا بطاقة هنا — مشهد POV أدناه هو الصفحة كلها (توجيه المالك 2026-07-15) */
             /* لحظة الجاهزية أثناء الرحلة/التسليم — البطاقة المضغوطة بالملصق نفسه مصغّراً */
             <div className={`pk-card pk-in ${s.prepCard} ${s.readyCard}`} data-testid="ready-bag">
               <p style={{ fontWeight: 700 }}>طلبك جاهز!</p>
@@ -499,7 +493,7 @@ export default function TrackPage() {
                   </svg>
                   <div className={s.cdNum}>
                     <b>{overtime ? "جاهز تقريباً" : `${mm}:${String(ss).padStart(2, "0")}`}</b>
-                    <span>حتى الجهوز تقريباً</span>
+                    <span>ويكون طلبك جاهز</span>
                   </div>
                 </div>
                 <span className="pk-badge ok" data-testid="arrival-ack">أبلغنا المطعم بوصولك ✓</span>
@@ -528,11 +522,11 @@ export default function TrackPage() {
                   <KitchenScene title="المطعم يجهّز طلبك الآن" />
                   <div className={s.ticket}>
                     <span className={s.ticketPin} />
-                    <p className={s.ticketTitle}>تذكرة المطبخ</p>
+                    <p className={s.ticketTitle}>الفاتورة</p>
                     <b className={`${s.ticketDigits} ${overtime ? s.ticketDigitsOver : ""}`} data-testid="prep-countdown">
                       {overtime ? "جاهز تقريباً" : `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`}
                     </b>
-                    <p className={s.ticketSub}>{overtime ? "اللمسات الأخيرة" : "حتى الجهوز تقريباً"}</p>
+                    <p className={s.ticketSub}>{overtime ? "اللمسات الأخيرة" : "ويكون طلبك جاهز"}</p>
                   </div>
                 </div>
 
@@ -592,11 +586,16 @@ export default function TrackPage() {
           />
         )}
 
-        {/* مشهد «من مقعدك» POV — القرطاس يقترب من زجاجك الأمامي بطلبك (خيار ٥-ج المعتمد 2026-07-15) */}
-        {order.order_status === "HANDOFF_IN_PROGRESS" && (
+        {/* مشهد «من مقعدك» POV (خيار ٥-ج المعتمد) — يظهر فور تحقق الشرطين (واصل + جاهز) وأثناء خروج الموظف */}
+        {(parkedOn || order.order_status === "HANDOFF_IN_PROGRESS") && (
           <div className="pk-card pk-in" data-testid="handoff-scene" style={{ padding: "12px 10px 10px" }}>
             <PovScene />
             <p className="pk-muted" style={{ textAlign: "center", marginTop: 8 }}>افتح شباكك — استلامك بالعافية</p>
+            {parkedOn && (
+              <p style={{ textAlign: "center", marginTop: 8 }}>
+                <span className="pk-badge ok" data-testid="arrival-ack">أبلغنا المطعم بوصولك ✓</span>
+              </p>
+            )}
           </div>
         )}
 
