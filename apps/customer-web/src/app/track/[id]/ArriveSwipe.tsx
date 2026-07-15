@@ -60,9 +60,8 @@ export default function ArriveSwipe({ enabled, distanceM, radiusM, geoState, onC
   };
 
   const distanceLabel = (): string => {
-    // تعذّر تحديد الموقع → سماح احتياطي: يُفتح السحب يدوياً مع تنبيه (docs/14)
-    if (geoState === "denied") return "تعذّر تحديد موقعك — اسحب لتأكيد وصولك يدوياً عند المطعم";
-    if (geoState === "unavailable") return "جهازك لا يدعم تحديد الموقع — اسحب لتأكيد وصولك يدوياً عند المطعم";
+    // تعذّر تحديد الموقع → سماح احتياطي صامت: يُفتح السحب يدوياً بلا رسالة (قرار المالك 2026-07-15)
+    if (geoState === "denied" || geoState === "unavailable") return "";
     if (geoState === "locating" && distanceM === null) return "نحدد موقعك…";
     if (distanceM === null) return `يتفعّل عند اقترابك ~${radiusM} م من المطعم`;
     if (enabled) return "أنت في نطاق الاستلام — اسحب لتأكيد وصولك";
@@ -113,7 +112,9 @@ export default function ArriveSwipe({ enabled, distanceM, radiusM, geoState, onC
           )}
         </div>
       </div>
-      <p className={s.swipeHint} data-testid="arrive-swipe-hint">{distanceLabel()}</p>
+      {distanceLabel() !== "" && (
+        <p className={s.swipeHint} data-testid="arrive-swipe-hint">{distanceLabel()}</p>
+      )}
     </div>
   );
 }

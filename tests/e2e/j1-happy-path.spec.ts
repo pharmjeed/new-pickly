@@ -71,7 +71,15 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
 
   // ===== 5. التتبع: الطلب وصل للفرع (P7) =====
   await c.waitForURL(/\/track\//);
-  const orderCode = (await c.getByTestId("order-code").textContent())?.trim() ?? "";
+  // الكود P-XXXX لم يعد معروضاً في صفحة التتبع — نقرؤه من API الطلب مباشرة
+  const orderId = new URL(c.url()).pathname.split("/").pop() ?? "";
+  const orderCode = await c.evaluate(async (id) => {
+    const res = await fetch(`/api/v1/orders/${id}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("pk_access") ?? ""}` }
+    });
+    const o = (await res.json()) as { display_code: string };
+    return o.display_code;
+  }, orderId);
   expect(orderCode).toMatch(/^P-\d{4}$/);
   await expect(c.getByTestId("track-title")).toContainText("أُرسل طلبك");
 

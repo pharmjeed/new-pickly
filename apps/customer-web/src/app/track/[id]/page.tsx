@@ -134,19 +134,6 @@ const IconNav = ({ size = 18 }: { size?: number }) => (
     />
   </svg>
 );
-/** جرس الإشعار — شريط «ستصلك فور جاهزية طلبك للاستلام» */
-const IconBell = ({ size = 19 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-    <path
-      d="M12 3 a6.5 6.5 0 0 0 -6.5 6.5 v4 L3.5 16.5 h17 L18.5 13.5 v-4 A6.5 6.5 0 0 0 12 3 Z"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinejoin="round"
-    />
-    <path d="M9.5 19.5 a2.5 2.5 0 0 0 5 0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-  </svg>
-);
 export default function TrackPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -414,8 +401,6 @@ export default function TrackPage() {
     <div className={driveMode ? "pk-drive" : ""}>
       {/* مساحة سفلية للتبويب الثابت — كي لا يغطي السحبَ وبطاقات أسفل الصفحة */}
       <main className="pk-wrap" style={{ paddingBottom: 92 }}>
-        <p className="pk-mono pk-muted" data-testid="order-code" style={{ marginBottom: 4 }}>{order.display_code}</p>
-
         {/* شريط الحالات في أعلى الصفحة — عدا صفحات بطل الدائرة (تجهيز/جاهز/تسليم) حيث ينزل تحته */}
         {!prepCountdownOn && !readyHeroOn && !completed && stepsBar}
 
@@ -554,11 +539,6 @@ export default function TrackPage() {
                   {overtime ? "أطول من المتوقع بقليل — يوشك على الجهوز" : PREP_MSGS[prepMsgIdx]}
                 </p>
 
-                {/* شريط الطمأنة — جرس يهتز: الإشعار يصل فور الجاهزية */}
-                <div className={s.notifyPill}>
-                  <span className={s.bellIcon}><IconBell /></span>
-                  ستصلك فور جاهزية طلبك للاستلام
-                </div>
               </div>
             );
           })()
