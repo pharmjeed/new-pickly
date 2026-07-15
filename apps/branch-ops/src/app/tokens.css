@@ -29,19 +29,21 @@
   --pk-gray-2:#8891B5;     /* نص ثانوي على داكن */
   --pk-live:#35E0FF;       /* سماوي — إشارة حية (استخدام ضيق) */
 
-  /* ---- ألوان أولوية بطاقات شاشة الفرع (08§2 بدرجات الهوية الفنكية) ---- */
+  /* ---- ألوان أولوية بطاقات شاشة الفرع (08§2 بدرجات الهوية الفنكية)
+         الخلفيات مسحات شبه بيضاء (فاتحة رسمية بقرار المالك 2026-07-15) —
+         الحالة يحملها الحد الجانبي والشارات، لا لون البطاقة ---- */
   --pk-st-new:#4A5A7C;        /* جديد — كحلي ثانوي */
-  --pk-st-new-bg:#EFEADB;
+  --pk-st-new-bg:#F6F3EA;
   --pk-st-prep:#0B63CE;       /* قيد التحضير — أزرق الفعل */
-  --pk-st-prep-bg:#DEEBFB;
+  --pk-st-prep-bg:#EFF5FC;
   --pk-st-near:#C8F542;       /* العميل قريب — ليموني (إشارة «الآن») */
-  --pk-st-near-bg:#EBF9B8;
+  --pk-st-near-bg:#F6FBE1;
   --pk-st-arrived:#FF9E1B;    /* وصل — برتقالي */
-  --pk-st-arrived-bg:#FFEFD6;
-  --pk-st-overdue:#E5322B;    /* متجاوز — أحمر */
+  --pk-st-arrived-bg:#FFF5E6;
+  --pk-st-overdue:#E5322B;    /* متجاوز — أحمر (خلفية الإنذار تبقى أوضح عمداً) */
   --pk-st-overdue-bg:#FBDFDD;
   --pk-st-done:#12A472;       /* تم التسليم — أخضر */
-  --pk-st-done-bg:#DFF3EA;
+  --pk-st-done-bg:#EEF8F3;
 
   /* ---- الخطوط ---- */
   --pk-font-display:'Baloo Bhaijaan 2','IBM Plex Sans Arabic',sans-serif;

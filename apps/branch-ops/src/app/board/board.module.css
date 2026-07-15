@@ -1,6 +1,7 @@
 /* B-03 — لوحة التشغيل الجامعة (design/branch/B-03.html) — تابلت 1280 أفقي · لمس ≥56px
    الهوية الفنكية v2.0: عاجي منقّط + حدود كحلية سميكة + ظل صلب مُزاح — لا ظلال ناعمة
-   ألوان الأولوية من tokens --pk-st-* · بطاقة «العميل وصل» = لحظة الليموني الغامرة */
+   ألوان الأولوية من tokens --pk-st-* · خلفيات البطاقات مسحات فاتحة رسمية —
+   بطاقة «العميل وصل» مسحة ليمونية خفيفة والإبراز بالشارة النابضة والظل */
 
 .board {
   min-height: 100vh;
@@ -158,7 +159,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--pk-st-arrived);
+  background: var(--pk-st-arrived-bg);
   color: var(--pk-ink-900);
   border: var(--pk-b2);
   font-family: var(--pk-font-display);
@@ -198,14 +199,13 @@
 .ocard[data-state="new"] { border-inline-start-color: var(--pk-st-new); background: var(--pk-st-new-bg); }
 .ocard[data-state="prep"] { border-inline-start-color: var(--pk-st-prep); background: var(--pk-st-prep-bg); }
 .ocard[data-state="near"] { border-inline-start-color: var(--pk-st-near); background: var(--pk-st-near-bg); }
-/* لحظة الليموني: العميل وصل — بطاقة غامرة ليمونية بحد كحلي وظل pop، أبرز عنصر في اللوحة */
+/* لحظة الليموني: العميل وصل — مسحة ليمونية فاتحة (رسمية بقرار المالك 2026-07-15)
+   بحد برتقالي وظل pop؛ الشارة النابضة والظل يحملان الإبراز بدل الخلفية المشبعة */
 .ocard[data-state="arrived"] {
   border-inline-start-color: var(--pk-st-arrived);
-  background: var(--pk-lime-500);
+  background: color-mix(in srgb, var(--pk-lime-500) 16%, var(--pk-white));
   box-shadow: var(--pk-pop);
 }
-.ocard[data-state="arrived"] .meta,
-.ocard[data-state="arrived"] .colorChip { color: var(--pk-ink-700); }
 .ocard[data-state="done"] { border-inline-start-color: var(--pk-st-done); background: var(--pk-st-done-bg); }
 /* تجاوز زمن الخدمة المستهدف (BR-9) — يلوّن البطاقة أحمر */
 .ocard.over { border-inline-start-color: var(--pk-st-overdue); background: var(--pk-st-overdue-bg); }
@@ -239,7 +239,6 @@
   direction: ltr;
   unicode-bidi: embed;
 }
-.ocard[data-state="arrived"] .dnum { color: var(--pk-ink-900); }
 /* بطاقة السيارة أكبر عنصر — كتاب الهوية §11 (28–40px) */
 .vehicle {
   font-family: var(--pk-font-display);
