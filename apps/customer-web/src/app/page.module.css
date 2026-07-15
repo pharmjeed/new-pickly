@@ -262,11 +262,21 @@
 
 /* ===== تصنيفات المطاعم (C-09) ===== */
 .cats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
   gap: 10px;
+  overflow-x: auto;
+  /* متنفس حول البطاقات حتى لا يقص حاوي التمرير ظل pop-xs (2px) وميلان الملصق */
+  padding: 2px 2px 6px;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.cats::-webkit-scrollbar {
+  display: none;
 }
 .catCard {
+  flex: 0 0 auto;
+  width: 108px;
+  scroll-snap-align: start;
   background: var(--pk-surface);
   border: var(--pk-b2);
   border-radius: var(--pk-radius-md);
