@@ -88,6 +88,14 @@ const ARRIVABLE_STATES = [
 ];
 /** شاشة انتظار قبول المطعم — الشعار الحي + رسائل تطمئن العميل أن شيئاً يحدث */
 const WAITING_STATES = ["ORDER_SUBMITTED", "MERCHANT_PENDING"];
+/** حالات ما قبل قبول المطعم — الخروج منها إلى حالة تجهيز يعني «قُبل طلبك» فتُطلق نغمة القبول */
+const PRE_ACCEPT_STATES = [
+  "CHECKOUT_PENDING",
+  "PAYMENT_PENDING",
+  "PAYMENT_FAILED",
+  "ORDER_SUBMITTED",
+  "MERCHANT_PENDING"
+];
 const WAIT_MSGS = [
   "أرسلنا طلبك للمطعم",
   "المطعم يطّلع على طلبك الآن…",
@@ -199,6 +207,103 @@ export default function TrackPage() {
     const t = setTimeout(() => setCelebrate(false), 1100);
     return () => clearTimeout(t);
   }, [status]);
+
+  /** صوت القبول — WebAudio بلا ملفات صوت (نمط لوحة الفرع board/page.tsx):
+   *  سياق واحد مشترك يُوقَظ بأول لمسة، فلا يحجبه المتصفح لحظة وصول القبول بلا تفاعل. */
+  const audioCtx = useRef<AudioContext | null>(null);
+  const ensureAudio = useCallback(() => {
+    try {
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = (audioCtx.current ??= new Ctx());
+      if (ctx.state === "suspended") void ctx.resume();
+      return ctx;
+    } catch {
+      return null; // الصوت تحسين — تبدّل الصفحة نفسه يعلن القبول
+    }
+  }, []);
+  // إيقاظ السياق بأول تفاعل مع الصفحة — سياسة التشغيل التلقائي تمنع الصوت بلا لمسة سابقة
+  useEffect(() => {
+    const unlock = () => void ensureAudio();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, [ensureAudio]);
+  const beep = useCallback(
+    (freq: number, atMs = 0) => {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t0 = ctx.currentTime + atMs / 1000;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.2, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.5);
+      osc.start(t0);
+      osc.stop(t0 + 0.55);
+    },
+    [ensureAudio]
+  );
+  /** نغمة القبول — ثلاث نغمات صاعدة (أخت نغمة الطلب الجديد في لوحة الفرع) + هزة خفيفة للجوال */
+  const acceptChime = useCallback(() => {
+    beep(660);
+    beep(880, 180);
+    beep(1100, 360);
+    try {
+      if ("vibrate" in navigator) navigator.vibrate([90, 60, 90]);
+    } catch {
+      /* الهزة تحسين — لا تعطل شيئاً */
+    }
+  }, [beep]);
+
+  // لحظة القبول: انتقال فعلي من حالات ما قبل القبول إلى حالة تجهيز أثناء فتح الصفحة —
+  // نغمة واحدة فقط مع ظهور صفحة «جاري تجهيز طلبك». القراءة الأولى تُزرع بصمت
+  // كي لا نصفّر لمن فتح الصفحة على طلب مقبول أصلاً (نمط prevNewCount في لوحة الفرع).
+  const prevStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!status) return;
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = status;
+    if (prev === null || prev === status) return;
+    const accepted =
+      PRE_ACCEPT_STATES.includes(prev) &&
+      !PRE_ACCEPT_STATES.includes(status) &&
+      status !== "MERCHANT_REJECTED" &&
+      status !== "CANCELLED";
+    if (accepted) acceptChime();
+  }, [status, acceptChime]);
+
+  /** نغمة الجاهزية — نغمتان صاعدتان أعلى من نغمة القبول تميّزان «طلبك جاهز» + هزة أوضح */
+  const readyChime = useCallback(() => {
+    beep(880);
+    beep(1175, 180);
+    try {
+      if ("vibrate" in navigator) navigator.vibrate([120, 70, 120]);
+    } catch {
+      /* الهزة تحسين — لا تعطل شيئاً */
+    }
+  }, [beep]);
+
+  // لحظة الجاهزية: ضغطة المطعم «جاهز» تُثبت ready_at — حقيقة مستقلة عن حالة الرحلة (docs/05§3)،
+  // فنرصدها هي لا order_status كي يرنّ الجرس حتى لو كان العميل في الطريق/واصلاً. نغمة واحدة فقط
+  // عند انتقالها من فارغة إلى مثبتة؛ القراءة الأولى تُزرع بصمت كنمط لحظة القبول أعلاه.
+  const isReadyNow = Boolean(order?.ready_at);
+  const orderLoaded = Boolean(order);
+  const prevReadyRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!orderLoaded) return;
+    if (prevReadyRef.current === null) {
+      prevReadyRef.current = isReadyNow;
+      return;
+    }
+    if (isReadyNow && !prevReadyRef.current) readyChime();
+    prevReadyRef.current = isReadyNow;
+  }, [orderLoaded, isReadyNow, readyChime]);
 
   // ساعة حية للعدّاد التنازلي — تدق أثناء التجهيز، وكذلك بعد وصول العميل مبكراً قبل الجاهزية
   const prepCountdownOn = Boolean(
