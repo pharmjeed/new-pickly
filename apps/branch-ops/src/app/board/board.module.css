@@ -145,13 +145,23 @@
   50% { box-shadow: 4px 4px 0 var(--pk-warn); }
 }
 
-/* واصل وطلبه جاهز = قابل للتسليم فوراً — حلقة وردية (طاقة) تومض تلفت الموظف */
+/* العميل وصل — «الصاعقة» الحمراء (اختيار المالك من لوحة arrived-blink-options، نموذج ٢، 2026-07-16):
+   تشغيل/إطفاء حاد بلا تدرج (steps) كالإنذار الصريح — أحمر tokens بدل الليموني،
+   ووميض واحد للحالتين: وصل قبل الجهوز أو بعده */
+.ocardArrived,
 .ocardDeliverable {
-  animation: acardReadyBlink 1s ease-in-out infinite;
+  animation: acardArrivedStrobe 0.5s steps(1) infinite;
+  z-index: 1;
 }
-@keyframes acardReadyBlink {
-  0%, 100% { box-shadow: var(--pk-pop); }
-  50% { box-shadow: 6px 6px 0 var(--pk-pink-500); }
+@keyframes acardArrivedStrobe {
+  0%, 100% {
+    background: color-mix(in srgb, var(--pk-error) 12%, var(--pk-white));
+    box-shadow: var(--pk-pop);
+  }
+  50% {
+    background: var(--pk-error);
+    box-shadow: 8px 8px 0 var(--pk-ink-900), 0 0 0 5px var(--pk-st-arrived);
+  }
 }
 
 /* شارة «🚘 وصل» على البطاقة نفسها — نبضة تلفت الموظف أن العميل حضر */
@@ -168,14 +178,14 @@
   border-radius: var(--pk-radius-pill);
   padding: 3px 14px;
   white-space: nowrap;
-  animation: pk-arrived-pulse 1.2s ease-in-out infinite;
+  animation: pk-arrived-pulse 0.95s ease-in-out infinite;
 }
 @keyframes pk-arrived-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pk-st-arrived) 55%, transparent); }
-  50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--pk-st-arrived) 0%, transparent); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pk-st-arrived) 75%, transparent); }
+  50% { box-shadow: 0 0 0 11px color-mix(in srgb, var(--pk-st-arrived) 0%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ocardDeliverable, .arrivedBadge, .nArrLive, .schedBanner { animation: none; }
+  .ocardArrived, .ocardDeliverable, .arrivedBadge, .nArrLive, .schedBanner { animation: none; }
 }
 
 /* ===== شبكة البطاقات ===== */

@@ -214,16 +214,18 @@ export default function BoardPage() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  /** تنبيه صوتي بسيط (بلا ملفات صوت — WebAudio) */
-  const beep = useCallback(() => {
+  /** تنبيه صوتي بسيط (بلا ملفات صوت — WebAudio) — سياق واحد مشترك يُعاد إيقاظه، فلا تتراكم السياقات مع طول عمر الشاشة */
+  const audioCtx = useRef<AudioContext | null>(null);
+  const beep = useCallback((freq = 880) => {
     try {
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new Ctx();
+      const ctx = (audioCtx.current ??= new Ctx());
+      if (ctx.state === "suspended") void ctx.resume();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.frequency.value = 880;
+      osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.18, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
       osc.start();
@@ -232,6 +234,25 @@ export default function BoardPage() {
       /* الصوت تحسين — الشارة المرئية تكفي */
     }
   }, []);
+
+  /** نغمة الطلب الجديد — ثلاث نغمات صاعدة تميّزه عن نغمة الوصول المفردة ونغمتي المجدول */
+  const newOrderChime = useCallback(() => {
+    beep(660);
+    setTimeout(() => beep(880), 200);
+    setTimeout(() => beep(1100), 400);
+  }, [beep]);
+
+  // إنذار الطلب الجديد — متكرر ولا يصمت إلا بالقبول أو الرفض (قرار المالك 2026-07-16):
+  // ما دام عدّاد «جديدة» في tab-counts فوق الصفر (يُستطلع كل 2.5 ث مهما كان التبويب
+  // المعروض) تُعاد النغمة كل ثانية ونصف — تشمل فتح اللوحة على طلب معلّق قائم، وتنطلق
+  // فوراً من جديد إن وصل طلب آخر فوق المعلّق، وتسكت لحظة خلوّ الخانة.
+  const pendingCount = counts.new ?? 0;
+  useEffect(() => {
+    if (pendingCount <= 0) return;
+    newOrderChime();
+    const t = setInterval(newOrderChime, 1500);
+    return () => clearInterval(t);
+  }, [pendingCount, newOrderChime]);
 
   // BR-5: المجدولة القادمة — كل 15 ث؛ عند دخول طلبٍ نطاق الثلاثين دقيقة: نغمتان
   useEffect(() => {
@@ -495,14 +516,14 @@ export default function BoardPage() {
                 : null;
             const windowMs =
               deadline !== null ? Math.max(1000, deadline - Date.parse(c.created_at)) : null;
+            // العميل وصل — البطاقة كلها تومض، ويشتد الوميض وردياً متى صار الطلب جاهزاً للتسليم
             const arrived = ARRIVED.includes(c.order_status);
-            // واصل وطلبه جاهز = قابل للتسليم فوراً — البطاقة تومض أحمر تلفت الموظف
             const deliverable = arrived && !!c.ready_at;
             const q = queueByOrder.get(c.id);
             return (
               <article
                 key={c.id}
-                className={`${s.ocard} ${deliverable ? s.ocardDeliverable : ""}`}
+                className={`${s.ocard} ${arrived ? s.ocardArrived : ""} ${deliverable ? s.ocardDeliverable : ""}`}
                 data-state={cardState(c.order_status)}
                 data-testid="order-card"
               >
