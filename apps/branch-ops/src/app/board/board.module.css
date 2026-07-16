@@ -145,26 +145,8 @@
   50% { box-shadow: 4px 4px 0 var(--pk-warn); }
 }
 
-/* العميل وصل — «الصاعقة» الحمراء (اختيار المالك من لوحة arrived-blink-options، نموذج ٢، 2026-07-16):
-   تشغيل/إطفاء حاد بلا تدرج (steps) كالإنذار الصريح — أحمر tokens بدل الليموني،
-   ووميض واحد للحالتين: وصل قبل الجهوز أو بعده */
-.ocardArrived,
-.ocardDeliverable {
-  animation: acardArrivedStrobe 0.5s steps(1) infinite;
-  z-index: 1;
-}
-@keyframes acardArrivedStrobe {
-  0%, 100% {
-    background: color-mix(in srgb, var(--pk-error) 12%, var(--pk-white));
-    box-shadow: var(--pk-pop);
-  }
-  50% {
-    background: var(--pk-error);
-    box-shadow: 8px 8px 0 var(--pk-ink-900), 0 0 0 5px var(--pk-st-arrived);
-  }
-}
-
-/* شارة «🚘 وصل» على البطاقة نفسها — نبضة تلفت الموظف أن العميل حضر */
+/* شارة «🚘 وصل» هي الإنذار وحدها (قرار المالك 2026-07-16 — أُلغي وميض البطاقة كاملة):
+   تنوّر بالأحمر الكامل بنص أبيض وتطفئ بقطع حاد (steps) كلمبة إنذار */
 .arrivedBadge {
   display: inline-flex;
   align-items: center;
@@ -178,14 +160,28 @@
   border-radius: var(--pk-radius-pill);
   padding: 3px 14px;
   white-space: nowrap;
-  animation: pk-arrived-pulse 0.95s ease-in-out infinite;
+  animation: arrivedBadgeLit 0.9s steps(1) infinite;
+}
+@keyframes arrivedBadgeLit {
+  0%, 100% {
+    background: var(--pk-st-arrived-bg);
+    color: var(--pk-ink-900);
+    box-shadow: none;
+  }
+  50% {
+    background: var(--pk-error);
+    color: var(--pk-white);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--pk-error) 35%, transparent);
+  }
 }
 @keyframes pk-arrived-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pk-st-arrived) 75%, transparent); }
   50% { box-shadow: 0 0 0 11px color-mix(in srgb, var(--pk-st-arrived) 0%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ocardArrived, .ocardDeliverable, .arrivedBadge, .nArrLive, .schedBanner { animation: none; }
+  .arrivedBadge, .nArrLive, .schedBanner { animation: none; }
+  /* بديل ثابت للومضة: الشارة تبقى حمراء دائماً لمن يوقف الحركة */
+  .arrivedBadge { background: var(--pk-error); color: var(--pk-white); }
 }
 
 /* ===== شبكة البطاقات ===== */

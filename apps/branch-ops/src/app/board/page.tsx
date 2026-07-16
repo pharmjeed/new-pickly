@@ -516,14 +516,15 @@ export default function BoardPage() {
                 : null;
             const windowMs =
               deadline !== null ? Math.max(1000, deadline - Date.parse(c.created_at)) : null;
-            // العميل وصل — البطاقة كلها تومض، ويشتد الوميض وردياً متى صار الطلب جاهزاً للتسليم
+            // العميل وصل — الإنذار في شارة «وصل» وحدها (تنوّر أحمر)، لا وميض على البطاقة
             const arrived = ARRIVED.includes(c.order_status);
+            // واصل وطلبه جاهز — يُظهر زر «تم التسليم»
             const deliverable = arrived && !!c.ready_at;
             const q = queueByOrder.get(c.id);
             return (
               <article
                 key={c.id}
-                className={`${s.ocard} ${arrived ? s.ocardArrived : ""} ${deliverable ? s.ocardDeliverable : ""}`}
+                className={s.ocard}
                 data-state={cardState(c.order_status)}
                 data-testid="order-card"
               >
