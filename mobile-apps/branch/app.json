@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "بيكلي للفرع",
+    "slug": "pickly-branch",
+    "version": "1.0.0",
+    "scheme": "picklybranch",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#0E1B3D",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0E1B3D"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "sa.pickly.branch",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "sa.pickly.branch",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0E1B3D"
+      }
+    },
+    "plugins": [["expo-notifications", { "defaultChannel": "orders" }]],
+    "extra": {
+      "siteUrl": "https://branch.193-122-83-224.sslip.io",
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}

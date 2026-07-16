@@ -79,6 +79,13 @@
 - **ماذا تفعل:** حساب شريك + OAuth credentials.
 - **أين يُلصق:** `.env` → `FOODICS_CLIENT_ID/SECRET`.
 
+### B8. إشعارات تطبيق الفرع (Push والجهاز مقفول) — عبر Expo
+> الكود جاهز بالكامل (الغلاف + الخادم). الإشعار يُفعَّل بمجرد بناء التطبيق بمعرّف EAS.
+- **الأساس (مرة واحدة):** `eas login` ثم من `mobile-apps/branch`: `eas init` (يكتب `projectId` في app.json) ثم أعد البناء — بدون `projectId` لا يصدر توكن Push.
+- **آيباد/آيفون:** لا شيء إضافي — `eas build -p ios` يهيئ مفتاح APNs تلقائياً مع حساب Apple Developer (نفس متطلب B5 للتثبيت أصلاً).
+- **أندرويد:** مشروع Firebase (نفس B3) → Project Settings → Service accounts → نزّل مفتاح الخدمة، ثم من `mobile-apps/branch`: `eas credentials -p android` → Google Service Account → ارفع الملف. وضَع `google-services.json` في `mobile-apps/branch/` وأضف `"googleServicesFile": "./google-services.json"` تحت `android` في app.json.
+- **الناتج:** تابلت الفرع يرن بإشعار نظامي «طلب جديد وصل» حتى وشاشته مقفلة.
+
 ## سجل الحالة
 
 | البند | الحالة |
@@ -93,3 +100,4 @@
 | B5 المتاجر | ⬜ |
 | B6 ZATCA | ⬜ |
 | B7 Foodics | ⬜ |
+| B8 إشعارات تطبيق الفرع | ⬜ (الكود جاهز — ينقص `eas init` وإعادة البناء) |

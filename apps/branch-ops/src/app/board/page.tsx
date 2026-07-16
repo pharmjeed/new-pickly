@@ -173,6 +173,32 @@ export default function BoardPage() {
     }
   }, [token, router]);
 
+  // توكن Push من غلاف التطبيق (mobile-apps/branch) — يصل عبر حدث pickly:push-token
+  // أو window.__picklyPush إن سبق الحقنُ هذا الـeffect. تسجيله يمكّن إشعار الطلب
+  // الجديد النظامي الذي يرن حتى والجهاز مقفل (صوت اللوحة يتجمد مع قفل الشاشة).
+  useEffect(() => {
+    if (!branchId) return;
+    const register = (detail: { token?: string; platform?: string } | undefined) => {
+      const t = detail?.token;
+      if (!t) return;
+      const dedupeKey = `bo_push_${branchId}`;
+      if (localStorage.getItem(dedupeKey) === t) return; // مسجّل سلفاً لهذا الفرع
+      void call("POST", "/v1/merchant/devices/push-token", {
+        branch_id: branchId,
+        token: t,
+        platform: detail?.platform === "ios" ? "ios" : "android"
+      })
+        .then(() => localStorage.setItem(dedupeKey, t))
+        .catch(() => {
+          /* تحسين — يُعاد في التحميل التالي */
+        });
+    };
+    register((window as unknown as { __picklyPush?: { token?: string; platform?: string } }).__picklyPush);
+    const onToken = (ev: Event) => register((ev as CustomEvent<{ token?: string; platform?: string }>).detail);
+    document.addEventListener("pickly:push-token", onToken);
+    return () => document.removeEventListener("pickly:push-token", onToken);
+  }, [branchId, call]);
+
   // ساعة الترويسة + عدادات BR-1 التنازلية (أرقام لاتينية Mono)
   useEffect(() => {
     setNow(Date.now());

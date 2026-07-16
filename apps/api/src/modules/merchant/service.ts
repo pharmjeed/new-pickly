@@ -554,6 +554,27 @@ export class MerchantOrderService {
     return { adjustment_id: adjustment.id, customer_deadline_at: adjustment.customer_deadline_at };
   }
 
+  /**
+   * توكن Push لجهاز الفرع (غلاف التطبيق) — صفحة اللوحة تتجمد عند قفل الجهاز
+   * فلا يصدح إنذارها؛ التوكن يمكّن إشعاراً نظامياً يرن حتى والشاشة مقفلة.
+   * upsert على التوكن نفسه: انتقال الجهاز لفرع آخر يحدّث نطاقه بدل التكرار.
+   */
+  async registerPushDevice(
+    branch_id: string,
+    staff_user_id: string,
+    token: string,
+    platform: "ios" | "android"
+  ): Promise<{ device_id: string }> {
+    const data = { platform, name: `branch-tablet-${platform}`, branch_id, user_id: staff_user_id };
+    const existing = await prisma.device.findFirst({ where: { push_token: token } });
+    if (existing) {
+      await prisma.device.update({ where: { id: existing.id }, data });
+      return { device_id: existing.id };
+    }
+    const created = await prisma.device.create({ data: { ...data, push_token: token } });
+    return { device_id: created.id };
+  }
+
   private async card(order_id: string): Promise<BranchOrderCard> {
     const o = await prisma.order.findUniqueOrThrow({
       where: { id: order_id },

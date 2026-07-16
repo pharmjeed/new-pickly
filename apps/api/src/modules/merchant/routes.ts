@@ -100,6 +100,23 @@ export async function merchantRoutes(app: FastifyInstance): Promise<void> {
     return service.reportItemIssue(orderId(req), branchIdsOf(req), claims.sub, body);
   });
 
+  /**
+   * توكن Push لجهاز الفرع (غلاف التطبيق) — تنبيه الطلب الجديد يصل حتى
+   * والجهاز مقفل (الإشعار النظامي لا يتجمد بقفل الشاشة كصوت اللوحة)
+   */
+  app.post("/devices/push-token", async (req) => {
+    const claims = requireStaff(req, VIEW_ROLES);
+    const body = z
+      .object({
+        branch_id: UuidSchema,
+        token: z.string().regex(/^ExponentPushToken\[.{10,180}\]$/),
+        platform: z.enum(["ios", "android"])
+      })
+      .parse(req.body);
+    assertBranchScope(claims, body.branch_id);
+    return service.registerPushDevice(body.branch_id, claims.sub, body.token, body.platform);
+  });
+
   /** شارات التبويبات — عدد الطلبات المنتظرة في كل خانة (ماعدا «مكتملة») */
   app.get("/tab-counts", async (req) => {
     const claims = requireStaff(req, VIEW_ROLES);

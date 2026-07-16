@@ -1,0 +1,20 @@
+# deps
+node_modules/
+
+# expo / eas
+.expo/
+dist/
+web-build/
+
+# native build outputs
+android/
+ios/
+*.apk
+*.aab
+*.ipa
+
+# env / secrets
+.env*
+
+# os
+.DS_Store

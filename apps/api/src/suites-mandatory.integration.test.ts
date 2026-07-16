@@ -130,6 +130,46 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
       expect(queue.statusCode).toBe(403);
     });
 
+    it("isolation: توكن Push لجهاز الفرع — يُسجَّل لفرعه، upsert لا يكرره، ويُرفض لفرع تاجر آخر", async () => {
+      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
+      const staff = await staffLogin("BB-OLAYA");
+      const token = `ExponentPushToken[test-${randomUUID()}]`;
+      const payload = { branch_id: branch.id, token, platform: "ios" };
+
+      const ok = await app.inject({
+        method: "POST",
+        url: "/v1/merchant/devices/push-token",
+        headers: authed(staff),
+        payload
+      });
+      expect(ok.statusCode).toBe(200);
+      const device = await prisma.device.findFirst({ where: { push_token: token } });
+      expect(device?.branch_id).toBe(branch.id);
+
+      // إعادة التسجيل بنفس التوكن ← نفس الجهاز (لا تكرار)
+      const again = await app.inject({
+        method: "POST",
+        url: "/v1/merchant/devices/push-token",
+        headers: authed(staff),
+        payload
+      });
+      expect(again.json().device_id).toBe(ok.json().device_id);
+
+      // موظف تاجر آخر لا يسجّل جهازاً على فرع غيره
+      const foreign = await staffLogin("DW-MALAZ");
+      const denied = await app.inject({
+        method: "POST",
+        url: "/v1/merchant/devices/push-token",
+        headers: authed(foreign),
+        payload: {
+          branch_id: branch.id,
+          token: `ExponentPushToken[evil-${randomUUID()}]`,
+          platform: "android"
+        }
+      });
+      expect(denied.statusCode).toBe(403);
+    });
+
     it("isolation: عميل لا يقرأ طلب عميل آخر", async () => {
       const { orderId } = await paidOrder("BB-OLAYA");
       const stranger = await customerLogin();
