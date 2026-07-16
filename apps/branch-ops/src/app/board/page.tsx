@@ -216,7 +216,7 @@ export default function BoardPage() {
 
   /** تنبيه صوتي بسيط (بلا ملفات صوت — WebAudio) — سياق واحد مشترك يُعاد إيقاظه، فلا تتراكم السياقات مع طول عمر الشاشة */
   const audioCtx = useRef<AudioContext | null>(null);
-  const beep = useCallback((freq = 880) => {
+  const beep = useCallback((freq = 880, vol = 0.18, dur = 0.5) => {
     try {
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = (audioCtx.current ??= new Ctx());
@@ -226,20 +226,29 @@ export default function BoardPage() {
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.18, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
       osc.start();
-      osc.stop(ctx.currentTime + 0.5);
+      osc.stop(ctx.currentTime + dur);
     } catch {
       /* الصوت تحسين — الشارة المرئية تكفي */
     }
   }, []);
 
-  /** نغمة الطلب الجديد — ثلاث نغمات صاعدة تميّزه عن نغمة الوصول المفردة ونغمتي المجدول */
+  /** نغمة الطلب الجديد — ثلاث نغمات صاعدة تميّزه عن جرس الوصول الهابط ونغمتي المجدول */
   const newOrderChime = useCallback(() => {
     beep(660);
     setTimeout(() => beep(880), 200);
     setTimeout(() => beep(1100), 400);
+  }, [beep]);
+
+  // جرس وصول العميل — «دينغ-دونغ» هابط أعلى صوتاً من البقية يتكرر ثلاث مرات
+  // (قرار المالك 2026-07-16)؛ الهبوط يعكس صعود نغمة الطلب الجديد فلا يلتبسان
+  const arrivalChime = useCallback(() => {
+    for (const rep of [0, 900, 1800]) {
+      setTimeout(() => beep(988, 0.5, 0.35), rep);
+      setTimeout(() => beep(659, 0.5, 0.5), rep + 250);
+    }
   }, [beep]);
 
   // إنذار الطلب الجديد — متكرر ولا يصمت إلا بالقبول أو الرفض (قرار المالك 2026-07-16):
@@ -283,7 +292,7 @@ export default function BoardPage() {
     };
   }, [branchId, call, beep]);
 
-  // وصول عميل جديد — نغمة تلفت الموظف؛ نستنتج الواصلين من بطاقات «التشغيل» نفسها
+  // وصول عميل جديد — جرس مميز يلفت الموظف؛ نستنتج الواصلين من بطاقات «التشغيل» نفسها
   useEffect(() => {
     const arrivedNow = cards.filter((c) => ARRIVED.includes(c.order_status));
     if (arrSeen.current === null) {
@@ -297,8 +306,8 @@ export default function BoardPage() {
         fresh = true;
       }
     }
-    if (fresh) beep();
-  }, [cards, beep]);
+    if (fresh) arrivalChime();
+  }, [cards, arrivalChime]);
 
   const act = async (path: string, body?: unknown, idem = false) => {
     try {
