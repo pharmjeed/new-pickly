@@ -232,7 +232,7 @@ export default function TrackPage() {
     };
   }, [ensureAudio]);
   const beep = useCallback(
-    (freq: number, atMs = 0) => {
+    (freq: number, atMs = 0, durS = 0.5) => {
       const ctx = ensureAudio();
       if (!ctx) return;
       const t0 = ctx.currentTime + atMs / 1000;
@@ -243,9 +243,9 @@ export default function TrackPage() {
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.001, t0);
       gain.gain.exponentialRampToValueAtTime(0.2, t0 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.5);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + durS);
       osc.start(t0);
-      osc.stop(t0 + 0.55);
+      osc.stop(t0 + durS + 0.05);
     },
     [ensureAudio]
   );
@@ -278,12 +278,18 @@ export default function TrackPage() {
     if (accepted) acceptChime();
   }, [status, acceptChime]);
 
-  /** نغمة الجاهزية — نغمتان صاعدتان أعلى من نغمة القبول تميّزان «طلبك جاهز» + هزة أوضح */
+  /** نغمة الجاهزية الاحتفالية — «تا-دا!»: سلّم دو الكبير يصعد سريعاً ثم تآلف ممدود يرنّ.
+   *  أطول وأبهج من نغمة القبول الثلاثية كي تليق بلحظة «طلبك جاهز» + هزة إيقاعية ختامها طويل. */
   const readyChime = useCallback(() => {
-    beep(880);
-    beep(1175, 180);
+    beep(659, 0, 0.22); // مي5
+    beep(784, 120, 0.22); // صول5
+    beep(1046, 240, 0.22); // دو6
+    // «دا!» — تآلف دو الكبير (دو+مي+صول) معاً ممدوداً
+    beep(1046, 400, 0.9);
+    beep(1318, 400, 0.9);
+    beep(1568, 400, 0.9);
     try {
-      if ("vibrate" in navigator) navigator.vibrate([120, 70, 120]);
+      if ("vibrate" in navigator) navigator.vibrate([80, 40, 80, 40, 200]);
     } catch {
       /* الهزة تحسين — لا تعطل شيئاً */
     }
