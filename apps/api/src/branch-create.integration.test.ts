@@ -44,7 +44,7 @@ describe.skipIf(!hasDb)("Branch Create (M-03)", async () => {
 
   beforeAll(async () => {
     await app.ready();
-    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
+    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "101" } });
     sourceBranchId = branch.id;
     merchantId = branch.merchant_id;
     brandId = branch.brand_id;
@@ -233,7 +233,7 @@ describe.skipIf(!hasDb)("Branch Create (M-03)", async () => {
   });
 
   it("مدير الفرع لا ينشئ فروعاً (403)", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
+    const manager = await staffLogin("101", "manager101");
     const res = await app.inject({
       method: "POST",
       url: "/v1/merchant/branches",
