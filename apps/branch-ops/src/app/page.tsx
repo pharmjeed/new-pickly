@@ -11,6 +11,13 @@ import { QirtasBadge, QirtasMono, Wordmark } from "./qirtas";
 
 const pad2 = (n: number): string => String(n).padStart(2, "0");
 
+// لوحات المفاتيح العربية تُدخل ٠-٩/۰-۹ — نطبّعها لأرقام ASCII كي يطابق الخادم
+const toAsciiDigits = (v: string): string =>
+  v
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+    .trim();
+
 export default function BranchLoginPage() {
   const router = useRouter();
   const [branchCode, setBranchCode] = useState("");
@@ -38,10 +45,10 @@ export default function BranchLoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          branch_code: branchCode,
-          username,
-          pin,
-          device_name: `لوحة ${branchCode}`
+          branch_code: toAsciiDigits(branchCode),
+          username: toAsciiDigits(username),
+          pin: toAsciiDigits(pin),
+          device_name: `لوحة ${toAsciiDigits(branchCode)}`
         })
       });
       if (!res.ok) {
