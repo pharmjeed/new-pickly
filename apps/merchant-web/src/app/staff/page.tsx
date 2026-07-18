@@ -256,8 +256,12 @@ export default function StaffPage() {
                 data-testid="staff-username"
                 placeholder="مثال: rashed101"
                 dir="ltr"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 disabled={!!editId}
-                onChange={(e) => setUsername(e.target.value)}
+                // الأسماء تُخزن صغيرة دائماً — دخول الفرع يطبّعها كذلك (iOS يكبّر أول حرف)
+                onChange={(e) => setUsername(e.target.value.toLowerCase())}
               />
             </label>
             <label className={s.field}>

@@ -46,7 +46,8 @@ export default function BranchLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           branch_code: toAsciiDigits(branchCode),
-          username: toAsciiDigits(username),
+          // iOS يكبّر أول حرف تلقائياً — الأسماء مخزنة صغيرة دائماً
+          username: toAsciiDigits(username).toLowerCase(),
           pin: toAsciiDigits(pin),
           device_name: `لوحة ${toAsciiDigits(branchCode)}`
         })
@@ -101,6 +102,11 @@ export default function BranchLoginPage() {
                 className={`${s.inp} ${s.inpMono}`}
                 data-testid="branch-code"
                 placeholder="101"
+                inputMode="numeric"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={branchCode}
                 onChange={(e) => setBranchCode(e.target.value)}
               />
@@ -112,6 +118,10 @@ export default function BranchLoginPage() {
                 className={`${s.inp} ${s.inpMono}`}
                 data-testid="username"
                 placeholder="اسم المستخدم"
+                autoComplete="username"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
