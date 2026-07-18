@@ -9,12 +9,15 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { api, fmtSar, getToken } from "@/lib/api";
+import { cacheRead, cacheWrite } from "@/lib/cache";
+import { useApi, useIsoLayout } from "@/lib/use-api";
 import { Qirtas, QirtasBadge } from "./qirtas";
 import { QirtasLive } from "./qirtas-motion";
 import styles from "./page.module.css";
 
 export interface BranchCard {
   id: string;
+  brand_id: string;
   brand_name_ar: string;
   cuisine_ar: string | null;
   logo_url: string | null;
@@ -22,6 +25,7 @@ export interface BranchCard {
   status: string;
   distance_meters: number | null;
   eta_minutes: number | null;
+  min_order_halalas: number | null;
   address_short: string;
   busy_message: string | null;
 }
@@ -229,54 +233,125 @@ export function statusBadge(status: string): { label: string; cls: string } {
   return { label: "مغلق", cls: styles.stClosed };
 }
 
-/** الفروع القريبة + الموقع — الموقع ميزة تحسين لا شرط (docs/14§8) */
+/** آخر نتيجة «قريب منك» كاملة — تُعرض فوراً عند كل انتقال ثم تُجدَّد بالخلفية */
+interface NearbySnapshot {
+  list: BranchCard[];
+  label: string;
+  coords: { lat: number; lng: number };
+}
+const NEARBY_KEY = "nearby:last";
+
+/** مسافة تقريبية بالمتر (مستوية) — تكفي لقرار «هل ابتعد المستخدم عن موقع الجلب؟» */
+function distMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const dLat = (a.lat - b.lat) * 111_000;
+  const dLng = (a.lng - b.lng) * 111_000 * Math.cos((a.lat * Math.PI) / 180);
+  return Math.hypot(dLat, dLng);
+}
+
+/**
+ * الفروع القريبة + الموقع — الموقع ميزة تحسين لا شرط (docs/14§8).
+ * تحديد الموقع خارج المسار الحرج: نجلب فوراً بآخر موقع معروف (أو الرياض)
+ * ونعيد الجلب فقط إن تبيّن أن المستخدم ابتعد عنه — لا انتظار يحجب القائمة.
+ */
 export function useNearby(): {
   branches: BranchCard[] | null;
   error: string | null;
   locLabel: string;
   coords: { lat: number; lng: number };
 } {
-  const [branches, setBranches] = useState<BranchCard[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [locLabel, setLocLabel] = useState("الرياض");
-  const [coords, setCoords] = useState(RIYADH);
+  const [state, setState] = useState<{
+    branches: BranchCard[] | null;
+    error: string | null;
+    locLabel: string;
+    coords: { lat: number; lng: number };
+  }>({ branches: null, error: null, locLabel: "الرياض", coords: RIYADH });
+
+  // آخر نتيجة معروفة قبل أول رسم — الانتقال بين الصفحات لا يمر بالهيكل العظمي
+  useIsoLayout(() => {
+    const snap = cacheRead<NearbySnapshot>(NEARBY_KEY);
+    if (snap) setState({ branches: snap.list, error: null, locLabel: snap.label, coords: snap.coords });
+  }, []);
 
   useEffect(() => {
+    let alive = true;
     const fetchAt = (lat: number, lng: number) =>
       api<BranchCard[]>("GET", `/v1/branches/nearby?lat=${lat}&lng=${lng}&radius=30000`);
 
     // عرض تجريبي: مطاعم البيانات في الرياض/جدة/الدمام فقط. إن كان موقعك الحقيقي
     // بعيداً عنها (لا مطاعم ضمن النطاق) نسقط تلقائياً على الرياض كي لا تفرغ القائمة —
     // ويبقى موقعك الحقيقي فعّالاً لخريطة التتبع وبوابة الوصول.
-    const load = async (lat: number, lng: number, real: boolean) => {
+    const load = async (at: { lat: number; lng: number }, label: string, real: boolean) => {
       try {
-        let list = await fetchAt(lat, lng);
+        let list = await fetchAt(at.lat, at.lng);
+        let lbl = label;
         if (real && list.length === 0) {
           list = await fetchAt(RIYADH.lat, RIYADH.lng);
-          setLocLabel("الرياض (عرض)");
+          lbl = "الرياض (عرض)";
         }
-        setBranches(list);
+        if (!alive) return;
+        cacheWrite<NearbySnapshot>(NEARBY_KEY, { list, label: lbl, coords: at });
+        setState({ branches: list, error: null, locLabel: lbl, coords: at });
       } catch (e) {
-        setError((e as Error).message);
+        if (alive && cacheRead(NEARBY_KEY) === undefined) {
+          setState((s) => ({ ...s, error: (e as Error).message }));
+        }
       }
     };
+
+    const snap = cacheRead<NearbySnapshot>(NEARBY_KEY);
+    const start = snap?.coords ?? RIYADH;
+    void load(start, snap?.label ?? "الرياض", snap !== undefined && snap.label !== "الرياض");
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setLocLabel("موقعك الحالي");
-          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          void load(pos.coords.latitude, pos.coords.longitude, true);
+          if (!alive) return;
+          const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          if (distMeters(here, start) > 2000) {
+            void load(here, "موقعك الحالي", true);
+          } else {
+            // لم يبتعد — القائمة صالحة؛ سقوط العرض «الرياض (عرض)» يحتفظ بتسميته الصادقة
+            setState((s) => ({
+              ...s,
+              coords: here,
+              locLabel: s.locLabel === "الرياض (عرض)" ? s.locLabel : "موقعك الحالي"
+            }));
+          }
         },
-        () => load(RIYADH.lat, RIYADH.lng, false),
-        { timeout: 3000 }
+        () => undefined,
+        { timeout: 5000, maximumAge: 300_000 }
       );
-    } else {
-      void load(RIYADH.lat, RIYADH.lng, false);
     }
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  return { branches, error, locLabel, coords };
+  return state;
+}
+
+/** أفضل إحداثيات معروفة فوراً (آخر جلب أو الرياض) مع تصحيح خلفي من تحديد الموقع */
+export function useCoords(): { lat: number; lng: number } {
+  const [coords, setCoords] = useState(RIYADH);
+
+  useIsoLayout(() => {
+    const snap = cacheRead<NearbySnapshot>(NEARBY_KEY);
+    if (snap) setCoords(snap.coords);
+  }, []);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setCoords((c) => (distMeters(here, c) > 2000 ? here : c));
+      },
+      () => undefined,
+      { timeout: 5000, maximumAge: 300_000 }
+    );
+  }, []);
+
+  return coords;
 }
 
 /**
@@ -284,13 +359,9 @@ export function useNearby(): {
  * لكل تصنيف (وقد يكون صفراً)؛ وإلا تُشتق من مطابخ الفروع القريبة.
  */
 export function useCategories(branches: BranchCard[] | null): Array<{ name: string; count: number }> | null {
-  const [adminCats, setAdminCats] = useState<string[] | null>(null);
-
-  useEffect(() => {
-    api<Array<{ name_ar: string }>>("GET", "/v1/content/categories")
-      .then((cats) => setAdminCats(cats.map((c) => c.name_ar)))
-      .catch(() => setAdminCats([])); // ميزة تحسين — السقوط للاشتقاق التلقائي
-  }, []);
+  const { data, error } = useApi<Array<{ name_ar: string }>>("/v1/content/categories");
+  // ميزة تحسين — فشل القائمة يسقط للاشتقاق التلقائي من الفروع القريبة
+  const adminCats = data ? data.map((c) => c.name_ar) : error !== null ? [] : null;
 
   if (branches === null || adminCats === null) return null;
 
@@ -308,20 +379,16 @@ export function useCategories(branches: BranchCard[] | null): Array<{ name: stri
 export function AppHead({ locLabel, coords }: { locLabel: string; coords: { lat: number; lng: number } }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
-  const [notifs, setNotifs] = useState<NotifList | null>(null);
   const [showNotifs, setShowNotifs] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // تُقرأ بعد التركيب فقط — لا فرق ترطيب بين الخادم والعميل
   const [loggedIn, setLoggedIn] = useState(false);
   useEffect(() => setLoggedIn(Boolean(getToken())), []);
 
-  // شارة غير المقروء عند فتح الصفحة — للمسجلين فقط
-  useEffect(() => {
-    if (!loggedIn) return;
-    api<NotifList>("GET", "/v1/customers/me/notifications")
-      .then(setNotifs)
-      .catch(() => undefined); // الجرس ميزة تحسين — لا نُفشل الصفحة
-  }, [loggedIn]);
+  // شارة غير المقروء — الجرس ميزة تحسين، وخطؤه مُهمل عبر useApi (لا نُفشل الصفحة)
+  const { data: notifs, mutate: mutateNotifs } = useApi<NotifList>(
+    loggedIn ? "/v1/customers/me/notifications" : null
+  );
 
   // بحث C-11 بتهدئة 300ms — التسعير والنتائج من الخادم حصراً
   useEffect(() => {
@@ -350,7 +417,7 @@ export function AppHead({ locLabel, coords }: { locLabel: string; coords: { lat:
     if (next && notifs && notifs.unread_count > 0) {
       // فتح الصندوق يعلّم الكل مقروءاً (opened في notification_deliveries)
       void api("POST", "/v1/customers/me/notifications/read", {}).then(() =>
-        setNotifs((n) =>
+        mutateNotifs((n) =>
           n ? { unread_count: 0, notifications: n.notifications.map((x) => ({ ...x, read: true })) } : n
         )
       );

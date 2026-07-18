@@ -4,8 +4,9 @@
  * C-17 — العروض: كوبونات بيكلي العامة وعروض المطاعم السارية من GET /v1/offers.
  * نسخ الكود بضغطة — التحقق النهائي من الأهلية يتم عند تطبيقه على السلة (BR-7).
  */
-import { useEffect, useState } from "react";
-import { api, fmtSar } from "@/lib/api";
+import { useState } from "react";
+import { fmtSar } from "@/lib/api";
+import { useApi } from "@/lib/use-api";
 import { TabBar } from "../shell";
 import { QirtasEmptyLive } from "../qirtas-motion";
 import styles from "../page.module.css";
@@ -37,15 +38,8 @@ function offerTitle(o: OfferCard): string {
 }
 
 export default function OffersPage() {
-  const [offers, setOffers] = useState<OfferCard[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data: offers, error } = useApi<OfferCard[]>("/v1/offers");
   const [copied, setCopied] = useState<string | null>(null);
-
-  useEffect(() => {
-    api<OfferCard[]>("GET", "/v1/offers")
-      .then(setOffers)
-      .catch((e: Error) => setError(e.message));
-  }, []);
 
   const copy = (code: string) => {
     void navigator.clipboard?.writeText(code).catch(() => undefined);

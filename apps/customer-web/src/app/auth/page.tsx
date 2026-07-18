@@ -4,6 +4,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, setTokens } from "@/lib/api";
+import { cacheClear } from "@/lib/cache";
 import { QirtasLive } from "../qirtas-motion";
 import s from "./auth.module.css";
 
@@ -62,6 +63,7 @@ function AuthFlow() {
         "/v1/auth/otp/verify",
         { phone, code }
       );
+      cacheClear(); // دخول مستخدم (قد يكون غير السابق) — لا تُعرض بيانات me/* مخبأة لغيره
       setTokens(res.access_token, res.refresh_token);
       if (res.is_new_user) setStep("name");
       else router.push(next);

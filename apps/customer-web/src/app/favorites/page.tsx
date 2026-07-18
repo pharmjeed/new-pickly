@@ -4,10 +4,11 @@
  * C-18 / C-64 — المفضلة: علامات حفظها العميل (قلب صفحة المطعم)
  * من GET /v1/customers/me/favorites — البطاقة تفتح أقرب فرع نشط، مع حذف بالقلب.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { api, getToken } from "@/lib/api";
-import { GuestGate, IHeart, IPin, IStore, RIYADH, TabBar, statusBadge } from "../shell";
+import { useApi, useIsoLayout } from "@/lib/use-api";
+import { GuestGate, IHeart, IPin, IStore, TabBar, statusBadge, useCoords } from "../shell";
 import { QirtasEmptyLive } from "../qirtas-motion";
 import styles from "../page.module.css";
 
@@ -24,36 +25,22 @@ interface FavoriteBrand {
 }
 
 export default function FavoritesPage() {
-  const [favs, setFavs] = useState<FavoriteBrand[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // أفضل موقع معروف فوراً — تحديد الموقع يصحّح بالخلفية ولا يحجب القائمة
+  const coords = useCoords();
   const [guest, setGuest] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!getToken()) {
-      setGuest(true);
-      return;
-    }
-    setGuest(false);
-    const load = (lat: number, lng: number) =>
-      api<FavoriteBrand[]>("GET", `/v1/customers/me/favorites?lat=${lat}&lng=${lng}`)
-        .then(setFavs)
-        .catch((e: Error) => setError(e.message));
-    if (typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => void load(pos.coords.latitude, pos.coords.longitude),
-        () => void load(RIYADH.lat, RIYADH.lng),
-        { timeout: 3000 }
-      );
-    } else {
-      void load(RIYADH.lat, RIYADH.lng);
-    }
-  }, []);
+  useIsoLayout(() => setGuest(!getToken()), []);
+  // تقريب الإحداثيات (~110م) يثبّت مفتاح الكاش — تغيّر أمتار لا يعيد الجلب
+  const { data: favs, error, mutate } = useApi<FavoriteBrand[]>(
+    guest === false
+      ? `/v1/customers/me/favorites?lat=${coords.lat.toFixed(3)}&lng=${coords.lng.toFixed(3)}`
+      : null
+  );
 
   const remove = (brand_id: string) => {
     // حذف متفائل — الفشل يعيد العنصر
     const prev = favs;
-    setFavs((list) => (list ?? []).filter((f) => f.brand_id !== brand_id));
-    api("DELETE", `/v1/customers/me/favorites/${brand_id}`).catch(() => setFavs(prev));
+    mutate((list) => (list ?? []).filter((f) => f.brand_id !== brand_id));
+    api("DELETE", `/v1/customers/me/favorites/${brand_id}`).catch(() => mutate(() => prev));
   };
 
   return (

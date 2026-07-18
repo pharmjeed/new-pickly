@@ -6,7 +6,8 @@
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, fmtSar, getToken } from "@/lib/api";
+import { fmtSar, getToken } from "@/lib/api";
+import { useApi, useIsoLayout } from "@/lib/use-api";
 import { GuestGate, IStore, TabBar } from "../shell";
 import { QirtasEmptyLive } from "../qirtas-motion";
 import styles from "../page.module.css";
@@ -78,21 +79,13 @@ function chipClass(status: string): string {
 }
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<OrderSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("active");
+  // تُقرأ بعد الترطيب وقبل الرسم — لا فرق مع HTML الخادم ولا وميض
   const [guest, setGuest] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!getToken()) {
-      setGuest(true);
-      return;
-    }
-    setGuest(false);
-    api<OrderSummary[]>("GET", "/v1/customers/me/orders")
-      .then(setOrders)
-      .catch((e: Error) => setError(e.message));
-  }, []);
+  useIsoLayout(() => setGuest(!getToken()), []);
+  const { data: orders, error } = useApi<OrderSummary[]>(
+    guest === false ? "/v1/customers/me/orders" : null
+  );
 
   const byTab = (o: OrderSummary): Tab =>
     ACTIVE_STATES.has(o.order_status) ? "active" : CANCELLED_STATES.has(o.order_status) ? "cancelled" : "past";

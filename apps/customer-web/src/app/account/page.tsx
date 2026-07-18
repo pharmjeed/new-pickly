@@ -4,9 +4,10 @@
  * C-59 / W-10 — حسابي المصغر: الملف + محفظة بيكلي (خلف علم in_app_wallet)
  * + سياراتي + بطاقاتي (Tokenization) + تسجيل الخروج. الزائر يُدعى للدخول.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, clearTokens, fmtSar, getToken } from "@/lib/api";
+import { useApi, useIsoLayout } from "@/lib/use-api";
 import { GuestGate, TabBar } from "../shell";
 import styles from "../page.module.css";
 
@@ -55,27 +56,19 @@ const entryLabel = (e: WalletEntry): string => {
 
 export default function AccountPage() {
   const router = useRouter();
-  const [me, setMe] = useState<Me | null>(null);
-  const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
-  const [cards, setCards] = useState<Card[] | null>(null);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [guest, setGuest] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!getToken()) {
-      setGuest(true);
-      return;
-    }
-    setGuest(false);
-    api<Me>("GET", "/v1/customers/me")
-      .then(setMe)
-      .catch((e: Error) => setError(e.message));
-    api<Vehicle[]>("GET", "/v1/customers/me/vehicles").then(setVehicles).catch(() => setVehicles([]));
-    api<Card[]>("GET", "/v1/customers/me/cards").then(setCards).catch(() => setCards([]));
-    // محفظة بيكلي خلف علم in_app_wallet — فشلها لا يعطل الصفحة
-    api<Wallet>("GET", "/v1/customers/me/wallet").then(setWallet).catch(() => undefined);
-  }, []);
+  useIsoLayout(() => setGuest(!getToken()), []);
+  const authed = guest === false;
+  const { data: me, error } = useApi<Me>(authed ? "/v1/customers/me" : null);
+  const { data: vehiclesData, error: vehiclesError } = useApi<Vehicle[]>(
+    authed ? "/v1/customers/me/vehicles" : null
+  );
+  const { data: cardsData, error: cardsError } = useApi<Card[]>(authed ? "/v1/customers/me/cards" : null);
+  // محفظة بيكلي خلف علم in_app_wallet — فشلها لا يعطل الصفحة (خطؤها مُهمل)
+  const { data: wallet } = useApi<Wallet>(authed ? "/v1/customers/me/wallet" : null);
+  // كما السلوك السابق: فشل السيارات/البطاقات يعرض قائمة فارغة لا خطأ
+  const vehicles = vehiclesData ?? (vehiclesError !== null ? [] : null);
+  const cards = cardsData ?? (cardsError !== null ? [] : null);
 
   const logout = async () => {
     try {

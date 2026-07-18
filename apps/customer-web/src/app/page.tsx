@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { useApi } from "@/lib/use-api";
 import { AppHead, RestaurantCard, TabBar, cuisinePhoto, useCategories, useNearby } from "./shell";
 import { QirtasDrive, QirtasEmptyLive } from "./qirtas-motion";
 import styles from "./page.module.css";
@@ -23,14 +23,10 @@ const BANNER_MS = 4000;
 
 /** بانرات CMS — تنقّل تلقائي بتلاشٍ وانزلاق، والنقاط للتنقل اليدوي */
 function Banners() {
-  const [banners, setBanners] = useState<Banner[] | null>(null);
+  const { data, error } = useApi<Banner[]>("/v1/content/banners");
+  // البانرات ميزة تحسين — فشلها يخفي القسم ولا يُفشل الرئيسية
+  const banners = data ?? (error !== null ? [] : null);
   const [idx, setIdx] = useState(0);
-
-  useEffect(() => {
-    api<Banner[]>("GET", "/v1/content/banners")
-      .then(setBanners)
-      .catch(() => setBanners([])); // البانرات ميزة تحسين — لا نُفشل الرئيسية
-  }, []);
 
   useEffect(() => {
     if (!banners || banners.length < 2) return;

@@ -6,6 +6,8 @@
  * (التطبيقات النهائية في مرحلتي 3–4 تستورد @pickly/contracts مباشرة.)
  */
 
+import { cacheClear } from "./cache";
+
 const BASE = "/api";
 
 export function getToken(): string | null {
@@ -18,6 +20,7 @@ export function setTokens(access: string, refresh: string): void {
 export function clearTokens(): void {
   localStorage.removeItem("pk_access");
   localStorage.removeItem("pk_refresh");
+  cacheClear(); // بيانات me/* المخبأة تخص صاحب الجلسة المنتهية
 }
 
 /**

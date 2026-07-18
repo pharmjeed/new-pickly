@@ -9,6 +9,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api, fmtSar, getToken } from "@/lib/api";
+import { useApi } from "@/lib/use-api";
+import { useNearby } from "../../shell";
 import { QirtasLoader } from "../../qirtas";
 import styles from "./restaurant.module.css";
 
@@ -44,20 +46,6 @@ interface Menu {
   branch_id: string;
   categories: Array<{ id: string; name_ar: string; products: Product[] }>;
 }
-interface BranchCard {
-  id: string;
-  brand_id: string;
-  brand_name_ar: string;
-  logo_url: string | null;
-  cover_url: string | null;
-  status: string;
-  busy_message: string | null;
-  distance_meters: number | null;
-  eta_minutes: number | null;
-  min_order_halalas: number | null;
-  address_short: string;
-}
-
 /** حالة ورقة التخصيص المفتوحة */
 interface SheetState {
   product: Product;
@@ -66,8 +54,6 @@ interface SheetState {
   sel: Record<string, string[]>;
   note: string;
 }
-
-const RIYADH = { lat: 24.7, lng: 46.68 };
 
 /** الاختيار الافتراضي: أول min_select خيار من كل مجموعة إلزامية */
 function defaultSelection(p: Product): Record<string, string[]> {
@@ -81,40 +67,27 @@ function defaultSelection(p: Product): Record<string, string[]> {
 export default function RestaurantPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [menu, setMenu] = useState<Menu | null>(null);
-  const [branch, setBranch] = useState<BranchCard | null>(null);
   const [cartId, setCartId] = useState<string | null>(null);
   const [count, setCount] = useState(0);
   const [totalHalalas, setTotalHalalas] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [cartError, setCartError] = useState<string | null>(null);
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [adding, setAdding] = useState(false);
   const [isFav, setIsFav] = useState(false);
 
-  useEffect(() => {
-    api<Menu>("GET", `/v1/branches/${id}/menu`)
-      // التصنيف الذي أوقف المطعم كل أصنافه لا يُعرض — لا شريحة ولا قسم فارغ
-      .then((m) => setMenu({ ...m, categories: m.categories.filter((c) => c.products.length > 0) }))
-      .catch((e: Error) => setError(e.message));
-  }, [id]);
+  const { data: menuRaw, error: menuError } = useApi<Menu>(`/v1/branches/${id}/menu`);
+  // التصنيف الذي أوقف المطعم كل أصنافه لا يُعرض — لا شريحة ولا قسم فارغ
+  const menu = useMemo(
+    () => (menuRaw ? { ...menuRaw, categories: menuRaw.categories.filter((c) => c.products.length > 0) } : null),
+    [menuRaw]
+  );
+  const error = cartError ?? menuError;
 
-  // بيانات الفرع للرأس (الاسم/الحالة/المسافة) — تحسين عرض؛ فشلها لا يعطل الصفحة
-  useEffect(() => {
-    const find = (lat: number, lng: number) =>
-      api<BranchCard[]>("GET", `/v1/branches/nearby?lat=${lat}&lng=${lng}&radius=30000`)
-        .then((list) => setBranch(list.find((b) => b.id === id) ?? null))
-        .catch(() => undefined);
-    if (typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => void find(pos.coords.latitude, pos.coords.longitude),
-        () => void find(RIYADH.lat, RIYADH.lng),
-        { timeout: 3000 }
-      );
-    } else {
-      void find(RIYADH.lat, RIYADH.lng);
-    }
-  }, [id]);
+  // بيانات الفرع للرأس (الاسم/الحالة/المسافة) — تحسين عرض؛ فشلها لا يعطل الصفحة.
+  // القائمة القريبة المخبأة تظهر فوراً بلا انتظار تحديد الموقع
+  const { branches: nearbyList } = useNearby();
+  const branch = useMemo(() => nearbyList?.find((b) => b.id === id) ?? null, [nearbyList, id]);
 
   // حالة القلب (C-18) — للمسجلين فقط؛ فشلها لا يعطل الصفحة
   useEffect(() => {
@@ -158,7 +131,7 @@ export default function RestaurantPage() {
   };
 
   const postItem = async (p: Product, quantity: number, modifier_ids: string[], note?: string) => {
-    setError(null);
+    setCartError(null);
     setAdding(true);
     try {
       const cid = await ensureCart();
@@ -176,7 +149,7 @@ export default function RestaurantPage() {
       setTotalHalalas((t) => t + (shownPrice(p) + modTotal) * quantity);
       return true;
     } catch (e) {
-      setError((e as Error).message);
+      setCartError((e as Error).message);
       return false;
     } finally {
       setAdding(false);
