@@ -348,7 +348,7 @@ export default function MerchantFile({ merchantId, onBack, onChanged }: Props) {
                     <tr key={m.id}>
                       <td><b>{m.full_name}</b></td>
                       <td className="mono">{m.username}</td>
-                      <td>{ROLE_AR[m.role_key] ?? m.role_key}</td>
+                      <td>{ROLE_AR[m.role_key.replace(/^merchant:/, "")] ?? m.role_key}</td>
                       <td>{m.branches.length > 0 ? m.branches.join("، ") : "كل الفروع"}</td>
                       <td><span className={`badge ${st.cls}`} style={{ fontSize: "10.5px" }}>{st.label}</span></td>
                     </tr>
