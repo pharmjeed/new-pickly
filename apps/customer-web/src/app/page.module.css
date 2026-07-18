@@ -260,10 +260,14 @@
   border-radius: var(--pk-radius-lg);
 }
 
-/* ===== تصنيفات المطاعم (C-09) ===== */
+/* ===== تصنيفات المطاعم (C-09) — صفان يمرّان أفقياً، بطاقة مربعة والاسم تحتها ===== */
 .cats {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: auto auto;
+  /* ٤ أعمدة ظاهرة في عرض الشاشة (كالمرجع)؛ الباقي بالتمرير الأفقي */
+  grid-auto-columns: calc((100% - 30px) / 4);
+  gap: 12px 10px;
   overflow-x: auto;
   /* متنفس حول البطاقات حتى لا يقص حاوي التمرير ظل pop-xs (2px) */
   padding: 2px 2px 6px;
@@ -274,32 +278,30 @@
   display: none;
 }
 .catCard {
-  flex: 0 0 auto;
-  width: 108px;
+  min-width: 0;
   scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--pk-text);
+  text-decoration: none;
+}
+/* المربع هو البطاقة: يحمل الإطار والظل، والصورة تملؤه */
+.catPh {
+  width: 100%;
+  aspect-ratio: 1;
   background: var(--pk-surface);
   border: var(--pk-b2);
   border-radius: var(--pk-radius-md);
   box-shadow: var(--pk-pop-xs);
-  padding: 7px 8px 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  color: var(--pk-text);
-  text-decoration: none;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-.catCard:hover {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 var(--pk-ink-900);
-}
-/* صورة التصنيف — بلا إطار دائري: تملأ عرض البطاقة الداخلي كاملاً */
-.catPh {
-  width: 100%;
-  aspect-ratio: 1;
   overflow: hidden;
   flex: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.catCard:hover .catPh {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--pk-ink-900);
 }
 .catPh img {
   width: 100%;
@@ -312,6 +314,11 @@
   font-size: var(--pk-fs-14);
   font-weight: 700;
   line-height: 1.2;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ===== chips التصنيفات في قائمة المطاعم ===== */
