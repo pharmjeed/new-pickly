@@ -12,6 +12,7 @@ const { startMaintenanceLoop } = await import("./handlers/maintenance.js");
 const { publishToRealtime } = await import("./handlers/realtime-publisher.js");
 const { writeCustomerNotifications } = await import("./handlers/notifications.js");
 const { pushBranchNewOrder } = await import("./handlers/branch-push.js");
+const { pushCustomerOrderUpdate } = await import("./handlers/customer-push.js");
 const { handleScheduledSlotEntry, handleScheduledReminder, handleScheduledExpire, startWeeklySlotRoll } = await import(
   "./handlers/scheduled.js"
 );
@@ -20,6 +21,7 @@ const { registerEventHandler } = await import("./outbox-publisher.js");
 registerEventHandler(publishToRealtime);
 registerEventHandler(writeCustomerNotifications);
 registerEventHandler(pushBranchNewOrder);
+registerEventHandler(pushCustomerOrderUpdate);
 registerJobHandler("accept_timeout", handleAcceptTimeout);
 registerJobHandler("no_show_reminder", handleNoShowReminder);
 registerJobHandler("no_show_check", handleNoShowCheck);

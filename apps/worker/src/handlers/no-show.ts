@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@pickly/database";
 import { createLogger } from "@pickly/observability";
+import { pushCustomerTemplate } from "./customer-push.js";
 
 /**
  * BR-3 عدم الحضور:
@@ -35,6 +36,14 @@ export async function handleNoShowReminder(payload: unknown): Promise<void> {
       data: { notification_id: notification.id, channel: "push", status: "sent", sent_at: new Date() }
     });
   });
+  // Push نظامي يرن حتى والتطبيق مقفل — فشله لا يعيد المعالج (صف الإشعار أعلاه بلا dedupe)
+  await pushCustomerTemplate({
+    user_id: order.user_id,
+    template_key: "no_show_reminder",
+    vars: { display_code: order.display_code },
+    dedupe_key: `noshow_reminder:${order_id}`,
+    order_id
+  }).catch((err: unknown) => logger.warn({ order_id, err }, "no-show push failed"));
   logger.info({ order_id }, "no-show reminder sent");
 }
 

@@ -170,6 +170,55 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
       expect(denied.statusCode).toBe(403);
     });
 
+    it("isolation: توكن Push لجوال العميل — يُسجَّل لصاحبه، upsert لا يكرره، ودخول حساب آخر ينقل ملكيته", async () => {
+      const token = `ExponentPushToken[cust-${randomUUID()}]`;
+      const first = await customerLogin();
+
+      const ok = await app.inject({
+        method: "POST",
+        url: "/v1/customers/me/push-token",
+        headers: authed(first),
+        payload: { token, platform: "android" }
+      });
+      expect(ok.statusCode).toBe(200);
+      const device = await prisma.device.findFirst({ where: { push_token: token } });
+      expect(device?.branch_id).toBeNull(); // جهاز عميل — لا يستقبل push الفرع
+
+      // إعادة التسجيل بنفس التوكن ← نفس الجهاز (لا تكرار)
+      const again = await app.inject({
+        method: "POST",
+        url: "/v1/customers/me/push-token",
+        headers: authed(first),
+        payload: { token, platform: "android" }
+      });
+      expect(again.json().device_id).toBe(ok.json().device_id);
+
+      // حساب آخر على نفس الجهاز — الملكية تنتقل ولا يبقى الإشعار يصل لصاحب الجلسة السابقة
+      const second = await customerLogin();
+      const moved = await app.inject({
+        method: "POST",
+        url: "/v1/customers/me/push-token",
+        headers: authed(second),
+        payload: { token, platform: "android" }
+      });
+      expect(moved.statusCode).toBe(200);
+      expect(moved.json().device_id).toBe(ok.json().device_id);
+      const after = await prisma.device.findUniqueOrThrow({ where: { id: ok.json().device_id as string } });
+      const firstUser = await prisma.device.findFirst({
+        where: { push_token: token, user_id: { not: after.user_id } }
+      });
+      expect(firstUser).toBeNull(); // لا نسخة ثانية بمالك قديم
+
+      // توكن بصيغة غير صحيحة يُرفض
+      const bad = await app.inject({
+        method: "POST",
+        url: "/v1/customers/me/push-token",
+        headers: authed(first),
+        payload: { token: "not-a-token", platform: "android" }
+      });
+      expect(bad.statusCode).toBe(400);
+    });
+
     it("isolation: عميل لا يقرأ طلب عميل آخر", async () => {
       const { orderId } = await paidOrder("BB-OLAYA");
       const stranger = await customerLogin();

@@ -41,7 +41,8 @@
         {
           "locationWhenInUsePermission": "نستخدم موقعك لعرض أقرب المطاعم ولمتابعة وصولك أثناء طلبك النشط حتى يجهّز المطعم طلبك على وقت وصولك."
         }
-      ]
+      ],
+      ["expo-notifications", { "defaultChannel": "orders" }]
     ],
     "extra": {
       "siteUrl": "https://app.thepickly.com",

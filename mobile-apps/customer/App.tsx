@@ -3,6 +3,10 @@
  * غلاف أصلي رفيع يعرض تجربة الويب المصقولة الحيّة (نفس المزايا كاملة) داخل تطبيق قابل للتثبيت.
  * يضيف فوق الويب: إذن الموقع الأصلي (لتدفّق «وصلت»)، فتح خرائط قوقل/الهاتف خارج التطبيق،
  * زر الرجوع في أندرويد، شاشة «لا اتصال» بإعادة محاولة، سحب-للتحديث (على iOS)، وحفظ الجلسة بين التشغيلات.
+ *
+ * إشعارات تقدّم الطلب والتطبيق مقفل: توكن Expo Push يُحقن لصفحة الويب فتسجّله
+ * بجلستها (POST /v1/customers/me/push-token)، والخادم يرسل إشعاراً نظامياً يرن
+ * عند القبول/الجاهزية/انطلاق التسليم/الاسترداد/التذكيرات حتى والجهاز مقفل.
  */
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import {
@@ -26,6 +30,18 @@ import type {
   WebViewNavigation,
 } from "react-native-webview/lib/WebViewTypes";
 import Constants from "expo-constants";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+
+// التطبيق في الواجهة ← نُظهر اللافتة والصوت أيضاً — صفحة الويب بلا منبّه خاص بها
+// (بعكس لوحة الفرع ذات الإنذار الصادح)، والعميل قد يتصفح صفحة أخرى داخل التطبيق
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 // ————— إعدادات التطبيق —————
 const SITE_URL: string =
@@ -74,12 +90,61 @@ export default function App() {
   const [errored, setErrored] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const canGoBack = useRef(false);
+  const pushToken = useRef<string | null>(null);
 
   // إذن الموقع الأصلي مرة واحدة — كي ينجح navigator.geolocation داخل الويب فوراً
   useEffect(() => {
     if (!NEEDS_LOCATION) return;
     Location.requestForegroundPermissionsAsync().catch(() => {});
   }, []);
+
+  /** حقن التوكن لصفحة الويب — تسجّله بجلستها الموثقة عبر /v1/customers/me/push-token */
+  const injectPushToken = useCallback(() => {
+    const token = pushToken.current;
+    if (!token || !webRef.current) return;
+    webRef.current.injectJavaScript(
+      `(function(){` +
+        `window.__picklyPush={token:${JSON.stringify(token)},platform:${JSON.stringify(Platform.OS)}};` +
+        `document.dispatchEvent(new CustomEvent("pickly:push-token",{detail:window.__picklyPush}));` +
+        `})();true;`
+    );
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!Device.isDevice) return; // المحاكيات بلا Push
+        if (Platform.OS === "android") {
+          // قناة «طلبات» بأقصى أهمية — صوت + ظهور كامل على شاشة القفل
+          await Notifications.setNotificationChannelAsync("orders", {
+            name: "تحديثات الطلب",
+            importance: Notifications.AndroidImportance.MAX,
+            sound: "default",
+            vibrationPattern: [0, 400, 200, 400],
+            lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+          });
+        }
+        const current = await Notifications.getPermissionsAsync();
+        const granted =
+          current.granted || (await Notifications.requestPermissionsAsync()).granted;
+        if (!granted) return;
+        const projectId = (
+          Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined
+        )?.eas?.projectId;
+        if (!projectId) return; // قبل eas init — التطبيق يعمل والإشعارات تُفعَّل بعد البناء بالمعرّف
+        const token = await Notifications.getExpoPushTokenAsync({ projectId });
+        if (cancelled) return;
+        pushToken.current = token.data;
+        injectPushToken();
+      } catch {
+        /* الإشعارات تحسين — التطبيق يعمل بدونها */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [injectPushToken]);
 
   // زر الرجوع في أندرويد يتنقّل داخل الويب قبل إغلاق التطبيق
   useEffect(() => {
@@ -158,7 +223,10 @@ export default function App() {
             originWhitelist={["*"]}
             onShouldStartLoadWithRequest={onShouldStart}
             onNavigationStateChange={onNavChange}
-            onLoadEnd={() => setFirstLoadDone(true)}
+            onLoadEnd={() => {
+              setFirstLoadDone(true);
+              injectPushToken(); // التوكن قد يسبق تحميل الصفحة أو تعاد بعد سحب-للتحديث
+            }}
             onError={() => {
               setFirstLoadDone(true);
               setErrored(true);

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { generateBranchSlotsFromTemplate, prisma } from "@pickly/database";
 import { createLogger } from "@pickly/observability";
 import { notifyInApp } from "./notifications.js";
+import { pushCustomerTemplate } from "./customer-push.js";
 
 /**
  * BR-5 الطلب المجدول (docs/06§BR-5 + docs/03 J3):
@@ -110,6 +111,14 @@ export async function handleScheduledReminder(payload: unknown): Promise<void> {
       dedupe_key: `scheduled_reminder:${order_id}`
     });
   });
+  // Push نظامي يرن حتى والتطبيق مقفل — تحسين فوق صف الجرس؛ فشله لا يُفشل التذكير
+  await pushCustomerTemplate({
+    user_id: order.user_id,
+    template_key: "scheduled_reminder",
+    vars: { display_code: order.display_code },
+    dedupe_key: `scheduled_reminder:${order_id}`,
+    order_id
+  }).catch((err: unknown) => logger.warn({ order_id, err }, "scheduled reminder push failed"));
   logger.info({ order_id }, "تذكير التوجه للمجدول");
 }
 

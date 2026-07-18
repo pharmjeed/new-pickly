@@ -485,6 +485,30 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
+  /**
+   * توكن Push لجوال العميل (غلاف التطبيق) — إشعارات تقدّم الطلب (القبول/الجاهزية/
+   * التسليم/الاسترداد/التذكيرات) تصل وترن حتى والتطبيق مقفل.
+   * upsert على التوكن نفسه: دخول حساب آخر على الجهاز ينقل ملكيته بدل التكرار.
+   */
+  app.post("/me/push-token", async (req) => {
+    const claims = requireCustomer(req);
+    const body = z
+      .object({
+        token: z.string().regex(/^ExponentPushToken\[.{10,180}\]$/),
+        platform: z.enum(["ios", "android"])
+      })
+      .parse(req.body);
+    // branch_id null يميّز جوال العميل عن تابلت الفرع لنفس المستخدم (الجوال الواحد قد يحمل الدورين)
+    const data = { platform: body.platform, name: `customer-${body.platform}`, user_id: claims.sub, branch_id: null };
+    const existing = await prisma.device.findFirst({ where: { push_token: body.token } });
+    if (existing) {
+      await prisma.device.update({ where: { id: existing.id }, data });
+      return { device_id: existing.id };
+    }
+    const created = await prisma.device.create({ data: { ...data, push_token: body.token } });
+    return { device_id: created.id };
+  });
+
   // ===== تذاكر الدعم C-65/C-66 — عزل بمالك التذكرة (user_id) =====
 
   const ticketDto = (

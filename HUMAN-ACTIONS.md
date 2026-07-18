@@ -79,12 +79,12 @@
 - **ماذا تفعل:** حساب شريك + OAuth credentials.
 - **أين يُلصق:** `.env` → `FOODICS_CLIENT_ID/SECRET`.
 
-### B8. إشعارات تطبيق الفرع (Push والجهاز مقفول) — عبر Expo
-> الكود جاهز بالكامل (الغلاف + الخادم). الإشعار يُفعَّل بمجرد بناء التطبيق بمعرّف EAS.
-- **الأساس (مرة واحدة):** `eas login` ثم من `mobile-apps/branch`: `eas init` (يكتب `projectId` في app.json) ثم أعد البناء — بدون `projectId` لا يصدر توكن Push.
+### B8. إشعارات تطبيقَي الفرع والعميل (Push والجهاز مقفول) — عبر Expo
+> الكود جاهز بالكامل (الغلافان + الخادم). الإشعار يُفعَّل بمجرد بناء كل تطبيق بمعرّف EAS.
+- **الأساس (مرة واحدة):** `eas login` ثم من `mobile-apps/branch` **ومن `mobile-apps/customer`**: `eas init` (يكتب `projectId` في app.json لكلٍّ منهما) ثم أعد البناء — بدون `projectId` لا يصدر توكن Push.
 - **آيباد/آيفون:** لا شيء إضافي — `eas build -p ios` يهيئ مفتاح APNs تلقائياً مع حساب Apple Developer (نفس متطلب B5 للتثبيت أصلاً).
-- **أندرويد:** مشروع Firebase (نفس B3) → Project Settings → Service accounts → نزّل مفتاح الخدمة، ثم من `mobile-apps/branch`: `eas credentials -p android` → Google Service Account → ارفع الملف. وضَع `google-services.json` في `mobile-apps/branch/` وأضف `"googleServicesFile": "./google-services.json"` تحت `android` في app.json.
-- **الناتج:** تابلت الفرع يرن بإشعار نظامي «طلب جديد وصل» حتى وشاشته مقفلة.
+- **أندرويد:** مشروع Firebase (نفس B3) → Project Settings → Service accounts → نزّل مفتاح الخدمة، ثم من كل مجلد تطبيق: `eas credentials -p android` → Google Service Account → ارفع الملف. وضَع `google-services.json` في مجلد كل تطبيق وأضف `"googleServicesFile": "./google-services.json"` تحت `android` في app.json.
+- **الناتج:** تابلت الفرع يرن بإشعار «طلب جديد وصل»، وجوال العميل يرن بإشعارات تقدّم طلبه (قبول/جاهز/تسليم/استرداد/تذكيرات) — حتى والشاشة مقفلة.
 
 ## سجل الحالة
 
@@ -100,4 +100,4 @@
 | B5 المتاجر | ⬜ |
 | B6 ZATCA | ⬜ |
 | B7 Foodics | ⬜ |
-| B8 إشعارات تطبيق الفرع | ⬜ (الكود جاهز — ينقص `eas init` وإعادة البناء) |
+| B8 إشعارات تطبيقَي الفرع والعميل | ⬜ (الكود جاهز — ينقص `eas init` وإعادة البناء لكلٍّ منهما) |
