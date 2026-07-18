@@ -684,6 +684,8 @@ model MerchantStaff {
   user        User?       @relation(fields: [user_id], references: [id])
   username    String
   pin_hash    String
+  /// PIN مشفر قابل للفك (AES-GCM) — لعرضه وتغييره من لوحة السوبر أدمن بقرار المالك 2026-07-18
+  pin_encrypted String?
   role_key    String // docs/16§1: owner..analyst
   full_name   String
   status      StaffStatus @default(active)

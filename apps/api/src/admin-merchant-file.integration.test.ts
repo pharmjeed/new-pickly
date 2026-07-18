@@ -16,6 +16,8 @@ const hasDb = Boolean(process.env.DATABASE_URL);
 
 describe.skipIf(!hasDb)("ملف التاجر الكامل من لوحة السوبر أدمن", async () => {
   const { buildApp } = await import("./app.js");
+  const { prisma } = await import("@pickly/database");
+  const { verifyPin } = await import("@pickly/auth");
 
   const app = await buildApp();
   beforeAll(async () => await app.ready());
@@ -82,6 +84,64 @@ describe.skipIf(!hasDb)("ملف التاجر الكامل من لوحة السو
       expect(acc).not.toHaveProperty("iban_encrypted");
       expect(String(acc.iban_short).length).toBeLessThanOrEqual(4);
     }
+  });
+
+  it("يعرض كلمة مرور الموظف للسوبر أدمن ويغيّرها بسبب ثم يستعيدها", async () => {
+    const adminToken = await adminLogin();
+    const list = await app.inject({ method: "GET", url: "/v1/admin/merchants", headers: authed(adminToken) });
+    const merchants = list.json() as Array<{ id: string }>;
+
+    // أول تاجر له فريق — تجار الاختبارات الأخرى قد يكونون بلا موظفين
+    let merchantId: string | null = null;
+    let staff: Array<{ id: string; pin?: string | null }> = [];
+    for (const m of merchants) {
+      const res = await app.inject({ method: "GET", url: `/v1/admin/merchants/${m.id}`, headers: authed(adminToken) });
+      const file = res.json() as { staff: Array<{ id: string; pin?: string | null }> };
+      if (file.staff.length > 0) {
+        merchantId = m.id;
+        staff = file.staff;
+        break;
+      }
+    }
+    expect(merchantId).not.toBeNull();
+
+    // المفتاح موجود لكل موظف (السوبر أدمن يرى العمود) — وبيئة الاختبار تعبّئ رمز التطوير 1234 كسولاً
+    for (const s of staff) expect(s.pin !== undefined).toBe(true);
+
+    const target = staff[0]!;
+    const change = await app.inject({
+      method: "POST",
+      url: `/v1/admin/merchants/${merchantId}/staff/${target.id}/pin`,
+      headers: authed(adminToken),
+      payload: { pin: "9876", reason: "اختبار تغيير كلمة المرور" }
+    });
+    expect(change.statusCode).toBe(200);
+
+    // الرمز الجديد ظاهر في الملف، والتجزئة تحقّقه، والفعل دخل التدقيق
+    const after = await app.inject({
+      method: "GET",
+      url: `/v1/admin/merchants/${merchantId}`,
+      headers: authed(adminToken)
+    });
+    const afterStaff = (after.json() as { staff: Array<{ id: string; pin?: string | null }> }).staff;
+    expect(afterStaff.find((s) => s.id === target.id)?.pin).toBe("9876");
+
+    const row = await prisma.merchantStaff.findUniqueOrThrow({ where: { id: target.id } });
+    expect(await verifyPin("9876", row.pin_hash)).toBe(true);
+    const auditEntry = await prisma.auditLog.findFirst({
+      where: { action: "staff_pin_reset", entity_id: target.id },
+      orderBy: { created_at: "desc" }
+    });
+    expect(auditEntry?.reason).toBe("اختبار تغيير كلمة المرور");
+
+    // استعادة رمز التطوير حتى لا تتأثر اختبارات دخول الفرع الأخرى
+    const restore = await app.inject({
+      method: "POST",
+      url: `/v1/admin/merchants/${merchantId}/staff/${target.id}/pin`,
+      headers: authed(adminToken),
+      payload: { pin: "1234", reason: "استعادة رمز التطوير بعد الاختبار" }
+    });
+    expect(restore.statusCode).toBe(200);
   });
 
   it("يرجع 404 لتاجر غير موجود", async () => {

@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiGet, apiPost, sar, shortDate, shortDateTime } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import rm from "@/components/reason-modal.module.css";
 import { QirtasLoader } from "@/components/qirtas";
 
 export const MERCHANT_STATUS_AR: Record<string, { label: string; cls: string }> = {
@@ -113,6 +114,8 @@ type MerchantDetail = {
     role_key: string;
     status: string;
     branches: string[];
+    /** للسوبر أدمن فقط — null: غير قابلة للعرض حتى تعيين جديدة، undefined: دور بلا صلاحية */
+    pin?: string | null;
   }>;
   stats: {
     orders_total: number;
@@ -149,6 +152,75 @@ type Props = {
   onChanged: () => void;
 };
 
+/** نافذة تغيير كلمة مرور موظف — رمز 4-6 أرقام + سبب إلزامي يدخل سجل التدقيق (BR-15) */
+function PinModal({
+  staffName,
+  username,
+  busy,
+  onConfirm,
+  onClose
+}: {
+  staffName: string;
+  username: string;
+  busy: boolean;
+  onConfirm: (pin: string, reason: string) => void;
+  onClose: () => void;
+}) {
+  const [pin, setPin] = useState("");
+  const [reason, setReason] = useState("");
+  const validPin = /^\d{4,6}$/.test(pin);
+  const valid = validPin && reason.trim().length >= 3;
+  const title = `تغيير كلمة مرور «${staffName}» (${username})`;
+
+  return (
+    <div className={rm.backdrop} role="dialog" aria-modal="true" aria-label={title} data-testid="pin-modal">
+      <div className={rm.modal}>
+        <h3 className={rm.title}>{title}</h3>
+        <div className="fld">
+          <label htmlFor="staff-new-pin">كلمة المرور الجديدة (4-6 أرقام)</label>
+          <input
+            id="staff-new-pin"
+            className="inp mono"
+            inputMode="numeric"
+            dir="ltr"
+            maxLength={6}
+            placeholder="1234"
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+            data-testid="pin-input"
+            autoFocus
+          />
+        </div>
+        <div className="fld">
+          <label htmlFor="staff-pin-reason">السبب (إلزامي — يدخل سجل التدقيق)</label>
+          <textarea
+            id="staff-pin-reason"
+            data-testid="pin-reason"
+            placeholder="مثل: طلب المالك إعادة تعيين"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          <span className="hint">3 أحرف على الأقل</span>
+        </div>
+        <div className={rm.actions}>
+          <button
+            type="button"
+            className="btn sm"
+            data-testid="pin-submit"
+            disabled={!valid || busy}
+            onClick={() => onConfirm(pin, reason.trim())}
+          >
+            تغيير
+          </button>
+          <button type="button" className="btn sm sec2" data-testid="pin-cancel" onClick={onClose}>
+            إلغاء
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** صف عنوان/قيمة داخل بطاقة بيانات المنشأة */
 function InfoRow({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
   return (
@@ -165,6 +237,7 @@ export default function MerchantFile({ merchantId, onBack, onChanged }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const [action, setAction] = useState<"approve" | "suspend" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pinTarget, setPinTarget] = useState<{ id: string; full_name: string; username: string } | null>(null);
 
   const load = useCallback(() => {
     apiGet<MerchantDetail>(`/api/v1/admin/merchants/${merchantId}`)
@@ -173,6 +246,22 @@ export default function MerchantFile({ merchantId, onBack, onChanged }: Props) {
   }, [merchantId]);
 
   useEffect(load, [load]);
+
+  const changePin = async (pin: string, reason: string) => {
+    if (!pinTarget) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiPost(`/api/v1/admin/merchants/${merchantId}/staff/${pinTarget.id}/pin`, { pin, reason });
+      setNotice(`غُيّرت كلمة مرور «${pinTarget.full_name}» (${pinTarget.username}) — السبب دخل سجل التدقيق`);
+      setPinTarget(null);
+      load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const confirm = async (reason: string) => {
     if (!action || !detail) return;
@@ -340,7 +429,16 @@ export default function MerchantFile({ merchantId, onBack, onChanged }: Props) {
         {detail.staff.length > 0 && (
           <div className="tblwrap">
             <table className="tbl">
-              <thead><tr><th>الاسم</th><th>اسم الدخول</th><th>الدور</th><th>الفروع</th><th>الحالة</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>الاسم</th>
+                  <th>اسم الدخول</th>
+                  <th>كلمة المرور</th>
+                  <th>الدور</th>
+                  <th>الفروع</th>
+                  <th>الحالة</th>
+                </tr>
+              </thead>
               <tbody>
                 {detail.staff.map((m) => {
                   const st = STAFF_STATUS_AR[m.status] ?? { label: m.status, cls: "b-soft" };
@@ -348,6 +446,23 @@ export default function MerchantFile({ merchantId, onBack, onChanged }: Props) {
                     <tr key={m.id}>
                       <td><b>{m.full_name}</b></td>
                       <td className="mono">{m.username}</td>
+                      <td>
+                        {m.pin === undefined ? (
+                          <span className="muted" title="تظهر لدور السوبر أدمن فقط">مخفية</span>
+                        ) : (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <b className="mono" data-testid="staff-pin">{m.pin ?? "—"}</b>
+                            <button
+                              type="button"
+                              className="btn sm"
+                              data-testid="staff-pin-change"
+                              onClick={() => setPinTarget({ id: m.id, full_name: m.full_name, username: m.username })}
+                            >
+                              تغيير
+                            </button>
+                          </span>
+                        )}
+                      </td>
                       <td>{ROLE_AR[m.role_key.replace(/^merchant:/, "")] ?? m.role_key}</td>
                       <td>{m.branches.length > 0 ? m.branches.join("، ") : "كل الفروع"}</td>
                       <td><span className={`badge ${st.cls}`} style={{ fontSize: "10.5px" }}>{st.label}</span></td>
@@ -357,6 +472,11 @@ export default function MerchantFile({ merchantId, onBack, onChanged }: Props) {
               </tbody>
             </table>
           </div>
+        )}
+        {detail.staff.some((m) => m.pin === null) && (
+          <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
+            «—» = كلمة مرور سبقت التخزين المشفر ولا يمكن عرضها — عيّن جديدة بزر «تغيير».
+          </p>
         )}
       </div>
 
@@ -468,6 +588,16 @@ export default function MerchantFile({ merchantId, onBack, onChanged }: Props) {
           busy={busy}
           onConfirm={confirm}
           onClose={() => setAction(null)}
+        />
+      )}
+
+      {pinTarget && (
+        <PinModal
+          staffName={pinTarget.full_name}
+          username={pinTarget.username}
+          busy={busy}
+          onConfirm={changePin}
+          onClose={() => setPinTarget(null)}
         />
       )}
     </div>

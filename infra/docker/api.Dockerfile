@@ -17,4 +17,5 @@ FROM base AS runtime
 ENV NODE_ENV=production
 COPY --from=build /app ./
 EXPOSE 4000
-CMD ["node", "apps/api/dist/server.js"]
+# migrate deploy قبل الإقلاع: idempotent، والنشر الذاتي على السيرفر لا يشغّل خطوة هجرات مستقلة
+CMD ["sh", "-c", "cd packages/database && npx prisma migrate deploy && cd /app && exec node apps/api/dist/server.js"]

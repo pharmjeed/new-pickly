@@ -5,7 +5,9 @@ import { z } from "zod";
 import { prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { UuidSchema } from "@pickly/contracts";
+import { hashPin, verifyPin } from "@pickly/auth";
 import { requireAuth } from "../../lib/auth-plugin.js";
+import { decryptSecret, encryptSecret } from "../../lib/plate-crypto.js";
 import { emitEvent } from "../../lib/events.js";
 import { invalidateFlagCache } from "../../lib/flags.js";
 import { notifyCustomer } from "../../lib/notify.js";
@@ -209,7 +211,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    * التسويات والحوالات، وسجل قرارات المنصة على هذا التاجر.
    */
   app.get("/merchants/:id", async (req) => {
-    requireAdmin(req, ALL_READ);
+    const { role } = requireAdmin(req, ALL_READ);
     const id = UuidSchema.parse((req.params as { id: string }).id);
     const merchant = await prisma.merchant.findUnique({
       where: { id },
@@ -228,6 +230,27 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       }
     });
     if (!merchant) throw new AppError("ORDER-4001");
+
+    /**
+     * كلمة مرور الموظف تظهر للسوبر أدمن فقط. الموظفون الأقدم من عمود pin_encrypted:
+     * في بيئة العرض (OTP_DEV_FIXED_CODE) نجرب PIN التطوير الموحد ونعبّئ العمود مرة واحدة؛
+     * ما تعذّر فكه يظهر «—» حتى يعيّن الأدمن رمزاً جديداً.
+     */
+    const staffPins = new Map<string, string | null>();
+    if (role === "super_admin") {
+      const devPin = process.env.OTP_DEV_FIXED_CODE ? "1234" : null;
+      for (const s of merchant.staff) {
+        let pin = decryptSecret(s.pin_encrypted);
+        if (!pin && devPin && (await verifyPin(devPin, s.pin_hash))) {
+          pin = devPin;
+          await prisma.merchantStaff.update({
+            where: { id: s.id },
+            data: { pin_encrypted: encryptSecret(devPin) }
+          });
+        }
+        staffPins.set(s.id, pin);
+      }
+    }
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -323,7 +346,9 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         username: s.username,
         role_key: s.role_key,
         status: s.status,
-        branches: s.branch_assignments.map((a) => a.branch.name_ar)
+        branches: s.branch_assignments.map((a) => a.branch.name_ar),
+        // للسوبر أدمن فقط: null = غير قابلة للعرض (سبقت العمود المشفر)، undefined = دور بلا صلاحية
+        pin: role === "super_admin" ? (staffPins.get(s.id) ?? null) : undefined
       })),
       stats: {
         orders_total: ordersTotal,
@@ -380,6 +405,38 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     const body = z.object({ reason: z.string().min(3) }).parse(req.body);
     await prisma.merchant.update({ where: { id }, data: { status: "suspended" } });
     await audit(sub, "merchant_suspended", "merchant", id, body.reason, { by_role: role });
+    return { ok: true };
+  });
+
+  /**
+   * A-04ب: تغيير كلمة مرور (PIN) موظف تاجر من ملف التاجر — سوبر أدمن فقط،
+   * بسبب إلزامي يدخل سجل التدقيق (BR-15). التحقق يبقى على argon2، والعرض عبر النسخة المشفرة.
+   */
+  app.post("/merchants/:id/staff/:staffId/pin", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin"]);
+    const params = req.params as { id: string; staffId: string };
+    const merchantId = UuidSchema.parse(params.id);
+    const staffId = UuidSchema.parse(params.staffId);
+    const body = z
+      .object({
+        pin: z.string().regex(/^\d{4,6}$/, "الرمز السري 4-6 أرقام"),
+        reason: z.string().min(3)
+      })
+      .parse(req.body);
+
+    const staff = await prisma.merchantStaff.findFirst({
+      where: { id: staffId, merchant_id: merchantId, status: { not: "removed" } }
+    });
+    if (!staff) throw new AppError("ORDER-4001");
+
+    await prisma.merchantStaff.update({
+      where: { id: staffId },
+      data: { pin_hash: await hashPin(body.pin), pin_encrypted: encryptSecret(body.pin) }
+    });
+    await audit(sub, "staff_pin_reset", "merchant_staff", staffId, body.reason, {
+      merchant_id: merchantId,
+      username: staff.username
+    });
     return { ok: true };
   });
 

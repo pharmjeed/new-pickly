@@ -1,5 +1,6 @@
 /**
- * تشفير اللوحة الكاملة (حروف + أرقام) — AES-256-GCM (docs/10§1 · docs/17).
+ * تشفير أسرار قابل للفك — AES-256-GCM (docs/10§1 · docs/17):
+ * لوحة السيارة الكاملة، وPIN فريق الفرع (لعرضه في لوحة السوبر أدمن).
  * المفتاح من PLATE_ENC_KEY (أو JWT_SECRET احتياطاً) عبر SHA-256.
  * الصيغة المخزنة: base64(iv[12] | authTag[16] | cipher).
  */
@@ -10,7 +11,7 @@ const key = (): Buffer =>
     .update(process.env.PLATE_ENC_KEY ?? process.env.JWT_SECRET ?? "pickly-dev-plate-key")
     .digest();
 
-export function encryptPlate(plain: string): string {
+export function encryptSecret(plain: string): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key(), iv);
   const enc = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
@@ -18,7 +19,7 @@ export function encryptPlate(plain: string): string {
 }
 
 /** فك تشفير متسامح: أي تلف/مفتاح مختلف يعيد null بدل رمي خطأ (بيانات قديمة) */
-export function decryptPlate(payload: string | null): string | null {
+export function decryptSecret(payload: string | null): string | null {
   if (!payload) return null;
   try {
     const buf = Buffer.from(payload, "base64");
@@ -32,3 +33,6 @@ export function decryptPlate(payload: string | null): string | null {
     return null;
   }
 }
+
+export const encryptPlate = encryptSecret;
+export const decryptPlate = decryptSecret;

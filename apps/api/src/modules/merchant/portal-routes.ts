@@ -5,6 +5,7 @@ import { generateBranchSlotsFromTemplate, prisma, isProductOnSale } from "@pickl
 import { AppError } from "@pickly/observability";
 import { HalalaSchema, UuidSchema, type JwtClaims } from "@pickly/contracts";
 import { assertBranchScope, requireAuth, requireStaff } from "../../lib/auth-plugin.js";
+import { encryptSecret } from "../../lib/plate-crypto.js";
 
 /**
  * صورة الصنف كـdata URL (نطاق الطيار — التخزين المحلي/العرض).
@@ -1117,6 +1118,8 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
           username: body.username,
           full_name: body.full_name,
           pin_hash,
+          // نسخة مشفرة قابلة للفك — تُعرض في ملف التاجر بلوحة السوبر أدمن فقط
+          pin_encrypted: encryptSecret(body.pin),
           role_key: `merchant:${body.role_key}`
         }
       });
@@ -1192,7 +1195,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
           ...(body.full_name !== undefined ? { full_name: body.full_name } : {}),
           ...(body.role_key !== undefined ? { role_key: `merchant:${body.role_key}` } : {}),
           ...(body.status !== undefined ? { status: body.status } : {}),
-          ...(pin_hash ? { pin_hash } : {})
+          ...(body.pin && pin_hash ? { pin_hash, pin_encrypted: encryptSecret(body.pin) } : {})
         }
       });
       if (body.branch_ids) {
