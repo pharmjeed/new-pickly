@@ -11,7 +11,8 @@ export const metadata: Metadata = {
 /* صفحة المتاجر — من S-03 (للتجار + الانضمام) وقسم merchants في اللاندنج */
 export default function MerchantsPage() {
   return (
-    <main>
+    // محتوى الصفحة عربي فقط حالياً — نثبّت RTL حتى مع تبديل الموقع للإنجليزية
+    <main dir="rtl">
       <div className="wrap hero2" style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 480px" }}>
           <SpeedLines width={54} style={{ display: "block", marginBottom: 6 }} />

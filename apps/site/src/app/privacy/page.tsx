@@ -8,7 +8,8 @@ export const metadata: Metadata = {
 /* سياسة الخصوصية — بلغة S-07 ومتوافقة مع docs/17 */
 export default function PrivacyPage() {
   return (
-    <main>
+    // محتوى عربي فقط — تثبيت RTL حتى مع تبديل الموقع للإنجليزية
+    <main dir="rtl">
       <div className="wrap hero2">
         <span className="kicker">PRIVACY</span>
         <h1 className="sec">سياسة الخصوصية.</h1>

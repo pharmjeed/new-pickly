@@ -9,7 +9,8 @@ export const metadata: Metadata = {
 /* الشروط والأحكام — بلغة S-07 (شروط العملاء، الإلغاء والاسترجاع، شروط التجار، الكوبونات) */
 export default function TermsPage() {
   return (
-    <main>
+    // محتوى عربي فقط — تثبيت RTL حتى مع تبديل الموقع للإنجليزية
+    <main dir="rtl">
       <div className="wrap hero2">
         <span className="kicker">LEGAL</span>
         <h1 className="sec">الشروط والأحكام.</h1>

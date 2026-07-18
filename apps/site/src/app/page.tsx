@@ -1,94 +1,89 @@
+"use client";
 import Link from "next/link";
 import { Qirtas, QirtasBadge, SpeedLines } from "@/components/qirtas";
+import { CountUp, Reveal } from "@/components/motion";
+import { useT } from "@/lib/i18n";
 
-/* الرئيسية — S-01 / pickly-landing (النصوص حرفياً · الهوية الفنكية v2.0) */
+/* الرئيسية — S-01 / pickly-landing (الهوية الفنكية v2.0)
+   ديناميكية 2026-07-18: قاموس عربي/إنجليزي + دخول متدرج + كشف تمرير + عدّادات + شريط قطاعات متحرك */
+
+const CHIP_TONES = ["ok", "warn", "wait"] as const;
+const ORDER_CODES = ["P-4821", "P-4822", "P-4823"] as const;
+
 export default function HomePage() {
+  const t = useT();
   return (
     <main>
       <header className="wrap hero">
         <div>
-          <span className="pill">قريبًا في السعودية · استلام ذكي من السيارة</span>
+          <span className="pill">{t.hero.pill}</span>
           <h1 className="hero-h">
-            وصلت؟
+            {t.hero.h1a}
             <br />
-            <span className="lm">إحنا عرفنا.</span>
+            <span className="lm">{t.hero.h1b}</span>
           </h1>
-          <p className="sub">
-            بيكلي يبلّغ المطعم تلقائيًا لحظة اقتراب سيارتك — فيطلع لك الموظف بطلبك وأنت في مقعدك. بلا اتصال، بلا «وين
-            طلبي؟»، بلا نزول مع الأطفال.
-          </p>
+          <p className="sub">{t.hero.sub}</p>
           <div className="hero-ctas">
             <Link className="btn" href="#join">
-              حمّل التطبيق قريبًا
+              {t.hero.cta1}
             </Link>
             <Link className="btn btn-ghost" href="/merchants">
-              سجّل متجرك
+              {t.hero.cta2}
             </Link>
           </div>
           <div className="mini-feats">
-            <span>رصد تلقائي ١٠٠–٣٠٠ م</span>
-            <span>سيارتك هي عنوانك</span>
-            <span>بلا عمولة على المتاجر</span>
-            <span>تكامل Foodics</span>
+            {t.hero.feats.map((f) => (
+              <span key={f}>{f}</span>
+            ))}
           </div>
         </div>
         <div>
-          {/* القرطاس البطل — واجهة العلامة الأولى: مندفع بخطوط سرعته نحو السيارة */}
+          {/* القرطاس البطل — مندفع بخطوط سرعته، يطفو فوق شاشة الهاتف */}
           <div className="hero-mascot">
-            <Qirtas mood="excited" lines size={104} title="القرطاس المبتسم — كاركتر بيكلي" />
+            <Qirtas mood="excited" lines size={104} title={t.hero.mascotTitle} />
           </div>
           <div className="phone">
-          <div className="screen">
-            <p className="scr-mode">وضع القيادة</p>
-            <p className="disp scr-time">١٢ دقيقة</p>
-            <p className="scr-sub">حتى وصولك لبيست برجر — العليا</p>
-            <div className="scr-bar">
-              <i />
+            <div className="screen">
+              <p className="scr-mode">{t.phone.mode}</p>
+              <p className="disp scr-time">{t.phone.time}</p>
+              <p className="scr-sub">{t.phone.sub}</p>
+              <div className="scr-bar">
+                <i />
+              </div>
+              <div className="scr-card">
+                <p className="t-lime">{t.phone.card1t}</p>
+                <p className="t-dim">{t.phone.card1d}</p>
+              </div>
+              <div className="scr-card last">
+                <p className="t-cloud">{t.phone.card2t}</p>
+                <p className="t-dim sm">{t.phone.card2d}</p>
+              </div>
+              <div className="scr-code">
+                <span dir="ltr">P-4821</span>
+              </div>
             </div>
-            <div className="scr-card">
-              <p className="t-lime">الإبلاغ تلقائي</p>
-              <p className="t-dim">عند دخولك نطاق ٣٠٠ متر يعرف المطعم أنك وصلت</p>
-            </div>
-            <div className="scr-card last">
-              <p className="t-cloud">سيارتك: كامري · بيضاء · ٨٢٤١</p>
-              <p className="t-dim sm">الموظف يعرف شكل سيارتك مسبقًا</p>
-            </div>
-            <div className="scr-code">
-              <span dir="ltr">P-4821</span>
-            </div>
-          </div>
           </div>
         </div>
       </header>
 
-      <div className="wrap stats">
-        <div className="stat">
-          <b>٩٠ ث</b>
-          <span>متوسط التسليم بعد الرصد*</span>
-        </div>
-        <div className="stat">
-          <b>٠</b>
-          <span>مكالمات «وين طلبي؟»</span>
-        </div>
-        <div className="stat">
-          <b>٪٠</b>
-          <span>عمولة على قيمة الطلب</span>
-        </div>
-        <div className="stat">
-          <b>٣٠٠ م</b>
-          <span>نطاق الاستشعار الذكي</span>
-        </div>
-      </div>
-      <p className="wrap footnote">* أرقام مستهدفة من تصميم التجربة — ليست بيانات إنتاج.</p>
+      <Reveal className="wrap stats rv-stagger">
+        {t.stats.map((s) => (
+          <div className="stat" key={s.label}>
+            <CountUp to={s.to} prefix={s.prefix} suffix={s.suffix} />
+            <span>{s.label}</span>
+          </div>
+        ))}
+      </Reveal>
+      <p className="wrap footnote">{t.footnote}</p>
 
       <section className="wrap" id="features">
-        <SpeedLines width={54} style={{ display: "block", marginBottom: 6 }} />
-        <span className="kicker">FEATURES</span>
-        <h2 className="sec">ثلاث قدرات تلغي الانتظار.</h2>
-        <p className="lead">
-          بيكلي ليس تطبيق توصيل ولا منصة طلبات — هو طبقة تنسيق الاستلام الذكية بين سيارتك وباب المتجر.
-        </p>
-        <div className="cards3">
+        <Reveal>
+          <SpeedLines width={54} style={{ display: "block", marginBottom: 6 }} />
+          <span className="kicker">FEATURES</span>
+          <h2 className="sec">{t.features.title}</h2>
+          <p className="lead">{t.features.lead}</p>
+        </Reveal>
+        <Reveal className="cards3 rv-stagger">
           <div className="card dark">
             <div className="ic">
               <svg width="30" height="30" viewBox="0 0 100 100" fill="none" stroke="var(--pk-lime-500)" aria-hidden="true">
@@ -98,15 +93,12 @@ export default function HomePage() {
                 <path d="M50,67 V84" strokeWidth="7" strokeLinecap="round" />
               </svg>
             </div>
-            <h3>رصد وصول تلقائي</h3>
-            <p>
-              نطاق ذكي حول الفرع (١٠٠–٣٠٠ متر) يستشعر اقترابك ويبلّغ الموظف تلقائيًا — بلا زر، بلا اتصال. ولو تعطّل
-              GPS؟ زر «وصلت» اليدوي موجود دائمًا.
-            </p>
+            <h3>{t.features.cards[0].title}</h3>
+            <p>{t.features.cards[0].text}</p>
             <div className="tags">
-              <span>GEOFENCE</span>
-              <span>AUTO-DETECT</span>
-              <span>FALLBACK</span>
+              {t.features.cards[0].tags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
             </div>
           </div>
           <div className="card">
@@ -118,14 +110,12 @@ export default function HomePage() {
                 <circle cx="66" cy="80" r="6" strokeWidth="6" />
               </svg>
             </div>
-            <h3>سيارتك هي عنوانك</h3>
-            <p>
-              سجّل سيارتك مرة واحدة — النوع واللون واللوحة — وتصبح «عنوان استلامك» الدائم. الموظف يعرف بالضبط أي سيارة
-              يقصد، من أول مرة.
-            </p>
+            <h3>{t.features.cards[1].title}</h3>
+            <p>{t.features.cards[1].text}</p>
             <div className="tags">
-              <span>ملف السيارة</span>
-              <span>إعداد مرة واحدة</span>
+              {t.features.cards[1].tags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
             </div>
           </div>
           <div className="card">
@@ -135,200 +125,170 @@ export default function HomePage() {
                 <path d="M40,72 H60" strokeWidth="7" strokeLinecap="round" />
               </svg>
             </div>
-            <h3>وضع قيادة آمن</h3>
-            <p>
-              بعد الدفع تتحول الشاشة لوضع داكن هادئ: الوقت المتبقي وحالة طلبك فقط، بأحرف كبيرة — كل شيء يحدث تلقائيًا
-              وأنت تسوق.
-            </p>
+            <h3>{t.features.cards[2].title}</h3>
+            <p>{t.features.cards[2].text}</p>
             <div className="tags">
-              <span>DARK MODE</span>
-              <span>بلا تشتيت</span>
+              {t.features.cards[2].tags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
             </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       <section className="gray-band" id="how">
         <div className="wrap">
-          <span className="kicker">HOW IT WORKS</span>
-          <h2 className="sec">من الطلب إلى يدك في ٣ خطوات.</h2>
-          <p className="lead">إعداد أول مرة أقل من دقيقتين: سيارتك + إذن الموقع. بعدها كل شيء تلقائي.</p>
-          <div className="steps">
-            <div className="step">
-              <div className="n">١</div>
-              <h3 className="disp">اطلب وادفع</h3>
-              <p>اطلب من متجرك المفضل وادفع داخل التطبيق. تظهر شاشة الاستلام فورًا مع كود طلبك.</p>
-            </div>
-            <div className="step">
-              <div className="n">٢</div>
-              <h3 className="disp">انطلق وحنا نراقب</h3>
-              <p>اضغط «انطلقت» ويبدأ وضع القيادة. المتجر يجهّز طلبك على وقت وصولك المتوقع.</p>
-            </div>
-            <div className="step">
-              <div className="n">٣</div>
-              <h3 className="disp">وصلت؟ إحنا عرفنا</h3>
-              <p>لحظة دخولك النطاق يُبلَّغ الموظف تلقائيًا ويخرج إليك بطلبك. تطابق الكود، استلم، وامشِ.</p>
-            </div>
-          </div>
+          <Reveal>
+            <span className="kicker">HOW IT WORKS</span>
+            <h2 className="sec">{t.how.title}</h2>
+            <p className="lead">{t.how.lead}</p>
+          </Reveal>
+          <Reveal className="steps rv-stagger">
+            {t.how.steps.map((s) => (
+              <div className="step" key={s.n}>
+                <div className="n">{s.n}</div>
+                <h3 className="disp">{s.title}</h3>
+                <p>{s.text}</p>
+              </div>
+            ))}
+          </Reveal>
         </div>
       </section>
 
       <section className="wrap" id="merchants">
-        <div className="split">
+        <Reveal className="split rv-stagger">
           <div>
             <span className="kicker">FOR MERCHANTS</span>
             <h2 className="sec">
-              لمتجرك: كاونتر أهدأ،
+              {t.merch.title1}
               <br />
-              وعملاء أوفى.
+              {t.merch.title2}
             </h2>
             <ul className="check">
-              <li>
-                <strong>بلا عمولة على قيمة الطلب</strong> — رسوم بوابة الدفع القياسية فقط.
-              </li>
-              <li>لوحة موظف بسيطة: من قادم، متى يصل، وأي سيارة بالضبط.</li>
-              <li>تكامل مع Foodics POS — طلباتك في نظامك الحالي، بلا شاشة إضافية.</li>
-              <li>وداعًا لازدحام الاستلام ومكالمات «أنا واقف برا».</li>
+              {t.merch.checks.map((c, i) => (
+                <li key={i}>
+                  {c.strong && <strong>{c.strong}</strong>}
+                  {c.text}
+                </li>
+              ))}
             </ul>
             <Link className="btn" href="/merchants">
-              سجّل متجرك مبكرًا
+              {t.merch.cta}
             </Link>
           </div>
           <div className="card dark board">
-            <p className="board-h">لوحة الفرع — بيست برجر العليا</p>
-            <div className="board-row">
-              <div className="in">
-                <div>
-                  <p className="v">كامري بيضاء · ٨٢٤١</p>
-                  <p className="o">
-                    طلب <span dir="ltr" className="mono">P-4821</span> · موقف ٣
-                  </p>
+            <p className="board-h">{t.merch.boardTitle}</p>
+            {t.merch.rows.map((r, i) => (
+              <div className="board-row" key={ORDER_CODES[i]}>
+                <div className="in">
+                  <div>
+                    <p className="v">{r.car}</p>
+                    <p className="o">
+                      {t.merch.orderWord}{" "}
+                      <span dir="ltr" className="mono">
+                        {ORDER_CODES[i]}
+                      </span>
+                      {r.order ? ` · ${r.order}` : ""}
+                    </p>
+                  </div>
+                  <span className={`chip ${CHIP_TONES[i]}`}>{r.chip}</span>
                 </div>
-                <span className="chip ok">وصل الآن</span>
               </div>
-            </div>
-            <div className="board-row">
-              <div className="in">
-                <div>
-                  <p className="v">يوكن أسود · ٣٣١٩</p>
-                  <p className="o">
-                    طلب <span dir="ltr" className="mono">P-4822</span>
-                  </p>
-                </div>
-                <span className="chip warn">٤ دقائق</span>
-              </div>
-            </div>
-            <div className="board-row">
-              <div className="in">
-                <div>
-                  <p className="v">سوناتا رمادية · ٧٥٦٢</p>
-                  <p className="o">
-                    طلب <span dir="ltr" className="mono">P-4823</span>
-                  </p>
-                </div>
-                <span className="chip wait">١١ دقيقة</span>
-              </div>
-            </div>
+            ))}
           </div>
-        </div>
+        </Reveal>
       </section>
 
       <section className="gray-band">
         <div className="wrap">
-          <span className="kicker">SECTORS</span>
-          <h2 className="sec">مبني للمطاعم. جاهز لكل استلام.</h2>
-          <p className="lead">أي متجر يسلّم طلبات محضّرة مسبقًا يستفيد من بيكلي:</p>
-          <div className="sectors">
-            <span>مطاعم</span>
-            <span>مقاهي</span>
-            <span>مخابز وحلويات</span>
-            <span>صيدليات</span>
-            <span>بقالة وسوبرماركت</span>
-            <span>ورد وهدايا</span>
-            <span>تجزئة (اطلب واستلم)</span>
+          <Reveal>
+            <span className="kicker">SECTORS</span>
+            <h2 className="sec">{t.sectors.title}</h2>
+            <p className="lead">{t.sectors.lead}</p>
+          </Reveal>
+          {/* شريط متحرك: نسختان متطابقتان للدوران اللانهائي — الثانية زخرفية */}
+          <div className="marquee" dir="ltr">
+            <div className="marquee-track">
+              <div className="sectors">
+                {t.sectors.items.map((s) => (
+                  <span key={s}>{s}</span>
+                ))}
+              </div>
+              <div className="sectors" aria-hidden="true">
+                {t.sectors.items.map((s) => (
+                  <span key={s}>{s}</span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="wrap" id="pricing">
-        <SpeedLines width={54} style={{ display: "block", marginBottom: 6 }} />
-        <span className="kicker">PRICING</span>
-        <h2 className="sec">تسعير بلا مفاجآت.</h2>
-        <p className="lead">نربح فقط عندما يكتمل استلام — لا اشتراكات إجبارية ولا عمولات مخفية.</p>
-        <div className="cards3">
+        <Reveal>
+          <SpeedLines width={54} style={{ display: "block", marginBottom: 6 }} />
+          <span className="kicker">PRICING</span>
+          <h2 className="sec">{t.pricing.title}</h2>
+          <p className="lead">{t.pricing.lead}</p>
+        </Reveal>
+        <Reveal className="cards3 rv-stagger">
           <div className="price">
-            <p className="pname">للعملاء</p>
-            <b className="amount">رسوم رمزية</b>
-            <p className="pd">لكل عملية استلام ناجحة — تُعرض بوضوح قبل الدفع. التطبيق مجاني.</p>
+            <p className="pname">{t.pricing.cards[0].name}</p>
+            <b className="amount">{t.pricing.cards[0].amount}</b>
+            <p className="pd">{t.pricing.cards[0].text}</p>
           </div>
           <div className="price hot">
-            <span className="tagp">للمتاجر</span>
-            <p className="pname">بلا عمولة</p>
-            <b className="amount">٪٠</b>
-            <p className="pd">على قيمة الطلب. رسوم بوابة الدفع القياسية فقط — أرباح طلبك تبقى لك بالكامل.</p>
+            <span className="tagp">{t.pricing.hotTag}</span>
+            <p className="pname">{t.pricing.cards[1].name}</p>
+            <b className="amount">{t.pricing.cards[1].amount}</b>
+            <p className="pd">{t.pricing.cards[1].text}</p>
           </div>
           <div className="price">
-            <p className="pname">التكاملات</p>
-            <b className="amount">Foodics</b>
-            <p className="pd">ربط مباشر مع نظام نقاط البيع — الطلبات والحالات في مكان واحد.</p>
+            <p className="pname">{t.pricing.cards[2].name}</p>
+            <b className="amount">{t.pricing.cards[2].amount}</b>
+            <p className="pd">{t.pricing.cards[2].text}</p>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       <section className="wrap faq" id="faq" style={{ paddingTop: 20 }}>
-        <span className="kicker">FAQ</span>
-        <h2 className="sec">أسئلة تدور في بالك.</h2>
-        <details>
-          <summary>ماذا لو تعطّل الـ GPS أو رفضت إذن الموقع؟</summary>
-          <p>
-            الرصد التلقائي هو الأساس، لكن زر «وصلت» اليدوي موجود دائمًا في شاشة الاستلام — التجربة لا تتوقف أبدًا على
-            الاستشعار.
-          </p>
-        </details>
-        <details>
-          <summary>هل بيكلي تطبيق توصيل؟</summary>
-          <p>
-            لا. بيكلي لا يوصّل ولا يتدخل في تجهيز الطلب — نحن ننسق لحظة الاستلام فقط: نخبر المتجر أنك وصلت، وأي سيارة
-            أنت.
-          </p>
-        </details>
-        <details>
-          <summary>كيف يعرف الموظف سيارتي؟</summary>
-          <p>
-            ملف سيارتك (النوع، اللون، اللوحة) يظهر للموظف مع طلبك، مع رقم الموقف إن وجد — يمشي إليك مباشرة دون بحث.
-          </p>
-        </details>
-        <details>
-          <summary>ماذا لو لم يجدني الموظف؟</summary>
-          <p>
-            يتواصل معك عبر التطبيق برسالة جاهزة، ويظهر لكما كود التطابق نفسه — التسليم لا يتم إلا بتطابق الكود.
-          </p>
-        </details>
-        <details>
-          <summary>ماذا عن خصوصية موقعي؟</summary>
-          <p>نستخدم موقعك فقط أثناء رحلة استلام نشطة ولنطاق الفرع، ولا نتتبعك خارجها.</p>
-        </details>
+        <Reveal>
+          <span className="kicker">FAQ</span>
+          <h2 className="sec">{t.faq.title}</h2>
+        </Reveal>
+        <Reveal className="rv-stagger">
+          {t.faq.items.map((f) => (
+            <details key={f.q}>
+              <summary>{f.q}</summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
+        </Reveal>
       </section>
 
       <section className="wrap" id="join">
-        <div className="cta-final">
-          <QirtasBadge size={76} style={{ marginBottom: 14, transform: "rotate(var(--pk-sticker-tilt))" }} />
-          <h2>
-            خلّك في سيارتك.
-            <br />
-            <span className="lm">الباقي علينا.</span>
-          </h2>
-          <p className="ctasub">اطلب من متصفحك الآن — وتطبيق الجوال في طريقه للمتاجر.</p>
-          <div className="cta-btns">
-            {/* تطبيق الويب يعمل الآن — متاجر التطبيقات تُضاف عند نشر تطبيق Expo */}
-            <a className="btn" href={process.env.NEXT_PUBLIC_CUSTOMER_APP_URL ?? "https://app.pickly.sa"}>
-              اطلب الآن — عميل
-            </a>
-            <Link className="btn btn-ghost" href="/merchants">
-              سجّل متجرك
-            </Link>
+        <Reveal>
+          <div className="cta-final">
+            <span className="cta-badge" style={{ marginBottom: 14 }}>
+              <QirtasBadge size={76} style={{ transform: "rotate(var(--pk-sticker-tilt))" }} />
+            </span>
+            <h2>
+              {t.join.title1}
+              <br />
+              <span className="lm">{t.join.title2}</span>
+            </h2>
+            <p className="ctasub">{t.join.sub}</p>
+            <div className="cta-btns">
+              {/* تطبيق الويب يعمل الآن — متاجر التطبيقات تُضاف عند نشر تطبيق Expo */}
+              <a className="btn" href={process.env.NEXT_PUBLIC_CUSTOMER_APP_URL ?? "https://app.pickly.sa"}>
+                {t.join.order}
+              </a>
+              <Link className="btn btn-ghost" href="/merchants">
+                {t.join.merchants}
+              </Link>
+            </div>
           </div>
-        </div>
+        </Reveal>
       </section>
     </main>
   );
