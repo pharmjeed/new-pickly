@@ -41,10 +41,11 @@ describe.skipIf(!hasDb)("ملف التاجر الكامل من لوحة السو
     expect(list.statusCode).toBe(200);
     const merchants = list.json() as Array<{ id: string; name_ar: string }>;
     expect(merchants.length).toBeGreaterThan(0);
+    const first = merchants[0]!;
 
     const res = await app.inject({
       method: "GET",
-      url: `/v1/admin/merchants/${merchants[0].id}`,
+      url: `/v1/admin/merchants/${first.id}`,
       headers: authed(adminToken)
     });
     expect(res.statusCode).toBe(200);
@@ -62,8 +63,8 @@ describe.skipIf(!hasDb)("ملف التاجر الكامل من لوحة السو
       audit_trail: unknown[];
     };
 
-    expect(file.id).toBe(merchants[0].id);
-    expect(file.name_ar).toBe(merchants[0].name_ar);
+    expect(file.id).toBe(first.id);
+    expect(file.name_ar).toBe(first.name_ar);
     expect(Array.isArray(file.brands)).toBe(true);
     expect(Array.isArray(file.branches)).toBe(true);
     expect(Array.isArray(file.staff)).toBe(true);
@@ -101,7 +102,7 @@ describe.skipIf(!hasDb)("ملف التاجر الكامل من لوحة السو
     const merchants = list.json() as Array<{ id: string }>;
     const res = await app.inject({
       method: "GET",
-      url: `/v1/admin/merchants/${merchants[0].id}`,
+      url: `/v1/admin/merchants/${merchants[0]!.id}`,
       headers: authed(customerToken)
     });
     expect(res.statusCode).toBe(403);

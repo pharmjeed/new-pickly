@@ -47,13 +47,50 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // غلاف الخطأ الموحد {error: {code, message_ar, message_en}} — docs/11§0
+  // التفصيل يُدمج في نص الرسالة نفسها حتى تعرضه كل الواجهات بلا تغيير فيها:
+  // details.hint يلحق بالرسالة، وأخطاء Zod تُترجم بأسماء الحقول المخطئة.
+  const zodIssueAr = (i: ZodError["issues"][number]): string => {
+    const path = i.path.join(".") || "الطلب";
+    switch (i.code) {
+      case "invalid_type":
+        return i.received === "undefined" ? `«${path}» مطلوب` : `«${path}» بنوع غير صحيح`;
+      case "too_small":
+        return i.type === "string"
+          ? `«${path}» أقصر من الحد (${i.minimum} أحرف)`
+          : `«${path}» أقل من الحد (${i.minimum})`;
+      case "too_big":
+        return i.type === "string"
+          ? `«${path}» أطول من الحد (${i.maximum} حرفاً)`
+          : `«${path}» أكبر من الحد (${i.maximum})`;
+      case "invalid_string":
+        return `«${path}» بصيغة غير صالحة`;
+      case "invalid_enum_value":
+        return `«${path}» قيمة غير مسموحة`;
+      default:
+        // رسائل refine/custom مكتوبة عربية أصلاً في هذا المشروع — تمر كما هي
+        return i.message && i.message !== "Invalid input" ? `«${path}»: ${i.message}` : `«${path}» غير صالح`;
+    }
+  };
+
   app.setErrorHandler((err, req, reply) => {
     if (isAppError(err)) {
       const e = buildError(err.code, err.details);
+      const hint = err.details?.hint;
+      if (typeof hint === "string" && hint) {
+        e.error.message_ar = `${e.error.message_ar} — ${hint}`;
+        e.error.message_en = `${e.error.message_en} — ${hint}`;
+      }
       return reply.status(e.status).send({ error: e.error });
     }
     if (err instanceof ZodError) {
       const e = buildError("SYS-9004", { issues: err.issues });
+      const detailAr = err.issues.slice(0, 3).map(zodIssueAr).join(" · ");
+      const detailEn = err.issues
+        .slice(0, 3)
+        .map((i) => `${i.path.join(".") || "body"}: ${i.message}`)
+        .join(" · ");
+      e.error.message_ar = `${e.error.message_ar}: ${detailAr}`;
+      e.error.message_en = `${e.error.message_en}: ${detailEn}`;
       return reply.status(e.status).send({ error: e.error });
     }
     req.log.error({ err }, "unhandled error");
