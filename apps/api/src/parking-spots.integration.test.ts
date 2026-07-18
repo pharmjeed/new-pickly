@@ -112,8 +112,9 @@ describe.skipIf(!hasDb)("Parking Spots — مواقف الفرع", async () => {
     });
     expect(moved.statusCode).toBe(200);
     const fresh = await prisma.parkingSpot.findUniqueOrThrow({ where: { id: spot.id } });
-    expect(fresh.lat).toBeCloseTo(24.696);
-    expect(fresh.lng).toBeCloseTo(46.6849);
+    // دقة 4 منازل — الدقة الافتراضية (2) كانت تتسامح مع عدم الحفظ أصلاً
+    expect(fresh.lat).toBeCloseTo(24.696, 4);
+    expect(fresh.lng).toBeCloseTo(46.6849, 4);
   });
 
   it("إيقاف الموقف يخفيه عن العميل، وإعادة تفعيله تعيده", async () => {

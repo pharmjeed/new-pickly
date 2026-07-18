@@ -250,6 +250,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
       status: b.status,
       busy_message: b.busy_message,
       address_short: b.address_short,
+      phone: b.phone,
       // مركز خريطة تثبيت المواقف في بوابة التاجر
       lat: b.lat,
       lng: b.lng,
@@ -399,6 +400,84 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
   });
 
   /**
+   * M-03: تعديل فرع قائم — الاسم/المدينة/العنوان/الجوال وموقع الفرع على الخريطة.
+   * تغيير الإحداثيات يحدّث عمود PostGIS معه — منه تُحسب مسافة وصول العميل والسياجات.
+   */
+  app.patch("/branches/:id", async (req) => {
+    const claims = requireStaff(req, MANAGER_ROLES);
+    const branch_id = UuidSchema.parse((req.params as { id: string }).id);
+    await assertBranchAccess(req, claims, branch_id);
+    const body = z
+      .object({
+        name_ar: z.string().trim().min(2).max(80).optional(),
+        city: z.string().trim().min(2).max(60).optional(),
+        address_short: z.string().trim().min(2).max(160).optional(),
+        phone: z.string().trim().max(20).nullable().optional(),
+        lat: z.number().min(-90).max(90).optional(),
+        lng: z.number().min(-180).max(180).optional()
+      })
+      .refine((v) => (v.lat === undefined) === (v.lng === undefined), {
+        message: "الإحداثيات تُمرر معاً (lat + lng)"
+      })
+      .parse(req.body);
+    const before = await ownedBranch(merchantIdOf(req), branch_id);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const branch = await tx.branch.update({
+        where: { id: branch_id },
+        data: {
+          ...(body.name_ar !== undefined ? { name_ar: body.name_ar } : {}),
+          ...(body.city !== undefined ? { city: body.city } : {}),
+          ...(body.address_short !== undefined ? { address_short: body.address_short } : {}),
+          ...(body.phone !== undefined ? { phone: body.phone || null } : {}),
+          ...(body.lat !== undefined && body.lng !== undefined ? { lat: body.lat, lng: body.lng } : {})
+        }
+      });
+      if (body.lat !== undefined && body.lng !== undefined) {
+        // location (PostGIS) — SQL خام لأن Prisma لا يدعم geography مباشرة (نمط الإنشاء)
+        await tx.$executeRaw`
+          UPDATE branches
+          SET location = ST_SetSRID(ST_MakePoint(${body.lng}, ${body.lat}), 4326)::geography
+          WHERE id = ${branch_id}::uuid`;
+      }
+      await tx.auditLog.create({
+        data: {
+          actor_type: "merchant_staff",
+          actor_id: claims.sub,
+          action: "branch_updated",
+          entity_type: "branch",
+          entity_id: branch_id,
+          merchant_id: claims.merchant_id ?? null,
+          branch_id,
+          before: {
+            name_ar: before.name_ar,
+            city: before.city,
+            address_short: before.address_short,
+            phone: before.phone,
+            lat: before.lat,
+            lng: before.lng
+          } as never,
+          after: body as never
+        }
+      });
+      return branch;
+    });
+
+    return {
+      id: updated.id,
+      name_ar: updated.name_ar,
+      branch_code: updated.branch_code,
+      city: updated.city,
+      status: updated.status,
+      busy_message: updated.busy_message,
+      address_short: updated.address_short,
+      phone: updated.phone,
+      lat: updated.lat,
+      lng: updated.lng
+    };
+  });
+
+  /**
    * «متوسط وقت تجهيز الطلب» — قرار المالك 2026-07-12: هذا الرقم هو الوقت المتوقع
    * الذي يُختم على كل طلب عند قبوله ويظهر للعميل — لا اختيار وقتٍ عند كل قبول.
    */
@@ -520,6 +599,9 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
       .refine((v) => (v.lat === undefined) === (v.lng === undefined), {
         message: "الإحداثيات تُمرر معاً (lat + lng)"
       })
+      .refine((v) => (v.lat === null) === (v.lng === null), {
+        message: "الإحداثيات تُمرر معاً (lat + lng)"
+      })
       .parse(req.body);
     const spot = await ownedSpot(req, claims, id);
 
@@ -535,7 +617,9 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
         where: { id },
         data: {
           ...(body.label !== undefined ? { label: body.label } : {}),
-          ...(body.is_active !== undefined ? { is_active: body.is_active } : {})
+          ...(body.is_active !== undefined ? { is_active: body.is_active } : {}),
+          // تحريك النقطة على الخريطة — أو إزالة تثبيتها بـnull
+          ...(body.lat !== undefined && body.lng !== undefined ? { lat: body.lat, lng: body.lng } : {})
         }
       });
       await tx.auditLog.create({

@@ -27,6 +27,9 @@ type BranchSettings = {
   id: string;
   name_ar: string;
   branch_code: string;
+  city: string;
+  address_short: string;
+  phone: string | null;
   lat: number;
   lng: number;
   default_prep_minutes: number;
@@ -66,10 +69,68 @@ export default function DashboardPage() {
   const [nbBusy, setNbBusy] = useState(false);
   const [nbError, setNbError] = useState<string | null>(null);
 
+  // M-03: تعديل فرع قائم — بياناته + نقل موقعه بالنقر على الخريطة
+  const [editId, setEditId] = useState<string | null>(null);
+  const [eb, setEb] = useState({ name_ar: "", city: "", address_short: "", phone: "" });
+  const [ebPin, setEbPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [ebBusy, setEbBusy] = useState(false);
+  const [ebError, setEbError] = useState<string | null>(null);
+
+  const openEdit = (branch_id: string) => {
+    if (editId === branch_id) {
+      setEditId(null);
+      return;
+    }
+    const b = prepBranches?.find((x) => x.id === branch_id);
+    if (!b) return;
+    setShowAddBranch(false);
+    setEbError(null);
+    setEb({ name_ar: b.name_ar, city: b.city, address_short: b.address_short, phone: b.phone ?? "" });
+    setEbPin({ lat: b.lat, lng: b.lng });
+    setEditId(branch_id);
+  };
+
+  const saveEdit = async () => {
+    if (!editId) return;
+    const name_ar = eb.name_ar.trim();
+    const city = eb.city.trim();
+    const address_short = eb.address_short.trim();
+    if (!name_ar || !city || !address_short) {
+      setEbError("الاسم والمدينة والعنوان حقول مطلوبة");
+      return;
+    }
+    setEbBusy(true);
+    setEbError(null);
+    try {
+      const updated = await apiPatch<BranchSettings>(`/api/v1/merchant/branches/${editId}`, {
+        name_ar,
+        city,
+        address_short,
+        phone: eb.phone.trim() || null,
+        ...(ebPin ? { lat: ebPin.lat, lng: ebPin.lng } : {})
+      });
+      // ادمج التعديل في القوائم الحية (أداء الفروع + التجهيز + مركز خرائط المواقف)
+      setPrepBranches((bs) => bs?.map((b) => (b.id === editId ? { ...b, ...updated } : b)) ?? null);
+      setData((d) =>
+        d
+          ? { ...d, branches: d.branches.map((x) => (x.id === editId ? { ...x, name_ar: updated.name_ar } : x)) }
+          : d
+      );
+      setEditId(null);
+    } catch (e) {
+      setEbError((e as Error).message);
+    } finally {
+      setEbBusy(false);
+    }
+  };
+
   // مركز خريطة اختيار الموقع: أول فرع قائم، وإلا مركز الرياض
   const addBranchCenter = prepBranches?.[0]
     ? { lat: prepBranches[0].lat, lng: prepBranches[0].lng }
     : { lat: 24.7136, lng: 46.6753 };
+
+  // الفرع الجاري تعديله — مصدر مركز خريطة النقل وبياناتها
+  const editBranch = editId ? (prepBranches?.find((x) => x.id === editId) ?? null) : null;
 
   const addBranch = async () => {
     const name_ar = nb.name_ar.trim();
@@ -309,6 +370,7 @@ export default function DashboardPage() {
                   style={{ fontSize: 12 }}
                   onClick={() => {
                     setNbError(null);
+                    setEditId(null);
                     setShowAddBranch((v) => !v);
                   }}
                 >
@@ -328,8 +390,19 @@ export default function DashboardPage() {
                   return (
                     <div key={b.id} className={s.branchRow} data-testid="dashboard-branch-row">
                       <span className={s.branchName}>{b.name_ar}</span>
-                      <span className={`badge ${st.cls}`} style={{ fontSize: "10.5px" }}>
-                        {st.label}
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                        <span className={`badge ${st.cls}`} style={{ fontSize: "10.5px" }}>
+                          {st.label}
+                        </span>
+                        <button
+                          className="btn sec2"
+                          data-testid="edit-branch-toggle"
+                          style={{ fontSize: 11, padding: "2px 10px" }}
+                          disabled={!prepBranches?.some((x) => x.id === b.id)}
+                          onClick={() => openEdit(b.id)}
+                        >
+                          {editId === b.id ? "إغلاق" : "تعديل"}
+                        </button>
                       </span>
                     </div>
                   );
@@ -458,6 +531,95 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
+
+              {/* نموذج تعديل فرع قائم — البيانات + نقل الموقع بالنقر على الخريطة */}
+              {editBranch && (
+                <div
+                  data-testid="edit-branch-form"
+                  style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--pk-line)", display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>تعديل «{editBranch.name_ar}»</div>
+                  <input
+                    className="inp"
+                    value={eb.name_ar}
+                    placeholder="اسم الفرع"
+                    maxLength={80}
+                    data-testid="edit-branch-name"
+                    onChange={(e) => setEb((v) => ({ ...v, name_ar: e.target.value }))}
+                    style={{ padding: "6px 10px" }}
+                  />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      className="inp"
+                      value={eb.city}
+                      placeholder="المدينة"
+                      maxLength={60}
+                      data-testid="edit-branch-city"
+                      onChange={(e) => setEb((v) => ({ ...v, city: e.target.value }))}
+                      style={{ flex: 1, padding: "6px 10px" }}
+                    />
+                    <input
+                      className="inp"
+                      value={eb.phone}
+                      placeholder="جوال الفرع (اختياري)"
+                      maxLength={20}
+                      inputMode="tel"
+                      data-testid="edit-branch-phone"
+                      onChange={(e) => setEb((v) => ({ ...v, phone: e.target.value }))}
+                      style={{ flex: 1, padding: "6px 10px" }}
+                    />
+                  </div>
+                  <input
+                    className="inp"
+                    value={eb.address_short}
+                    placeholder="العنوان المختصر"
+                    maxLength={160}
+                    data-testid="edit-branch-address"
+                    onChange={(e) => setEb((v) => ({ ...v, address_short: e.target.value }))}
+                    style={{ padding: "6px 10px" }}
+                  />
+
+                  <p className="muted" style={{ fontSize: 11.5, margin: "2px 0 0" }}>
+                    انقر على الخريطة لنقل موقع الفرع — منه تُحسب مسافة وصول العميل ومواقفه تبقى كما هي.
+                  </p>
+                  <SpotMap
+                    key={editBranch.id}
+                    center={{ lat: editBranch.lat, lng: editBranch.lng }}
+                    spots={spots[editBranch.id] ?? []}
+                    selectedId={null}
+                    draft={ebPin}
+                    draftLabel="موقع الفرع"
+                    onMapClick={(lat, lng) => setEbPin({ lat, lng })}
+                  />
+
+                  {ebError && (
+                    <div className="note err" data-testid="edit-branch-error" style={{ fontSize: 12 }}>
+                      {ebError}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="btn"
+                      data-testid="edit-branch-submit"
+                      disabled={ebBusy}
+                      onClick={() => void saveEdit()}
+                    >
+                      {ebBusy ? "…جارٍ الحفظ" : "حفظ التعديلات"}
+                    </button>
+                    <button
+                      className="btn sec2"
+                      disabled={ebBusy}
+                      onClick={() => {
+                        setEditId(null);
+                        setEbError(null);
+                      }}
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* «متوسط وقت تجهيز الطلب» — يُختم على كل طلب عند قبوله ويظهر للعميل كوقت متوقع */}
@@ -509,8 +671,10 @@ export default function DashboardPage() {
                 <div key={b.id} style={{ marginBottom: 18 }} data-testid="parking-spots-branch">
                   <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{b.name_ar}</div>
 
-                  {/* الخريطة: نقرة = نقطة موقف جديد · اختر موقفاً ثم انقر = تحريك نقطته */}
+                  {/* الخريطة: نقرة = نقطة موقف جديد · اختر موقفاً ثم انقر = تحريك نقطته
+                      المفتاح بالإحداثيات — نقلُ الفرع يعيد تمركز الخريطة */}
                   <SpotMap
+                    key={`${b.id}:${b.lat}:${b.lng}`}
                     center={{ lat: b.lat, lng: b.lng }}
                     spots={spots[b.id] ?? []}
                     selectedId={spotSelected[b.id] ?? null}
