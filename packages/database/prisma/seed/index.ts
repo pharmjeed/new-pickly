@@ -164,29 +164,29 @@ async function seedSystemDefaults() {
         { title_ar: "بلا طوابير وبلا نزول", body_ar: "رمز تحقق واحد ويوصل طلبك لشباك سيارتك", image_url: null, link: null }
       ]
     ],
-    // تصنيفات المطاعم C-09 — يديرها السوبر أدمن (إضافة/حذف/ترتيب/تفعيل)
+    // تصنيفات المطاعم C-09 — يديرها السوبر أدمن (إضافة/حذف/ترتيب/تفعيل/صورة)
     // القائمة المعتمدة من المالك 2026-07-15 بترتيب لوحة النماذج (أيقونات public/cats في customer-web)
     [
       "cms.categories",
       [
-        { name_ar: "برجر", is_active: true },
-        { name_ar: "دجاج", is_active: true },
-        { name_ar: "مندي ومظبي", is_active: true },
-        { name_ar: "بيتزا", is_active: true },
-        { name_ar: "ساندوتشات", is_active: true },
-        { name_ar: "سوشي", is_active: true },
-        { name_ar: "باستا", is_active: true },
-        { name_ar: "سلطات", is_active: true },
-        { name_ar: "مقبلات", is_active: true },
-        { name_ar: "بطاطس", is_active: true },
-        { name_ar: "راب", is_active: true },
-        { name_ar: "بحري", is_active: true },
-        { name_ar: "حلويات", is_active: true },
-        { name_ar: "مشروبات", is_active: true },
-        { name_ar: "عصائر طازجة", is_active: true },
-        { name_ar: "مشروبات ساخنة", is_active: true },
-        { name_ar: "فطور", is_active: true },
-        { name_ar: "وجبات أطفال", is_active: true }
+        { name_ar: "برجر", is_active: true, image_url: "/cats/burger.jpg" },
+        { name_ar: "دجاج", is_active: true, image_url: "/cats/chicken.jpg" },
+        { name_ar: "مندي ومظبي", is_active: true, image_url: "/cats/mandi.jpg" },
+        { name_ar: "بيتزا", is_active: true, image_url: "/cats/pizza.jpg" },
+        { name_ar: "ساندوتشات", is_active: true, image_url: "/cats/sandwich.jpg" },
+        { name_ar: "سوشي", is_active: true, image_url: "/cats/sushi.jpg" },
+        { name_ar: "باستا", is_active: true, image_url: "/cats/pasta.jpg" },
+        { name_ar: "سلطات", is_active: true, image_url: "/cats/salad.jpg" },
+        { name_ar: "مقبلات", is_active: true, image_url: "/cats/appetizers.jpg" },
+        { name_ar: "بطاطس", is_active: true, image_url: "/cats/fries.jpg" },
+        { name_ar: "راب", is_active: true, image_url: "/cats/wrap.jpg" },
+        { name_ar: "بحري", is_active: true, image_url: "/cats/seafood.jpg" },
+        { name_ar: "حلويات", is_active: true, image_url: "/cats/dessert.jpg" },
+        { name_ar: "مشروبات", is_active: true, image_url: "/cats/drinks.jpg" },
+        { name_ar: "عصائر طازجة", is_active: true, image_url: "/cats/juice.jpg" },
+        { name_ar: "مشروبات ساخنة", is_active: true, image_url: "/cats/hotdrinks.jpg" },
+        { name_ar: "فطور", is_active: true, image_url: "/cats/breakfast.jpg" },
+        { name_ar: "وجبات أطفال", is_active: true, image_url: "/cats/kids.jpg" }
       ]
     ],
     // طرق الدفع الظاهرة للعميل — يديرها السوبر أدمن (قرار المالك 2026-07-12)

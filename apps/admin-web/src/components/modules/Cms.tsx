@@ -32,6 +32,8 @@ type Banner = {
 type Category = {
   name_ar: string;
   is_active: boolean;
+  /** صورة التصنيف: data URL مرفوعة أو مسار أصل ثابت (/cats/…) — null: أيقونة افتراضية حسب الاسم */
+  image_url?: string | null;
 };
 
 type BrandRow = {
@@ -48,18 +50,36 @@ type PendingSave =
   | { kind: "categories" }
   | { kind: "brand"; brand: BrandRow; cuisine: string | null };
 
+/** أصل تطبيق العميل — لعرض صور الأصول الثابتة (/cats/…) داخل اللوحة */
+const CUSTOMER_ORIGIN = process.env.NEXT_PUBLIC_CUSTOMER_ORIGIN ?? "https://app.thepickly.com";
+
+/** مسار جذري (أصل ثابت في customer-web) يُعرض من أصل تطبيق العميل؛ data URL وروابط كاملة كما هي */
+function previewSrc(value: string): string {
+  return value.startsWith("/") ? `${CUSTOMER_ORIGIN}${value}` : value;
+}
+
 /**
- * خلية صورة البانر — رفع من الجهاز فقط (لا لصق روابط).
- * تُصغَّر في المتصفح إلى ≤1200px وتُخزَّن data URL (نمط شعار/غلاف بوابة التاجر).
+ * خلية صورة CMS (بانر/تصنيف) — رفع من الجهاز فقط (لا لصق روابط).
+ * تُصغَّر في المتصفح إلى ≤maxPx وتُخزَّن data URL (نمط شعار/غلاف بوابة التاجر).
  */
-function BannerImageCell({
+function ImagePickCell({
   value,
   onChange,
-  onError
+  onError,
+  label,
+  width = 56,
+  height = 40,
+  maxPx = 1200,
+  testId = "banner-image-pick"
 }: {
   value: string | null;
   onChange: (dataUrl: string | null) => void;
   onError: (msg: string) => void;
+  label?: string;
+  width?: number;
+  height?: number;
+  maxPx?: number;
+  testId?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [working, setWorking] = useState(false);
@@ -69,7 +89,7 @@ function BannerImageCell({
     setWorking(true);
     try {
       if (file.size > 12 * 1024 * 1024) throw new Error("الصورة أكبر من 12MB");
-      onChange(await resizeImage(file, 1200));
+      onChange(await resizeImage(file, maxPx));
     } catch (e) {
       onError((e as Error).message);
     } finally {
@@ -77,44 +97,41 @@ function BannerImageCell({
     }
   };
 
-  return (
-    <div className="fld">
-      <label>صورة البانر (اختياري)</label>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {value ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={value}
-            alt=""
-            style={{ width: 56, height: 40, objectFit: "cover", borderRadius: 8, border: "1px solid var(--pk-line)", flexShrink: 0 }}
-          />
-        ) : (
-          <div
-            style={{
-              width: 56,
-              height: 40,
-              borderRadius: 8,
-              border: "1px dashed var(--pk-line)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 16,
-              color: "var(--pk-text-2)",
-              flexShrink: 0
-            }}
-          >
-            🖼️
-          </div>
-        )}
-        <button type="button" className="btn sm" disabled={working} data-testid="banner-image-pick" onClick={() => fileRef.current?.click()}>
-          {working ? "جارٍ…" : value ? "تغيير" : "رفع صورة"}
+  const cell = (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {value ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={previewSrc(value)}
+          alt=""
+          style={{ width, height, objectFit: "cover", borderRadius: 8, border: "1px solid var(--pk-line)", flexShrink: 0 }}
+        />
+      ) : (
+        <div
+          style={{
+            width,
+            height,
+            borderRadius: 8,
+            border: "1px dashed var(--pk-line)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 16,
+            color: "var(--pk-text-2)",
+            flexShrink: 0
+          }}
+        >
+          🖼️
+        </div>
+      )}
+      <button type="button" className="btn sm" disabled={working} data-testid={testId} onClick={() => fileRef.current?.click()}>
+        {working ? "جارٍ…" : value ? "تغيير" : "رفع صورة"}
+      </button>
+      {value && (
+        <button type="button" className="btn sm dgh" onClick={() => onChange(null)}>
+          إزالة
         </button>
-        {value && (
-          <button type="button" className="btn sm dgh" onClick={() => onChange(null)}>
-            إزالة
-          </button>
-        )}
-      </div>
+      )}
       <input
         ref={fileRef}
         type="file"
@@ -125,6 +142,14 @@ function BannerImageCell({
           e.target.value = "";
         }}
       />
+    </div>
+  );
+
+  if (!label) return cell;
+  return (
+    <div className="fld">
+      <label>{label}</label>
+      {cell}
     </div>
   );
 }
@@ -285,7 +310,8 @@ export default function Cms() {
                   <label>نص فرعي</label>
                   <input className="inp" value={b.body_ar ?? ""} onChange={(e) => setBanner(i, { body_ar: e.target.value || null })} />
                 </div>
-                <BannerImageCell
+                <ImagePickCell
+                  label="صورة البانر (اختياري)"
                   value={b.image_url}
                   onChange={(dataUrl) => setBanner(i, { image_url: dataUrl })}
                   onError={setError}
@@ -324,7 +350,7 @@ export default function Cms() {
                 style={{ marginInlineEnd: 6 }}
                 data-testid="category-add"
                 onClick={() => {
-                  setCategories([...categories, { name_ar: "", is_active: true }]);
+                  setCategories([...categories, { name_ar: "", is_active: true, image_url: null }]);
                   setCategoriesDirty(true);
                 }}
               >
@@ -348,13 +374,22 @@ export default function Cms() {
           )}
           <div style={{ display: "grid", gap: 8 }}>
             {categories.map((c, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "auto auto 1fr auto auto", gap: 8, alignItems: "center" }} data-testid="category-row">
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "auto auto auto 1fr auto auto", gap: 8, alignItems: "center" }} data-testid="category-row">
                 <button type="button" className="btn sm" disabled={i === 0} aria-label="أعلى" onClick={() => moveCategory(i, -1)}>
                   ↑
                 </button>
                 <button type="button" className="btn sm" disabled={i === categories.length - 1} aria-label="أسفل" onClick={() => moveCategory(i, 1)}>
                   ↓
                 </button>
+                <ImagePickCell
+                  value={c.image_url ?? null}
+                  onChange={(dataUrl) => setCategory(i, { image_url: dataUrl })}
+                  onError={setError}
+                  width={44}
+                  height={44}
+                  maxPx={512}
+                  testId="category-image-pick"
+                />
                 <input
                   className="inp"
                   placeholder="اسم التصنيف — برجر، شاورما، مقهى…"
@@ -380,7 +415,7 @@ export default function Cms() {
             ))}
           </div>
           <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-            الترتيب هنا هو ترتيب الظهور في رئيسية العميل · المعطل يختفي فوراً · اربط كل مطعم بتصنيفه من الجدول أدناه.
+            الترتيب هنا هو ترتيب الظهور في رئيسية العميل · المعطل يختفي فوراً · صورة التصنيف تظهر في بطاقته بالرئيسية (بلا صورة تُستخدم الأيقونة الافتراضية حسب الاسم) · اربط كل مطعم بتصنيفه من الجدول أدناه.
           </p>
         </div>
       )}

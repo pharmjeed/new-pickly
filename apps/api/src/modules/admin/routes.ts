@@ -20,15 +20,19 @@ import { paymentMethodsConfig } from "../../lib/payment-methods.js";
  */
 
 /**
- * صورة البانر (A-13): إما data URL مرفوعة من اللوحة (نطاق الطيار — التخزين المحلي/العرض،
- * الإنتاج يبدّلها بObject Storage docs/09§2) أو رابط خارجي قديم (توافق خلفي).
+ * صورة CMS (A-13 — بانرات وتصنيفات): إما data URL مرفوعة من اللوحة (نطاق الطيار — التخزين المحلي/العرض،
+ * الإنتاج يبدّلها بObject Storage docs/09§2)، أو رابط خارجي قديم (توافق خلفي)،
+ * أو مسار أصل ثابت جذري مثل /cats/burger.jpg (أيقونات customer-web المعتمدة).
  * سقف ~1.4MB بعد التصغير في المتصفح؛ صيغ صور فقط للـdata URL.
  */
-const BannerImageSchema = z
+const CmsImageSchema = z
   .string()
   .max(1_400_000, "الصورة كبيرة — صغّرها قبل الرفع")
   .refine(
-    (v) => /^https?:\/\//.test(v) || /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/.test(v),
+    (v) =>
+      /^https?:\/\//.test(v) ||
+      /^\/[A-Za-z0-9_\-./]+\.(png|jpe?g|webp|svg)$/.test(v) ||
+      /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/.test(v),
     "صيغة صورة غير صالحة"
   );
 
@@ -928,7 +932,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           z.object({
             title_ar: z.string().trim().min(1).max(80),
             body_ar: z.string().max(200).nullable().default(null),
-            image_url: BannerImageSchema.nullable().default(null),
+            image_url: CmsImageSchema.nullable().default(null),
             link: z.string().max(500).nullable().default(null)
           })
         ),
@@ -964,7 +968,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           .array(
             z.object({
               name_ar: z.string().trim().min(1).max(40),
-              is_active: z.boolean().default(true)
+              is_active: z.boolean().default(true),
+              image_url: CmsImageSchema.nullable().default(null)
             })
           )
           .max(30)

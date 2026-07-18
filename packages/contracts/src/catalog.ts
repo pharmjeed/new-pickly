@@ -158,7 +158,9 @@ export type ContentBanner = z.infer<typeof ContentBannerSchema>;
 
 /** GET /v1/content/categories — تصنيفات المطاعم (C-09) بترتيب السوبر أدمن (cms.categories) */
 export const ContentCategorySchema = z.object({
-  name_ar: z.string()
+  name_ar: z.string(),
+  /** صورة التصنيف من اللوحة (data URL أو مسار أصل ثابت) — null: أيقونة افتراضية حسب الاسم */
+  image_url: z.string().nullable()
 });
 export type ContentCategory = z.infer<typeof ContentCategorySchema>;
 

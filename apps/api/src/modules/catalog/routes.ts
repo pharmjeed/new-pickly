@@ -236,8 +236,10 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
       where: { key: "cms.categories", effective_at: { lte: new Date() } },
       orderBy: { effective_at: "desc" }
     });
-    const stored = (setting?.value ?? []) as Array<{ name_ar: string; is_active: boolean }>;
-    const active: ContentCategory[] = stored.filter((c) => c.is_active).map((c) => ({ name_ar: c.name_ar }));
+    const stored = (setting?.value ?? []) as Array<{ name_ar: string; is_active: boolean; image_url?: string | null }>;
+    const active: ContentCategory[] = stored
+      .filter((c) => c.is_active)
+      .map((c) => ({ name_ar: c.name_ar, image_url: c.image_url ?? null }));
     return active;
   });
 

@@ -2317,10 +2317,17 @@
                     "properties": {
                       "name_ar": {
                         "type": "string"
+                      },
+                      "image_url": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
                       }
                     },
                     "required": [
-                      "name_ar"
+                      "name_ar",
+                      "image_url"
                     ]
                   }
                 }

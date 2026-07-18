@@ -357,11 +357,18 @@ export function useCoords(): { lat: number; lng: number } {
 /**
  * تصنيفات C-09 مرتبةً: قائمة السوبر أدمن (cms.categories) إن وُجدت — بعدد المطاعم القريبة
  * لكل تصنيف (وقد يكون صفراً)؛ وإلا تُشتق من مطابخ الفروع القريبة.
+ * image: صورة اللوحة إن رفعها الأدمن — null تسقط لأيقونة cuisinePhoto حسب الاسم.
  */
-export function useCategories(branches: BranchCard[] | null): Array<{ name: string; count: number }> | null {
-  const { data, error } = useApi<Array<{ name_ar: string }>>("/v1/content/categories");
+export function useCategories(
+  branches: BranchCard[] | null
+): Array<{ name: string; count: number; image: string | null }> | null {
+  const { data, error } = useApi<Array<{ name_ar: string; image_url?: string | null }>>("/v1/content/categories");
   // ميزة تحسين — فشل القائمة يسقط للاشتقاق التلقائي من الفروع القريبة
-  const adminCats = data ? data.map((c) => c.name_ar) : error !== null ? [] : null;
+  const adminCats = data
+    ? data.map((c) => ({ name: c.name_ar, image: c.image_url ?? null }))
+    : error !== null
+      ? []
+      : null;
 
   if (branches === null || adminCats === null) return null;
 
@@ -370,9 +377,9 @@ export function useCategories(branches: BranchCard[] | null): Array<{ name: stri
     if (b.cuisine_ar) counts.set(b.cuisine_ar, (counts.get(b.cuisine_ar) ?? 0) + 1);
   }
   if (adminCats.length > 0) {
-    return adminCats.map((name) => ({ name, count: counts.get(name) ?? 0 }));
+    return adminCats.map(({ name, image }) => ({ name, image, count: counts.get(name) ?? 0 }));
   }
-  return [...counts.entries()].map(([name, count]) => ({ name, count }));
+  return [...counts.entries()].map(([name, count]) => ({ name, count, image: null }));
 }
 
 /** رأس التطبيق: موقع الاستلام + جرس C-62 + بحث C-11/C-12 بنتائجه */
