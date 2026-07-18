@@ -1,6 +1,40 @@
-# Pickly — بوابة HTTPS تلقائية عبر sslip.io (تحلّ إلى 193.122.83.224)
-# HTTPS إلزامي كي يسمح المتصفح بتحديد الموقع (geolocation) على الأجهزة.
-# Caddy يجلب شهادة Let's Encrypt لكل مضيف تلقائياً (تحدي HTTP-01 على المنفذ 80).
+# Pickly — بوابة HTTPS تلقائية: الدومين الرسمي thepickly.com + عناوين sslip.io كاحتياط
+# (كلها تحلّ إلى 193.122.83.224). HTTPS إلزامي كي يسمح المتصفح بتحديد الموقع على الأجهزة.
+# Caddy يجلب شهادة Let's Encrypt لكل مضيف تلقائياً (تحدي HTTP-01 على المنفذ 80)،
+# ويظل يعيد المحاولة تلقائياً إن لم يكن DNS الدومين موجهاً بعد.
+
+# ————— الدومين الرسمي —————
+
+# واجهة العميل — النطاق الرئيسي
+thepickly.com {
+	reverse_proxy customer-web:3000
+}
+
+www.thepickly.com {
+	redir https://thepickly.com{uri} permanent
+}
+
+# بوابة التاجر
+merchant.thepickly.com {
+	reverse_proxy merchant-web:3001
+}
+
+# تشغيل الفرع
+branch.thepickly.com {
+	reverse_proxy branch-ops:3002
+}
+
+# لوحة السوبر أدمن
+admin.thepickly.com {
+	reverse_proxy admin-web:3003
+}
+
+# الموقع التعريفي
+site.thepickly.com {
+	reverse_proxy site:3004
+}
+
+# ————— عناوين sslip.io الاحتياطية —————
 
 # واجهة العميل — النطاق الرئيسي
 193-122-83-224.sslip.io {

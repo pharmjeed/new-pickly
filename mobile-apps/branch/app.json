@@ -32,7 +32,7 @@
     },
     "plugins": [["expo-notifications", { "defaultChannel": "orders" }]],
     "extra": {
-      "siteUrl": "https://branch.193-122-83-224.sslip.io",
+      "siteUrl": "https://branch.thepickly.com",
       "eas": {
         "projectId": ""
       }

@@ -1,0 +1,23 @@
+# deps
+node_modules/
+package-lock.json.bak
+
+# expo / eas
+.expo/
+dist/
+web-build/
+*.orig.*
+
+# native build outputs
+android/
+ios/
+*.apk
+*.aab
+*.ipa
+
+# env / secrets
+.env*
+!.env.example
+
+# os
+.DS_Store

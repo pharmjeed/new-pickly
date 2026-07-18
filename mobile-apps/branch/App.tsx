@@ -50,7 +50,7 @@ Notifications.setNotificationHandler({
 // ————— إعدادات التطبيق —————
 const SITE_URL: string =
   (Constants.expoConfig?.extra as { siteUrl?: string } | undefined)?.siteUrl ||
-  "https://branch.193-122-83-224.sslip.io";
+  "https://branch.thepickly.com";
 
 const NAVY = "#0E1B3D"; // كحلي — رأس اللوحة + الشريط العلوي + الإقلاع
 const SURFACE = "#F7F3E9"; // عاجي — جسم الصفحة + الشريط السفلي

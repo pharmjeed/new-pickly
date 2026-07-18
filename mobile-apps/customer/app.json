@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "بيكلي",
+    "slug": "pickly-customer",
+    "version": "1.0.0",
+    "scheme": "pickly",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#C8F542",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#C8F542"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "sa.pickly.customer",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "نستخدم موقعك لعرض أقرب المطاعم ولمتابعة وصولك أثناء طلبك النشط حتى يجهّز المطعم طلبك على وقت وصولك.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "sa.pickly.customer",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#C8F542"
+      },
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "نستخدم موقعك لعرض أقرب المطاعم ولمتابعة وصولك أثناء طلبك النشط حتى يجهّز المطعم طلبك على وقت وصولك."
+        }
+      ]
+    ],
+    "extra": {
+      "siteUrl": "https://thepickly.com",
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}

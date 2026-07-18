@@ -147,6 +147,10 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    environment:
+      # الـCaddyfile مربوط bind-mount ولا يُعاد تحميله تلقائياً؛ غيّر هذا الرقم مع كل
+      # تعديل عليه كي يعيد docker compose up -d إنشاء الحاوية فتقرأ الإعداد الجديد.
+      CADDY_CONFIG_VERSION: "2"
     ports:
       - "80:80"
       - "443:443"
