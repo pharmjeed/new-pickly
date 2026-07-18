@@ -437,10 +437,10 @@
 .pMain { flex: 1; display: flex; flex-direction: column; order: 1; min-width: 0; }
 .pTop {
   flex: 1.2; display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;
-  gap: 14px; border-bottom: 2px solid var(--pk-ink-900); padding: 4px 10px;
+  gap: 10px; border-bottom: 2px solid var(--pk-ink-900); padding: 4px 8px; min-width: 0; white-space: nowrap;
 }
-.pLetters { color: var(--pk-ink-900); font-size: var(--pk-fs-24); font-weight: 800; letter-spacing: 3px; }
-.pDigits { color: var(--pk-blue-500); font-size: var(--pk-fs-32); font-weight: 800; font-family: var(--pk-font-mono); direction: ltr; }
+.pLetters { color: var(--pk-ink-900); font-size: var(--pk-fs-20); font-weight: 800; letter-spacing: 2px; white-space: nowrap; }
+.pDigits { color: var(--pk-blue-500); font-size: var(--pk-fs-32); font-weight: 800; font-family: var(--pk-font-mono); direction: ltr; white-space: nowrap; }
 .pBottom {
   flex: 1; display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;
   gap: 8px; padding: 6px 8px; min-width: 0;
