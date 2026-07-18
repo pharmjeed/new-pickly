@@ -5,7 +5,7 @@
  * بحث C-11 في الأعلى ← بانرات CMS متحركة (A-13، تُدار من السوبر أدمن) ← تصنيفات المطاعم
  * ← قائمة «قريب منك» بكل المطاعم الأقرب فالأقرب. /restaurants تبقى للتصفية بالتصنيف.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useApi } from "@/lib/use-api";
 import { AppHead, RestaurantCard, TabBar, cuisinePhoto, useCategories, useNearby } from "./shell";
@@ -88,6 +88,75 @@ function Banners() {
   );
 }
 
+/** عدد بطاقات الشبكة الثابتة (٤×٢) — الزيادة تنتقل للسكة الأفقية */
+const CATS_GRID_MAX = 8;
+
+/**
+ * شبكة التصنيفات: حتى ٨ شبكة ثابتة ٤ في الصف؛ أكثر من ذلك سكة أفقية بصفّين تُلفّ
+ * يميناً ويساراً — البطاقة الخامسة مقصوصة وتدرّج طرفي وتلويحة تعريفية تعلن أن هناك المزيد.
+ */
+function CategoryGrid({ cats }: { cats: Array<{ name: string; image: string | null }> }) {
+  const scrollable = cats.length > CATS_GRID_MAX;
+  const railRef = useRef<HTMLDivElement>(null);
+  // بلوغ آخر السكة يخفي التدرّج الطرفي — لا إيحاء بمزيد غير موجود
+  const [atEnd, setAtEnd] = useState(false);
+
+  // تلويحة تعريفية مرة بالجلسة: السكة تنزاح قليلاً وتعود فيلمح العميل أنها تُلفّ
+  useEffect(() => {
+    if (!scrollable) return;
+    const el = railRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (sessionStorage.getItem("pk_cats_rail_hinted")) return;
+    sessionStorage.setItem("pk_cats_rail_hinted", "1");
+    // RTL: المحتوى الزائد يساراً — scrollLeft يتناقص (سالباً) باتجاهه
+    const t1 = setTimeout(() => el.scrollBy({ left: -64, behavior: "smooth" }), 700);
+    const t2 = setTimeout(() => el.scrollTo({ left: 0, behavior: "smooth" }), 1600);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [scrollable]);
+
+  const onScroll = () => {
+    const el = railRef.current;
+    if (!el) return;
+    setAtEnd(Math.abs(el.scrollLeft) >= el.scrollWidth - el.clientWidth - 4);
+  };
+
+  const cards = cats.map(({ name, image }, i) => (
+    <Link
+      key={name}
+      href={`/restaurants?c=${encodeURIComponent(name)}`}
+      className={`${styles.catCard} pk-pop`}
+      style={{ animationDelay: `${100 + Math.min(i, 8) * 55}ms` }}
+      data-testid="cat-card"
+    >
+      <span className={styles.catPh}>
+        {/* أصل ثابت صغير من public — كصور البانرات، next/image يتطلب تهيئة لا تلزم هنا */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={image ?? cuisinePhoto(name)} alt="" width={88} height={88} loading="lazy" />
+      </span>
+      <b className={styles.catNm}>{name}</b>
+    </Link>
+  ));
+
+  if (!scrollable) {
+    return (
+      <div className={styles.cats} data-testid="home-cats">
+        {cards}
+      </div>
+    );
+  }
+  return (
+    <div className={atEnd ? `${styles.catsRailWrap} ${styles.catsRailEnd}` : styles.catsRailWrap}>
+      <div className={styles.catsRail} data-testid="home-cats" ref={railRef} onScroll={onScroll}>
+        {cards}
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const { branches, error, locLabel, coords } = useNearby();
   // تصنيفات C-09 — قائمة السوبر أدمن بترتيبها، أو الاشتقاق من الفروع القريبة
@@ -140,6 +209,14 @@ export default function HomePage() {
           <>
             <div className={`${styles.sech} pk-in pk-d1`}>
               <h2>التصنيفات</h2>
+              {cats.length > CATS_GRID_MAX && (
+                <span className={styles.catsHint} data-testid="cats-hint">
+                  لُف لمزيد
+                  <span className={styles.catsHintArrow} aria-hidden="true">
+                    ←
+                  </span>
+                </span>
+              )}
             </div>
             {cats.length === 0 ? (
               <div className={styles.empty}>
@@ -149,24 +226,7 @@ export default function HomePage() {
                 </QirtasEmptyLive>
               </div>
             ) : (
-              <div className={styles.cats} data-testid="home-cats">
-                {cats.map(({ name, image }, i) => (
-                  <Link
-                    key={name}
-                    href={`/restaurants?c=${encodeURIComponent(name)}`}
-                    className={`${styles.catCard} pk-pop`}
-                    style={{ animationDelay: `${100 + Math.min(i, 8) * 55}ms` }}
-                    data-testid="cat-card"
-                  >
-                    <span className={styles.catPh}>
-                      {/* أصل ثابت صغير من public — كصور البانرات، next/image يتطلب تهيئة لا تلزم هنا */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={image ?? cuisinePhoto(name)} alt="" width={88} height={88} loading="lazy" />
-                    </span>
-                    <b className={styles.catNm}>{name}</b>
-                  </Link>
-                ))}
-              </div>
+              <CategoryGrid cats={cats} />
             )}
 
             {nearest.length > 0 && (

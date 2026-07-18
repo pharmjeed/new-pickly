@@ -311,6 +311,71 @@
   white-space: nowrap;
 }
 
+/* ===== أكثر من ٨ تصنيفات: سكة أفقية بصفّين تُلفّ يميناً ويساراً =====
+   إشارات المزيد: بطاقة خامسة مقصوصة + تدرّج طرفي + تلويحة تعريفية + تلميح «لُف لمزيد» بالرأس */
+.catsRailWrap {
+  position: relative;
+}
+/* تدرّج على حافة اتجاه اللف (اليسار في RTL) — يبهت آخر عمود ظاهر فيُفهم أن السكة تكمل */
+.catsRailWrap::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 6px;
+  left: -2px;
+  width: 40px;
+  background: linear-gradient(to left, transparent, var(--pk-bg) 82%);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.25s;
+}
+/* بلوغ آخر السكة — لا مزيد فلا تدرّج */
+.catsRailEnd::after {
+  opacity: 0;
+}
+.catsRail {
+  display: grid;
+  grid-template-rows: repeat(2, auto);
+  grid-auto-flow: column;
+  /* ٤ أعمدة كاملة (٣ فجوات = 30px) وقصّة 44px تكشف نصف العمود الخامس — القصّة نفسها دعوة للف */
+  grid-auto-columns: calc((100% - 74px) / 4);
+  gap: 12px 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  /* متنفس حول البطاقات حتى لا يُقص ظل pop-xs (2px) */
+  padding: 2px 2px 6px;
+  scrollbar-width: none;
+}
+.catsRail::-webkit-scrollbar {
+  display: none;
+}
+.catsRail .catCard {
+  scroll-snap-align: start;
+}
+/* تلميح رأس القسم — سهم يتنطط باتجاه اللف */
+.catsHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--pk-fs-12);
+  font-weight: 700;
+  color: var(--pk-text-2);
+}
+.catsHintArrow {
+  display: inline-block;
+  animation: pk-cats-hint-nudge 1.3s ease-in-out infinite;
+}
+@keyframes pk-cats-hint-nudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .catsHintArrow {
+    animation: none;
+  }
+}
+
 /* ===== chips التصنيفات في قائمة المطاعم ===== */
 .chips {
   display: flex;
