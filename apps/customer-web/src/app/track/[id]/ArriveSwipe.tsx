@@ -4,8 +4,10 @@
  * عنصر تأكيد الوصول بالسحب (يسار ← يمين) — نمط «تمرير للإجابة».
  * يبقى مقفلاً حتى يقترب العميل نصف القطر الذي يضبطه Super Admin من المطعم (docs/14):
  * «وصل» لا يتم إلا بتأكيد العميل اليدوي، والقفل يمنع التأكيد المبكر عن بُعد.
+ * لحظة الفتح (اعتماد المالك 2026-07-18): حلبة أضواء ملاهي تومض بسرعة حول الزر،
+ * و«الموجة الصادمة» — موجتان ليمونيتان تنطلقان من الزر وتكتسحان الشاشة مرة واحدة.
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import s from "./track.module.css";
 
 export type GeoState = "locating" | "denied" | "unavailable" | "ok";
@@ -30,6 +32,23 @@ export default function ArriveSwipe({ enabled, distanceM, radiusM, geoState, onC
   const [done, setDone] = useState(false);
 
   const active = enabled && !done;
+
+  // «الموجة الصادمة» — مرة واحدة لحظة انفتاح السحب بقربٍ حقيقي (لا في السماح الاحتياطي الصامت)
+  const [wave, setWave] = useState<{ x: number; y: number } | null>(null);
+  const celebrated = useRef(false);
+  const prevEnabled = useRef(false);
+  useEffect(() => {
+    const wasEnabled = prevEnabled.current;
+    prevEnabled.current = enabled;
+    if (!enabled || wasEnabled || celebrated.current || geoState !== "ok") return;
+    celebrated.current = true;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const track = trackRef.current;
+    if (!track) return;
+    const r = track.getBoundingClientRect();
+    setWave({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
+    window.setTimeout(() => setWave(null), 1300);
+  }, [enabled, geoState]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (!active) return;
@@ -77,6 +96,7 @@ export default function ArriveSwipe({ enabled, distanceM, radiusM, geoState, onC
 
   return (
     <div className={s.swipeWrap} data-testid="arrive-swipe">
+      <div className={s.swipeBox}>
       <div
         ref={trackRef}
         className={`${s.swipe} ${active ? s.swipeOn : s.swipeLocked} ${done ? s.swipeDone : ""}`}
@@ -112,8 +132,22 @@ export default function ArriveSwipe({ enabled, distanceM, radiusM, geoState, onC
           )}
         </div>
       </div>
+      {/* حلبة أضواء الملاهي — وميض سريع متناوب ما دام السحب متاحاً */}
+      {active && (
+        <>
+          <span className={`${s.marqueeRing} ${s.marqueeRingA}`} aria-hidden="true" />
+          <span className={`${s.marqueeRing} ${s.marqueeRingB}`} aria-hidden="true" />
+        </>
+      )}
+      </div>
       {distanceLabel() !== "" && (
         <p className={s.swipeHint} data-testid="arrive-swipe-hint">{distanceLabel()}</p>
+      )}
+      {wave && (
+        <div className={s.shockLayer} aria-hidden="true">
+          <span className={s.shockWave} style={{ left: wave.x, top: wave.y }} />
+          <span className={`${s.shockWave} ${s.shockWaveB}`} style={{ left: wave.x, top: wave.y }} />
+        </div>
       )}
     </div>
   );

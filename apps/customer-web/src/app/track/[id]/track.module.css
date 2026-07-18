@@ -576,6 +576,64 @@
   text-align: center;
   margin-top: 8px;
 }
+/* حلبة أضواء الملاهي (اعتماد المالك 2026-07-18) — لمبتان متناوبتان تومضان بسرعة حول الزر */
+.swipeBox {
+  position: relative;
+}
+.marqueeRing {
+  position: absolute;
+  inset: -7px;
+  border-radius: var(--pk-radius-pill);
+  padding: 5px;
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+.marqueeRingA {
+  background: repeating-conic-gradient(var(--pk-lime-500) 0deg 7deg, transparent 7deg 16deg);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--pk-lime-500) 80%, transparent));
+  animation: pkMarqueeA 0.34s steps(1) infinite;
+}
+.marqueeRingB {
+  background: repeating-conic-gradient(from 8deg, var(--pk-lime-300) 0deg 7deg, transparent 7deg 16deg);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--pk-lime-300) 80%, transparent));
+  animation: pkMarqueeB 0.34s steps(1) infinite;
+}
+@keyframes pkMarqueeA {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes pkMarqueeB {
+  0%, 49% { opacity: 0; }
+  50%, 100% { opacity: 1; }
+}
+/* «الموجة الصادمة» — موجتان تنطلقان من الزر وتكتسحان الشاشة لحظة انفتاح السحب */
+.shockLayer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+.shockWave {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border: 3px solid var(--pk-lime-500);
+  border-radius: 50%;
+  transform: scale(0.2);
+  opacity: 0;
+  animation: pkShock 0.9s ease-out forwards;
+}
+.shockWaveB {
+  animation-delay: 0.18s;
+}
+@keyframes pkShock {
+  0% { transform: scale(0.2); opacity: 0.95; }
+  100% { transform: scale(77); opacity: 0; }
+}
 /* وضع القيادة الداكن */
 :global(.pk-drive) .swipe {
   background: var(--pk-ink-700);
@@ -600,4 +658,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dim, .sheet { animation: none; }
+  /* حلقة ثابتة واحدة تكفي للدلالة على الفتح — والموجة لا تُطلق أصلاً (حارس JS) */
+  .marqueeRingA, .marqueeRingB, .shockWave { animation: none; }
+  .marqueeRingB { opacity: 0; }
+  .shockWave { display: none; }
 }
