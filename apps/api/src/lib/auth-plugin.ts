@@ -36,7 +36,10 @@ export async function requireAuth(req: FastifyRequest, _reply: FastifyReply): Pr
 export function requireCustomer(req: FastifyRequest): JwtClaims {
   const claims = req.claims;
   if (!claims) throw new AppError("AUTH-1005");
-  if (claims.actor_type !== "customer") throw new AppError("AUTH-1006");
+  // التاجر وطاقمه عملاء أيضاً بلا مانع (قرار المالك 2026-07-18)؛ حسابات الأدمن تبقى منفصلة
+  if (claims.actor_type !== "customer" && claims.actor_type !== "merchant_staff") {
+    throw new AppError("AUTH-1006");
+  }
   return claims;
 }
 

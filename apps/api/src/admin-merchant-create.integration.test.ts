@@ -107,7 +107,7 @@ describe.skipIf(!hasDb)("إنشاء تاجر من لوحة السوبر أدمن
     expect(res.statusCode).toBe(400);
   });
 
-  it("يرفض جوالاً مسجلاً كعميل", async () => {
+  it("عميل قائم يصبح مالكاً بنفس جواله ويحتفظ بواجهتي العميل والتاجر معاً", async () => {
     const customerPhone = `+9665${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
     await loginByPhone(customerPhone); // ينشئ حساب عميل
     const adminToken = await adminLogin();
@@ -116,10 +116,42 @@ describe.skipIf(!hasDb)("إنشاء تاجر من لوحة السوبر أدمن
       url: "/v1/admin/merchants",
       headers: authed(adminToken),
       payload: {
-        name_ar: `شركة جوال عميل ${Math.floor(Math.random() * 1e6)}`,
-        owner_name: "مالك",
+        name_ar: `شركة عميل صار تاجراً ${Math.floor(Math.random() * 1e6)}`,
+        owner_name: "عميل تاجر",
         owner_phone: customerPhone,
-        reason: "جوال عميل"
+        reason: "قرار المالك: العميل يصبح تاجراً بلا مانع"
+      }
+    });
+    expect(res.statusCode).toBe(200);
+
+    // نفس التوكن بعد الدور الجديد يفتح البوابة ويظل عميلاً
+    const dualToken = await loginByPhone(customerPhone);
+    const portal = await app.inject({
+      method: "GET",
+      url: "/v1/merchant/branches",
+      headers: authed(dualToken)
+    });
+    expect(portal.statusCode).toBe(200);
+    const vehicle = await app.inject({
+      method: "POST",
+      url: "/v1/customers/me/vehicles",
+      headers: authed(dualToken),
+      payload: { color_ar: "بيضاء", plate_short: "7777" }
+    });
+    expect(vehicle.statusCode).toBeLessThan(300);
+  });
+
+  it("يرفض جوالاً مرتبطاً بتاجر آخر", async () => {
+    const adminToken = await adminLogin();
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/admin/merchants",
+      headers: authed(adminToken),
+      payload: {
+        name_ar: `شركة جوال مكرر ${Math.floor(Math.random() * 1e6)}`,
+        owner_name: "مالك ثانٍ",
+        owner_phone: ownerPhoneE164, // مالك التاجر المنشأ في الاختبار الأول
+        reason: "جوال مالك قائم"
       }
     });
     expect(res.statusCode).toBe(400);

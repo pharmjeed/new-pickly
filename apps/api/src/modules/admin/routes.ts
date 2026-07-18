@@ -166,15 +166,16 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     const ownerRole = await prisma.role.findUnique({ where: { key: "merchant:owner" } });
     if (!ownerRole) throw new AppError("SYS-9004", { hint: "دور merchant:owner غير مهيأ — شغّل الseed" });
 
-    // جوال مالك مرتبط بعميل يكسر دخوله كعميل (actor_type يُحسب من الأدوار) — نرفض بوضوح
+    // العميل يصبح تاجراً بنفس جواله بلا مانع (قرار المالك 2026-07-18) —
+    // يُرفض فقط جوال مرتبط بتاجر آخر (التوكن يحمل تاجراً واحداً) أو بحساب أدمن
     const existing = await prisma.user.findUnique({
       where: { phone },
-      include: { user_roles: true }
+      include: { user_roles: { include: { role: true } } }
     });
-    if (existing?.actor_type === "customer")
-      throw new AppError("SYS-9004", { hint: "الجوال مسجل كعميل — استخدم جوالاً آخر للمالك" });
-    if (existing && existing.user_roles.length > 0)
-      throw new AppError("SYS-9004", { hint: "الجوال مرتبط بحساب آخر بالفعل" });
+    if (existing?.user_roles.some((r) => r.role.key.startsWith("merchant:")))
+      throw new AppError("SYS-9004", { hint: "الجوال مرتبط بتاجر آخر بالفعل" });
+    if (existing?.user_roles.some((r) => r.role.key.startsWith("admin:")))
+      throw new AppError("SYS-9004", { hint: "جوال حساب أدمن — استخدم جوالاً آخر للمالك" });
 
     const merchant = await prisma.$transaction(async (tx) => {
       const m = await tx.merchant.create({
@@ -192,6 +193,11 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         (await tx.user.create({
           data: { phone, full_name: body.owner_name, actor_type: "merchant_staff" }
         }));
+      // عميل قائم صار مالكاً: يبقى actor_type في السجل كما هو — التوكن يُشتق من الأدوار،
+      // ونكمل اسمه إن كان فارغاً
+      if (existing && !existing.full_name) {
+        await tx.user.update({ where: { id: existing.id }, data: { full_name: body.owner_name } });
+      }
       await tx.userRole.create({
         data: { user_id: owner.id, role_id: ownerRole.id, merchant_id: m.id }
       });
