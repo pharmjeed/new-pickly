@@ -43,7 +43,6 @@ export default function Merchants() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [pendingCreate, setPendingCreate] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -66,7 +65,7 @@ export default function Merchants() {
     draft.owner_name.trim().length >= 2 &&
     /^(05\d{8}|\+9665\d{8})$/.test(draft.owner_phone.trim());
 
-  const confirmCreate = async (reason: string) => {
+  const confirmCreate = async () => {
     if (!draft || !validDraft) return;
     setBusy(true);
     setError(null);
@@ -77,13 +76,13 @@ export default function Merchants() {
         cuisine_ar: draft.cuisine_ar.trim() || null,
         owner_name: draft.owner_name.trim(),
         owner_phone: draft.owner_phone.trim(),
-        reason
+        // الـAPI يلزم سبباً لسجل التدقيق — الإنشاء اليدوي سببه بديهي فيُرسل ثابتاً بلا نافذة
+        reason: "إنشاء يدوي من لوحة الأدمن"
       });
       setNotice(
         `أُنشئ التاجر «${draft.name_ar.trim()}» — يدخل المالك بوابة التاجر بجواله (رمز تحقق) وينشئ فروعه ومنيوه من هناك`
       );
       setDraft(null);
-      setPendingCreate(false);
       load();
     } catch (e) {
       setError((e as Error).message);
@@ -204,7 +203,7 @@ export default function Merchants() {
               type="button"
               className="btn sm"
               disabled={!validDraft || busy}
-              onClick={() => setPendingCreate(true)}
+              onClick={confirmCreate}
               data-testid="merchant-save"
             >
               إنشاء التاجر
@@ -311,17 +310,6 @@ export default function Merchants() {
             </tbody>
           </table>
         </div>
-      )}
-
-      {pendingCreate && draft && (
-        <ReasonModal
-          title={`إنشاء التاجر «${draft.name_ar.trim()}»`}
-          hint="مثل: تعاقد موقع — يدخل سجل التدقيق"
-          confirmLabel="إنشاء"
-          busy={busy}
-          onConfirm={confirmCreate}
-          onClose={() => setPendingCreate(false)}
-        />
       )}
 
       {action && (
