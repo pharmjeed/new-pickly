@@ -5,7 +5,7 @@
 
 | التطبيق | المجلد | يفتح | المعرّف (bundle) | الأيقونة |
 |---|---|---|---|---|
-| العميل | `mobile-apps/customer` | `https://thepickly.com` | `sa.pickly.customer` | القرطاس المبتسم (ليموني) |
+| العميل | `mobile-apps/customer` | `https://app.thepickly.com` | `sa.pickly.customer` | القرطاس المبتسم (ليموني) |
 | الفرع | `mobile-apps/branch` | `https://branch.thepickly.com` | `sa.pickly.branch` | شبكة اللوحة (كحلي) |
 
 **ما يضيفه الغلاف فوق الويب:** إذن الموقع الأصلي لتدفّق «وصلت» (العميل)، فتح خرائط قوقل/الهاتف خارج التطبيق،

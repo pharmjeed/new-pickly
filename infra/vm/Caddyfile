@@ -5,13 +5,18 @@
 
 # ————— الدومين الرسمي —————
 
-# واجهة العميل — النطاق الرئيسي
+# اللاندنق (الموقع التعريفي) — النطاق الرئيسي
 thepickly.com {
-	reverse_proxy customer-web:3000
+	reverse_proxy site:3004
 }
 
 www.thepickly.com {
 	redir https://thepickly.com{uri} permanent
+}
+
+# تطبيق العميل
+app.thepickly.com {
+	reverse_proxy customer-web:3000
 }
 
 # بوابة التاجر
@@ -29,9 +34,9 @@ admin.thepickly.com {
 	reverse_proxy admin-web:3003
 }
 
-# الموقع التعريفي
+# site. القديم يحوّل للنطاق الرئيسي (اللاندنق صارت عليه)
 site.thepickly.com {
-	reverse_proxy site:3004
+	redir https://thepickly.com{uri} permanent
 }
 
 # ————— عناوين sslip.io الاحتياطية —————

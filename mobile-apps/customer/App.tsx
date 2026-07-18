@@ -30,7 +30,7 @@ import Constants from "expo-constants";
 // ————— إعدادات التطبيق —————
 const SITE_URL: string =
   (Constants.expoConfig?.extra as { siteUrl?: string } | undefined)?.siteUrl ||
-  "https://thepickly.com";
+  "https://app.thepickly.com";
 const SURFACE = "#F7F3E9"; // عاجي — سطح صفحات العميل (الأشرطة الآمنة تندمج معه)
 const LAUNCH_BG = "#C8F542"; // ليموني — لحظة الإقلاع فقط (شاشة البدء + التحميل الأول)
 const LAUNCH_INK = "#0E1B3D"; // كحلي — المؤشّر/النص فوق الليموني

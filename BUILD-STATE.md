@@ -27,9 +27,11 @@
 
 - الموقع: `mobile-apps/customer` و`mobile-apps/branch` — **مشروعان Expo مستقلّان خارج مساحة pnpm عمداً**
   (npm + package-lock مستقل لكلٍّ)، كي لا يمسّا خط الإنتاج/CI/النشر ولتفادي احتكاك Expo مع الـmonorepo.
-- customer → `https://thepickly.com` (`sa.pickly.customer`، portrait، إذن موقع، أيقونة القرطاس).
+- customer → `https://app.thepickly.com` (`sa.pickly.customer`، portrait، إذن موقع، أيقونة القرطاس).
 - branch → `https://branch.thepickly.com` (`sa.pickly.branch`، orientation default، بلا موقع).
-- الدومين الرسمي `thepickly.com` (GoDaddy) مربوط في Caddy منذ 2026-07-18؛ عناوين sslip.io باقية كاحتياط.
+- الدومين الرسمي `thepickly.com` (GoDaddy) حي منذ 2026-07-18: الجذر = اللاندنق، `app.` = تطبيق العميل،
+  `merchant./branch./admin.` للبوابات؛ عناوين sslip.io باقية كاحتياط. تعديل Caddyfile يحتاج
+  `up -d caddy` يدوياً عبر SSH — النشر التلقائي لا يمس caddy.
 - الغلاف يضيف: خرائط قوقل/tel/whatsapp تُفتح خارجاً مع إبقاء تحويلات الدفع داخله، زر رجوع أندرويد،
   حفظ جلسة OTP، سحب-للتحديث، شاشة لا-اتصال. Expo SDK 52 · RN 0.76.9 · react-native-webview 13.12.5.
 - **تحقّق مكتمل محلياً**: typecheck نظيف · expo-doctor 18/18 · `expo export` يبنّد بنجاح للتطبيقين.

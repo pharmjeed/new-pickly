@@ -280,7 +280,7 @@ export default function HomePage() {
             <p className="ctasub">{t.join.sub}</p>
             <div className="cta-btns">
               {/* تطبيق الويب يعمل الآن — متاجر التطبيقات تُضاف عند نشر تطبيق Expo */}
-              <a className="btn" href={process.env.NEXT_PUBLIC_CUSTOMER_APP_URL ?? "https://app.pickly.sa"}>
+              <a className="btn" href={process.env.NEXT_PUBLIC_CUSTOMER_APP_URL ?? "https://app.thepickly.com"}>
                 {t.join.order}
               </a>
               <Link className="btn btn-ghost" href="/merchants">
