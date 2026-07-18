@@ -119,11 +119,22 @@ export class AuthService {
     const roles = await this.repo.getUserRoles(session.user_id);
     const merchantRole = roles.find((r) => r.role_key.startsWith("merchant:"));
     const isAdmin = roles.some((r) => r.role_key.startsWith("admin:"));
+
+    // المالك/المدير العام: يُعاد بناء نطاق الفروع كما عند الدخول — التجديد لا يُسقطه من التوكن
+    let branch_ids: string[] | undefined;
+    if (
+      merchantRole?.merchant_id &&
+      ["merchant:owner", "merchant:general_manager"].includes(merchantRole.role_key)
+    ) {
+      branch_ids = await this.repo.merchantBranchIds(merchantRole.merchant_id);
+    }
+
     const access_token = signAccessToken({
       sub: session.user_id,
       actor_type: isAdmin ? "admin" : merchantRole ? "merchant_staff" : "customer",
       session_id: session.id,
       ...(merchantRole?.merchant_id ? { merchant_id: merchantRole.merchant_id } : {}),
+      ...(branch_ids ? { branch_ids } : {}),
       roles: roles.map((r) => r.role_key)
     });
     return { access_token, refresh_token: newToken, is_new_user: false };

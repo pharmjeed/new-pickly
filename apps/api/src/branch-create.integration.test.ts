@@ -145,6 +145,75 @@ describe.skipIf(!hasDb)("Branch Create (M-03)", async () => {
     expect(settings.default_prep_minutes).toBe(18);
   });
 
+  it("المالك يفتح منيو الفرع الجديد ويضيف صنفاً بتوكنه القديم (بلاغ «خارج نطاق فرعك»)", async () => {
+    const owner = await ownerLogin("0520000001");
+    const create = await app.inject({
+      method: "POST",
+      url: "/v1/merchant/branches",
+      headers: authed(owner),
+      payload: {
+        name_ar: "فرع منيو جديد",
+        city: "الرياض",
+        address_short: "حي المنيو",
+        lat: 24.71,
+        lng: 46.71,
+        copy_menu_from_branch_id: sourceBranchId
+      }
+    });
+    const branchId = (create.json() as { id: string }).id;
+    createdBranchIds.push(branchId);
+
+    // GET /menu بالتوكن نفسه (لا يحوي الفرع الجديد) — كان يرد MERCHANT-7003
+    const menu = await app.inject({
+      method: "GET",
+      url: `/v1/merchant/menu?branch_id=${branchId}`,
+      headers: authed(owner)
+    });
+    expect(menu.statusCode).toBe(200);
+    const categories = (menu.json() as { categories: Array<{ id: string; products: Array<{ id: string }> }> }).categories;
+    expect(categories.length).toBeGreaterThan(0);
+
+    // إضافة صنف للفرع الجديد تمر أيضاً
+    const firstCat = categories[0]!;
+    const product = await app.inject({
+      method: "POST",
+      url: "/v1/merchant/products",
+      headers: authed(owner),
+      payload: {
+        branch_id: branchId,
+        category_id: firstCat.id,
+        name_ar: "صنف فرع جديد",
+        price_halalas: 1500,
+        modifier_groups: []
+      }
+    });
+    expect(product.statusCode).toBe(200);
+    const productId = (product.json() as { id: string }).id;
+
+    // وتبديل التوفر كذلك
+    const avail = await app.inject({
+      method: "POST",
+      url: "/v1/merchant/availability",
+      headers: authed(owner),
+      payload: { branch_id: branchId, product_id: productId, is_available: false }
+    });
+    expect(avail.statusCode).toBe(200);
+
+    // تنظيف الصنف المُنشأ (منيو العلامة مشترك مع فروع الـseed)
+    await prisma.branchProductAvailability.deleteMany({ where: { product_id: productId } });
+    await prisma.product.delete({ where: { id: productId } });
+  });
+
+  it("العزل: مالك تاجر آخر لا يفتح منيو فرع ليس له (403)", async () => {
+    const foreign = await ownerLogin("0520000002");
+    const res = await app.inject({
+      method: "GET",
+      url: `/v1/merchant/menu?branch_id=${sourceBranchId}`,
+      headers: authed(foreign)
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
   it("العزل: مالك تاجر آخر لا ينسخ من فرع ليس له (403)", async () => {
     const foreign = await ownerLogin("0520000002");
     const res = await app.inject({

@@ -752,7 +752,8 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
     const claims = requireStaff(req, MENU_ROLES);
     const merchant_id = merchantIdOf(req);
     const q = z.object({ branch_id: UuidSchema }).parse(req.query);
-    assertBranchScope(claims, q.branch_id);
+    // كامل النطاق لا يتقيد بفروع توكنه (قد يكون الفرع أُنشئ بعد الدخول) — الملكية تُفحص أدناه
+    if (!hasFullScope(claims)) assertBranchScope(claims, q.branch_id);
 
     const branch = await prisma.branch.findFirst({ where: { id: q.branch_id, merchant_id } });
     if (!branch) throw new AppError("MERCHANT-7003");
@@ -821,7 +822,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
         is_available: z.boolean()
       })
       .parse(req.body);
-    assertBranchScope(claims, body.branch_id);
+    if (!hasFullScope(claims)) assertBranchScope(claims, body.branch_id);
 
     const branch = await prisma.branch.findFirst({ where: { id: body.branch_id, merchant_id } });
     if (!branch) throw new AppError("MERCHANT-7003");
@@ -1387,7 +1388,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
         notes: z.string().max(280).optional()
       })
       .parse(req.body);
-    assertBranchScope(claims, body.branch_id);
+    await assertBranchAccess(req, claims, body.branch_id);
 
     await prisma.$transaction(async (tx) => {
       await tx.branch.update({ where: { id: body.branch_id }, data: { status: "open" } });
@@ -1418,7 +1419,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
     const body = z
       .object({ branch_id: UuidSchema, notes: z.string().max(280).optional() })
       .parse(req.body);
-    assertBranchScope(claims, body.branch_id);
+    await assertBranchAccess(req, claims, body.branch_id);
 
     // الطلبات المفتوحة تُعرض قبل الإغلاق — الإغلاق لا يعطل تسليم القائم (BR-14 روحاً)
     const openOrders = await prisma.order.count({
@@ -1452,7 +1453,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
   app.get("/shifts/summary", async (req) => {
     const claims = requireStaff(req, [...MANAGER_ROLES, "cashier"]);
     const q = z.object({ branch_id: UuidSchema }).parse(req.query);
-    assertBranchScope(claims, q.branch_id);
+    await assertBranchAccess(req, claims, q.branch_id);
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -1481,7 +1482,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
   app.get("/scheduled/settings", async (req) => {
     const claims = requireStaff(req, MANAGER_ROLES);
     const q = z.object({ branch_id: UuidSchema }).parse(req.query);
-    assertBranchScope(claims, q.branch_id);
+    await assertBranchAccess(req, claims, q.branch_id);
     const settings = await prisma.branchPickupSettings.findUnique({ where: { branch_id: q.branch_id } });
     return { branch_id: q.branch_id, scheduled_enabled: settings?.scheduled_enabled ?? false };
   });
@@ -1489,7 +1490,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
   app.post("/scheduled/settings", async (req) => {
     const claims = requireStaff(req, MANAGER_ROLES);
     const body = z.object({ branch_id: UuidSchema, scheduled_enabled: z.boolean() }).parse(req.body);
-    assertBranchScope(claims, body.branch_id);
+    if (!hasFullScope(claims)) assertBranchScope(claims, body.branch_id);
     const merchant_id = merchantIdOf(req);
     const branch = await prisma.branch.findFirst({ where: { id: body.branch_id, merchant_id } });
     if (!branch) throw new AppError("MERCHANT-7003");
@@ -1520,7 +1521,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
   app.get("/scheduled/slots", async (req) => {
     const claims = requireStaff(req, MANAGER_ROLES);
     const q = z.object({ branch_id: UuidSchema }).parse(req.query);
-    assertBranchScope(claims, q.branch_id);
+    await assertBranchAccess(req, claims, q.branch_id);
     const slots = await prisma.branchCapacitySlot.findMany({
       where: { branch_id: q.branch_id, slot_start: { gte: new Date() } },
       orderBy: { slot_start: "asc" },
@@ -1539,7 +1540,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
   app.get("/scheduled/week", async (req) => {
     const claims = requireStaff(req, MANAGER_ROLES);
     const q = z.object({ branch_id: UuidSchema }).parse(req.query);
-    assertBranchScope(claims, q.branch_id);
+    await assertBranchAccess(req, claims, q.branch_id);
     const [hours, settings] = await Promise.all([
       prisma.branchHour.findMany({ where: { branch_id: q.branch_id }, orderBy: [{ day_of_week: "asc" }, { opens_at: "asc" }] }),
       prisma.branchPickupSettings.findUnique({ where: { branch_id: q.branch_id } })
@@ -1581,7 +1582,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
         message: "يوم مكرر في الدوام"
       })
       .parse(req.body);
-    assertBranchScope(claims, body.branch_id);
+    if (!hasFullScope(claims)) assertBranchScope(claims, body.branch_id);
     const merchant_id = merchantIdOf(req);
     const branch = await prisma.branch.findFirst({ where: { id: body.branch_id, merchant_id } });
     if (!branch) throw new AppError("MERCHANT-7003");
@@ -1639,7 +1640,7 @@ export async function merchantPortalRoutes(app: FastifyInstance): Promise<void> 
       include: { branch: { select: { merchant_id: true } } }
     });
     if (!slot || slot.branch.merchant_id !== merchant_id) throw new AppError("MERCHANT-7003");
-    assertBranchScope(claims, slot.branch_id);
+    if (!hasFullScope(claims)) assertBranchScope(claims, slot.branch_id);
     if (slot.booked > 0) throw new AppError("SYS-9004", { hint: "الفترة عليها حجوزات — لا يمكن حذفها" });
     await prisma.branchCapacitySlot.delete({ where: { id } });
     return { ok: true };

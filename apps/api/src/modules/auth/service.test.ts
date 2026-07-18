@@ -23,7 +23,8 @@ function makeRepo(overrides: Partial<AuthRepository> = {}): AuthRepository {
     }),
     findSessionByRefreshHash: vi.fn().mockResolvedValue(null),
     rotateSession: vi.fn().mockResolvedValue({}),
-    revokeSession: vi.fn().mockResolvedValue({})
+    revokeSession: vi.fn().mockResolvedValue({}),
+    merchantBranchIds: vi.fn().mockResolvedValue([])
   } as unknown as AuthRepository;
   return Object.assign(base, overrides);
 }
@@ -128,6 +129,27 @@ describe("AuthService — OTP (BR-13)", () => {
     await expect(service.verifyOtp("+966500000001", "1234")).rejects.toMatchObject({
       code: "AUTH-1007"
     });
+  });
+
+  it("refresh لمالك تاجر يعيد بناء نطاق الفروع في التوكن (لا يسقط branch_ids)", async () => {
+    const repo = makeRepo({
+      findSessionByRefreshHash: vi.fn().mockResolvedValue({
+        id: "22222222-2222-4222-8222-222222222222",
+        user_id: "11111111-1111-4111-8111-111111111111",
+        revoked_at: null,
+        expires_at: new Date(Date.now() + 60_000)
+      }),
+      getUserRoles: vi.fn().mockResolvedValue([
+        { role_key: "merchant:owner", merchant_id: "33333333-3333-4333-8333-333333333333" }
+      ]),
+      merchantBranchIds: vi.fn().mockResolvedValue(["44444444-4444-4444-8444-444444444444"])
+    } as Partial<AuthRepository>);
+    const service = new AuthService(repo, mockSms);
+    const res = await service.refresh("token");
+    const payload = JSON.parse(
+      Buffer.from(res.access_token.split(".")[1]!, "base64url").toString()
+    ) as { branch_ids?: string[] };
+    expect(payload.branch_ids).toEqual(["44444444-4444-4444-8444-444444444444"]);
   });
 
   it("refresh بجلسة ملغاة ← AUTH-1005", async () => {
