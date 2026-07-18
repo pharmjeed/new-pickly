@@ -58,7 +58,7 @@ describe.skipIf(!hasDb)("Branch Create (M-03)", async () => {
       await prisma.geofence.deleteMany({ where: { branch_id: id } });
       await prisma.parkingSpot.deleteMany({ where: { branch_id: id } });
       await prisma.branchPickupSettings.deleteMany({ where: { branch_id: id } });
-      await prisma.auditLog.deleteMany({ where: { branch_id: id } });
+      // لا حذف لسجلات التدقيق — audit_logs append-only بمحفّز يمنع DELETE (docs/10§4)، وبلا FK للفرع
       await prisma.branch.deleteMany({ where: { id } });
     }
     await app.close();
