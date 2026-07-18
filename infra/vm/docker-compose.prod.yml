@@ -150,7 +150,7 @@ services:
     environment:
       # الـCaddyfile مربوط bind-mount ولا يُعاد تحميله تلقائياً؛ غيّر هذا الرقم مع كل
       # تعديل عليه كي يعيد docker compose up -d إنشاء الحاوية فتقرأ الإعداد الجديد.
-      CADDY_CONFIG_VERSION: "2"
+      CADDY_CONFIG_VERSION: "3"
     ports:
       - "80:80"
       - "443:443"
