@@ -365,6 +365,8 @@ export default function App() {
             javaScriptEnabled
             // الموقع الجغرافي داخل الويب
             geolocationEnabled
+            // إعلام صفحة الويب أن الغلاف يعرض شاشة إقلاع أصلية — فلا تكرر سبلاش الويب بعدها
+            injectedJavaScriptBeforeContentLoaded={"window.__picklyHasNativeSplash=true;true;"}
             // منع نوافذ منبثقة منفصلة — روابط target=_blank تمرّ عبر onShouldStart
             setSupportMultipleWindows={false}
             allowsBackForwardNavigationGestures
