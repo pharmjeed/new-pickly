@@ -265,7 +265,7 @@
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  /* متنفس حول البطاقات حتى لا يقص حاوي التمرير ظل pop-xs (2px) وميلان الملصق */
+  /* متنفس حول البطاقات حتى لا يقص حاوي التمرير ظل pop-xs (2px) */
   padding: 2px 2px 6px;
   scrollbar-width: none;
   scroll-snap-type: x proximity;
@@ -294,15 +294,10 @@
   transform: translate(2px, 2px);
   box-shadow: 0 0 0 var(--pk-ink-900);
 }
-/* ملصق التصنيف الفوتوغرافي — دائرة بحد كحلي وظل صلب وميلان ملصقات الهوية */
+/* صورة التصنيف — بلا إطار دائري: تملأ عرض البطاقة الداخلي كاملاً */
 .catPh {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--pk-cloud);
-  border: var(--pk-b2);
-  box-shadow: var(--pk-pop-xs);
-  transform: rotate(var(--pk-sticker-tilt));
+  width: 100%;
+  aspect-ratio: 1;
   overflow: hidden;
   flex: none;
 }
@@ -312,19 +307,10 @@
   object-fit: cover;
   display: block;
 }
-/* تناوب اتجاه الميلان بين البطاقات — إيقاع الملصقات المرح */
-.catCard:nth-child(even) .catPh {
-  transform: rotate(calc(-1 * var(--pk-sticker-tilt)));
-}
 .catNm {
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-14);
   font-weight: 700;
-  line-height: 1.2;
-}
-.catCt {
-  font-size: var(--pk-fs-12);
-  color: var(--pk-text-2);
   line-height: 1.2;
 }
 
