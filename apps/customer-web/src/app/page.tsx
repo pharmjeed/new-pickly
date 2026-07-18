@@ -161,7 +161,7 @@ export default function HomePage() {
                     <span className={styles.catPh}>
                       {/* أصل ثابت صغير من public — كصور البانرات، next/image يتطلب تهيئة لا تلزم هنا */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={cuisinePhoto(name)} alt="" width={64} height={64} loading="lazy" />
+                      <img src={cuisinePhoto(name)} alt="" width={44} height={44} loading="lazy" />
                     </span>
                     <b className={styles.catNm}>{name}</b>
                     <span className={styles.catCt}>{count} {count === 1 ? "مطعم" : "مطاعم"}</span>

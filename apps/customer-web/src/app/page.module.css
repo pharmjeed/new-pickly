@@ -281,11 +281,11 @@
   border: var(--pk-b2);
   border-radius: var(--pk-radius-md);
   box-shadow: var(--pk-pop-xs);
-  padding: 14px 8px 12px;
+  padding: 8px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   color: var(--pk-text);
   text-decoration: none;
   transition: transform 0.15s, box-shadow 0.15s;
@@ -296,8 +296,8 @@
 }
 /* ملصق التصنيف الفوتوغرافي — دائرة بحد كحلي وظل صلب وميلان ملصقات الهوية */
 .catPh {
-  width: 64px;
-  height: 64px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--pk-cloud);
   border: var(--pk-b2);
@@ -320,10 +320,12 @@
   font-family: var(--pk-font-display);
   font-size: var(--pk-fs-14);
   font-weight: 700;
+  line-height: 1.2;
 }
 .catCt {
   font-size: var(--pk-fs-12);
   color: var(--pk-text-2);
+  line-height: 1.2;
 }
 
 /* ===== chips التصنيفات في قائمة المطاعم ===== */
