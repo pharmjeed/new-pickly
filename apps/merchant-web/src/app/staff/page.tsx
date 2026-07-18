@@ -254,7 +254,7 @@ export default function StaffPage() {
               <input
                 value={username}
                 data-testid="staff-username"
-                placeholder="مثال: BB-OLAYA-rashed"
+                placeholder="مثال: rashed101"
                 dir="ltr"
                 disabled={!!editId}
                 onChange={(e) => setUsername(e.target.value)}

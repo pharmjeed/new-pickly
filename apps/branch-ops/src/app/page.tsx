@@ -93,7 +93,7 @@ export default function BranchLoginPage() {
                 id="branch-code"
                 className={`${s.inp} ${s.inpMono}`}
                 data-testid="branch-code"
-                placeholder="BB-OLAYA"
+                placeholder="101"
                 value={branchCode}
                 onChange={(e) => setBranchCode(e.target.value)}
               />

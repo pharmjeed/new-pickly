@@ -26,6 +26,6 @@ Write-Host ""
 Write-Host "✅ انطلقت الخوادم — انتظر ~30 ثانية ثم افتح:" -ForegroundColor Green
 Write-Host "   العميل  http://localhost:3000   (جوال 0500000001 · رمز 1234)"
 Write-Host "   التاجر  http://localhost:3001   (جوال 0520000001 · رمز 1234)"
-Write-Host "   الفرع   http://localhost:3002   (BB-OLAYA / BB-OLAYA-cashier / 1234)"
+Write-Host "   الفرع   http://localhost:3002   (101 / cashier101 / 1234)"
 Write-Host "   الأدمن  http://localhost:3003   (جوال 0510000001 · رمز 1234)"
 Write-Host "   الموقع  http://localhost:3004"

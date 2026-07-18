@@ -34,7 +34,8 @@ export const RefreshBodySchema = z.object({
 
 /** دخول فريق الفرع: كود فرع + حساب/PIN — docs/11§1 */
 export const BranchLoginBodySchema = z.object({
-  branch_code: z.string().min(4).max(16),
+  // ٣ أحرف كحد أدنى — رموز الفروع القصيرة (101، 202...) بقرار المالك 2026-07-18
+  branch_code: z.string().min(3).max(16),
   username: z.string().min(2),
   pin: z.string().regex(/^\d{4,8}$/),
   device_name: z.string().min(1).max(64)
