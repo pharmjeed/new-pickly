@@ -138,6 +138,233 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     }));
   });
 
+  /**
+   * إنشاء تاجر مباشرة من اللوحة: تاجر معتمد + علامة + حساب مالك بدور merchant:owner.
+   * المالك يدخل بوابة التاجر بجواله عبر OTP وينشئ فروعه ومنيوه من هناك (M-04/M-08).
+   */
+  app.post("/merchants", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin", "merchant_success"]);
+    const body = z
+      .object({
+        name_ar: z.string().trim().min(2).max(80),
+        brand_name_ar: z.string().trim().min(2).max(80).nullable().default(null),
+        cuisine_ar: z.string().trim().max(40).nullable().default(null),
+        owner_name: z.string().trim().min(2).max(80),
+        owner_phone: z.string().trim(),
+        reason: z.string().min(3)
+      })
+      .parse(req.body);
+
+    const phone = body.owner_phone.startsWith("05") ? `+966${body.owner_phone.slice(1)}` : body.owner_phone;
+    if (!/^\+9665\d{8}$/.test(phone)) throw new AppError("SYS-9004", { hint: "جوال المالك بصيغة 05XXXXXXXX" });
+
+    const dupName = await prisma.merchant.findFirst({ where: { name_ar: body.name_ar } });
+    if (dupName) throw new AppError("SYS-9004", { hint: "يوجد تاجر بنفس الاسم" });
+
+    const ownerRole = await prisma.role.findUnique({ where: { key: "merchant:owner" } });
+    if (!ownerRole) throw new AppError("SYS-9004", { hint: "دور merchant:owner غير مهيأ — شغّل الseed" });
+
+    // جوال مالك مرتبط بعميل يكسر دخوله كعميل (actor_type يُحسب من الأدوار) — نرفض بوضوح
+    const existing = await prisma.user.findUnique({
+      where: { phone },
+      include: { user_roles: true }
+    });
+    if (existing?.actor_type === "customer")
+      throw new AppError("SYS-9004", { hint: "الجوال مسجل كعميل — استخدم جوالاً آخر للمالك" });
+    if (existing && existing.user_roles.length > 0)
+      throw new AppError("SYS-9004", { hint: "الجوال مرتبط بحساب آخر بالفعل" });
+
+    const merchant = await prisma.$transaction(async (tx) => {
+      const m = await tx.merchant.create({
+        data: { name_ar: body.name_ar, status: "approved", plan_key: "pilot_basic" }
+      });
+      await tx.brand.create({
+        data: {
+          merchant_id: m.id,
+          name_ar: body.brand_name_ar ?? body.name_ar,
+          cuisine_ar: body.cuisine_ar
+        }
+      });
+      const owner =
+        existing ??
+        (await tx.user.create({
+          data: { phone, full_name: body.owner_name, actor_type: "merchant_staff" }
+        }));
+      await tx.userRole.create({
+        data: { user_id: owner.id, role_id: ownerRole.id, merchant_id: m.id }
+      });
+      return m;
+    });
+    await audit(sub, "merchant_created", "merchant", merchant.id, body.reason, {
+      owner_phone: phone,
+      owner_name: body.owner_name
+    });
+    return { id: merchant.id, name_ar: merchant.name_ar, owner_phone: phone };
+  });
+
+  /**
+   * A-04ب: ملف التاجر الكامل — كل ما يخص التاجر في رد واحد:
+   * البيانات القانونية والبنكية (آخر 4 من IBAN فقط — الكامل يبقى مشفراً docs/16§4)،
+   * العلامات والفروع والفريق، مؤشرات الطلبات والمبيعات، آخر الطلبات،
+   * التسويات والحوالات، وسجل قرارات المنصة على هذا التاجر.
+   */
+  app.get("/merchants/:id", async (req) => {
+    requireAdmin(req, ALL_READ);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const merchant = await prisma.merchant.findUnique({
+      where: { id },
+      include: {
+        legal_profile: true,
+        bank_accounts: { orderBy: [{ is_primary: "desc" }, { created_at: "asc" }] },
+        brands: { include: { _count: { select: { branches: true } } }, orderBy: { created_at: "asc" } },
+        branches: {
+          include: { brand: { select: { name_ar: true } }, _count: { select: { orders: true } } },
+          orderBy: { created_at: "asc" }
+        },
+        staff: {
+          include: { branch_assignments: { include: { branch: { select: { name_ar: true } } } } },
+          orderBy: { created_at: "asc" }
+        }
+      }
+    });
+    if (!merchant) throw new AppError("ORDER-4001");
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    // مبيعات = الطلبات التي اكتملت (تشمل ما دخل مسار استرجاع بعد الاكتمال) — الدقة المالية عند التسويات
+    const SALE_STATUSES = ["COMPLETED", "REFUND_PENDING", "PARTIALLY_REFUNDED", "REFUNDED"] as const;
+    const [
+      ordersTotal,
+      ordersToday,
+      ordersCompleted,
+      ordersMissed,
+      sales,
+      lastOrder,
+      recentOrders,
+      settlements,
+      payouts,
+      auditTrail
+    ] = await Promise.all([
+      prisma.order.count({ where: { merchant_id: id } }),
+      prisma.order.count({ where: { merchant_id: id, created_at: { gte: startOfDay } } }),
+      prisma.order.count({ where: { merchant_id: id, order_status: { in: [...SALE_STATUSES] } } }),
+      prisma.order.count({
+        where: { merchant_id: id, order_status: { in: ["CANCELLED", "NO_SHOW", "EXPIRED", "MERCHANT_REJECTED"] } }
+      }),
+      prisma.order.aggregate({
+        where: { merchant_id: id, order_status: { in: [...SALE_STATUSES] } },
+        _sum: { total_halalas: true }
+      }),
+      prisma.order.findFirst({
+        where: { merchant_id: id },
+        orderBy: { created_at: "desc" },
+        select: { created_at: true }
+      }),
+      prisma.order.findMany({
+        where: { merchant_id: id },
+        include: { branch: { select: { name_ar: true } } },
+        orderBy: { created_at: "desc" },
+        take: 10
+      }),
+      prisma.merchantSettlement.findMany({ where: { merchant_id: id }, orderBy: { period_start: "desc" }, take: 6 }),
+      prisma.merchantPayout.findMany({ where: { merchant_id: id }, orderBy: { created_at: "desc" }, take: 6 }),
+      prisma.auditLog.findMany({
+        where: { entity_type: "merchant", entity_id: id },
+        orderBy: { created_at: "desc" },
+        take: 10
+      })
+    ]);
+
+    return {
+      id: merchant.id,
+      name_ar: merchant.name_ar,
+      name_en: merchant.name_en,
+      status: merchant.status,
+      plan_key: merchant.plan_key,
+      settlement_cycle: merchant.settlement_cycle,
+      trial_ends_at: merchant.trial_ends_at,
+      created_at: merchant.created_at,
+      legal: merchant.legal_profile
+        ? {
+            legal_name: merchant.legal_profile.legal_name,
+            cr_number: merchant.legal_profile.cr_number,
+            vat_number: merchant.legal_profile.vat_number,
+            address: merchant.legal_profile.address
+          }
+        : null,
+      bank_accounts: merchant.bank_accounts.map((b) => ({
+        id: b.id,
+        bank_name: b.bank_name,
+        iban_short: b.iban_short,
+        is_primary: b.is_primary
+      })),
+      brands: merchant.brands.map((b) => ({
+        id: b.id,
+        name_ar: b.name_ar,
+        cuisine_ar: b.cuisine_ar,
+        is_active: b.is_active,
+        branches: b._count.branches
+      })),
+      branches: merchant.branches.map((b) => ({
+        id: b.id,
+        name_ar: b.name_ar,
+        brand: b.brand.name_ar,
+        branch_code: b.branch_code,
+        status: b.status,
+        city: b.city,
+        address_short: b.address_short,
+        phone: b.phone,
+        is_active: b.is_active,
+        orders: b._count.orders
+      })),
+      staff: merchant.staff.map((s) => ({
+        id: s.id,
+        full_name: s.full_name,
+        username: s.username,
+        role_key: s.role_key,
+        status: s.status,
+        branches: s.branch_assignments.map((a) => a.branch.name_ar)
+      })),
+      stats: {
+        orders_total: ordersTotal,
+        orders_today: ordersToday,
+        orders_completed: ordersCompleted,
+        orders_missed: ordersMissed,
+        sales_halalas: sales._sum.total_halalas ?? 0,
+        last_order_at: lastOrder?.created_at ?? null
+      },
+      recent_orders: recentOrders.map((o) => ({
+        id: o.id,
+        display_code: o.display_code,
+        order_status: o.order_status,
+        branch: o.branch.name_ar,
+        total_halalas: o.total_halalas,
+        created_at: o.created_at
+      })),
+      settlements: settlements.map((s) => ({
+        id: s.id,
+        period_start: s.period_start,
+        period_end: s.period_end,
+        gross_halalas: s.gross_halalas,
+        net_halalas: s.net_halalas,
+        status: s.status
+      })),
+      payouts: payouts.map((p) => ({
+        id: p.id,
+        amount_halalas: p.amount_halalas,
+        bank_ref: p.bank_ref,
+        status: p.status,
+        created_at: p.created_at
+      })),
+      audit_trail: auditTrail.map((a) => ({
+        id: a.id,
+        action: a.action,
+        reason: a.reason,
+        created_at: a.created_at
+      }))
+    };
+  });
+
   app.post("/merchants/:id/approve", async (req) => {
     const { sub } = requireAdmin(req, ["super_admin", "merchant_success"]);
     const id = UuidSchema.parse((req.params as { id: string }).id);
