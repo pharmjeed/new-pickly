@@ -136,7 +136,7 @@ describe.skipIf(!hasDb)("إنشاء تاجر من لوحة السوبر أدمن
       method: "POST",
       url: "/v1/customers/me/vehicles",
       headers: authed(dualToken),
-      payload: { color_ar: "بيضاء", plate_short: "7777" }
+      payload: { color_ar: "بيضاء", plate_letters_ar: "ح د ص", plate_digits: "7777" }
     });
     expect(vehicle.statusCode).toBeLessThan(300);
   });
