@@ -51,6 +51,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   // details.hint يلحق بالرسالة، وأخطاء Zod تُترجم بأسماء الحقول المخطئة.
   const zodIssueAr = (i: ZodError["issues"][number]): string => {
     const path = i.path.join(".") || "الطلب";
+    // رسالة مخصصة بالعربية من المخطط نفسه (مثل صيغة الجوال) — تمر كما هي
+    if (/[؀-ۿ]/.test(i.message)) return `«${path}»: ${i.message}`;
     switch (i.code) {
       case "invalid_type":
         return i.received === "undefined" ? `«${path}» مطلوب` : `«${path}» بنوع غير صحيح`;
