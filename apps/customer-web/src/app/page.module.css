@@ -260,26 +260,16 @@
   border-radius: var(--pk-radius-lg);
 }
 
-/* ===== تصنيفات المطاعم (C-09) — صفان يمرّان أفقياً، بطاقة مربعة والاسم تحتها ===== */
+/* ===== تصنيفات المطاعم (C-09) — ٤ في كل صف، بطاقة مربعة والاسم تحتها ===== */
 .cats {
   display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: auto auto;
-  /* ٤ أعمدة ظاهرة في عرض الشاشة (كالمرجع)؛ الباقي بالتمرير الأفقي */
-  grid-auto-columns: calc((100% - 30px) / 4);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px 10px;
-  overflow-x: auto;
-  /* متنفس حول البطاقات حتى لا يقص حاوي التمرير ظل pop-xs (2px) */
+  /* متنفس حول البطاقات حتى لا يُقص ظل pop-xs (2px) */
   padding: 2px 2px 6px;
-  scrollbar-width: none;
-  scroll-snap-type: x proximity;
-}
-.cats::-webkit-scrollbar {
-  display: none;
 }
 .catCard {
   min-width: 0;
-  scroll-snap-align: start;
   display: flex;
   flex-direction: column;
   align-items: center;
