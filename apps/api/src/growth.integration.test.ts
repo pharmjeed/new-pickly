@@ -87,8 +87,9 @@ describe.skipIf(!hasDb)("النقاط والدعوة وملف العميل", asy
       method: "POST",
       url: "/v1/customers/me/vehicles",
       headers: authed(token),
-      payload: { color_ar: "بيضاء", plate_short: "7777" }
+      payload: { color_ar: "بيضاء", plate_letters_ar: "ح ع ن", plate_digits: "7777" }
     });
+    expect(veh.statusCode, veh.body).toBe(200);
     const cart = await app.inject({
       method: "POST",
       url: "/v1/carts",
@@ -97,14 +98,27 @@ describe.skipIf(!hasDb)("النقاط والدعوة وملف العميل", asy
     });
     const cartId = cart.json().id as string;
     const menuRes = await app.inject({ method: "GET", url: `/v1/branches/${branch.id}/menu` });
-    const product = menuRes.json().categories[0].products[0];
-    await app.inject({
+    const menu = menuRes.json() as {
+      categories: Array<{
+        products: Array<{ id: string; is_available?: boolean; modifier_groups?: Array<{ min_select: number }> }>;
+      }>;
+    };
+    // منتج متاح بلا تخصيصات إلزامية — الإلزامي يمنع الإضافة قبل استكماله (C-25)
+    const products = menu.categories.flatMap((c) => c.products);
+    const product =
+      products.find(
+        (p) => p.is_available !== false && (p.modifier_groups ?? []).every((g) => g.min_select === 0)
+      ) ?? products[0];
+    if (!product) throw new Error(`قائمة الفرع فارغة: ${menuRes.body.slice(0, 200)}`);
+    const added = await app.inject({
       method: "POST",
       url: `/v1/carts/${cartId}/items`,
       headers: authed(token),
       payload: { product_id: product.id, quantity: 1, modifier_ids: [] }
     });
+    expect(added.statusCode, added.body).toBe(200);
     const quoted = await app.inject({ method: "POST", url: `/v1/carts/${cartId}/quote`, headers: authed(token) });
+    expect(quoted.statusCode, quoted.body).toBe(200);
     const quote = quoted.json().quote as { quote_id: string; total_halalas: number };
     const orderRes = await app.inject({
       method: "POST",
@@ -112,7 +126,7 @@ describe.skipIf(!hasDb)("النقاط والدعوة وملف العميل", asy
       headers: { ...authed(token), "idempotency-key": randomUUID() },
       payload: { cart_id: cartId, quote_id: quote.quote_id, vehicle_id: veh.json().id as string }
     });
-    expect(orderRes.statusCode).toBe(200);
+    expect(orderRes.statusCode, orderRes.body).toBe(200);
     const order = orderRes.json() as { id: string; total_halalas: number };
     const intent = await app.inject({
       method: "POST",
@@ -120,7 +134,7 @@ describe.skipIf(!hasDb)("النقاط والدعوة وملف العميل", asy
       headers: { ...authed(token), "idempotency-key": randomUUID() },
       payload: { method: "apple_pay" }
     });
-    expect(intent.statusCode).toBe(200);
+    expect(intent.statusCode, intent.body).toBe(200);
     const pay = await app.inject({ method: "POST", url: `/v1/dev/mock-gateway/by-order/${order.id}/pay` });
     expect(pay.json().gateway_result).toBe("authorized");
     return order;
