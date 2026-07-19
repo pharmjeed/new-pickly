@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * A-07: عملاء المنصة — GET /api/v1/admin/customers جدول (شارة خطر عند risk_flagged)
- * + حظر/رفع POST /customers/{id}/block {action, reason} بنافذة سبب إلزامي.
+ * A-07: عملاء المنصة — جدول + النقر يفتح الملف الشامل (CustomerFile — قرار المالك 2026-07-19)
+ * + حظر/رفع بنافذة سبب إلزامي + إعدادات المكافآت والدعوة (growth.rewards).
  */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, apiGet, apiPost } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
+import CustomerFile from "@/components/modules/CustomerFile";
 import { Qirtas, QirtasLoader } from "@/components/qirtas";
 
 type Customer = {
@@ -28,6 +29,96 @@ const STATUS_AR: Record<string, { label: string; cls: string }> = {
 
 type PendingBlock = { customer: Customer; action: "block" | "unblock" };
 
+type Growth = { points_per_sar: number; referrer_reward_halalas: number; friend_reward_halalas: number };
+
+/** بطاقة إعدادات النمو: نقاط لكل ريال + مبلغا مكافأة الدعوة — حفظ بسبب مُدقق */
+function GrowthSettingsCard() {
+  const [growth, setGrowth] = useState<Growth | null>(null);
+  const [pointsPerSar, setPointsPerSar] = useState("");
+  const [referrer, setReferrer] = useState("");
+  const [friend, setFriend] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [msg, setMsg] = useState<{ err: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    apiGet<Growth>("/api/v1/admin/ops/growth")
+      .then((g) => {
+        setGrowth(g);
+        setPointsPerSar(String(g.points_per_sar));
+        setReferrer((g.referrer_reward_halalas / 100).toFixed(0));
+        setFriend((g.friend_reward_halalas / 100).toFixed(0));
+      })
+      .catch((e: unknown) => setMsg({ err: true, text: (e as Error).message }));
+  }, []);
+
+  const save = async (reason: string) => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      await apiPost("/api/v1/admin/ops/growth", {
+        points_per_sar: Math.round(Number(pointsPerSar)),
+        referrer_reward_halalas: Math.round(Number(referrer) * 100),
+        friend_reward_halalas: Math.round(Number(friend) * 100),
+        reason
+      });
+      setConfirm(false);
+      setMsg({ err: false, text: "حُفظت إعدادات المكافآت والدعوة — تسري على الطلبات المكتملة بعد الآن" });
+    } catch (e) {
+      setMsg({ err: true, text: (e as Error).message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const valid =
+    [pointsPerSar, referrer, friend].every((v) => v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0);
+
+  return (
+    <div className="pcardx" style={{ marginTop: 14 }} data-testid="growth-settings">
+      <h3>إعدادات المكافآت والدعوة</h3>
+      {!growth && !msg && <p className="muted">جارٍ التحميل…</p>}
+      {growth && (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+            <div className="fld">
+              <label htmlFor="g-points">نقاط لكل ريال مدفوع</label>
+              <input id="g-points" data-testid="growth-points" type="number" min={0} value={pointsPerSar} onChange={(e) => setPointsPerSar(e.target.value)} />
+              <span className="hint">0 = إيقاف كسب النقاط</span>
+            </div>
+            <div className="fld">
+              <label htmlFor="g-ref">مكافأة الداعي (ر.س)</label>
+              <input id="g-ref" data-testid="growth-referrer" type="number" min={0} value={referrer} onChange={(e) => setReferrer(e.target.value)} />
+              <span className="hint">تُودع في محفظته بعد أول طلب مكتمل للمدعو</span>
+            </div>
+            <div className="fld">
+              <label htmlFor="g-friend">مكافأة المدعو (ر.س)</label>
+              <input id="g-friend" data-testid="growth-friend" type="number" min={0} value={friend} onChange={(e) => setFriend(e.target.value)} />
+              <span className="hint">تُودع في محفظة الصديق الجديد</span>
+            </div>
+          </div>
+          <button type="button" className="btn sm" style={{ marginTop: 10 }} disabled={!valid || saving} onClick={() => setConfirm(true)} data-testid="growth-save">
+            حفظ الإعدادات
+          </button>
+          <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
+            إيقاف النقاط أو الدعوة بالكامل من Feature Flags: loyalty_points · referral_program.
+          </p>
+        </>
+      )}
+      {msg && <div className={`note ${msg.err ? "err" : "info"}`} style={{ marginTop: 10 }}>{msg.text}</div>}
+      {confirm && (
+        <ReasonModal
+          title="حفظ إعدادات المكافآت والدعوة"
+          confirmLabel="حفظ"
+          busy={saving}
+          onConfirm={(r) => void save(r)}
+          onClose={() => setConfirm(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function Customers() {
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[] | null>(null);
@@ -35,6 +126,7 @@ export default function Customers() {
   const [pending, setPending] = useState<PendingBlock | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     apiGet<Customer[]>("/api/v1/admin/customers")
@@ -72,6 +164,10 @@ export default function Customers() {
       setBusy(false);
     }
   };
+
+  if (openId) {
+    return <CustomerFile customerId={openId} onBack={() => setOpenId(null)} onChanged={load} />;
+  }
 
   return (
     <>
@@ -115,7 +211,15 @@ export default function Customers() {
                 return (
                   <tr key={c.id} data-testid="customer-row">
                     <td>
-                      <b>{c.full_name ?? "بدون اسم"}</b>
+                      <button
+                        type="button"
+                        className="linklike"
+                        style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit", font: "inherit" }}
+                        onClick={() => setOpenId(c.id)}
+                        data-testid="customer-open"
+                      >
+                        <b>{c.full_name ?? "بدون اسم"}</b>
+                      </button>
                       {c.risk_flagged && (
                         <span
                           className="badge b-warn"
@@ -166,8 +270,10 @@ export default function Customers() {
       )}
 
       <div className="note soft">
-        البيانات مقنّعة افتراضياً — كشف جوال كامل يتطلب صلاحية أعلى وسبباً يُسجل · 3 No-show في 30 يوماً = إشارة مخاطر تلقائية (BR-3).
+        البيانات مقنّعة افتراضياً — النقر على اسم العميل يفتح ملفه الشامل (محفظة، نقاط، دعوات، طلبات، سيارات، بطاقات، تذاكر) · 3 No-show في 30 يوماً = إشارة مخاطر تلقائية (BR-3).
       </div>
+
+      <GrowthSettingsCard />
 
       {pending && (
         <ReasonModal

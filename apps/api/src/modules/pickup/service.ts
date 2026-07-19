@@ -5,6 +5,7 @@ import { createGeoAdapter, haversineMeters } from "@pickly/geo";
 import { emitEvent } from "../../lib/events.js";
 import { transitionOrder } from "../../lib/state-machine.js";
 import { handoffCodeFor } from "../../lib/codes.js";
+import { awardOrderGrowth } from "../growth/service.js";
 
 /**
  * وحدة Pickup — docs/14: الطبقات الأربع.
@@ -333,6 +334,8 @@ export async function completeHandoff(
   await transitionOrder(tx, order as never, "COMPLETED", actor, {
     data: { completed_at: new Date() }
   });
+  // نقاط المكافآت + مكافأة الدعوة — في معاملة الاكتمال نفسها (آلة الحالات تمنع التكرار)
+  await awardOrderGrowth(tx, order.id);
   await tx.pickupSession.updateMany({
     where: { order_id: order.id },
     data: { status: "completed", ended_at: new Date() }

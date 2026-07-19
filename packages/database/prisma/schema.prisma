@@ -256,6 +256,7 @@ model User {
   cards                     CustomerCard[]
   loyalty_account           LoyaltyAccount?
   merchant_staff_identities MerchantStaff[]
+  referred_profiles         CustomerProfile[]       @relation("ReferredCustomers")
 
   @@map("users")
 }
@@ -268,6 +269,12 @@ model CustomerProfile {
   default_city       String?
   no_show_count_30d  Int       @default(0)
   risk_flagged_at    DateTime? @db.Timestamptz(6)
+  /// برنامج دعوة الأصدقاء (قرار المالك 2026-07-19): كود العميل الدائم للمشاركة
+  referral_code        String?   @unique
+  referred_by_user_id  String?   @db.Uuid
+  referred_by          User?     @relation("ReferredCustomers", fields: [referred_by_user_id], references: [id])
+  /// تُصرف مكافأة الدعوة مرة واحدة عند أول طلب مكتمل للمدعو — الختم يمنع التكرار
+  referral_rewarded_at DateTime? @db.Timestamptz(6)
   created_at         DateTime  @default(now()) @db.Timestamptz(6)
   updated_at         DateTime  @updatedAt @db.Timestamptz(6)
 

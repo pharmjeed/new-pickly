@@ -1,0 +1,576 @@
+/* أنماط صفحات الحساب C-59 — كل الألوان والمقاسات رموز من tokens.css حصراً */
+
+/* ===== رأس فرعي بعودة ===== */
+.subHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 4px;
+}
+.subHead h1 {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-20);
+  font-weight: 800;
+  margin: 0;
+}
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: var(--pk-b2);
+  border-radius: 12px;
+  background: var(--pk-surface);
+  box-shadow: var(--pk-pop-xs);
+  color: var(--pk-ink-900);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ===== رأس الحساب: أفاتار + اسم + جوال ===== */
+.profileHead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 2px 2px;
+}
+.avatar {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: var(--pk-b2);
+  box-shadow: var(--pk-pop-xs);
+  background: var(--pk-lime-500);
+  color: var(--pk-ink-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-24);
+  font-weight: 900;
+  flex-shrink: 0;
+}
+.profileName {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-17);
+  font-weight: 800;
+  line-height: 1.3;
+}
+.profilePhone {
+  color: var(--pk-text-2);
+  font-size: var(--pk-fs-13);
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  text-align: end;
+}
+.editBtn {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: var(--pk-b2);
+  border-radius: 12px;
+  background: var(--pk-surface);
+  box-shadow: var(--pk-pop-xs);
+  color: var(--pk-ink-900);
+}
+
+/* ===== البطاقات السريعة: محفظتي/مكافآتي/قسائمي ===== */
+.quickGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.quickGrid2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.quickCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px 10px;
+  background: var(--pk-surface);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-xs);
+  text-decoration: none;
+  color: var(--pk-text);
+  min-height: var(--pk-touch);
+}
+.quickCard:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+.quickIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  border: var(--pk-b2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pk-ink-900);
+}
+.quickIconLime {
+  background: var(--pk-lime-300);
+}
+.quickIconBlue {
+  background: var(--pk-live);
+}
+.quickIconPink {
+  background: var(--pk-pink-500);
+  color: var(--pk-white);
+}
+.quickValue {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-15);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.quickLabel {
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+}
+
+/* ===== بانر دعوة صديق ===== */
+.inviteBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  background: var(--pk-lime-100);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-xs);
+  text-decoration: none;
+  color: var(--pk-text);
+}
+.inviteGift {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  border: var(--pk-b2);
+  background: var(--pk-lime-500);
+  color: var(--pk-ink-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transform: rotate(-6deg);
+}
+.inviteText {
+  flex: 1;
+  min-width: 0;
+}
+.inviteTitle {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-14);
+  font-weight: 800;
+  line-height: 1.4;
+}
+.inviteSub {
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+  line-height: 1.5;
+}
+.invitePill {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: var(--pk-b2);
+  background: var(--pk-ink-900);
+  color: var(--pk-white);
+  font-weight: 800;
+  font-size: var(--pk-fs-13);
+}
+
+/* ===== صفوف التنقل ===== */
+.navCard {
+  background: var(--pk-surface);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-xs);
+  padding: 2px 14px;
+}
+.navRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--pk-touch);
+  padding: 4px 0;
+  border: none;
+  border-top: 1px solid var(--pk-line);
+  background: none;
+  text-decoration: none;
+  color: var(--pk-text);
+  font-size: var(--pk-fs-14);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+.navRow:first-child {
+  border-top: none;
+}
+.rowIcon {
+  display: inline-flex;
+  color: var(--pk-ink-700);
+  flex-shrink: 0;
+}
+.rowLabel {
+  flex: 1;
+  min-width: 0;
+}
+.rowValue {
+  color: var(--pk-blue-500);
+  font-size: var(--pk-fs-13);
+  font-weight: 700;
+}
+.rowChevron {
+  display: inline-flex;
+  color: var(--pk-gray);
+}
+
+/* ===== مبدّل (الإشعارات) ===== */
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--pk-touch);
+  padding: 4px 0;
+  border-top: 1px solid var(--pk-line);
+  font-size: var(--pk-fs-14);
+  font-weight: 600;
+}
+.toggle {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  border-radius: 999px;
+  border: var(--pk-b2);
+  background: var(--pk-cloud-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.18s ease;
+  padding: 0;
+}
+.toggleOn {
+  background: var(--pk-lime-500);
+}
+.toggleKnob {
+  position: absolute;
+  top: 2px;
+  inset-inline-start: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--pk-ink-900);
+  transition: transform 0.18s ease;
+}
+.toggleOn .toggleKnob {
+  transform: translateX(-21px);
+}
+
+/* ===== ورقة سفلية (اللغة) ===== */
+.sheetWrap {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(14, 27, 61, 0.45);
+}
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--pk-surface);
+  border: var(--pk-b2);
+  border-bottom: none;
+  border-radius: var(--pk-radius-lg) var(--pk-radius-lg) 0 0;
+  padding: 16px 16px calc(18px + env(safe-area-inset-bottom));
+  animation: sheetUp 0.22s ease;
+}
+@keyframes sheetUp {
+  from {
+    transform: translateY(40%);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.sheetTitle {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-17);
+  font-weight: 800;
+  margin: 0 0 10px;
+}
+.sheetOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--pk-touch);
+  padding: 0 12px;
+  margin-top: 8px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius);
+  background: var(--pk-surface);
+  font-size: var(--pk-fs-14);
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+.sheetOptionOn {
+  background: var(--pk-lime-100);
+  box-shadow: var(--pk-pop-xs);
+}
+.sheetSoon {
+  margin-inline-start: auto;
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+  border: 1px solid var(--pk-line);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.sheetCheck {
+  margin-inline-start: auto;
+  color: var(--pk-success);
+  font-weight: 900;
+}
+
+/* ===== بطل المكافآت والمحفظة ===== */
+.hero {
+  background: var(--pk-surface);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop);
+  padding: 18px 16px;
+  text-align: center;
+}
+.heroLime {
+  background: var(--pk-lime-100);
+}
+.heroValue {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-32);
+  font-weight: 900;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.heroValueBlue {
+  color: var(--pk-blue-500);
+}
+.heroSub {
+  color: var(--pk-text-2);
+  font-size: var(--pk-fs-13);
+  margin-top: 4px;
+  line-height: 1.6;
+}
+.soonChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 5px 13px;
+  border: 2px dashed var(--pk-ink-600);
+  border-radius: 999px;
+  font-size: var(--pk-fs-12);
+  font-weight: 700;
+  color: var(--pk-ink-700);
+  background: var(--pk-surface);
+}
+
+/* ===== كود الدعوة ===== */
+.codeBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 2px dashed var(--pk-ink-900);
+  border-radius: var(--pk-radius);
+  background: var(--pk-surface);
+}
+.codeText {
+  font-family: var(--pk-font-mono);
+  font-size: var(--pk-fs-24);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  direction: ltr;
+}
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: var(--pk-b2);
+  border-radius: 12px;
+  background: var(--pk-lime-300);
+  color: var(--pk-ink-900);
+  cursor: pointer;
+}
+.statsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.statBox {
+  background: var(--pk-surface);
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-pop-xs);
+  padding: 12px;
+  text-align: center;
+}
+.statNum {
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-20);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.statLabel {
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+}
+
+/* ===== أزرار وحقول عامة ===== */
+.primaryBtn {
+  width: 100%;
+  min-height: var(--pk-touch);
+  border: var(--pk-b2);
+  border-radius: 999px;
+  background: var(--pk-blue-500);
+  color: var(--pk-white);
+  font-family: inherit;
+  font-weight: 800;
+  font-size: var(--pk-fs-15);
+  box-shadow: var(--pk-pop-xs);
+  cursor: pointer;
+}
+.primaryBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.fieldLabel {
+  font-size: var(--pk-fs-13);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.field {
+  width: 100%;
+  min-height: var(--pk-touch);
+  padding: 0 14px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius);
+  background: var(--pk-surface);
+  font-family: inherit;
+  font-size: var(--pk-fs-15);
+}
+.fieldArea {
+  min-height: 110px;
+  padding: 12px 14px;
+  resize: vertical;
+  line-height: 1.7;
+}
+.codeField {
+  text-align: center;
+  font-family: var(--pk-font-mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  direction: ltr;
+}
+.okNote {
+  border: 2px solid var(--pk-success);
+  border-radius: var(--pk-radius);
+  padding: 11px 14px;
+  font-size: var(--pk-fs-13);
+  background: var(--pk-st-done-bg);
+  color: var(--pk-success);
+  font-weight: 700;
+}
+
+/* ===== شارات حالة التذاكر والفواتير ===== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--pk-line);
+  font-size: var(--pk-fs-12);
+  font-weight: 700;
+  background: var(--pk-cloud-2);
+  color: var(--pk-text-2);
+}
+.chipOk {
+  border-color: var(--pk-success);
+  background: var(--pk-st-done-bg);
+  color: var(--pk-success);
+}
+.chipWarn {
+  border-color: var(--pk-warn);
+  background: var(--pk-st-arrived-bg);
+  color: var(--pk-warn);
+}
+
+/* ===== محادثة الدعم ===== */
+.bubble {
+  max-width: 84%;
+  padding: 10px 13px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius-md);
+  font-size: var(--pk-fs-13);
+  line-height: 1.7;
+  background: var(--pk-surface);
+  align-self: flex-start;
+}
+.bubbleMine {
+  background: var(--pk-lime-100);
+  align-self: flex-end;
+}
+.bubbleMeta {
+  font-size: var(--pk-fs-12);
+  color: var(--pk-text-2);
+  margin-top: 4px;
+}
+
+/* ===== منطقة الخطر (حذف الحساب) ===== */
+.dangerCard {
+  border: 2px solid var(--pk-error);
+  border-radius: var(--pk-radius-md);
+  background: var(--pk-surface);
+  padding: 14px 16px;
+}
+.dangerTitle {
+  font-family: var(--pk-font-display);
+  font-weight: 800;
+  color: var(--pk-error);
+  font-size: var(--pk-fs-15);
+}
+.dangerBtn {
+  width: 100%;
+  min-height: var(--pk-touch);
+  margin-top: 10px;
+  border: 2px solid var(--pk-error);
+  border-radius: 999px;
+  background: var(--pk-surface);
+  color: var(--pk-error);
+  font-family: inherit;
+  font-weight: 800;
+  font-size: var(--pk-fs-14);
+  cursor: pointer;
+}
+.dangerBtnSolid {
+  background: var(--pk-error);
+  color: var(--pk-white);
+}

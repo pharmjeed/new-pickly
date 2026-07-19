@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
-import { UuidSchema } from "@pickly/contracts";
+import { GrowthSettingsSchema, UuidSchema } from "@pickly/contracts";
 import { hashPin, verifyPin } from "@pickly/auth";
 import { requireAuth } from "../../lib/auth-plugin.js";
 import { decryptSecret, encryptSecret } from "../../lib/plate-crypto.js";
@@ -12,6 +12,7 @@ import { emitEvent } from "../../lib/events.js";
 import { invalidateFlagCache } from "../../lib/flags.js";
 import { notifyCustomer } from "../../lib/notify.js";
 import { paymentMethodsConfig } from "../../lib/payment-methods.js";
+import { growthSettings } from "../growth/service.js";
 
 /**
  * وحدة Super Admin — docs/16§2 RBAC، كل فعل حساس يدخل audit_logs بسبب (BR-15):
@@ -566,6 +567,194 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
+  /**
+   * A-07: ملف العميل الشامل — كل ما يخص العميل في شاشة واحدة (قرار المالك 2026-07-19):
+   * البروفايل والتفضيلات، المحفظة بقيودها، النقاط بحركاتها، الدعوات، الطلبات،
+   * السيارات (لوحة مختصرة فقط — docs/17)، البطاقات (آخر 4 حصراً)، المفضلة، التذاكر، الكوبونات.
+   */
+  app.get("/customers/:id", async (req) => {
+    requireAdmin(req, ALL_READ);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const user = await prisma.user.findFirst({
+      where: { id, actor_type: "customer" },
+      include: { customer_profile: true }
+    });
+    if (!user) throw new AppError("SYS-9004", { hint: "العميل غير موجود" });
+
+    const [
+      walletAgg,
+      walletEntries,
+      loyalty,
+      loyaltyTx,
+      orders,
+      ordersCount,
+      completedCount,
+      vehicles,
+      cards,
+      favorites,
+      tickets,
+      redemptions,
+      invitedCount,
+      rewardedCount,
+      referrerProfile
+    ] = await Promise.all([
+      prisma.customerWalletEntry.aggregate({ where: { user_id: id }, _sum: { amount_halalas: true } }),
+      prisma.customerWalletEntry.findMany({ where: { user_id: id }, orderBy: { created_at: "desc" }, take: 20 }),
+      prisma.loyaltyAccount.findUnique({ where: { user_id: id } }),
+      prisma.loyaltyTransaction.findMany({ where: { account_id: id }, orderBy: { created_at: "desc" }, take: 20 }),
+      prisma.order.findMany({
+        where: { user_id: id, order_status: { notIn: ["DRAFT", "CART_ACTIVE", "CHECKOUT_PENDING", "PAYMENT_PENDING", "PAYMENT_AUTHORIZED", "PAYMENT_FAILED", "EXPIRED"] } },
+        orderBy: { created_at: "desc" },
+        take: 10,
+        include: { branch: { include: { brand: true } } }
+      }),
+      prisma.order.count({ where: { user_id: id } }),
+      prisma.order.count({ where: { user_id: id, order_status: "COMPLETED" } }),
+      prisma.vehicle.findMany({ where: { user_id: id, is_active: true }, orderBy: { created_at: "asc" } }),
+      prisma.customerCard.findMany({ where: { user_id: id, is_active: true }, orderBy: { created_at: "desc" } }),
+      prisma.favorite.findMany({ where: { user_id: id }, orderBy: { created_at: "desc" }, take: 20 }),
+      prisma.supportTicket.findMany({ where: { user_id: id }, orderBy: { updated_at: "desc" }, take: 10 }),
+      prisma.couponRedemption.findMany({
+        where: { user_id: id },
+        orderBy: { created_at: "desc" },
+        take: 10,
+        include: { coupon: { select: { code: true } } }
+      }),
+      prisma.customerProfile.count({ where: { referred_by_user_id: id } }),
+      prisma.customerProfile.count({ where: { referred_by_user_id: id, referral_rewarded_at: { not: null } } }),
+      user.customer_profile?.referred_by_user_id
+        ? prisma.user.findUnique({
+            where: { id: user.customer_profile.referred_by_user_id },
+            select: { full_name: true, phone: true }
+          })
+        : Promise.resolve(null)
+    ]);
+
+    const favBrands = favorites.length
+      ? await prisma.brand.findMany({
+          where: { id: { in: favorites.map((f) => f.brand_id) } },
+          select: { id: true, name_ar: true }
+        })
+      : [];
+    const brandName = new Map(favBrands.map((b) => [b.id, b.name_ar]));
+
+    return {
+      id: user.id,
+      phone: user.phone,
+      full_name: user.full_name,
+      status: user.status,
+      created_at: user.created_at.toISOString(),
+      last_seen_at: user.last_seen_at?.toISOString() ?? null,
+      profile: {
+        preferred_language: user.customer_profile?.preferred_language ?? "ar",
+        marketing_opt_in: user.customer_profile?.marketing_opt_in ?? false,
+        no_show_count_30d: user.customer_profile?.no_show_count_30d ?? 0,
+        risk_flagged: Boolean(user.customer_profile?.risk_flagged_at)
+      },
+      wallet: {
+        balance_halalas: walletAgg._sum.amount_halalas ?? 0,
+        entries: walletEntries.map((e) => ({
+          id: e.id,
+          amount_halalas: e.amount_halalas,
+          entry_type: e.entry_type,
+          reference: e.reference,
+          created_at: e.created_at.toISOString()
+        }))
+      },
+      rewards: {
+        points: loyalty?.points ?? 0,
+        transactions: loyaltyTx.map((t) => ({
+          id: t.id,
+          points: t.points,
+          reason: t.reason,
+          created_at: t.created_at.toISOString()
+        }))
+      },
+      referral: {
+        code: user.customer_profile?.referral_code ?? null,
+        invited_count: invitedCount,
+        rewarded_count: rewardedCount,
+        referred_by: referrerProfile
+          ? { full_name: referrerProfile.full_name, phone_masked: `${referrerProfile.phone.slice(0, 7)}****` }
+          : null,
+        rewarded_at: user.customer_profile?.referral_rewarded_at?.toISOString() ?? null
+      },
+      orders: {
+        total: ordersCount,
+        completed: completedCount,
+        recent: orders.map((o) => ({
+          id: o.id,
+          display_code: o.display_code,
+          order_status: o.order_status,
+          brand_name_ar: o.branch.brand.name_ar,
+          total_halalas: o.total_halalas,
+          created_at: o.created_at.toISOString()
+        }))
+      },
+      vehicles: vehicles.map((v) => ({
+        id: v.id,
+        make_ar: v.make_ar,
+        model_ar: v.model_ar,
+        color_ar: v.color_ar,
+        plate_short: v.plate_short
+      })),
+      cards: cards.map((c) => ({ id: c.id, brand: c.brand, last4: c.last4, is_default: c.is_default })),
+      favorites: favorites.map((f) => ({ brand_id: f.brand_id, name_ar: brandName.get(f.brand_id) ?? "—" })),
+      support_tickets: tickets.map((t) => ({
+        id: t.id,
+        subject: t.subject,
+        status: t.status,
+        updated_at: t.updated_at.toISOString()
+      })),
+      coupon_redemptions: redemptions.map((r) => ({
+        id: r.id,
+        code: r.coupon.code,
+        amount_halalas: r.amount_halalas,
+        created_at: r.created_at.toISOString()
+      }))
+    };
+  });
+
+  /** تعديل نقاط المكافآت يدوياً — بسبب مُدقق، والرصيد لا يهبط تحت الصفر */
+  app.post("/loyalty/adjust", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin", "finance", "support"]);
+    const body = z
+      .object({
+        user_id: UuidSchema,
+        points: z
+          .number()
+          .int()
+          .refine((v) => v !== 0, "النقاط لا تكون صفراً")
+          .refine((v) => Math.abs(v) <= 100_000, "الحد الأقصى للحركة 100 ألف نقطة"),
+        reason: z.string().min(3)
+      })
+      .parse(req.body);
+    const user = await prisma.user.findUnique({ where: { id: body.user_id } });
+    if (!user) throw new AppError("SYS-9004", { hint: "العميل غير موجود" });
+
+    const trx = await prisma.$transaction(async (tx) => {
+      const account = await tx.loyaltyAccount.upsert({
+        where: { user_id: body.user_id },
+        create: { user_id: body.user_id, points: 0 },
+        update: {}
+      });
+      if (account.points + body.points < 0)
+        throw new AppError("SYS-9004", { hint: "الخصم يتجاوز رصيد النقاط" });
+      await tx.loyaltyAccount.update({
+        where: { user_id: body.user_id },
+        data: { points: { increment: body.points } }
+      });
+      return tx.loyaltyTransaction.create({
+        data: { account_id: body.user_id, points: body.points, reason: `تسوية إدارية — ${body.reason}` }
+      });
+    });
+    await audit(sub, "loyalty_adjusted", "loyalty_transaction", trx.id, body.reason, {
+      user_id: body.user_id,
+      points: body.points
+    });
+    return { ok: true, transaction_id: trx.id };
+  });
+
   /** A-24/A-26: الصحة — jobs وdead letters وwebhooks */
   app.get("/health-ops", async (req) => {
     requireAdmin(req, ["super_admin", "operations", "read_only"]);
@@ -1107,6 +1296,25 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       radius_m: body.radius_m
     });
     return { ok: true, radius_m: body.radius_m };
+  });
+
+  // ===== إعدادات النمو: نقاط لكل ريال + مبلغا مكافأة الدعوة (قرار المالك 2026-07-19) =====
+
+  app.get("/ops/growth", async (req) => {
+    requireAdmin(req, ALL_READ);
+    return growthSettings();
+  });
+
+  /** يُحفظ صفاً جديداً — system_settings سجل تاريخي؛ يسري على الطلبات المكتملة بعده */
+  app.post("/ops/growth", async (req) => {
+    const { sub } = requireAdmin(req, ["super_admin", "operations", "finance"]);
+    const body = GrowthSettingsSchema.extend({ reason: z.string().min(3) }).parse(req.body);
+    const { reason, ...settings } = body;
+    const saved = await prisma.systemSetting.create({
+      data: { key: "growth.rewards", value: settings as never, created_by: sub }
+    });
+    await audit(sub, "ops_growth_settings_saved", "system_setting", saved.id, reason, settings);
+    return { ok: true, ...settings };
   });
 
   // ===== خريطة الملاحة (OSRM) — تحديث بضغطة من السوبر أدمن =====

@@ -4,9 +4,12 @@ import {
   AddCardBodySchema,
   CreateTicketBodySchema,
   CreateTicketMessageBodySchema,
+  RedeemReferralBodySchema,
+  UpdateMeBodySchema,
   UuidSchema,
   type CardBrand,
   type CustomerCard as CustomerCardDto,
+  type CustomerMe,
   type CustomerOrderSummary,
   type FavoriteBrand,
   type NotificationListResponse,
@@ -22,26 +25,108 @@ import { requireAuth, requireCustomer } from "../../lib/auth-plugin.js";
 import { requireFlag } from "../../lib/flags.js";
 import { walletBalance } from "../../lib/payment-methods.js";
 import { decryptPlate, encryptPlate } from "../../lib/plate-crypto.js";
+import { ACTIVE_STATES } from "../merchant/tab-filter.js";
+import { customerReferral, customerRewards, redeemReferralCode } from "../growth/service.js";
 import { payments } from "../orders/service.js";
 
 /** وحدة Customers: الملف + السيارات + صندوق الإشعارات (C-62) + تذاكر الدعم (C-65/66) */
 export async function customerRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", requireAuth);
 
-  app.get("/me", async (req) => {
-    const claims = requireCustomer(req);
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: claims.sub } });
-    return { id: user.id, phone: user.phone, full_name: user.full_name };
+  const meDto = (
+    user: { id: string; phone: string; full_name: string | null },
+    profile: { preferred_language: string; marketing_opt_in: boolean } | null
+  ): CustomerMe => ({
+    id: user.id,
+    phone: user.phone,
+    full_name: user.full_name,
+    preferred_language: profile?.preferred_language === "en" ? "en" : "ar",
+    marketing_opt_in: profile?.marketing_opt_in ?? false
   });
 
+  app.get("/me", async (req) => {
+    const claims = requireCustomer(req);
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: claims.sub },
+      include: { customer_profile: true }
+    });
+    return meDto(user, user.customer_profile);
+  });
+
+  /** الملف والتفضيلات (C-59): الاسم + لغة الواجهة + إشعارات العروض التسويقية */
   app.patch("/me", async (req) => {
     const claims = requireCustomer(req);
-    const body = z.object({ full_name: z.string().min(2).max(80) }).parse(req.body);
-    const user = await prisma.user.update({
-      where: { id: claims.sub },
-      data: { full_name: body.full_name }
+    const body = UpdateMeBodySchema.parse(req.body);
+    const user =
+      body.full_name === undefined
+        ? await prisma.user.findUniqueOrThrow({ where: { id: claims.sub } })
+        : await prisma.user.update({ where: { id: claims.sub }, data: { full_name: body.full_name } });
+
+    const prefs = {
+      ...(body.preferred_language ? { preferred_language: body.preferred_language } : {}),
+      ...(body.marketing_opt_in !== undefined ? { marketing_opt_in: body.marketing_opt_in } : {})
+    };
+    const profile = await prisma.customerProfile.upsert({
+      where: { user_id: claims.sub },
+      create: { user_id: claims.sub, ...prefs },
+      update: prefs
     });
-    return { id: user.id, phone: user.phone, full_name: user.full_name };
+    return meDto(user, profile);
+  });
+
+  /**
+   * حذف الحساب C-69: يُرفض مع طلب مفتوح (تسوية المفتوح أولاً)، ثم يوسم المستخدم
+   * «محذوفاً» وتُلغى جلساته كلها — الاستعادة خلال فترة المعالجة من لوحة الأدمن حصراً.
+   */
+  app.post("/me/delete-request", async (req) => {
+    const claims = requireCustomer(req);
+    const OPEN_STATES = ["ORDER_SUBMITTED", ...ACTIVE_STATES, "REFUND_PENDING"] as const;
+    const open = await prisma.order.count({
+      where: { user_id: claims.sub, order_status: { in: [...OPEN_STATES] } }
+    });
+    if (open > 0) {
+      throw new AppError("SYS-9004", { hint: "لديك طلب نشط أو استرجاع مفتوح — أكمله أولاً ثم أعد المحاولة" });
+    }
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: claims.sub }, data: { status: "deleted" } }),
+      prisma.userSession.updateMany({
+        where: { user_id: claims.sub, revoked_at: null },
+        data: { revoked_at: new Date() }
+      }),
+      prisma.auditLog.create({
+        data: {
+          actor_type: "customer",
+          actor_id: claims.sub,
+          action: "customer_delete_requested",
+          entity_type: "user",
+          entity_id: claims.sub,
+          reason: "طلب العميل حذف حسابه من التطبيق"
+        }
+      })
+    ]);
+    return { ok: true };
+  });
+
+  // ===== النقاط والمكافآت + دعوة الأصدقاء (C-63، قرار المالك 2026-07-19) =====
+
+  app.get("/me/rewards", async (req) => {
+    await requireFlag("loyalty_points");
+    const claims = requireCustomer(req);
+    return customerRewards(claims.sub);
+  });
+
+  app.get("/me/referral", async (req) => {
+    await requireFlag("referral_program");
+    const claims = requireCustomer(req);
+    return customerReferral(claims.sub);
+  });
+
+  app.post("/me/referral/redeem", async (req) => {
+    await requireFlag("referral_program");
+    const claims = requireCustomer(req);
+    const body = RedeemReferralBodySchema.parse(req.body);
+    await redeemReferralCode(claims.sub, body.code);
+    return { ok: true };
   });
 
   // ===== طلباتي C-56 / W-09 — قائمة طلبات العميل =====

@@ -60,7 +60,8 @@ export class AuthService {
     let user = await this.repo.findUserByPhone(phone);
     const is_new_user = !user;
     user ??= await this.repo.createCustomer(phone);
-    if (user.status === "blocked") throw new AppError("AUTH-1007");
+    // المحذوف (C-69: فترة معالجة) كالمحظور — استعادته من لوحة الأدمن حصراً
+    if (user.status === "blocked" || user.status === "deleted") throw new AppError("AUTH-1007");
 
     return this.issueTokens(user.id, is_new_user, meta);
   }
