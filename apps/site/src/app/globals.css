@@ -35,11 +35,16 @@ body {
 .disp { font-family: var(--pk-font-display); }
 .mono { font-family: var(--pk-font-mono); direction: ltr; unicode-bidi: embed; }
 .muted { color: var(--gray); }
-.wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+/* الأحجام السائلة (نهج medifysa.co): clamp(الحد الأدنى للجوال، معامل vw، قيمة الديسكتوب).
+   المعامل مضبوط ليبلغ الحد الأقصى عند ~1043px فما فوق، فتبقى الديسكتوب كما هي حرفياً
+   ويتقلص المقاس تدريجياً كلما ضاقت الشاشة بدل أن يقفز عند نقطة كسر. */
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 24px); }
 
 /* ===== النافبار ===== */
 nav.site { position: sticky; top: 0; background: var(--pk-white); border-bottom: var(--pk-b2); z-index: 50; }
-.nav-in { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; }
+/* padding-block لا الاختصار: الاختصار كان يمسح هامش ‎.wrap الجانبي فيلتصق المحتوى بحافة الجوال */
+.nav-in { display: flex; align-items: center; justify-content: space-between; padding-block: 12px; }
+.nav-side { display: flex; align-items: center; gap: 10px; }
 .nav-links { display: flex; gap: 26px; font-size: 14.5px; font-weight: 500; }
 .nav-links a { color: var(--ink6); text-decoration: none; position: relative; padding-bottom: 2px; }
 .nav-links a:hover { color: var(--blue); }
@@ -50,6 +55,18 @@ nav.site { position: sticky; top: 0; background: var(--pk-white); border-bottom:
   transition: transform var(--pk-dur) var(--pk-ease);
 }
 .nav-links a:hover::after { transform: scaleX(1); }
+
+/* زر القائمة — مخفي فوق 640px؛ تحتها يفتح الروابط كقائمة منسدلة بدل إخفائها */
+.nav-burger {
+  display: none; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  width: 44px; height: 44px; padding: 0;
+  background: var(--pk-white); border: var(--pk-b2); border-radius: 12px;
+  box-shadow: var(--pk-pop-xs); cursor: pointer;
+}
+.nav-burger span { display: block; width: 18px; height: 2.5px; border-radius: 2px; background: var(--ink); transition: transform var(--pk-dur) var(--pk-ease), opacity var(--pk-dur) var(--pk-ease); }
+.nav-burger[aria-expanded="true"] span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+.nav-burger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.nav-burger[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
 
 /* زر تبديل اللغة — حبة فنكية (حل محل زر الطلب المحذوف من النافبار) */
 .lang-btn {
@@ -83,7 +100,11 @@ nav.site { position: sticky; top: 0; background: var(--pk-white); border-bottom:
 a.lock { text-decoration: none; color: var(--ink); }
 
 /* ===== الهيرو ===== */
-.hero { padding: 72px 0 48px; display: grid; grid-template-columns: 1.15fr .85fr; gap: 48px; align-items: center; }
+.hero {
+  padding-block: clamp(44px, 6.9vw, 72px) clamp(30px, 4.6vw, 48px);
+  display: grid; grid-template-columns: 1.15fr .85fr;
+  gap: clamp(24px, 4.6vw, 48px); align-items: center;
+}
 /* ملصق مائل بحد كحلي (sticker) */
 .pill {
   display: inline-block; background: var(--pk-white); color: var(--blue);
@@ -91,7 +112,7 @@ a.lock { text-decoration: none; color: var(--ink); }
   padding: 5px 16px; margin-bottom: 18px; border: var(--pk-b2);
   box-shadow: var(--pk-pop-xs); transform: rotate(var(--pk-sticker-tilt));
 }
-h1.hero-h { font-family: var(--pk-font-display); font-size: 52px; line-height: 1.3; font-weight: 800; }
+h1.hero-h { font-family: var(--pk-font-display); font-size: clamp(32px, 5vw, 52px); line-height: 1.3; font-weight: 800; }
 /* الكلمة المميزة: خلفية ليمونية مائلة بحد كحلي (لحظة «وصلت» = ليموني) */
 .lm {
   display: inline-block; background: var(--lime); color: var(--lime9);
@@ -99,7 +120,7 @@ h1.hero-h { font-family: var(--pk-font-display); font-size: 52px; line-height: 1
   box-shadow: var(--pk-pop-xs); transform: rotate(var(--pk-sticker-tilt));
 }
 .lm-pink { background: var(--pink); color: var(--pk-white); }
-.hero p.sub { font-size: 18px; color: var(--ink6); margin: 18px 0 28px; max-width: 34rem; }
+.hero p.sub { font-size: clamp(15.5px, 2.2vw, 18px); color: var(--ink6); margin: 18px 0 28px; max-width: 34rem; }
 .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
 .mini-feats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 26px; }
 .mini-feats span { font-size: 13px; background: var(--pk-white); border: var(--pk-b2); border-radius: var(--pk-radius-pill); padding: 5px 14px; color: var(--ink6); font-weight: 500; }
@@ -126,16 +147,16 @@ h1.hero-h { font-family: var(--pk-font-display); font-size: 52px; line-height: 1
 .scr-code span { font-family: var(--pk-font-mono); font-size: 13px; color: var(--ink); font-weight: 500; }
 
 /* ===== الإحصاءات ===== */
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; padding: 34px 0; border-top: var(--pk-b2); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; padding-block: 34px; border-top: var(--pk-b2); }
 .stat b { font-family: var(--pk-font-display); font-size: 32px; font-weight: 800; display: block; color: var(--blue); }
 .stat span { font-size: 13px; color: var(--gray); }
 .footnote { font-size: 11.5px; color: var(--gray); }
 
 /* ===== الأقسام ===== */
-section { padding: 64px 0; }
+section { padding: clamp(40px, 6vw, 64px) 0; }
 .kicker { font-family: var(--pk-font-mono); font-size: 12px; letter-spacing: 2px; color: var(--blue); display: block; margin-bottom: 8px; }
-h2.sec, h1.sec { font-family: var(--pk-font-display); font-size: 34px; font-weight: 800; line-height: 1.4; margin-bottom: 10px; }
-h1.sec { font-size: 38px; }
+h2.sec, h1.sec { font-family: var(--pk-font-display); font-size: clamp(24px, 3.3vw, 34px); font-weight: 800; line-height: 1.4; margin-bottom: 10px; }
+h1.sec { font-size: clamp(26px, 3.6vw, 38px); }
 p.lead { color: var(--ink6); max-width: 44rem; margin-bottom: 34px; }
 .sec-lines { display: block; margin-bottom: 6px; }
 .cards3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
@@ -159,7 +180,7 @@ p.lead { color: var(--ink6); max-width: 44rem; margin-bottom: 34px; }
 .gray-band { background: var(--pk-cloud-2); border-top: var(--pk-b2); border-bottom: var(--pk-b2); }
 
 /* ===== قسم المتاجر ===== */
-.split { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(26px, 4.2vw, 44px); align-items: center; }
 .check { list-style: none; padding: 0; margin: 18px 0; }
 .check li { padding-inline-start: 30px; position: relative; margin-bottom: 12px; font-size: 15px; }
 .check li:before { content: "✓"; position: absolute; inset-inline-start: 0; color: var(--ok); font-weight: 700; }
@@ -199,10 +220,11 @@ p.lead { color: var(--ink6); max-width: 44rem; margin-bottom: 34px; }
 /* ===== CTA النهائي — سطح داكن بنقاط بيضاء وظل ليموني ===== */
 .cta-final {
   background-color: var(--ink); background-image: var(--pk-dots-dark); background-size: var(--pk-dots-size);
-  border: var(--pk-b3); border-radius: 28px; padding: 56px 32px; text-align: center; color: var(--cloud);
+  border: var(--pk-b3); border-radius: 28px; text-align: center; color: var(--cloud);
+  padding: clamp(36px, 5.4vw, 56px) clamp(20px, 3vw, 32px);
   box-shadow: var(--pk-pop-lime);
 }
-.cta-final h2 { font-family: var(--pk-font-display); font-size: 36px; font-weight: 800; line-height: 1.5; }
+.cta-final h2 { font-family: var(--pk-font-display); font-size: clamp(25px, 3.5vw, 36px); font-weight: 800; line-height: 1.5; }
 .cta-final .lm { background: var(--lime); color: var(--lime9); }
 .cta-final .ctasub { color: var(--gray2); margin: 18px 0 26px; }
 .cta-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
@@ -215,7 +237,7 @@ footer.site { background-color: var(--ink); background-image: var(--pk-dots-dark
 footer.site a.lock { color: var(--lime); }
 
 /* ===== صفحات داخلية (S-03/S-07) ===== */
-.hero2 { padding: 52px 0 20px; }
+.hero2 { padding-block: clamp(34px, 5vw, 52px) 20px; }
 .scard { background: var(--pk-white); border: var(--pk-b2); border-radius: var(--pk-radius-md); padding: 24px; box-shadow: var(--pk-pop-sm); }
 .scard h3 { font-family: var(--pk-font-display); font-size: 19px; font-weight: 700; margin-bottom: 6px; }
 .scard p { font-size: 14px; color: var(--gray); }
@@ -329,12 +351,28 @@ footer.site a.lock { color: var(--lime); }
   .marquee-track .sectors[aria-hidden="true"] { display: none; }
 }
 
-/* ===== الاستجابة (منقولة من اللاندنج) ===== */
-@media (max-width: 820px) {
+/* ===== الاستجابة — نقطتا كسر على نهج medifysa.co: تخطيط فقط، بلا مقاسات خط.
+   المقاسات كلها سائلة بـclamp() في مواضعها أعلاه، فلا تقفز عند الكسر.
+   الشبكات ذات auto-fit (‎.cards3/.steps/.stats) تتقلص وحدها ولا تحتاج تدخلاً. ===== */
+@media (max-width: 920px) {
   .hero { grid-template-columns: 1fr; }
   .split { grid-template-columns: 1fr; }
-  h1.hero-h { font-size: 38px; }
-  .nav-links { display: none; }
   .join-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .nav-burger { display: flex; }
+  .nav-links {
+    position: absolute; inset-inline: 0; top: 100%; z-index: 60;
+    display: none; flex-direction: column; gap: 0;
+    padding: 6px clamp(18px, 4vw, 24px) 16px; font-size: 15px;
+    background: var(--pk-white); border-bottom: var(--pk-b2); box-shadow: var(--pk-pop);
+  }
+  .nav-links.open { display: flex; }
+  .nav-links a { display: flex; align-items: center; min-height: 48px; border-bottom: 2px solid var(--line); }
+  .nav-links a:last-child { border-bottom: 0; }
+  .nav-links a::after { content: none; }
   .frm-row { flex-direction: column; }
+  /* 16px حد أدنى: أقل منه يجعل سفاري iOS يكبّر الصفحة تلقائياً عند لمس الحقل ولا يعيدها */
+  .fld input, .fld select { font-size: 16px; }
 }

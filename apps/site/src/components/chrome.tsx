@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { LogoLockup } from "@/components/qirtas";
 import { LangToggle, useT } from "@/lib/i18n";
@@ -17,17 +18,32 @@ export function Logo({ size = 40 }: { size?: number }) {
 
 export function SiteNav() {
   const t = useT();
+  /* تحت 640px تصير الروابط قائمة منسدلة خلف زر القائمة بدل اختفائها (نهج medifysa.co) */
+  const [open, setOpen] = useState(false);
   return (
     <nav className="site">
       <div className="wrap nav-in">
         <Logo />
-        <div className="nav-links">
+        <div className={open ? "nav-links open" : "nav-links"} onClick={() => setOpen(false)}>
           <Link href="/#how">{t.nav.how}</Link>
           <Link href="/merchants">{t.nav.merchants}</Link>
           <Link href="/#pricing">{t.nav.pricing}</Link>
           <Link href="/#faq">{t.nav.faq}</Link>
         </div>
-        <LangToggle />
+        <div className="nav-side">
+          <LangToggle />
+          <button
+            type="button"
+            className="nav-burger"
+            aria-label={t.nav.menu}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
       </div>
     </nav>
   );

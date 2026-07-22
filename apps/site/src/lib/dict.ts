@@ -12,6 +12,7 @@ const ar = {
     merchants: "للمتاجر",
     pricing: "الأسعار",
     faq: "الأسئلة",
+    menu: "القائمة",
     switchLabel: "Switch to English"
   },
   hero: {
@@ -151,6 +152,7 @@ const en: Dict = {
     merchants: "For merchants",
     pricing: "Pricing",
     faq: "FAQ",
+    menu: "Menu",
     switchLabel: "التبديل إلى العربية"
   },
   hero: {
