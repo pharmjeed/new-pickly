@@ -112,7 +112,7 @@ a.lock { text-decoration: none; color: var(--ink); }
   padding: 5px 16px; margin-bottom: 18px; border: var(--pk-b2);
   box-shadow: var(--pk-pop-xs); transform: rotate(var(--pk-sticker-tilt));
 }
-h1.hero-h { font-family: var(--pk-font-display); font-size: clamp(32px, 5vw, 52px); line-height: 1.3; font-weight: 800; }
+h1.hero-h { font-family: var(--pk-font-display); font-size: clamp(36px, 5vw, 52px); line-height: 1.3; font-weight: 800; }
 /* الكلمة المميزة: خلفية ليمونية مائلة بحد كحلي (لحظة «وصلت» = ليموني) */
 .lm {
   display: inline-block; background: var(--lime); color: var(--lime9);
@@ -120,7 +120,7 @@ h1.hero-h { font-family: var(--pk-font-display); font-size: clamp(32px, 5vw, 52p
   box-shadow: var(--pk-pop-xs); transform: rotate(var(--pk-sticker-tilt));
 }
 .lm-pink { background: var(--pink); color: var(--pk-white); }
-.hero p.sub { font-size: clamp(15.5px, 2.2vw, 18px); color: var(--ink6); margin: 18px 0 28px; max-width: 34rem; }
+.hero p.sub { font-size: clamp(17px, 2.2vw, 18px); color: var(--ink6); margin: 18px 0 28px; max-width: 34rem; }
 .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
 .mini-feats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 26px; }
 .mini-feats span { font-size: 13px; background: var(--pk-white); border: var(--pk-b2); border-radius: var(--pk-radius-pill); padding: 5px 14px; color: var(--ink6); font-weight: 500; }
@@ -155,8 +155,8 @@ h1.hero-h { font-family: var(--pk-font-display); font-size: clamp(32px, 5vw, 52p
 /* ===== الأقسام ===== */
 section { padding: clamp(40px, 6vw, 64px) 0; }
 .kicker { font-family: var(--pk-font-mono); font-size: 12px; letter-spacing: 2px; color: var(--blue); display: block; margin-bottom: 8px; }
-h2.sec, h1.sec { font-family: var(--pk-font-display); font-size: clamp(24px, 3.3vw, 34px); font-weight: 800; line-height: 1.4; margin-bottom: 10px; }
-h1.sec { font-size: clamp(26px, 3.6vw, 38px); }
+h2.sec, h1.sec { font-family: var(--pk-font-display); font-size: clamp(27px, 3.3vw, 34px); font-weight: 800; line-height: 1.4; margin-bottom: 10px; }
+h1.sec { font-size: clamp(29px, 3.6vw, 38px); }
 p.lead { color: var(--ink6); max-width: 44rem; margin-bottom: 34px; }
 .sec-lines { display: block; margin-bottom: 6px; }
 .cards3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
@@ -224,7 +224,7 @@ p.lead { color: var(--ink6); max-width: 44rem; margin-bottom: 34px; }
   padding: clamp(36px, 5.4vw, 56px) clamp(20px, 3vw, 32px);
   box-shadow: var(--pk-pop-lime);
 }
-.cta-final h2 { font-family: var(--pk-font-display); font-size: clamp(25px, 3.5vw, 36px); font-weight: 800; line-height: 1.5; }
+.cta-final h2 { font-family: var(--pk-font-display); font-size: clamp(28px, 3.5vw, 36px); font-weight: 800; line-height: 1.5; }
 .cta-final .lm { background: var(--lime); color: var(--lime9); }
 .cta-final .ctasub { color: var(--gray2); margin: 18px 0 26px; }
 .cta-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
@@ -375,4 +375,18 @@ footer.site a.lock { color: var(--lime); }
   .frm-row { flex-direction: column; }
   /* 16px حد أدنى: أقل منه يجعل سفاري iOS يكبّر الصفحة تلقائياً عند لمس الحقل ولا يعيدها */
   .fld input, .fld select { font-size: 16px; }
+
+  /* تكبير نصوص المتن على الجوال (طلب المالك 2026-07-22 بعد اضطراره للتزويم).
+     clamp() لا يصلح هنا: المطلوب أكبر من قيمة الديسكتوب لا أصغر منها، وحدّ clamp
+     الأدنى لا يتجاوز أقصاه — فهذه هي الحالة الوحيدة التي تحمل فيها نقطة الكسر مقاسات. */
+  .btn, .check li { font-size: 16px; }
+  .faq summary { font-size: 16.5px; }
+  .card h3 { font-size: 21px; }
+  .step h3, .scard h3 { font-size: 20px; }
+  .price .pname { font-size: 19px; }
+  .card p, .step p, .faq p, .sectors span, .legal p, .legal ul { font-size: 15.5px; }
+  .price p.pd, .scard p, .join-list { font-size: 15px; }
+  .stat span, .mini-feats span, .board-row .v, .fld label, footer.site { font-size: 14.5px; }
+  .footnote, .board-row .o { font-size: 12.5px; }
+  .tags span { font-size: 12px; }
 }
