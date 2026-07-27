@@ -503,12 +503,37 @@ export class OrderService {
     if (!intent) throw new AppError("ORDER-4001", { hint: "أنشئ نية الدفع أولاً" });
     if (intent.status === "authorized" || intent.status === "captured")
       return { status: intent.status, redirect_url: null, message: null };
-    if (intent.status === "failed")
-      throw new AppError("PAY-5001", { hint: "هذه المحاولة فشلت — ابدأ طلباً جديداً" });
-    // إعادة الإرسال بعد بدء العملية: لا نُنشئ عملية ثانية عند البوابة
-    if (intent.provider_ref) return this.syncPaymentIntent(intent.provider_ref, intent.id);
 
-    const method = intent.method === "wallet" ? "card" : (intent.method as "card" | "apple_pay" | "stc_pay");
+    /**
+     * رفض البنك شائع مع البوابات الحقيقية — «جرّب بطاقة ثانية» على نفس الطلب
+     * بدل طلب جديد: PAYMENT_FAILED → PAYMENT_PENDING (انتقال مسموح docs/05).
+     * حصة المحفظة رُدّت عند الفشل، فإعادة المحاولة عليها تحتاج تسعيراً جديداً.
+     */
+    const retrying = intent.status === "failed";
+    if (retrying) {
+      if (intent.wallet_applied_halalas > 0 || order.order_status !== "PAYMENT_FAILED")
+        throw new AppError("PAY-5001", { hint: "هذه المحاولة فشلت — ابدأ طلباً جديداً" });
+      await prisma.$transaction(async (tx) => {
+        await tx.paymentIntent.update({
+          where: { id: intent.id },
+          data: {
+            status: "requires_payment",
+            provider_ref: null,
+            ...(body.method ? { method: body.method } : {})
+          }
+        });
+        await transitionOrder(tx, order, "PAYMENT_PENDING", {
+          actor_type: "customer",
+          actor_id: user_id
+        });
+      });
+    } else if (intent.provider_ref) {
+      // إعادة الإرسال بعد بدء العملية: لا نُنشئ عملية ثانية عند البوابة
+      return this.syncPaymentIntent(intent.provider_ref, intent.id);
+    }
+
+    const effectiveMethod = (retrying && body.method) || intent.method;
+    const method = effectiveMethod === "wallet" ? "card" : (effectiveMethod as "card" | "apple_pay" | "stc_pay");
 
     // بطاقة محفوظة: الملكية والصلاحية تُتحقق خادمياً قبل أي نداء للبوابة
     let card_token = body.card_token;

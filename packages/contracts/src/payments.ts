@@ -35,7 +35,12 @@ export const ConfirmPaymentBodySchema = z
     /** توكن Apple Pay من Apple Pay JS */
     apple_pay_token: z.string().min(10).optional(),
     /** «حفظ كطريقة الدفع الأساسية» — البطاقة تُحفظ بعد نجاح الدفع */
-    save_card: z.boolean().default(false)
+    save_card: z.boolean().default(false),
+    /**
+     * الطريقة عند إعادة المحاولة بعد رفض البنك — العميل قد يبدّل من بطاقة
+     * إلى STC Pay مثلاً؛ تُحدَّث على النية نفسها بلا طلب جديد.
+     */
+    method: z.enum(["card", "apple_pay", "stc_pay"]).optional()
   })
   .refine((b) => b.card_token || b.card_id || b.mobile || b.apple_pay_token, {
     message: "مصدر الدفع مطلوب"

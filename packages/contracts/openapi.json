@@ -5696,6 +5696,14 @@
                   "save_card": {
                     "type": "boolean",
                     "default": false
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "card",
+                      "apple_pay",
+                      "stc_pay"
+                    ]
                   }
                 }
               }

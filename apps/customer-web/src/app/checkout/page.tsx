@@ -412,6 +412,8 @@ export default function CheckoutPage() {
   // بوابة الدفع الفعلية + بطاقة رُمّزت في المتصفح ولم تُحفظ بعد
   const [payCfg, setPayCfg] = useState<PayConfig | null>(null);
   const [pendingCard, setPendingCard] = useState<PendingCard | null>(null);
+  // طلب أُنشئ ورُفض دفعه — إعادة المحاولة تكون عليه لا على طلب جديد (السلة استُهلكت)
+  const [failedOrder, setFailedOrder] = useState<OrderCreated | null>(null);
   const [showAddCard, setShowAddCard] = useState(false);
   const [pan, setPan] = useState("");
   const [expiry, setExpiry] = useState(""); // MM/YY
@@ -806,29 +808,36 @@ export default function CheckoutPage() {
     }
     setBusy(true);
     setError(null);
+    let createdOrder: OrderCreated | null = failedOrder;
     try {
-      const order = await api<OrderCreated>(
-        "POST",
-        "/v1/orders",
-        {
-          cart_id: cartId,
-          quote_id: quoteId,
-          vehicle_id: vehicleId,
-          pickup_time: pickupTime,
-          ...(pickupTime === "scheduled" && slotId ? { slot_id: slotId } : {})
-        },
-        { idempotent: true }
-      );
-      const intent = await api<{ amount_halalas: number; status: string }>(
-        "POST",
-        `/v1/orders/${order.id}/payment-intent`,
-        {
-          method: payMethod,
-          use_wallet: walletOn,
-          ...(payMethod === "card" && cardId ? { card_id: cardId } : {})
-        },
-        { idempotent: true }
-      );
+      // إعادة محاولة الدفع على طلب مرفوض: السلة استُهلكت خادمياً والنية موجودة
+      const order =
+        failedOrder ??
+        (await api<OrderCreated>(
+          "POST",
+          "/v1/orders",
+          {
+            cart_id: cartId,
+            quote_id: quoteId,
+            vehicle_id: vehicleId,
+            pickup_time: pickupTime,
+            ...(pickupTime === "scheduled" && slotId ? { slot_id: slotId } : {})
+          },
+          { idempotent: true }
+        ));
+      createdOrder = order;
+      const intent = failedOrder
+        ? { amount_halalas: dueTotal ?? 1, status: "requires_payment" }
+        : await api<{ amount_halalas: number; status: string }>(
+            "POST",
+            `/v1/orders/${order.id}/payment-intent`,
+            {
+              method: payMethod,
+              use_wallet: walletOn,
+              ...(payMethod === "card" && cardId ? { card_id: cardId } : {})
+            },
+            { idempotent: true }
+          );
       // محفظة بيكلي غطت الطلب كاملاً → تفويض فوري بلا بوابة
       if (intent.status !== "authorized" && intent.amount_halalas > 0) {
         if (payCfg?.client_tokenization) {
@@ -841,6 +850,7 @@ export default function CheckoutPage() {
             "POST",
             `/v1/orders/${order.id}/payment/confirm`,
             {
+              method: payMethod,
               ...(pendingCard && !cardId ? { card_token: pendingCard.token } : {}),
               ...(cardId ? { card_id: cardId } : {}),
               save_card: pendingCard?.save ?? false
@@ -848,7 +858,12 @@ export default function CheckoutPage() {
             { idempotent: true }
           );
           if (confirmed.status === "failed") {
-            setError(confirmed.message ?? "ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
+            // الطلب باقٍ — «جرّب بطاقة ثانية» تعيد المحاولة عليه لا على طلب جديد
+            setFailedOrder(order);
+            setPendingCard(null);
+            setError(
+              `${confirmed.message ?? "البنك رفض العملية"} — اختر بطاقة ثانية واضغط «ادفع الآن»`
+            );
             return;
           }
           if (confirmed.redirect_url) {
@@ -879,9 +894,12 @@ export default function CheckoutPage() {
       }
       sessionStorage.removeItem("pk_cart");
       sessionStorage.removeItem("pk_quote");
+      setFailedOrder(null);
       setDonePickup(pickupTime);
       setDone(order); // C-37: نجاح الطلب
     } catch (e) {
+      // انقطاع بعد إنشاء الطلب: السلة استُهلكت — المحاولة التالية على الطلب نفسه
+      if (createdOrder) setFailedOrder(createdOrder);
       setError((e as Error).message);
     } finally {
       setBusy(false);
