@@ -1,10 +1,8 @@
 import type { FastifyInstance } from "fastify";
-import { prisma } from "@pickly/database";
+import { prisma, type Prisma } from "@pickly/database";
 import { AppError } from "@pickly/observability";
 import { MockPaymentAdapter } from "@pickly/payments";
-import { emitEvent } from "../../lib/events.js";
-import { proceedAfterAuthorization } from "../../lib/payment-flow.js";
-import { transitionOrder } from "../../lib/state-machine.js";
+import { applyPaymentEvent } from "../../lib/payment-events.js";
 import { payments } from "../orders/service.js";
 
 /**
@@ -33,6 +31,7 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
     if (provider !== payments.provider) throw new AppError("PAY-5003", { provider });
 
     const { raw } = req.body as { raw: string };
+    // المحاكي يوقّع بترويسة؛ ميسر تضع السر داخل الجسم (secret_token) — المحوّل يعرف أيهما
     const signature = req.headers["x-pickly-signature"] as string | undefined;
 
     const verified = payments.verifyWebhook(raw, signature);
@@ -44,17 +43,26 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
     });
     if (existing) return reply.status(200).send({ received: true, duplicate: true });
 
+    // السر لا يُخزن: ميسر تضعه في الجسم — نُسقطه قبل الحفظ الخام (docs/17)
+    const { secret_token: _secret, ...payload } = JSON.parse(raw) as Prisma.JsonObject;
+    void _secret;
+
     const stored = await prisma.paymentWebhookEvent.create({
       data: {
         provider,
         event_ref: verified.event_ref,
         signature: signature ?? null,
-        payload: JSON.parse(raw)
+        payload
       }
     });
 
     try {
-      await handlePaymentEvent(verified.event_type, verified.provider_ref, verified.amount_halalas);
+      await applyPaymentEvent(
+        verified.event_type,
+        verified.provider_ref,
+        verified.amount_halalas,
+        verified.metadata
+      );
       await prisma.paymentWebhookEvent.update({
         where: { id: stored.id },
         data: { processed_at: new Date() }
@@ -103,86 +111,6 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
       const intent = await prisma.paymentIntent.findUnique({ where: { order_id } });
       if (!intent?.provider_ref) throw new AppError("ORDER-4001");
       return confirmAndWebhook(intent.provider_ref, intent.amount_halalas);
-    });
-  }
-}
-
-/** مطابقة المبلغ والعملة والطلب قبل أي تحويل حالة — docs/13§4-5 */
-async function handlePaymentEvent(
-  event_type: string,
-  provider_ref: string,
-  amount_halalas: number
-): Promise<void> {
-  const intent = await prisma.paymentIntent.findFirst({
-    where: { provider_ref },
-    include: { order: { include: { scheduled_slot: true } } }
-  });
-  if (!intent) throw new AppError("ORDER-4001", { provider_ref });
-  if (intent.amount_halalas !== amount_halalas) throw new AppError("PAY-5004");
-
-  const order = intent.order;
-
-  if (event_type === "payment.authorized") {
-    await prisma.$transaction(async (tx) => {
-      await tx.paymentIntent.update({
-        where: { id: intent.id },
-        data: { status: "authorized" }
-      });
-      // Ledger: قيد مزدوج — docs/13§4-6
-      await tx.paymentTransaction.create({
-        data: {
-          intent_id: intent.id,
-          type: "authorization",
-          debit_account: "customer_receivable",
-          credit_account: "gateway_pending",
-          amount_halalas,
-          provider_ref
-        }
-      });
-      // حصة محفظة بيكلي (خُصمت عند إنشاء الـintent) تدخل الـLedger عند التفويض
-      if (intent.wallet_applied_halalas > 0) {
-        await tx.paymentTransaction.create({
-          data: {
-            intent_id: intent.id,
-            type: "wallet_redemption",
-            debit_account: "customer_wallet",
-            credit_account: "merchant_payable",
-            amount_halalas: intent.wallet_applied_halalas,
-            idempotency_key: `wallet:${intent.idempotency_key}`
-          }
-        });
-      }
-
-      // PAYMENT_PENDING → AUTHORIZED → ORDER_SUBMITTED → MERCHANT_PENDING (معاملة واحدة)
-      await proceedAfterAuthorization(tx, intent, order);
-    });
-  } else if (event_type === "payment.failed") {
-    await prisma.$transaction(async (tx) => {
-      await tx.paymentIntent.update({ where: { id: intent.id }, data: { status: "failed" } });
-      // فشل البوابة يرد حصة المحفظة المحجوزة — قيد إيداع مقابل
-      if (intent.wallet_applied_halalas > 0) {
-        await tx.customerWalletEntry.create({
-          data: {
-            user_id: order.user_id,
-            amount_halalas: intent.wallet_applied_halalas,
-            entry_type: "credit",
-            reference: `order:${order.display_code}:failed`
-          }
-        });
-        await tx.paymentIntent.update({
-          where: { id: intent.id },
-          data: { wallet_applied_halalas: 0 }
-        });
-      }
-      await transitionOrder(tx, order, "PAYMENT_FAILED", { actor_type: "system" });
-      await emitEvent(tx, {
-        name: "payment.failed",
-        aggregate_type: "payment_intent",
-        aggregate_id: intent.id,
-        merchant_id: order.merchant_id,
-        branch_id: order.branch_id,
-        payload: { amount_halalas }
-      });
     });
   }
 }

@@ -1,17 +1,21 @@
 import { prisma, type Prisma } from "@pickly/database";
 import type {
+  ConfirmPaymentBody,
+  ConfirmPaymentResponse,
   CreateOrderBody,
   Order as OrderDto,
   OrderState,
   PaymentMethodKey,
-  PickupTime
+  PickupTime,
+  SyncPaymentResponse
 } from "@pickly/contracts";
 import { CUSTOMER_DISPLAY_MAP } from "@pickly/contracts";
 import { AppError } from "@pickly/observability";
-import { createPaymentAdapter } from "@pickly/payments";
+import { createPaymentAdapter, type SavedCardFromCharge } from "@pickly/payments";
 import { generateDisplayCode, handoffCodeFor } from "../../lib/codes.js";
 import { emitEvent, scheduleJob } from "../../lib/events.js";
 import { requireFlag } from "../../lib/flags.js";
+import { applyPaymentEvent } from "../../lib/payment-events.js";
 import { proceedAfterAuthorization } from "../../lib/payment-flow.js";
 import { activePaymentMethods, walletBalance } from "../../lib/payment-methods.js";
 import { transitionOrder } from "../../lib/state-machine.js";
@@ -25,6 +29,18 @@ const UNPAID_EXPIRE_MINUTES_DEFAULT = 30; // مجدول لم يُدفع → EXPI
 const ARRIVAL_RADIUS_M_DEFAULT = 500;
 
 export const payments = createPaymentAdapter();
+
+/** رسائل رفض البوابة → تلميح عربي مفهوم بلا تسريب تفاصيل تقنية (docs/17) */
+function hintForChargeError(raw: string): string {
+  if (raw.includes("missing_card_token")) return "اختر بطاقة أو أضف بطاقة جديدة";
+  if (raw.includes("missing_mobile")) return "أدخل رقم جوال محفظة STC Pay";
+  if (raw.includes("missing_applepay_token")) return "Apple Pay غير مهيأ على هذا الجهاز";
+  if (raw.includes("client_tokenization_required"))
+    return "أضف البطاقة من شاشة الدفع — الترميز يتم لدى البوابة مباشرة";
+  if (/insufficient|declin|refus/i.test(raw)) return "البنك رفض العملية — جرّب بطاقة أخرى";
+  if (/token/i.test(raw)) return "بيانات البطاقة غير صالحة — أعد إدخالها";
+  return "تعذّر إتمام الدفع — جرّب مرة أخرى أو بطاقة أخرى";
+}
 
 type OrderWithItems = Prisma.OrderGetPayload<{
   include: {
@@ -306,6 +322,10 @@ export class OrderService {
       const active = await activePaymentMethods();
       if (!active.some((m) => m.key === method))
         throw new AppError("PAY-5001", { hint: "طريقة الدفع غير مفعلة حالياً" });
+      // والبوابة الحقيقية قد لا تخدم الطريقة أصلاً (Apple Pay بلا توثيق آبل)
+      const supported = payments.supportedMethods?.();
+      if (supported && !supported.includes(method))
+        throw new AppError("PAY-5001", { hint: "طريقة الدفع غير متاحة عبر البوابة حالياً" });
     }
 
     // بطاقة محفوظة (بطاقاتي): ملكية العميل + سارية — الدفع بـtoken البوابة فقط
@@ -422,7 +442,8 @@ export class OrderService {
           order_id,
           provider: payments.provider,
           method,
-          provider_ref: providerIntent.provider_ref,
+          // بوابة مؤجلة الشحن (ميسر): المرجع لا يوجد قبل تسليم المصدر — يُملأ في confirmPayment
+          provider_ref: providerIntent.provider_ref || null,
           amount_halalas: gateway_amount,
           wallet_applied_halalas: wallet_applied,
           status: "requires_payment",
@@ -459,6 +480,177 @@ export class OrderService {
       currency: "SAR" as const,
       status: "requires_payment" as const
     };
+  }
+
+  /**
+   * POST /v1/orders/:id/payment/confirm — تنفيذ الدفع لدى البوابة الحقيقية.
+   * المصدر يصل من الواجهة: توكن بطاقة مُرمَّز في المتصفح (لا PAN عندنا)،
+   * أو بطاقة محفوظة بمعرّفها، أو جوال STC Pay. النتيجة النهائية تبقى من
+   * webhook/sync لا من هذه الاستجابة (docs/13§4-4).
+   */
+  async confirmPayment(
+    order_id: string,
+    user_id: string,
+    body: ConfirmPaymentBody
+  ): Promise<ConfirmPaymentResponse> {
+    if (!payments.charge)
+      throw new AppError("PAY-5001", { hint: "بوابة الدفع الحالية لا تحتاج هذه الخطوة" });
+
+    const order = await prisma.order.findUnique({ where: { id: order_id } });
+    if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
+
+    const intent = await prisma.paymentIntent.findUnique({ where: { order_id } });
+    if (!intent) throw new AppError("ORDER-4001", { hint: "أنشئ نية الدفع أولاً" });
+    if (intent.status === "authorized" || intent.status === "captured")
+      return { status: intent.status, redirect_url: null, message: null };
+    if (intent.status === "failed")
+      throw new AppError("PAY-5001", { hint: "هذه المحاولة فشلت — ابدأ طلباً جديداً" });
+    // إعادة الإرسال بعد بدء العملية: لا نُنشئ عملية ثانية عند البوابة
+    if (intent.provider_ref) return this.syncPaymentIntent(intent.provider_ref, intent.id);
+
+    const method = intent.method === "wallet" ? "card" : (intent.method as "card" | "apple_pay" | "stc_pay");
+
+    // بطاقة محفوظة: الملكية والصلاحية تُتحقق خادمياً قبل أي نداء للبوابة
+    let card_token = body.card_token;
+    if (!card_token && body.card_id) {
+      const card = await prisma.customerCard.findUnique({ where: { id: body.card_id } });
+      if (!card || card.user_id !== user_id || !card.is_active)
+        throw new AppError("PAY-5001", { hint: "البطاقة غير موجودة" });
+      if (card.provider !== payments.provider)
+        throw new AppError("PAY-5001", { hint: "هذه البطاقة محفوظة على بوابة سابقة — أضفها من جديد" });
+      card_token = card.token;
+    }
+
+    // جوال STC Pay: من الجسم أو جوال الحساب المسجّل
+    let mobile = body.mobile;
+    if (method === "stc_pay" && !mobile) {
+      const user = await prisma.user.findUnique({ where: { id: user_id }, select: { phone: true } });
+      mobile = user?.phone?.replace(/^\+966/, "0") ?? undefined;
+      if (!mobile) throw new AppError("PAY-5001", { hint: "أدخل رقم جوال محفظة STC Pay" });
+    }
+
+    const base = (process.env.WEB_BASE_URL ?? "").replace(/\/$/, "");
+    let charged;
+    try {
+      charged = await payments.charge({
+        amount_halalas: intent.amount_halalas,
+        currency: "SAR",
+        order_ref: order.display_code,
+        idempotency_key: intent.idempotency_key,
+        // معرّف ثابت عند البوابة — إعادة الإرسال لا تُنشئ عملية ثانية (docs/13§4-2)
+        given_id: intent.id,
+        method,
+        callback_url: `${base}/pay/return?order=${order_id}`,
+        save_card: body.save_card,
+        ...(card_token ? { card_token } : {}),
+        ...(mobile ? { mobile } : {}),
+        ...(body.apple_pay_token ? { apple_pay_token: body.apple_pay_token } : {}),
+        metadata: { order_id, user_id }
+      });
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      // رسالة البوابة لا تُمرر خاماً للعميل — نلخّصها بالعربية
+      throw new AppError("PAY-5001", { hint: hintForChargeError(raw) });
+    }
+
+    await prisma.paymentIntent.update({
+      where: { id: intent.id },
+      data: {
+        provider_ref: charged.provider_ref,
+        supports_capture: charged.supports_capture,
+        status: charged.status === "captured" || charged.status === "authorized" ? charged.status : "processing"
+      }
+    });
+
+    if (charged.saved_card && body.save_card) {
+      await this.saveGatewayCard(user_id, charged.saved_card);
+    }
+
+    // تحدي 3DS أو رمز STC — الواجهة تُحوّل العميل ثم تعود لصفحة العودة
+    if (charged.redirect_url) {
+      return { status: "requires_action", redirect_url: charged.redirect_url, message: null };
+    }
+
+    if (charged.status === "authorized" || charged.status === "captured") {
+      await applyPaymentEvent(
+        charged.status === "captured" ? "payment.captured" : "payment.authorized",
+        charged.provider_ref,
+        intent.amount_halalas
+      );
+      return { status: charged.status, redirect_url: null, message: charged.message ?? null };
+    }
+
+    if (charged.status === "failed") {
+      await applyPaymentEvent("payment.failed", charged.provider_ref, intent.amount_halalas);
+      return { status: "failed", redirect_url: null, message: charged.message ?? null };
+    }
+
+    // processing بلا رابط تحويل — الحسم من webhook؛ الواجهة تنتظر على صفحة التتبع
+    return { status: "requires_action", redirect_url: null, message: charged.message ?? null };
+  }
+
+  /** POST /v1/orders/:id/payment/sync — قراءة الحالة من البوابة بعد عودة العميل */
+  async syncPayment(order_id: string, user_id: string): Promise<SyncPaymentResponse> {
+    const order = await prisma.order.findUnique({ where: { id: order_id } });
+    if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
+    const intent = await prisma.paymentIntent.findUnique({ where: { order_id } });
+    if (!intent) throw new AppError("ORDER-4001");
+    if (!intent.provider_ref || !payments.fetchPayment)
+      return { status: intent.status, message: null };
+    const synced = await this.syncPaymentIntent(intent.provider_ref, intent.id);
+    return {
+      status: synced.status === "requires_action" ? "processing" : synced.status,
+      message: synced.message
+    };
+  }
+
+  /** قراءة العملية من البوابة وتطبيقها — مشتركة بين إعادة الإرسال وصفحة العودة */
+  private async syncPaymentIntent(
+    provider_ref: string,
+    intent_id: string
+  ): Promise<ConfirmPaymentResponse> {
+    const remote = await payments.fetchPayment?.(provider_ref);
+    if (!remote) return { status: "requires_action", redirect_url: null, message: null };
+
+    if (remote.status === "authorized" || remote.status === "captured") {
+      await applyPaymentEvent(
+        remote.status === "captured" ? "payment.captured" : "payment.authorized",
+        provider_ref,
+        remote.amount_halalas
+      );
+      return { status: remote.status, redirect_url: null, message: remote.message ?? null };
+    }
+    if (remote.status === "failed") {
+      await applyPaymentEvent("payment.failed", provider_ref, remote.amount_halalas);
+      return { status: "failed", redirect_url: null, message: remote.message ?? null };
+    }
+    await prisma.paymentIntent.update({ where: { id: intent_id }, data: { status: "processing" } });
+    return { status: "requires_action", redirect_url: null, message: remote.message ?? null };
+  }
+
+  /** حفظ توكن البطاقة العائد من البوابة بعد دفعة ناجحة — لا PAN ولا CVV (docs/17) */
+  private async saveGatewayCard(user_id: string, card: SavedCardFromCharge): Promise<void> {
+    const existing = await prisma.customerCard.findUnique({ where: { token: card.token } });
+    if (existing) return;
+    await prisma.$transaction(async (tx) => {
+      await tx.customerCard.updateMany({
+        where: { user_id, is_default: true },
+        data: { is_default: false }
+      });
+      await tx.customerCard.create({
+        data: {
+          user_id,
+          provider: payments.provider,
+          token: card.token,
+          brand: card.brand,
+          last4: card.last4,
+          exp_month: card.exp_month,
+          exp_year: card.exp_year,
+          holder_name: card.holder_name,
+          is_default: true
+        }
+      });
+    });
   }
 
   async get(order_id: string, user_id: string): Promise<OrderDto> {

@@ -34,6 +34,12 @@ admin.thepickly.com {
 	reverse_proxy admin-web:3003
 }
 
+# الـAPI عبر HTTPS — تحتاجه بوابة الدفع لإرسال webhooks موقّعة إلى
+# https://api.thepickly.com/v1/webhooks/payments/moyasar (البوابات لا تقبل HTTP)
+api.thepickly.com {
+	reverse_proxy api:4000
+}
+
 # site. القديم يحوّل للنطاق الرئيسي (اللاندنق صارت عليه)
 site.thepickly.com {
 	redir https://thepickly.com{uri} permanent

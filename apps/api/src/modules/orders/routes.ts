@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import {
   CancelOrderBodySchema,
   ChangeResponseBodySchema,
+  ConfirmPaymentBodySchema,
   CreateOrderBodySchema,
   CreatePaymentIntentBodySchema,
   RescheduleOrderBodySchema,
@@ -34,6 +35,26 @@ export async function orderRoutes(app: FastifyInstance): Promise<void> {
     const id = UuidSchema.parse((req.params as { id: string }).id);
     const body = CreatePaymentIntentBodySchema.parse(req.body ?? {});
     return service.createPaymentIntent(id, claims.sub, key, body.method, body.use_wallet, body.card_id);
+  });
+
+  /**
+   * تنفيذ الدفع لدى البوابة الحقيقية (ميسر) — خطوة ثانية بعد نية الدفع:
+   * توكن البطاقة يصل من المتصفح (رقم البطاقة لا يمر علينا)، أو جوال STC Pay.
+   * النتيجة قد تكون requires_action فيُحوَّل العميل لتحدي 3DS.
+   */
+  app.post("/:id/payment/confirm", async (req) => {
+    const claims = requireCustomer(req);
+    idempotencyKeyOf(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    const body = ConfirmPaymentBodySchema.parse(req.body ?? {});
+    return service.confirmPayment(id, claims.sub, body);
+  });
+
+  /** مزامنة حالة الدفع من البوابة — تستدعيها صفحة العودة بعد 3DS */
+  app.post("/:id/payment/sync", async (req) => {
+    const claims = requireCustomer(req);
+    const id = UuidSchema.parse((req.params as { id: string }).id);
+    return service.syncPayment(id, claims.sub);
   });
 
   /** تعديل فترة المجدول قبل مهلة التعديل المجاني — BR-5 */

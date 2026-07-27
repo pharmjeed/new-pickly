@@ -58,6 +58,7 @@ const routes: RouteDef[] = [
   { method: "get", path: "/v1/content/banners", summary: "بانرات CMS (A-13)", tags: ["discovery"], response: z.array(c.ContentBannerSchema) },
   { method: "get", path: "/v1/content/categories", summary: "تصنيفات المطاعم C-09 (يديرها السوبر أدمن)", tags: ["discovery"], response: z.array(c.ContentCategorySchema) },
   { method: "get", path: "/v1/content/payment-methods", summary: "طرق الدفع الظاهرة للعميل (يديرها السوبر أدمن — payments.methods)", tags: ["discovery"], response: z.array(c.ContentPaymentMethodSchema) },
+  { method: "get", path: "/v1/content/payment-config", summary: "إعداد بوابة الدفع للواجهة (المفتاح القابل للنشر + الطرق المدعومة)", tags: ["discovery"], response: c.PaymentConfigSchema },
   // §3 السلة
   { method: "post", path: "/v1/carts", summary: "إنشاء سلة", tags: ["carts"], auth: true, body: c.CreateCartBodySchema, response: c.CartSchema },
   { method: "get", path: "/v1/carts/{id}", summary: "قراءة السلة", tags: ["carts"], auth: true, response: c.CartSchema },
@@ -69,6 +70,8 @@ const routes: RouteDef[] = [
   { method: "post", path: "/v1/orders", summary: "إنشاء طلب — pickup_time: asap|later|scheduled (+slot_id للمجدول)", tags: ["orders"], auth: true, idempotent: true, body: c.CreateOrderBodySchema, response: c.OrderSchema },
   { method: "get", path: "/v1/orders/{id}", summary: "قراءة طلب", tags: ["orders"], auth: true, response: c.OrderSchema },
   { method: "post", path: "/v1/orders/{id}/payment-intent", summary: "إنشاء Payment Intent (method: card|apple_pay|stc_pay + use_wallet لمحفظة بيكلي)", tags: ["orders"], auth: true, idempotent: true, body: c.CreatePaymentIntentBodySchema, response: c.PaymentIntentResponseSchema },
+  { method: "post", path: "/v1/orders/{id}/payment/confirm", summary: "تنفيذ الدفع لدى البوابة (توكن بطاقة مُرمَّز في المتصفح أو جوال STC) — قد يعيد رابط تحدي 3DS", tags: ["orders"], auth: true, idempotent: true, body: c.ConfirmPaymentBodySchema, response: c.ConfirmPaymentResponseSchema },
+  { method: "post", path: "/v1/orders/{id}/payment/sync", summary: "مزامنة حالة الدفع من البوابة بعد عودة العميل من 3DS", tags: ["orders"], auth: true, response: c.SyncPaymentResponseSchema },
   { method: "post", path: "/v1/orders/{id}/reschedule", summary: "تعديل فترة المجدول قبل مهلة التعديل المجاني (BR-5)", tags: ["orders"], auth: true, idempotent: true, body: c.RescheduleOrderBodySchema, response: c.OrderSchema },
   { method: "post", path: "/v1/orders/{id}/cancel", summary: "طلب إلغاء", tags: ["orders"], auth: true, idempotent: true, body: c.CancelOrderBodySchema, response: c.OrderSchema },
   { method: "post", path: "/v1/orders/{id}/change-response", summary: "رد العميل على تعديل الفرع (BR-4)", tags: ["orders"], auth: true, body: c.ChangeResponseBodySchema, response: c.OrderSchema },

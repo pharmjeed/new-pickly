@@ -10,8 +10,20 @@ x-env: &app-env
   # مهلة طويلة للعرض حتى لا تنتهي الجلسة أثناء الاستخدام (الإنتاج يقصّرها ويضيف refresh)
   JWT_ACCESS_TTL: 12h
   SMS_PROVIDER: mock
-  PAYMENT_PROVIDER: mock
+  # الدفع: mock افتراضياً. لتفعيل ميسر ضع في /home/ubuntu/pickly/.env:
+  #   PAYMENT_PROVIDER=moyasar
+  #   PAYMENT_API_KEY=sk_live_…            (سري — لا يُرفع للمستودع أبداً)
+  #   PAYMENT_PUBLISHABLE_KEY=pk_live_…
+  #   PAYMENT_WEBHOOK_SECRET=…             (نفس السر المضبوط في لوحة ميسر)
+  # ثم: docker compose -f infra/vm/docker-compose.prod.yml up -d api worker
+  PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
+  PAYMENT_API_KEY: ${PAYMENT_API_KEY:-}
+  PAYMENT_PUBLISHABLE_KEY: ${PAYMENT_PUBLISHABLE_KEY:-}
   PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-demo-webhook-secret}
+  PAYMENT_MANUAL_CAPTURE: ${PAYMENT_MANUAL_CAPTURE:-true}
+  MOYASAR_APPLE_PAY: ${MOYASAR_APPLE_PAY:-false}
+  # يُبنى منه رابط عودة العميل بعد تحدي 3DS — لا بد أن يكون العنوان العام الحقيقي
+  WEB_BASE_URL: ${WEB_BASE_URL:-https://app.thepickly.com}
   GEO_PROVIDER: mock
   PUSH_PROVIDER: mock
   OTP_DEV_FIXED_CODE: "1234"
@@ -150,7 +162,7 @@ services:
     environment:
       # الـCaddyfile مربوط bind-mount ولا يُعاد تحميله تلقائياً؛ غيّر هذا الرقم مع كل
       # تعديل عليه كي يعيد docker compose up -d إنشاء الحاوية فتقرأ الإعداد الجديد.
-      CADDY_CONFIG_VERSION: "4"
+      CADDY_CONFIG_VERSION: "5"
     ports:
       - "80:80"
       - "443:443"

@@ -457,7 +457,12 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
         cvv: body.cvv,
         ...(body.holder_name ? { holder_name: body.holder_name } : {})
       });
-    } catch {
+    } catch (err) {
+      // بوابة حقيقية: الترميز يتم في المتصفح مباشرة — لا نستقبل PAN هنا أصلاً
+      if (err instanceof Error && err.message.includes("client_tokenization_required"))
+        throw new AppError("SYS-9004", {
+          hint: "أضف البطاقة من شاشة الدفع — تُحفظ تلقائياً بعد أول عملية ناجحة"
+        });
       // رسالة البوابة لا تُمرر خاماً — ولا يُسجل أي جزء من البيانات
       throw new AppError("SYS-9004", { hint: "تحقق من رقم البطاقة وبياناتها" });
     }

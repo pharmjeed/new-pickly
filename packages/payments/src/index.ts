@@ -1,5 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { createLogger } from "@pickly/observability";
+// moyasar.ts يستورد الأنواع من هنا فقط (import type) — لا دورة وقت التشغيل
+import { MoyasarPaymentAdapter } from "./moyasar.js";
 
 /**
  * بوابة الدفع خلف Adapter — docs/13 + قاعدة الاستقلالية.
@@ -41,6 +43,11 @@ export interface WebhookVerification {
   provider_ref: string;
   amount_halalas: number;
   currency: string;
+  /**
+   * بيانات البوابة المرافقة (order_id عندنا) — شبكة أمان: لو انقطع الاتصال
+   * بعد إنشاء العملية وقبل حفظ provider_ref، يُعثر على النية بهذا المفتاح.
+   */
+  metadata?: Record<string, string>;
 }
 
 /** بيانات البطاقة تمر للبوابة فقط — لا تُخزن ولا تُسجل (docs/17) */
@@ -58,8 +65,67 @@ export interface CardToken {
   last4: string;
 }
 
+/** بطاقة محفوظة عائدة من البوابة بعد دفعة ناجحة (save_card) */
+export interface SavedCardFromCharge {
+  token: string;
+  brand: CardToken["brand"];
+  last4: string;
+  exp_month: number;
+  exp_year: number;
+  holder_name: string | null;
+}
+
+/**
+ * تنفيذ الدفع لدى بوابة «مؤجلة الشحن» (ميسر مثلاً): العملية تُنشأ لحظة تسليم
+ * المصدر (توكن بطاقة / جوال STC / توكن Apple Pay) لا لحظة إنشاء النية.
+ */
+export interface ChargeInput {
+  amount_halalas: number;
+  currency: "SAR";
+  order_ref: string;
+  idempotency_key: string;
+  method: "card" | "apple_pay" | "stc_pay";
+  /** توكن بطاقة من البوابة — مُرمَّز في المتصفح أو بطاقة محفوظة */
+  card_token?: string;
+  cvc?: string;
+  /** جوال محفظة STC Pay */
+  mobile?: string;
+  apple_pay_token?: string;
+  /** رابط عودة العميل بعد تحدي 3DS أو رمز STC */
+  callback_url: string;
+  /** حفظ البطاقة لدى البوابة لدفعات لاحقة */
+  save_card?: boolean;
+  /** معرّف ثابت للعملية يمنع تكرارها عند إعادة الإرسال */
+  given_id?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface ChargeResult {
+  provider_ref: string;
+  status: ProviderIntentStatus;
+  supports_capture: boolean;
+  /** تحدي 3DS أو صفحة رمز STC — الواجهة تحوّل العميل إليه */
+  redirect_url?: string;
+  message?: string;
+  saved_card?: SavedCardFromCharge;
+}
+
+/** قراءة حالة عملية من البوابة — شبكة أمان لصفحة العودة والتسوية */
+export interface RemotePayment {
+  provider_ref: string;
+  status: ProviderIntentStatus;
+  amount_halalas: number;
+  message?: string;
+  saved_card?: SavedCardFromCharge;
+}
+
 export interface PaymentAdapter {
   readonly provider: string;
+  /**
+   * البوابة تُنشئ العملية عند تسليم المصدر لا عند إنشاء النية — عندها
+   * `createIntent` لا تنادي الشبكة و`charge()` هي خطوة الدفع الفعلية.
+   */
+  readonly deferred_charge?: boolean;
   createIntent(input: CreateIntentInput): Promise<ProviderIntent>;
   /** حفظ بطاقة كـtoken عند البوابة — Tokenization فقط، لا تخزين PAN/CVV */
   tokenizeCard(input: TokenizeCardInput): Promise<CardToken>;
@@ -68,6 +134,13 @@ export interface PaymentAdapter {
   refund(provider_ref: string, amount_halalas: number, idempotency_key: string): Promise<{ ok: boolean; refund_ref: string }>;
   /** التحقق من توقيع webhook — إلزامي (docs/13§4-3) */
   verifyWebhook(rawBody: string, signature: string | undefined): WebhookVerification | null;
+  /** تنفيذ الدفع — للبوابات مؤجلة الشحن فقط */
+  charge?(input: ChargeInput): Promise<ChargeResult>;
+  fetchPayment?(provider_ref: string): Promise<RemotePayment | null>;
+  /** المفتاح القابل للنشر — الواجهة تُرمّز به البطاقة مباشرة لدى البوابة */
+  publishableKey?(): string | null;
+  /** الطرق التي يخدمها حساب البوابة فعلياً */
+  supportedMethods?(): Array<"card" | "apple_pay" | "stc_pay">;
 }
 
 const logger = createLogger("payments");
@@ -193,12 +266,16 @@ export class MockPaymentAdapter implements PaymentAdapter {
   }
 }
 
+export { MoyasarPaymentAdapter };
+
 export function createPaymentAdapter(): PaymentAdapter {
   const provider = process.env.PAYMENT_PROVIDER ?? "mock";
   switch (provider) {
     case "mock":
       return new MockPaymentAdapter();
-    // hyperpay | moyasar | tap — تُضاف تنفيذاتها عند توقيع العقد (HUMAN-ACTIONS B1)
+    case "moyasar":
+      return new MoyasarPaymentAdapter();
+    // hyperpay | tap — تُضاف تنفيذاتها عند توقيع العقد (HUMAN-ACTIONS B1)
     default:
       throw new Error(`مزود دفع غير مدعوم بعد: ${provider} — راجع HUMAN-ACTIONS.md B1`);
   }

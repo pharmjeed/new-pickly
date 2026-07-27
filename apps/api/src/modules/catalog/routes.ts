@@ -10,6 +10,7 @@ import {
   type ContentCategory,
   type Menu,
   type OfferCard,
+  type PaymentConfig,
   type SearchResponse
 } from "@pickly/contracts";
 import { prisma, slotWithinWeeklyWindows, isProductOnSale } from "@pickly/database";
@@ -17,6 +18,7 @@ import { AppError } from "@pickly/observability";
 import { createGeoAdapter, haversineMeters } from "@pickly/geo";
 import { requireFlag } from "../../lib/flags.js";
 import { activePaymentMethods } from "../../lib/payment-methods.js";
+import { payments } from "../orders/service.js";
 
 /**
  * وحدة Discovery/Catalog:
@@ -244,7 +246,27 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /** طرق الدفع الظاهرة للعميل — يديرها السوبر أدمن (payments.methods)؛ الفعّالة فقط بترتيبها */
-  app.get("/content/payment-methods", async () => activePaymentMethods());
+  app.get("/content/payment-methods", async () => {
+    const active = await activePaymentMethods();
+    // بوابة حقيقية لا تخدم طريقة ما (Apple Pay بلا إعداد Apple Merchant مثلاً)
+    // → لا تُعرض للعميل أصلاً بدل أن يصطدم بها عند الدفع
+    const supported = payments.supportedMethods?.();
+    return supported ? active.filter((m) => supported.includes(m.key)) : active;
+  });
+
+  /**
+   * إعداد البوابة للواجهة — المفتاح القابل للنشر (pk_) علني بطبيعته ولا يُتيح
+   * أي عملية سرية؛ به تُرمّز الواجهة البطاقة مباشرة لدى البوابة (docs/13§4-1).
+   */
+  app.get("/content/payment-config", async (): Promise<PaymentConfig> => {
+    const publishable_key = payments.publishableKey?.() ?? null;
+    return {
+      provider: payments.provider,
+      client_tokenization: Boolean(payments.deferred_charge),
+      publishable_key,
+      supported_methods: payments.supportedMethods?.() ?? ["apple_pay", "card", "stc_pay"]
+    };
+  });
 
   app.get("/branches/nearby", async (req) => {
     const q = NearbyQuerySchema.parse(req.query);

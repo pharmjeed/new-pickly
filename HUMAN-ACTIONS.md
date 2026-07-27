@@ -46,9 +46,30 @@
 ## المجموعة ب — مطلوبة قبل الإنتاج (كلٌّ منها يعمل الآن بـmock)
 
 ### B1. عقد بوابة الدفع (نموذج Marketplace/Split — docs/13§1)
-- **المرشحون:** HyperPay / Moyasar / Tap (اشترط: Apple Pay + مدى + Split Settlements + Auth/Capture).
-- **ماذا تفعل:** وقّع العقد، أنشئ حساب sandbox ثم production، واحصل على: `API Key`، `Webhook Secret`.
-- **أين يُلصق:** `.env` → `PAYMENT_PROVIDER=<اسم المزود>`، `PAYMENT_API_KEY=...`، `PAYMENT_WEBHOOK_SECRET=...` (وفي Secret Manager للسحابة).
+- **المختار:** **ميسر (Moyasar)** — الكود جاهز ومبني بالكامل؛ لا يبقى إلا لصق المفاتيح.
+  (HyperPay / Tap يبقيان بديلين غير مُنفَّذين.)
+- **ماذا تفعل:**
+  1. سجّل في https://dashboard.moyasar.com وأكمل توثيق النشاط (سجل تجاري + آيبان).
+  2. من لوحة ميسر → **API Keys** انسخ: `sk_test_…`/`sk_live_…` و`pk_test_…`/`pk_live_…`.
+  3. من لوحة ميسر → **Webhooks** أضف:
+     - **الرابط:** `https://api.thepickly.com/v1/webhooks/payments/moyasar`
+     - **الأحداث:** `payment_paid` · `payment_authorized` · `payment_captured` · `payment_faild` · `payment_voided`
+     - **Secret Token:** سراً طويلاً تختاره أنت (هو نفسه `PAYMENT_WEBHOOK_SECRET`).
+  4. اسأل ميسر: هل حسابي يدعم **Auth/Capture** (حجز ثم تحصيل)؟ إن كان لا → اضبط
+     `PAYMENT_MANUAL_CAPTURE=false` فيصير تحصيلاً فورياً مع استرجاع آلي عند رفض الفرع.
+- **أين يُلصق:** على السيرفر في `/home/ubuntu/pickly/.env` (لا تضعه في المستودع أبداً):
+  ```
+  PAYMENT_PROVIDER=moyasar
+  PAYMENT_API_KEY=sk_live_xxx
+  PAYMENT_PUBLISHABLE_KEY=pk_live_xxx
+  PAYMENT_WEBHOOK_SECRET=<نفس السر في لوحة ميسر>
+  PAYMENT_MANUAL_CAPTURE=true
+  WEB_BASE_URL=https://app.thepickly.com
+  ```
+  ثم: `docker compose -f infra/vm/docker-compose.prod.yml up -d api worker`
+- **ابدأ بمفاتيح الاختبار** (`sk_test_`/`pk_test_`) وجرّب ببطاقات ميسر التجريبية، ثم بدّل إلى `live`.
+- **Apple Pay:** يحتاج Apple Merchant ID ونطاقاً موثقاً لدى آبل (مرتبط بـB5). حتى ذلك الحين
+  يُخفى تلقائياً من شاشة الدفع؛ لتفعيله بعد التوثيق اضبط `MOYASAR_APPLE_PAY=true`.
 
 ### B2. مزود SMS (OTP)
 - **المرشحون:** Unifonic / Msegat (مسجلان لدى CITC لأسماء المرسِل).

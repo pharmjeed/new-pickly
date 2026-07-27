@@ -16,4 +16,5 @@ export * from "./notifications.js";
 export * from "./support.js";
 export * from "./wallet.js";
 export * from "./cards.js";
+export * from "./payments.js";
 export * from "./growth.js";

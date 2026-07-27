@@ -2619,6 +2619,171 @@
         }
       }
     },
+    "/v1/content/payment-config": {
+      "get": {
+        "summary": "إعداد بوابة الدفع للواجهة (المفتاح القابل للنشر + الطرق المدعومة)",
+        "tags": [
+          "discovery"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "provider": {
+                      "type": "string"
+                    },
+                    "client_tokenization": {
+                      "type": "boolean"
+                    },
+                    "publishable_key": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "supported_methods": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "card",
+                          "apple_pay",
+                          "stc_pay"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "provider",
+                    "client_tokenization",
+                    "publishable_key",
+                    "supported_methods"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/carts": {
       "post": {
         "summary": "إنشاء سلة",
@@ -5361,6 +5526,379 @@
                     "amount_halalas",
                     "currency",
                     "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders/{id}/payment/confirm": {
+      "post": {
+        "summary": "تنفيذ الدفع لدى البوابة (توكن بطاقة مُرمَّز في المتصفح أو جوال STC) — قد يعيد رابط تحدي 3DS",
+        "tags": [
+          "orders"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "card_token": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 120
+                  },
+                  "card_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "mobile": {
+                    "type": "string"
+                  },
+                  "apple_pay_token": {
+                    "type": "string",
+                    "minLength": 10
+                  },
+                  "save_card": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "requires_action",
+                        "authorized",
+                        "captured",
+                        "failed"
+                      ]
+                    },
+                    "redirect_url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uri"
+                    },
+                    "message": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "redirect_url",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "غلاف الخطأ الموحد",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message_ar": {
+                          "type": "string"
+                        },
+                        "message_en": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message_ar",
+                        "message_en"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders/{id}/payment/sync": {
+      "post": {
+        "summary": "مزامنة حالة الدفع من البوابة بعد عودة العميل من 3DS",
+        "tags": [
+          "orders"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "requires_payment",
+                        "processing",
+                        "authorized",
+                        "captured",
+                        "failed",
+                        "cancelled"
+                      ]
+                    },
+                    "message": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message"
                   ]
                 }
               }

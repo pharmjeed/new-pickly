@@ -1,7 +1,37 @@
 # BUILD-STATE.md — حالة بناء Pickly
 
 > نقطة الاستئناف لأي جلسة جديدة. حدِّث هذا الملف قبل كل commit.
-> آخر تحديث: 2026-07-16
+> آخر تحديث: 2026-07-27
+
+## الدفع الحقيقي عبر ميسر (Moyasar) — بُني 2026-07-27 (طلب المالك)
+
+البوابة الحقيقية جاهزة كاملة خلف `PAYMENT_PROVIDER`. المحاكي يبقى الافتراضي حتى
+تُلصق المفاتيح على السيرفر (HUMAN-ACTIONS B1) — لا شيء يتغير في العرض قبل ذلك.
+
+**لماذا اختلف المسار عن المحاكي:** ميسر لا تُنشئ العملية عند «نية الدفع» بل عند
+تسليم المصدر. لذا صار للمحوّل علم `deferred_charge` وخطوة `charge()` ثانية:
+
+```
+نية دفع (بلا provider_ref)
+  → المتصفح يُرمّز البطاقة لدى ميسر مباشرة (pk_) ← رقم البطاقة لا يمر علينا أبداً
+  → POST /v1/orders/:id/payment/confirm  (توكن / بطاقة محفوظة / جوال STC)
+  → تحدي 3DS أو رمز STC  → /pay/return  → POST …/payment/sync
+  → القرار النهائي من webhook موقّع (secret_token) — لا من المتصفح
+```
+
+**الملفات:** `packages/payments/src/moyasar.ts` (+15 اختباراً) · `packages/contracts/src/payments.ts` ·
+`apps/api/src/lib/payment-events.ts` (تطبيق idempotent مشترك بين webhook/charge/sync) ·
+`apps/api/src/modules/orders/service.ts` (`confirmPayment`/`syncPayment`) ·
+`apps/customer-web/src/lib/moyasar.ts` + `src/app/pay/return/page.tsx`.
+
+**نقاط تشغيلية:**
+- `api.thepickly.com` أُضيف إلى Caddy — ميسر لا تُرسل webhooks إلى HTTP.
+  تعديل Caddyfile لا يطبّقه النشر التلقائي: يلزم `up -d caddy` عبر SSH.
+- `PAYMENT_MANUAL_CAPTURE=false` يحوّل الحساب لتحصيل فوري إن لم يدعم Auth/Capture.
+- Apple Pay مخفي تلقائياً حتى `MOYASAR_APPLE_PAY=true` (يحتاج توثيق آبل — B5).
+- حفظ البطاقة صار عبر `save_card` بعد نجاح الدفع (توكن نشط)، لا بإرسال الرقم للخادم.
+- **متبقٍ:** `apps/customer-mobile` (تطبيق Expo القديم غير المنشور) ما زال على مسار
+  المحاكي — التطبيقان المنشوران أغلفة WebView فتأخذ المسار الجديد تلقائياً.
 
 ## أصوات لحظات الطلب (طلب المالك 2026-07-16)
 

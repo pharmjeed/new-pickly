@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, fmtSar } from "@/lib/api";
+import { tokenizeCardAtGateway, type TokenizedCard } from "@/lib/moyasar";
 import { QirtasLoader } from "../qirtas";
 import { QirtasLive } from "../qirtas-motion";
 import styles from "./checkout.module.css";
@@ -116,6 +117,21 @@ interface PayMethod {
 interface WalletInfo {
   balance_halalas: number;
 }
+
+/**
+ * إعداد بوابة الدفع — GET /v1/content/payment-config.
+ * client_tokenization=true يعني بوابة حقيقية (ميسر): البطاقة تُرمّز في المتصفح
+ * مباشرة لديها، والدفع يمر بخطوة تأكيد قد تنتهي بتحويل 3DS.
+ */
+interface PayConfig {
+  provider: string;
+  client_tokenization: boolean;
+  publishable_key: string | null;
+  supported_methods: PayMethodKey[];
+}
+
+/** بطاقة رُمّزت للتو ولم تُحفظ بعد — تُستخدم لهذه الدفعة وتُحفظ عند نجاحها */
+type PendingCard = TokenizedCard & { save: boolean };
 
 /* بطاقاتي — Tokenization فقط: لا يُخزن رقم البطاقة، فقط brand/last4/expiry */
 interface SavedCard {
@@ -393,6 +409,9 @@ export default function CheckoutPage() {
   // بطاقاتي — Tokenization فقط (قرار المالك 2026-07-12)
   const [cards, setCards] = useState<SavedCard[]>([]);
   const [cardId, setCardId] = useState<string | null>(null);
+  // بوابة الدفع الفعلية + بطاقة رُمّزت في المتصفح ولم تُحفظ بعد
+  const [payCfg, setPayCfg] = useState<PayConfig | null>(null);
+  const [pendingCard, setPendingCard] = useState<PendingCard | null>(null);
   const [showAddCard, setShowAddCard] = useState(false);
   const [pan, setPan] = useState("");
   const [expiry, setExpiry] = useState(""); // MM/YY
@@ -413,17 +432,46 @@ export default function CheckoutPage() {
   const dueTotal = total != null ? total - walletApplied : null;
   const selMethod = methods.find((m) => m.key === payMethod) ?? null;
   const selCard = payMethod === "card" && cardId ? cards.find((c) => c.id === cardId) ?? null : null;
+  const usingPending = payMethod === "card" && !cardId && pendingCard !== null;
+
+  const clearCardForm = () => {
+    setPan("");
+    setExpiry("");
+    setCvv("");
+    setHolder("");
+    setShowAddCard(false);
+    setShowPay(false);
+  };
 
   /** «إضافة بطاقة جديدة» — البيانات تذهب للبوابة (tokenize) ولا تُخزن لدينا */
   const submitCard = async () => {
     const [mm, yy] = expiry.split("/");
+    const exp_month = Number(mm);
+    const exp_year = 2000 + Number(yy);
     setCardBusy(true);
     setCardError(null);
     try {
+      // بوابة حقيقية (ميسر): الترميز في المتصفح مباشرة — الخادم لا يرى رقم البطاقة.
+      // التوكن يُستخدم لهذه الدفعة، وتُحفظ البطاقة بعد نجاحها إن اختار العميل ذلك.
+      if (payCfg?.client_tokenization && payCfg.publishable_key) {
+        const tok = await tokenizeCardAtGateway(payCfg.publishable_key, {
+          number: pan,
+          month: exp_month,
+          year: exp_year,
+          cvc: cvv,
+          ...(holder.trim() ? { name: holder.trim() } : {})
+        });
+        setPendingCard({ ...tok, save: saveDefault });
+        setPayMethod("card");
+        setCardId(null);
+        clearCardForm();
+        return;
+      }
+
       const card = await api<SavedCard>("POST", "/v1/customers/me/cards", {
         card_number: pan.replace(/\s/g, ""),
-        exp_month: Number(mm),
-        exp_year: Number(yy),
+        exp_month,
+        exp_year,
         cvv,
         holder_name: holder.trim() || undefined,
         set_default: saveDefault
@@ -431,12 +479,7 @@ export default function CheckoutPage() {
       setCards((cs) => [card, ...cs.map((c) => (saveDefault ? { ...c, is_default: false } : c))]);
       setPayMethod("card");
       setCardId(card.id);
-      setPan("");
-      setExpiry("");
-      setCvv("");
-      setHolder("");
-      setShowAddCard(false);
-      setShowPay(false);
+      clearCardForm();
     } catch (e) {
       setCardError((e as Error).message);
     } finally {
@@ -470,6 +513,10 @@ export default function CheckoutPage() {
     api<SavedCard[]>("GET", "/v1/customers/me/cards")
       .then(setCards)
       .catch(() => undefined);
+    // إعداد البوابة — يحدد هل تُرمّز البطاقة في المتصفح وهل يلزم تحويل 3DS
+    api<PayConfig>("GET", "/v1/content/payment-config")
+      .then(setPayCfg)
+      .catch(() => undefined); // تعذّر الجلب → المسار التجريبي كما كان
     // كتالوج الماركات والموديلات — يغذي قوائم «أضف سيارة جديدة»
     api<VehicleCatalog>("GET", "/v1/vehicle-catalog")
       .then(setCatalog)
@@ -750,6 +797,13 @@ export default function CheckoutPage() {
   const payAndOrder = async () => {
     if (!cartId || !quoteId || !vehicleId) return;
     if (pickupTime === "scheduled" && !slotId) return;
+    // بوابة حقيقية + بطاقة: لا بد من مصدر دفع قبل إنشاء الطلب
+    const needsSource = Boolean(payCfg?.client_tokenization) && (dueTotal ?? 0) > 0;
+    if (needsSource && payMethod === "card" && !cardId && !pendingCard) {
+      setError("اختر بطاقة محفوظة أو أضف بطاقة جديدة");
+      setShowPay(true);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -777,14 +831,50 @@ export default function CheckoutPage() {
       );
       // محفظة بيكلي غطت الطلب كاملاً → تفويض فوري بلا بوابة
       if (intent.status !== "authorized" && intent.amount_halalas > 0) {
-        // بوابة sandbox — نفس مسار الإنتاج: النتيجة عبر webhook موقع
-        const pay = await api<{ gateway_result: string }>(
-          "POST",
-          `/v1/dev/mock-gateway/by-order/${order.id}/pay`
-        );
-        if (pay.gateway_result !== "authorized") {
-          setError("ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
-          return;
+        if (payCfg?.client_tokenization) {
+          // بوابة حقيقية (ميسر): تسليم المصدر ثم تحدي 3DS/رمز STC عند اللزوم
+          const confirmed = await api<{
+            status: "requires_action" | "authorized" | "captured" | "failed";
+            redirect_url: string | null;
+            message: string | null;
+          }>(
+            "POST",
+            `/v1/orders/${order.id}/payment/confirm`,
+            {
+              ...(pendingCard && !cardId ? { card_token: pendingCard.token } : {}),
+              ...(cardId ? { card_id: cardId } : {}),
+              save_card: pendingCard?.save ?? false
+            },
+            { idempotent: true }
+          );
+          if (confirmed.status === "failed") {
+            setError(confirmed.message ?? "ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
+            return;
+          }
+          if (confirmed.redirect_url) {
+            // السلة استُهلكت خادمياً — ننظّفها قبل مغادرة الصفحة لصفحة البوابة
+            sessionStorage.removeItem("pk_cart");
+            sessionStorage.removeItem("pk_quote");
+            window.location.href = confirmed.redirect_url;
+            return;
+          }
+          if (confirmed.status === "requires_action") {
+            // بلا رابط تحويل: الحسم من webhook — نتابع على صفحة التتبع
+            sessionStorage.removeItem("pk_cart");
+            sessionStorage.removeItem("pk_quote");
+            router.push(`/track/${order.id}`);
+            return;
+          }
+        } else {
+          // بوابة sandbox — نفس مسار الإنتاج: النتيجة عبر webhook موقع
+          const pay = await api<{ gateway_result: string }>(
+            "POST",
+            `/v1/dev/mock-gateway/by-order/${order.id}/pay`
+          );
+          if (pay.gateway_result !== "authorized") {
+            setError("ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
+            return;
+          }
         }
       }
       sessionStorage.removeItem("pk_cart");
@@ -1035,9 +1125,13 @@ export default function CheckoutPage() {
             <b className={styles.optTitle}>
               {selCard
                 ? `${BRAND_AR[selCard.brand]} •••• ${selCard.last4}`
-                : selMethod?.name_ar ?? "طريقة الدفع"}
+                : usingPending && pendingCard
+                  ? `${BRAND_AR[pendingCard.brand]} •••• ${pendingCard.last4}`
+                  : selMethod?.name_ar ?? "طريقة الدفع"}
             </b>
-            <span className={styles.optDesc}>{selCard?.holder_name ?? "طرق الدفع"}</span>
+            <span className={styles.optDesc}>
+              {selCard?.holder_name ?? (usingPending ? "بطاقة جديدة — جاهزة للدفع" : "طرق الدفع")}
+            </span>
           </span>
           <span className={styles.changeLink}>تغيير</span>
         </button>
@@ -1255,6 +1349,32 @@ export default function CheckoutPage() {
             {methods.some((m) => m.key === "card") && (
               <>
                 <div className={styles.paySechTitle}>بطاقاتي</div>
+                {/* بطاقة رُمّزت للتو لدى البوابة — تُحفظ في حسابك بعد نجاح الدفع */}
+                {pendingCard && (
+                  <button
+                    type="button"
+                    className={usingPending ? `${styles.optCard} ${styles.optCardSel}` : styles.optCard}
+                    data-testid="pending-card"
+                    onClick={() => {
+                      setPayMethod("card");
+                      setCardId(null);
+                      setShowPay(false);
+                    }}
+                  >
+                    <span className={usingPending ? `${styles.rdot} ${styles.rdotOn}` : styles.rdot} />
+                    <div className={styles.optBody}>
+                      <b className={styles.optTitle}>
+                        {BRAND_AR[pendingCard.brand]} •••• {pendingCard.last4}
+                      </b>
+                      <div className={styles.optDesc}>
+                        بطاقة جديدة · {pendingCard.save ? "ستُحفظ بعد الدفع" : "لن تُحفظ"}
+                      </div>
+                    </div>
+                    <span className={styles.pmIcon}>
+                      <span className={styles.net}>{BRAND_AR[pendingCard.brand]}</span>
+                    </span>
+                  </button>
+                )}
                 {cards.map((c) => {
                   const on = payMethod === "card" && cardId === c.id;
                   return (
