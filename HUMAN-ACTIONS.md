@@ -67,7 +67,16 @@
   WEB_BASE_URL=https://app.thepickly.com
   ```
   ثم: `docker compose -f infra/vm/docker-compose.prod.yml up -d api worker`
-- **ابدأ بمفاتيح الاختبار** (`sk_test_`/`pk_test_`) وجرّب ببطاقات ميسر التجريبية، ثم بدّل إلى `live`.
+- **ابدأ بمفاتيح الاختبار** (`sk_test_`/`pk_test_`)، ثم تحقق من المسار كاملاً بأمر واحد:
+  ```
+  node infra/scripts/verify-moyasar.mjs
+  ```
+  يمرّ بالمسار كما يمرّ به العميل (دخول ← طلب ← ترميز بطاقة ← تأكيد ← تحدي 3DS)
+  ويطبع رابط التحدي؛ بعد إكماله: `node infra/scripts/verify-moyasar.mjs --sync <order-id>`.
+  بطاقات الاختبار: `--card visa|mada|mastercard`.
+- **قبل التبديل إلى `live`:** بيئة العرض الحالية فيها رمز OTP ثابت (`OTP_DEV_FIXED_CODE=1234`)
+  يفتح أي حساب، و`NODE_ENV=development`. المال الحقيقي على هذه البيئة يعني أن أي شخص
+  يعرف رقم جوال عميل يدخل حسابه ويدفع ببطاقته المحفوظة. أغلق هذا أولاً (يستلزم B2).
 - **Apple Pay:** يحتاج Apple Merchant ID ونطاقاً موثقاً لدى آبل (مرتبط بـB5). حتى ذلك الحين
   يُخفى تلقائياً من شاشة الدفع؛ لتفعيله بعد التوثيق اضبط `MOYASAR_APPLE_PAY=true`.
 
