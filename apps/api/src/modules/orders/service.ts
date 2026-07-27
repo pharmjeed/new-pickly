@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { prisma, type Prisma } from "@pickly/database";
 import type {
   ConfirmPaymentBody,
@@ -29,6 +30,15 @@ const UNPAID_EXPIRE_MINUTES_DEFAULT = 30; // مجدول لم يُدفع → EXPI
 const ARRIVAL_RADIUS_M_DEFAULT = 500;
 
 export const payments = createPaymentAdapter();
+
+/**
+ * UUID حتمي من بذرة — البوابة تشترط صيغة UUID لمعرّف العملية (given_id)،
+ * ونحتاجه ثابتاً داخل المحاولة الواحدة ومتغيراً بين المحاولات.
+ */
+function attemptUuid(seed: string): string {
+  const h = createHash("sha256").update(seed).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
 
 /** رسائل رفض البوابة → تلميح عربي مفهوم بلا تسريب تفاصيل تقنية (docs/17) */
 function hintForChargeError(raw: string): string {
@@ -510,11 +520,13 @@ export class OrderService {
      * حصة المحفظة رُدّت عند الفشل، فإعادة المحاولة عليها تحتاج تسعيراً جديداً.
      */
     const retrying = intent.status === "failed";
+    /** ختم المحاولة — يتغير مع كل إعادة محاولة فيتغير معه معرّف العملية عند البوابة */
+    let attemptStamp = intent.updated_at.getTime();
     if (retrying) {
       if (intent.wallet_applied_halalas > 0 || order.order_status !== "PAYMENT_FAILED")
         throw new AppError("PAY-5001", { hint: "هذه المحاولة فشلت — ابدأ طلباً جديداً" });
-      await prisma.$transaction(async (tx) => {
-        await tx.paymentIntent.update({
+      const reset = await prisma.$transaction(async (tx) => {
+        const updated = await tx.paymentIntent.update({
           where: { id: intent.id },
           data: {
             status: "requires_payment",
@@ -526,7 +538,9 @@ export class OrderService {
           actor_type: "customer",
           actor_id: user_id
         });
+        return updated;
       });
+      attemptStamp = reset.updated_at.getTime();
     } else if (intent.provider_ref) {
       // إعادة الإرسال بعد بدء العملية: لا نُنشئ عملية ثانية عند البوابة
       return this.syncPaymentIntent(intent.provider_ref, intent.id);
@@ -562,8 +576,9 @@ export class OrderService {
         currency: "SAR",
         order_ref: order.display_code,
         idempotency_key: intent.idempotency_key,
-        // معرّف ثابت عند البوابة — إعادة الإرسال لا تُنشئ عملية ثانية (docs/13§4-2)
-        given_id: intent.id,
+        // معرّف ثابت لهذه المحاولة — إعادة الإرسال لا تُنشئ عملية ثانية (docs/13§4-2)،
+        // وإعادة المحاولة بعد الرفض تأخذ معرّفاً جديداً لأن البوابة ترفض تكرار given_id
+        given_id: attemptUuid(`${intent.id}:${attemptStamp}`),
         method,
         callback_url: `${base}/pay/return?order=${order_id}`,
         save_card: body.save_card,
