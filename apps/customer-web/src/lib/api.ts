@@ -76,10 +76,11 @@ export async function api<T>(
   method: string,
   path: string,
   body?: unknown,
-  opts: { idempotent?: boolean } = {}
+  opts: { idempotent?: boolean; idempotencyKey?: string } = {}
 ): Promise<T> {
-  // مفتاح idempotency يثبت عبر إعادة المحاولة بعد التجديد — نفس العملية، لا عملية ثانية
-  const idemKey = opts.idempotent ? uuid() : undefined;
+  // مفتاح idempotency يثبت عبر إعادة المحاولة بعد التجديد — نفس العملية، لا عملية ثانية.
+  // idempotencyKey صريح: يثبت عبر محاولات المستخدم أيضاً (إعادة الدفع على طلب مرفوض)
+  const idemKey = opts.idempotencyKey ?? (opts.idempotent ? uuid() : undefined);
 
   const attempt = async (): Promise<Response> => {
     const headers: Record<string, string> = {};

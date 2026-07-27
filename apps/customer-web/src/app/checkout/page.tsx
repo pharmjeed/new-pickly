@@ -414,6 +414,7 @@ export default function CheckoutPage() {
   const [pendingCard, setPendingCard] = useState<PendingCard | null>(null);
   // طلب أُنشئ ورُفض دفعه — إعادة المحاولة تكون عليه لا على طلب جديد (السلة استُهلكت)
   const [failedOrder, setFailedOrder] = useState<OrderCreated | null>(null);
+  const intentKey = useRef<string | null>(null);
   const [showAddCard, setShowAddCard] = useState(false);
   const [pan, setPan] = useState("");
   const [expiry, setExpiry] = useState(""); // MM/YY
@@ -826,18 +827,18 @@ export default function CheckoutPage() {
           { idempotent: true }
         ));
       createdOrder = order;
-      const intent = failedOrder
-        ? { amount_halalas: dueTotal ?? 1, status: "requires_payment" }
-        : await api<{ amount_halalas: number; status: string }>(
-            "POST",
-            `/v1/orders/${order.id}/payment-intent`,
-            {
-              method: payMethod,
-              use_wallet: walletOn,
-              ...(payMethod === "card" && cardId ? { card_id: cardId } : {})
-            },
-            { idempotent: true }
-          );
+      // مفتاح ثابت لهذا الطلب: إعادة المحاولة تُرجع النية نفسها بدل «intent موجود»
+      intentKey.current ??= `pi-${order.id}`;
+      const intent = await api<{ amount_halalas: number; status: string }>(
+        "POST",
+        `/v1/orders/${order.id}/payment-intent`,
+        {
+          method: payMethod,
+          use_wallet: walletOn,
+          ...(payMethod === "card" && cardId ? { card_id: cardId } : {})
+        },
+        { idempotencyKey: intentKey.current }
+      );
       // محفظة بيكلي غطت الطلب كاملاً → تفويض فوري بلا بوابة
       if (intent.status !== "authorized" && intent.amount_halalas > 0) {
         if (payCfg?.client_tokenization) {
