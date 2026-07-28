@@ -856,6 +856,17 @@ export default function CheckoutPage() {
       // محفظة بيكلي غطت الطلب كاملاً → تفويض فوري بلا بوابة
       if (intent.status !== "authorized" && intent.amount_halalas > 0) {
         if (payCfg?.client_tokenization) {
+          // جوال محفظة STC Pay: العقد يشترط مصدر دفع صريحاً — جوال الحساب هو الافتراضي
+          let stcMobile: string | undefined;
+          if (payMethod === "stc_pay") {
+            try {
+              const me = await api<{ phone: string }>("GET", "/v1/customers/me");
+              stcMobile = me.phone?.replace(/^\+966/, "0");
+            } catch {
+              // يُلتقط أدناه برسالة واضحة بدل «مصدر الدفع مطلوب» المبهمة
+            }
+            if (!stcMobile) throw new Error("تعذّر تحديد جوال STC Pay — أعد المحاولة");
+          }
           // بوابة حقيقية (ميسر): تسليم المصدر ثم تحدي 3DS/رمز STC عند اللزوم
           const confirmed = await api<{
             status: "requires_action" | "authorized" | "captured" | "failed";
@@ -868,6 +879,7 @@ export default function CheckoutPage() {
               method: payMethod,
               ...(pendingCard && !cardId ? { card_token: pendingCard.token } : {}),
               ...(cardId ? { card_id: cardId } : {}),
+              ...(stcMobile ? { mobile: stcMobile } : {}),
               save_card: pendingCard?.save ?? false
             },
             { idempotent: true }
