@@ -811,15 +811,19 @@ export default function CheckoutPage() {
     }
   };
 
-  const payAndOrder = async () => {
-    if (!cartId || !quoteId || !vehicleId) return;
-    if (pickupTime === "scheduled" && !slotId) return;
+  /**
+   * الدفع وإنشاء الطلب. تُرجع نجاح العملية — Apple Pay يحتاجها لإبلاغ
+   * session.completePayment. appleToken يأتي من onpaymentauthorized حصراً.
+   */
+  const payAndOrder = async (appleToken?: string): Promise<boolean> => {
+    if (!cartId || !quoteId || !vehicleId) return false;
+    if (pickupTime === "scheduled" && !slotId) return false;
     // بوابة حقيقية + بطاقة: لا بد من مصدر دفع قبل إنشاء الطلب
     const needsSource = Boolean(payCfg?.client_tokenization) && (dueTotal ?? 0) > 0;
     if (needsSource && payMethod === "card" && !cardId && !pendingCard) {
       setError("اختر بطاقة محفوظة أو أضف بطاقة جديدة");
       setShowPay(true);
-      return;
+      return false;
     }
     setBusy(true);
     setError(null);
@@ -880,6 +884,7 @@ export default function CheckoutPage() {
               ...(pendingCard && !cardId ? { card_token: pendingCard.token } : {}),
               ...(cardId ? { card_id: cardId } : {}),
               ...(stcMobile ? { mobile: stcMobile } : {}),
+              ...(appleToken ? { apple_pay_token: appleToken } : {}),
               save_card: pendingCard?.save ?? false
             },
             { idempotent: true }
@@ -891,21 +896,21 @@ export default function CheckoutPage() {
             setError(
               `${confirmed.message ?? "البنك رفض العملية"} — اختر بطاقة ثانية واضغط «ادفع الآن»`
             );
-            return;
+            return false;
           }
           if (confirmed.redirect_url) {
             // السلة استُهلكت خادمياً — ننظّفها قبل مغادرة الصفحة لصفحة البوابة
             sessionStorage.removeItem("pk_cart");
             sessionStorage.removeItem("pk_quote");
             window.location.href = confirmed.redirect_url;
-            return;
+            return true;
           }
           if (confirmed.status === "requires_action") {
             // بلا رابط تحويل: الحسم من webhook — نتابع على صفحة التتبع
             sessionStorage.removeItem("pk_cart");
             sessionStorage.removeItem("pk_quote");
             router.push(`/track/${order.id}`);
-            return;
+            return true;
           }
         } else {
           // بوابة sandbox — نفس مسار الإنتاج: النتيجة عبر webhook موقع
@@ -915,7 +920,7 @@ export default function CheckoutPage() {
           );
           if (pay.gateway_result !== "authorized") {
             setError("ما تمّ الدفع. جرّب بطاقة ثانية — طلبك محفوظ");
-            return;
+            return false;
           }
         }
       }
@@ -924,13 +929,68 @@ export default function CheckoutPage() {
       setFailedOrder(null);
       setDonePickup(pickupTime);
       setDone(order); // C-37: نجاح الطلب
+      return true;
     } catch (e) {
       // انقطاع بعد إنشاء الطلب: السلة استُهلكت — المحاولة التالية على الطلب نفسه
       if (createdOrder) setFailedOrder(createdOrder);
       setError((e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
+  };
+
+  /**
+   * Apple Pay (Safari فقط): الجلسة تُنشأ متزامنة داخل نقرة المستخدم (شرط آبل)،
+   * تحقق التاجر عبر ميسر مباشرة (تسجيل النطاق في لوحة ميسر — بلا حساب Apple Developer)،
+   * وعند التفويض يمر التوكن بمسار الدفع الاعتيادي نفسه (نية ← تأكيد).
+   * العقد مطابق لمكتبة ميسر الرسمية (mpf v1.14): POST /v1/applepay/initiate
+   * بـvalidation_url/domain_name/display_name/publishable_api_key، والتوكن يُرسل
+   * JSON.stringify(event.payment.token) كاملاً.
+   */
+  const payWithApplePay = () => {
+    const AP = window.ApplePaySession;
+    if (!AP || !AP.canMakePayments()) {
+      setError("Apple Pay متاح على أجهزة آبل في متصفح Safari فقط — اختر طريقة دفع أخرى");
+      return;
+    }
+    const pk = payCfg?.publishable_key;
+    if (!pk || (dueTotal ?? 0) <= 0) return;
+    setBusy(true);
+    setError(null);
+    const session = new AP(6, {
+      countryCode: "SA",
+      currencyCode: "SAR",
+      supportedNetworks: ["mada", "visa", "mastercard"],
+      merchantCapabilities: ["supports3DS", "supportsCredit", "supportsDebit"],
+      total: { label: "Pickly — بيكلي", amount: ((dueTotal ?? 0) / 100).toFixed(2) }
+    });
+    session.onvalidatemerchant = (ev) => {
+      void fetch("https://api.moyasar.com/v1/applepay/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          validation_url: ev.validationURL,
+          domain_name: window.location.hostname,
+          display_name: "Pickly",
+          publishable_api_key: pk
+        })
+      })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("merchant_validation_failed"))))
+        .then((merchantSession) => session.completeMerchantValidation(merchantSession))
+        .catch(() => {
+          session.abort();
+          setBusy(false);
+          setError("تعذّر بدء جلسة Apple Pay — أعد المحاولة أو اختر طريقة أخرى");
+        });
+    };
+    session.onpaymentauthorized = (ev) => {
+      void payAndOrder(JSON.stringify(ev.payment.token)).then((paid) => {
+        session.completePayment({ status: paid ? AP.STATUS_SUCCESS : AP.STATUS_FAILURE });
+      });
+    };
+    session.oncancel = () => setBusy(false);
+    session.begin();
   };
 
   const errorNote = error && (
@@ -1283,7 +1343,7 @@ export default function CheckoutPage() {
             className={`${styles.payBtn} ${styles.appleBtn}`}
             data-testid="pay-button"
             disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
-            onClick={payAndOrder}
+            onClick={payWithApplePay}
           >
             {busy ? (
               "جارٍ الدفع…"
@@ -1302,7 +1362,7 @@ export default function CheckoutPage() {
           className={busy || total == null ? `${styles.payBtn} ${styles.payBtnCenter}` : `${styles.payBtn} ${styles.cta}`}
           data-testid="pay-button"
           disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
-          onClick={payAndOrder}
+          onClick={() => void payAndOrder()}
         >
           {busy ? (
             "جارٍ الدفع…"
