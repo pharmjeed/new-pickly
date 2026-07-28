@@ -492,16 +492,20 @@ export default function CheckoutPage() {
 
   const expiryValid = /^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry);
   const cardFormValid = pan.replace(/\s/g, "").length >= 13 && expiryValid && /^\d{3,4}$/.test(cvv);
-  // زر «تأكيد» يتعطل حتى اكتمال النموذج — نقول للعميل ما الناقص بدل الصمت
+  // زر «تأكيد» يتعطل حتى اكتمال النموذج — نقول للعميل ما الناقص بدل الصمت.
+  // فحص أول رقم يلتقط كتابة الرقم معكوساً (فخ قلب العربية لاتجاه الأرقام المنسوخة):
+  // مدى/فيزا/ماستركارد تبدأ جميعها بـ2-6.
   const panDigits = pan.replace(/\s/g, "");
   const cardHint =
-    panDigits.length > 0 && panDigits.length < 13
-      ? "أكمل رقم البطاقة"
-      : expiry.length > 0 && !expiryValid
-        ? "أكمل تاريخ الانتهاء بصيغة شهر/سنة من خانتين — مثال: 12/29"
-        : cvv.length > 0 && cvv.length < 3
-          ? "رمز CVV ثلاثة أرقام أو أربعة"
-          : null;
+    panDigits.length > 0 && !/^[2-6]/.test(panDigits)
+      ? "رقم البطاقة يبدأ برقم غير معروف — ابدأ من أول رقم مطبوع على البطاقة (فيزا مثلاً تبدأ بـ4)"
+      : panDigits.length > 0 && panDigits.length < 13
+        ? "أكمل رقم البطاقة"
+        : expiry.length > 0 && !expiryValid
+          ? "أكمل تاريخ الانتهاء بصيغة شهر/سنة من خانتين — مثال: 12/29"
+          : cvv.length > 0 && cvv.length < 3
+            ? "رمز CVV ثلاثة أرقام أو أربعة"
+            : null;
 
   useEffect(() => {
     api<Record<string, boolean>>("GET", "/v1/feature-flags")

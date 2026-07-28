@@ -30,6 +30,19 @@ interface MoyasarTokenResponse {
   errors?: Record<string, string[]> | string;
 }
 
+/** أخطاء ميسر تصل إنجليزية — نترجم الشائع منها (docs/11§10: رسائل ثنائية اللغة) */
+const GATEWAY_ERRORS_AR: Array<[RegExp, string]> = [
+  [/unsupported card scheme/i, "شبكة البطاقة غير مدعومة — تأكد من كتابة الرقم بترتيبه الصحيح من أول البطاقة"],
+  [/invalid.*(card|number)|luhn|not a valid/i, "رقم البطاقة غير صحيح — راجع الأرقام"],
+  [/cvc|security code/i, "رمز CVV غير صحيح"],
+  [/expir|invalid.*(month|year)/i, "تاريخ انتهاء البطاقة غير صحيح"]
+];
+
+function localizeGatewayError(detail: string | undefined): string | undefined {
+  if (!detail) return undefined;
+  return GATEWAY_ERRORS_AR.find(([re]) => re.test(detail))?.[1] ?? detail;
+}
+
 function brandOf(raw: string | undefined): TokenizedCard["brand"] {
   const b = (raw ?? "").toLowerCase();
   if (b.includes("mada")) return "mada";
@@ -66,7 +79,7 @@ export async function tokenizeCardAtGateway(
         : data.errors
           ? Object.values(data.errors).flat().join(" · ")
           : data.message;
-    throw new Error(detail || "تعذّر التحقق من البطاقة — راجع بياناتها");
+    throw new Error(localizeGatewayError(detail) || "تعذّر التحقق من البطاقة — راجع بياناتها");
   }
 
   return {
