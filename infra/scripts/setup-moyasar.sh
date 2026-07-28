@@ -33,29 +33,44 @@ echo
 # مفاتيح ميسر حصراً [A-Za-z0-9_] — نحذف كل ما عداها.
 trim() { printf '%s' "$1" | tr -cd 'A-Za-z0-9_'; }
 
+# الخانة المخفية تغري باللصق المتكرر (لا شيء يظهر فيلصق المستخدم مراراً) —
+# مفتاح ميسر شكله ثابت: بادئة + وضع + 40 حرفاً. نستخرج أول ظهور سليم.
+extract_key() { # $1=النص $2=البادئة (pk|sk)
+  printf '%s' "$1" | grep -oE "${2}_(test|live)_[A-Za-z0-9]{40}" | head -1
+}
+
 PK=""
 while [ -z "$PK" ]; do
   printf 'المفتاح القابل للنشر (pk_...): '
   read -r PK
   PK=$(trim "$PK")
   [ -z "$PK" ] && continue
-  case "$PK" in
-    pk_*) ;;
-    *) warn "⚠ المفتاح القابل للنشر يجب أن يبدأ بـpk_ — حاول مجدداً"; PK="" ;;
-  esac
+  FOUND=$(extract_key "$PK" pk)
+  if [ -n "$FOUND" ]; then
+    [ ${#PK} -gt 48 ] && warn "  (التُقط المفتاح من لصق متكرر/زائد — لا بأس)"
+    PK="$FOUND"
+  else
+    warn "⚠ لم أتعرف على مفتاح معلن سليم (pk_test_/pk_live_ + 40 حرفاً) — حاول مجدداً"
+    PK=""
+  fi
 done
 
 SK=""
 while [ -z "$SK" ]; do
-  printf 'المفتاح السري (sk_... — لن يظهر): '
+  printf 'المفتاح السري (sk_... — الصقه مرة واحدة ثم Enter؛ لن يظهر وهذا طبيعي): '
   read -rs SK
   echo
   SK=$(trim "$SK")
   [ -z "$SK" ] && continue
-  case "$SK" in
-    sk_*) ;;
-    *) warn "⚠ المفتاح السري يجب أن يبدأ بـsk_ — حاول مجدداً"; SK=""; continue ;;
-  esac
+  FOUND=$(extract_key "$SK" sk)
+  if [ -n "$FOUND" ]; then
+    [ ${#SK} -gt 48 ] && warn "  (التُقط المفتاح من لصق متكرر/زائد — لا بأس)"
+    SK="$FOUND"
+  else
+    warn "⚠ لم أتعرف على مفتاح سري سليم (sk_test_/sk_live_ + 40 حرفاً) — طوله بعد التنظيف ${#SK}"
+    SK=""
+    continue
+  fi
   # تحقق حي لدى ميسر — يكشف مفتاحاً قديماً جُدّد في اللوحة قبل كتابته للسيرفر
   AUTH_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 -u "$SK:" "https://api.moyasar.com/v1/payments?per=1" 2>/dev/null || echo "000")
   case "$AUTH_CODE" in
