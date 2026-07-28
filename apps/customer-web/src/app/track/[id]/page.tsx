@@ -10,7 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TabBar } from "../../shell";
 import { Qirtas, QirtasLoader } from "../../qirtas";
-import { ConfettiBurst, KitchenScene, MegaphoneScene, PovScene, QirtasLive, ReadyScene, SentScene, WelcomeScene } from "../../qirtas-motion";
+import { ConfettiBurst, KitchenScene, MegaphoneScene, PovScene, QirtasLive, ReadyScene, SentScene, SorryScene, WelcomeScene } from "../../qirtas-motion";
 import ArriveSwipe, { type GeoState } from "./ArriveSwipe";
 import s from "./track.module.css";
 
@@ -44,6 +44,8 @@ interface Order {
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة الرحلة */
   preparing_at: string | null;
   ready_at: string | null;
+  /** لحظة اعتذار المطعم — الرفض ينتقل فوراً لحالات الاسترداد فلا تكفي order_status وحدها */
+  rejected_at: string | null;
   vehicle: { color_ar: string; model_ar: string | null; plate_short: string } | null;
 }
 
@@ -63,7 +65,7 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   ORDER_SUBMITTED: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم" },
   MERCHANT_PENDING: { step: "SUBMITTED", title: "أُرسل طلبك", sub: "ننتظر تأكيد المطعم" },
   MERCHANT_ACCEPTED: { step: "PREPARING", title: "جاري تجهيز طلبك", sub: "قبل المطعم طلبك — بدأ تجهيزه الآن" },
-  MERCHANT_REJECTED: { step: "SUBMITTED", title: "نعتذر — ما قدر المطعم يستقبل طلبك", sub: "مبلغك يرجع لك كاملاً" },
+  MERCHANT_REJECTED: { step: "SUBMITTED", title: "نعتذر منك — المطعم ما قدر يستقبل طلبك", sub: "ما انخصم عليك شيء نهائياً" },
   PREPARING: { step: "PREPARING", title: "جاري تجهيز طلبك", sub: "خلّك مستعد للانطلاق" },
   READY: { step: "READY", title: "طلبك جاهز", sub: "ننادي عليك — بأعلى صوت" },
   CUSTOMER_NOTIFIED: { step: "READY", title: "طلبك جاهز", sub: "توجه للمطعم — واضغط «وصلت» عند وصولك" },
@@ -73,8 +75,26 @@ const DISPLAY: Record<string, { step: string; title: string; sub: string }> = {
   CUSTOMER_ARRIVED: { step: "READY", title: "يا هلا باللي وصل!", sub: "المكان عرفك — وطلبك بآخر لمساته" },
   HANDOFF_IN_PROGRESS: { step: "READY", title: "الموظف متجه إليك", sub: "من مقعدك — يقترب الآن" },
   COMPLETED: { step: "COMPLETED", title: "بالعافية!", sub: "قيّم استلامك بضغطة" },
-  CANCELLED: { step: "SUBMITTED", title: "أُلغي الطلب", sub: "مبلغك يرجع لك حسب السياسة" }
+  CANCELLATION_REQUESTED: { step: "SUBMITTED", title: "جارٍ إلغاء طلبك", sub: "لحظات…" },
+  CANCELLED: { step: "SUBMITTED", title: "أُلغي الطلب", sub: "مبلغك يرجع لك حسب السياسة" },
+  /* حالات الاسترداد بلا اعتذار مطعم (إلغاء/عدم حضور) — الرفض يلتقطه rejected_at قبل الوصول هنا */
+  REFUND_PENDING: { step: "SUBMITTED", title: "جارٍ استرجاع مبلغك", sub: "يرجع لك حسب سياسة الاسترجاع" },
+  PARTIALLY_REFUNDED: { step: "SUBMITTED", title: "استُرجع جزء من مبلغك", sub: "وصلك حسب بنكك" },
+  REFUNDED: { step: "SUBMITTED", title: "استُرجع مبلغك", sub: "يظهر في حسابك حسب بنكك" }
 };
+
+/** الحالات التي تُعرض فيها صفحة «اعتذر المطعم» متى ثبت rejected_at —
+ *  الرفض ينتقل فوراً MERCHANT_REJECTED → REFUND_PENDING → REFUNDED في نفس اللحظة تقريباً */
+const REJECTED_VIEW_STATES = ["MERCHANT_REJECTED", "REFUND_PENDING", "PARTIALLY_REFUNDED", "REFUNDED"];
+
+/** لا نغمة قبول ولا احتفال خطوة عند الانتقال لهذه الحالات — نهايات غير سعيدة */
+const NO_CHEER_STATES = [
+  ...REJECTED_VIEW_STATES,
+  "CANCELLATION_REQUESTED",
+  "CANCELLED",
+  "NO_SHOW",
+  "EXPIRED"
+];
 
 const DRIVE_STATES = ["CUSTOMER_ON_THE_WAY", "CUSTOMER_NEARBY"];
 /** الحالات التي يُتاح فيها تأكيد «وصلت» — من قبول المطعم وحتى الطريق (نراقب الموقع فيها فقط) */
@@ -203,6 +223,7 @@ export default function TrackPage() {
       firstStatusRef.current = false;
       return;
     }
+    if (NO_CHEER_STATES.includes(status)) return; // الاعتذار/الإلغاء ليسا مناسبة احتفال
     setCelebrate(true);
     const t = setTimeout(() => setCelebrate(false), 1100);
     return () => clearTimeout(t);
@@ -270,11 +291,11 @@ export default function TrackPage() {
     const prev = prevStatusRef.current;
     prevStatusRef.current = status;
     if (prev === null || prev === status) return;
+    // الرفض يقفز مباشرة لحالات الاسترداد — لولا القائمة لرنّت نغمة القبول لحظة الاعتذار
     const accepted =
       PRE_ACCEPT_STATES.includes(prev) &&
       !PRE_ACCEPT_STATES.includes(status) &&
-      status !== "MERCHANT_REJECTED" &&
-      status !== "CANCELLED";
+      !NO_CHEER_STATES.includes(status);
     if (accepted) acceptChime();
   }, [status, acceptChime]);
 
@@ -444,7 +465,11 @@ export default function TrackPage() {
       </main>
     );
 
-  const baseView = DISPLAY[order.order_status] ?? DISPLAY.MERCHANT_PENDING!;
+  // صفحة «اعتذر المطعم» (خيار ١ المعتمد 2026-07-29) — rejected_at يميّزها عن استرداد الإلغاء
+  const rejected = Boolean(order.rejected_at) && REJECTED_VIEW_STATES.includes(order.order_status);
+  const baseView = rejected
+    ? DISPLAY.MERCHANT_REJECTED!
+    : DISPLAY[order.order_status] ?? DISPLAY.MERCHANT_PENDING!;
   // تحقق الشرطان معاً: العميل أكّد «وصلت» والمطعم ضغط «جاهز» (بأي ترتيب) —
   // الموظف ينطلق فوراً، فالصفحة صفحة التسليم POV «الموظف متجه إليك» (توجيه المالك 2026-07-15)
   const parkedOn = Boolean(order.ready_at) && order.order_status === "CUSTOMER_ARRIVED";
@@ -493,7 +518,25 @@ export default function TrackPage() {
   const withinRange = geoBlocked || (distanceM !== null && distanceM <= order.arrival_radius_m);
 
   /* شريط الحالات الخمس (steps — P7.html) — مثبّت أعلى الصفحة في كل الحالات (توجيه المالك 2026-07-15) */
-  const stepsBar = (
+  const stepsBar = rejected ? (
+    /* شريط الرفض الصادق: استلمناه ✓ ثم اعتذر المطعم ✕ — والبقية مطفأة: الرحلة توقفت هنا */
+    <div className={s.steps} aria-label="حالة الطلب" data-testid="steps-rejected">
+      <div className={`${s.step} ${s.stepDone}`}>
+        <div className={s.dot}>✓</div>
+        <div className={s.lbl}>{STEP_LABELS[0]}</div>
+      </div>
+      <div className={`${s.step} ${s.stepRej}`} aria-current="step">
+        <div className={s.dot}>✕</div>
+        <div className={s.lbl}>اعتذر المطعم</div>
+      </div>
+      {STEP_LABELS.slice(2).map((lb) => (
+        <div key={lb} className={`${s.step} ${s.stepOff}`}>
+          <div className={s.dot} />
+          <div className={s.lbl}>{lb}</div>
+        </div>
+      ))}
+    </div>
+  ) : (
     <div className={s.steps} aria-label="حالة الطلب">
       {STEP_LABELS.map((lb, i) => {
         const done = stepDone(i);
@@ -528,7 +571,7 @@ export default function TrackPage() {
           </div>
         )}
 
-        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting || prepCountdownOn || readyHeroOn || completed ? "center" : undefined }}>
+        <h1 key={view.title} className={`pk-display ${s.titleSwap}`} data-testid="track-title" style={{ fontSize: driveMode ? "var(--pk-fs-34)" : "var(--pk-fs-24)", textAlign: isWaiting || prepCountdownOn || readyHeroOn || completed || rejected ? "center" : undefined }}>
           {view.title}
         </h1>
         {isWaiting ? (
@@ -537,7 +580,28 @@ export default function TrackPage() {
           /* حالة التجهيز: اسم المطعم تحت العنوان مباشرة (مرجع لوحة العرض) */
           <p className="pk-muted" style={{ marginBottom: 4, textAlign: "center" }}>من {order.brand_name_ar}</p>
         ) : (
-          <p className="pk-muted" style={{ marginBottom: 16, textAlign: readyHeroOn || completed ? "center" : undefined }}>{view.sub}</p>
+          <p className="pk-muted" style={{ marginBottom: 16, textAlign: readyHeroOn || completed || rejected ? "center" : undefined }}>{view.sub}</p>
+        )}
+
+        {/* صفحة «اعتذر المطعم» — القرطاس المتأسف + شارة المبلغ الراجع + فعل التعافي (خيار ١ المعتمد) */}
+        {rejected && (
+          <div data-testid="rejected-hero">
+            <div className={s.sorryHero}>
+              <SorryScene />
+            </div>
+            <p className={s.sorryRefund} data-testid="rejected-refund">
+              <span className={s.sorryRefundOk}>✓</span>
+              {order.order_status === "REFUNDED" ? "رجع لك مبلغك كاملاً" : "مبلغك كاملاً في طريقه إليك"}
+            </p>
+            <button
+              type="button"
+              className="pk-btn"
+              data-testid="rejected-cta"
+              onClick={() => router.replace("/")}
+            >
+              اطلب من مطعم ثاني
+            </button>
+          </div>
         )}
 
         {/* عدّاد التجهيز التنازلي — من لحظة القبول + «متوسط وقت التجهيز» الذي حدده المطعم (قرار المالك 2026-07-12) */}

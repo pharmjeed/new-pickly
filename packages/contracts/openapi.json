@@ -4842,6 +4842,14 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "rejected_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "pickup_time": {
                       "type": "string",
                       "enum": [
@@ -5243,6 +5251,14 @@
                       "default": null
                     },
                     "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "rejected_at": {
                       "type": [
                         "string",
                         "null"
@@ -6300,6 +6316,14 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "rejected_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "pickup_time": {
                       "type": "string",
                       "enum": [
@@ -6747,6 +6771,14 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "rejected_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "pickup_time": {
                       "type": "string",
                       "enum": [
@@ -7175,6 +7207,14 @@
                       "default": null
                     },
                     "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "rejected_at": {
                       "type": [
                         "string",
                         "null"
@@ -8076,6 +8116,14 @@
                       "format": "date-time",
                       "default": null
                     },
+                    "rejected_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
                     "pickup_time": {
                       "type": "string",
                       "enum": [
@@ -8658,6 +8706,14 @@
                       "default": null
                     },
                     "ready_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time",
+                      "default": null
+                    },
+                    "rejected_at": {
                       "type": [
                         "string",
                         "null"

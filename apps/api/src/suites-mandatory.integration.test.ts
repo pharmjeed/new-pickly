@@ -297,8 +297,8 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
   });
 
   describe("refunds — الاسترجاع (BR-2/BR-12 + docs/13§5)", () => {
-    it("refunds: رفض الفرع ← REFUNDED كامل + قيد ledger + منع التكرار", async () => {
-      const { orderId, branchId } = await paidOrder("BB-OLAYA");
+    it("refunds: رفض الفرع ← REFUNDED كامل + قيد ledger + منع التكرار", { timeout: 15_000 }, async () => {
+      const { token, orderId, branchId } = await paidOrder("BB-OLAYA");
       const branch = await prisma.branch.findUniqueOrThrow({ where: { id: branchId } });
       const staff = await staffLogin(branch.branch_code);
 
@@ -322,6 +322,17 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
         where: { intent: { order_id: orderId }, type: "refund" }
       });
       expect(ledger.length).toBeLessThanOrEqual(1);
+
+      // العميل يرى الاعتذار لا شاشة الانتظار: rejected_at مشتق من سجل الحالات
+      // رغم أن order_status صار REFUNDED (الرفض يقفز فوراً لحالات الاسترداد)
+      const customerView = await app.inject({
+        method: "GET",
+        url: `/v1/orders/${orderId}`,
+        headers: authed(token)
+      });
+      expect(customerView.statusCode).toBe(200);
+      expect(customerView.json().order_status).toBe("REFUNDED");
+      expect(customerView.json().rejected_at).toBeTruthy();
 
       // إعادة الرفض ← MERCHANT-7001 (لم يعد PENDING) — لا استرجاع مكرر
       const again = await app.inject({

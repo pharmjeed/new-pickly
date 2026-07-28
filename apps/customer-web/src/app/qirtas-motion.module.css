@@ -335,9 +335,29 @@
   100% { opacity: 0.15; transform: translateY(340px) rotate(540deg); }
 }
 
+/* ---- مشهد «نعتذر منك»: تنفس منكسر بطيء وقطرة عرق تنزل كل دورة ---- */
+.bodySorry {
+  transform-box: view-box;
+  transform-origin: 150px 200px;
+  animation: m-sorry 3.2s ease-in-out infinite;
+}
+@keyframes m-sorry {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(4px) rotate(-2.5deg); }
+}
+.sweatDrop {
+  opacity: 0;
+  animation: m-sweat 3.2s ease-in infinite;
+}
+@keyframes m-sweat {
+  0%, 55% { opacity: 0; transform: translateY(0); }
+  65% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateY(26px); }
+}
+
 /* ---- احترام تفضيل تقليل الحركة: كل شيء يثبت بوقار ---- */
 @media (prefers-reduced-motion: reduce) {
-  .bodyWalk, .bodyIdle, .bodyJump,
+  .bodyWalk, .bodyIdle, .bodyJump, .bodySorry, .sweatDrop,
   .legA, .legB,
   .armSwing, .armWave, .armUp, .armServe,
   .handBag, .handBagCalm, .bagSway,

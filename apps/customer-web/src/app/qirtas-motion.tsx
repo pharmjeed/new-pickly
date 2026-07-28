@@ -10,6 +10,8 @@
  *  - <ReadyScene/>      ملصق «طلبك جاهز» المضغوط: الكيس المربوط يتمايل والقرطاس يلوّح بجانبه
  *  - <MegaphoneScene/>  مشهد «المنادي»: ميغافون ينادي «طلبك جاهز!» والكيس على منصة متوهجة — بطل «جاهز للاستلام» (خيار ٢-هـ)
  *  - <QirtasEmptyLive/> حالة فارغة حية (بديل QirtasEmpty الساكن): نعسان بـZzz عائمة أو متأسف
+ *  - <SorryScene/>      مشهد «نعتذر منك»: القرطاس المتأسف بتنفس منكسر وقطرة عرق —
+ *                       بطل «اعتذر المطعم» (خيار ١ المعتمد 2026-07-29)
  *  - <QirtasDrive/>     القرطاس راكب سيارته المكشوفة: عجلات تدور وارتجاج طريق ودخان عادم — بطل الرئيسية
  *  - <HandoffScene/>    مشهد جانبي: قرطاس بقبعة يحمل الكيس نحو سيارة العميل
  *  - <PovScene/>        مشهد «من مقعدك» POV: القرطاس يقترب من زجاجك الأمامي — بطل «الموظف متجه إليك» (خيار ٥-ج)
@@ -864,6 +866,47 @@ export function QirtasEmptyLive({
       <QirtasLive mood={mood} pose={pose} size={size} />
       {children}
     </div>
+  );
+}
+
+/**
+ * مشهد «نعتذر منك» — بطل «اعتذر المطعم» (خيار ١ المعتمد 2026-07-29):
+ * القرطاس بوجهه المتأسف الرسمي يتنفس تنفساً منكسراً بطيئاً — ينخفض ويميل قليلاً
+ * ثم يعتدل — وقطرة عرق سماوية تنزل عند جبينه كل دورة. أسفٌ صادق بلا لومٍ للعميل.
+ */
+export function SorryScene({
+  size = 150,
+  title = "القرطاس يعتذر — المطعم ما قدر يستقبل طلبك",
+  style
+}: {
+  size?: number;
+  title?: string;
+  style?: CSSProperties;
+}) {
+  const VB_W = 152;
+  const VB_H = 190;
+  return (
+    <svg
+      width={Math.round((size * VB_W) / VB_H)}
+      height={size}
+      viewBox="68 24 152 190"
+      role="img"
+      aria-label={title}
+      style={{ overflow: "visible", ...style }}
+    >
+      <g className={m.bodySorry}>
+        <Bag mood="sad" stroke={INK} fill="var(--pk-white, #FFFFFF)" />
+        <circle
+          className={m.sweatDrop}
+          cx="204"
+          cy="66"
+          r="7"
+          fill="var(--pk-live, #35E0FF)"
+          stroke={INK}
+          strokeWidth="3"
+        />
+      </g>
+    </svg>
   );
 }
 
