@@ -10,7 +10,7 @@
  * - كوبون BR-7: التحقق والخصم خادميان
  * - النجاح حالة ختامية (C-37) ثم الانتقال للتتبع /track/{id}
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, fmtSar } from "@/lib/api";
 import { tokenizeCardAtGateway, type TokenizedCard } from "@/lib/moyasar";
@@ -444,6 +444,12 @@ export default function CheckoutPage() {
     setHolder("");
     setShowAddCard(false);
     setShowPay(false);
+  };
+
+  /** الكيبورد يقلّص المنفذ بعد التركيز بلحظة — نمرر الخانة لمنتصف الورقة بعد استقراره */
+  const revealOnFocus = (e: FocusEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    window.setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
   };
 
   /** «إضافة بطاقة جديدة» — البيانات تذهب للبوابة (tokenize) ولا تُخزن لدينا */
@@ -1556,6 +1562,7 @@ export default function CheckoutPage() {
               dir="ltr"
               placeholder="يُرجى إدخال رقم البطاقة المصرفية"
               value={pan}
+              onFocus={revealOnFocus}
               onChange={(e) => setPan(formatPan(e.target.value))}
             />
             <div className={styles.plateRow}>
@@ -1567,6 +1574,7 @@ export default function CheckoutPage() {
                 maxLength={5}
                 placeholder="الشهر/السنة MM/YY"
                 value={expiry}
+                onFocus={revealOnFocus}
                 onChange={(e) => {
                   const d = e.target.value.replace(/\D/g, "").slice(0, 4);
                   setExpiry(d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d);
@@ -1580,6 +1588,7 @@ export default function CheckoutPage() {
                 maxLength={4}
                 placeholder="CVV/CVC"
                 value={cvv}
+                onFocus={revealOnFocus}
                 onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
               />
             </div>
@@ -1588,6 +1597,7 @@ export default function CheckoutPage() {
               data-testid="card-holder"
               placeholder="يُرجى إدخال الاسم الموجود على البطاقة"
               value={holder}
+              onFocus={revealOnFocus}
               onChange={(e) => setHolder(e.target.value)}
             />
             <div className={styles.walletRow} style={{ borderTop: "none", padding: "4px 2px" }}>

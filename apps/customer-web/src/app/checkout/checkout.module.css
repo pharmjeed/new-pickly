@@ -194,6 +194,10 @@
   background: var(--pk-surface); border: var(--pk-b3); border-bottom: none;
   border-radius: 24px 24px 0 0; padding: 10px 18px 18px;
   display: flex; flex-direction: column; gap: 13px;
+  /* الكيبورد يقلّص المنفذ (resizes-content/adjustResize) — بدون هذا يُقص أعلى الورقة بلا وصول */
+  max-height: calc(100vh - 12px);
+  max-height: calc(100dvh - 12px);
+  overflow-y: auto; overscroll-behavior: contain;
 }
 .grab { width: 44px; height: 5px; border-radius: var(--pk-radius-pill); background: var(--pk-ink-900); opacity: 0.35; margin: 2px auto 0; }
 .sheetHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
