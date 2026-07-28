@@ -53,7 +53,8 @@
   2. من لوحة ميسر → **API Keys** انسخ: `sk_test_…`/`sk_live_…` و`pk_test_…`/`pk_live_…`.
   3. من لوحة ميسر → **Webhooks** أضف:
      - **الرابط:** `https://api.thepickly.com/v1/webhooks/payments/moyasar`
-     - **الأحداث:** `payment_paid` · `payment_authorized` · `payment_captured` · `payment_faild` · `payment_voided`
+     - **الأحداث:** اتركها فارغة (مستمع شامل — يوصى به)، أو: `payment_paid` · `payment_authorized` · `payment_captured` · `payment_failed` · `payment_voided`
+       (تنبيه: الإملاء الصحيح لدى ميسر اليوم `payment_failed` — الإرسال بالخطأ التاريخي `payment_faild` يرفض التسجيل كاملاً بـ400)
      - **Secret Token:** سراً طويلاً تختاره أنت (هو نفسه `PAYMENT_WEBHOOK_SECRET`).
   4. اسأل ميسر: هل حسابي يدعم **Auth/Capture** (حجز ثم تحصيل)؟ إن كان لا → اضبط
      `PAYMENT_MANUAL_CAPTURE=false` فيصير تحصيلاً فورياً مع استرجاع آلي عند رفض الفرع.

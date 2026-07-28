@@ -4,6 +4,9 @@
 # التشغيل من جهازك مباشرة:
 #   ssh -t -i ~/.oci/pickly_vm_ssh ubuntu@193.122.83.224 "bash /home/ubuntu/pickly/infra/scripts/setup-moyasar.sh"
 #
+# --webhook-only: يقرأ المفاتيح من .env القائم، يولّد سر webhook جديداً ويسجّله
+# لدى ميسر ويعيد تشغيل الخدمات — بلا أي إدخال تفاعلي (مناسب للتشغيل الآلي).
+#
 # يفعل كل شيء: يكتب .env بصلاحيات مغلقة، ويولّد سر webhook عشوائياً، ويسجّل
 # الـwebhook لدى ميسر تلقائياً، ويعيد تشغيل api وworker، ثم يتحقق من النتيجة.
 # المفتاح السري يُقرأ منك هنا مباشرة — لا يمر في سجل الأوامر ولا يُطبع أبداً.
@@ -13,7 +16,10 @@ set -uo pipefail
 REPO="${REPO:-/home/ubuntu/pickly}"
 COMPOSE="infra/vm/docker-compose.prod.yml"
 WEBHOOK_URL="${WEBHOOK_URL:-https://api.thepickly.com/v1/webhooks/payments/moyasar}"
-EVENTS='["payment_paid","payment_authorized","payment_captured","payment_faild","payment_voided","payment_refunded"]'
+
+# --webhook-only: يقرأ المفاتيح من .env القائم ويعيد توليد سر الـwebhook وتسجيله فقط
+WEBHOOK_ONLY=false
+[ "${1:-}" = "--webhook-only" ] && WEBHOOK_ONLY=true
 
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 ok()   { printf '\033[32m%s\033[0m\n' "$1"; }
@@ -28,6 +34,14 @@ command -v curl   >/dev/null || die "curl غير مثبت"
 bold "════ تفعيل بوابة ميسر ════"
 echo
 
+if $WEBHOOK_ONLY; then
+  [ -s .env ] || die "لا يوجد .env — شغّل التفعيل الكامل أولاً (بدون --webhook-only)"
+  PK=$(grep '^PAYMENT_PUBLISHABLE_KEY=' .env | tail -1 | cut -d= -f2-)
+  SK=$(grep '^PAYMENT_API_KEY=' .env | tail -1 | cut -d= -f2-)
+  [ -n "$PK" ] && [ -n "$SK" ] || die "المفاتيح غير مكتملة في .env — شغّل التفعيل الكامل أولاً"
+  echo "وضع الـwebhook فقط — المفاتيح من .env القائم (${PK%"${PK#????????}"}…)"
+fi
+
 # ————— ١) المفاتيح —————
 # اللصق من ويندوز/المتصفح قد يحمل سطوراً زائدة أو \r أو أحرفاً خفية (bidi/zero-width).
 # مفاتيح ميسر حصراً [A-Za-z0-9_] — نحذف كل ما عداها.
@@ -38,6 +52,8 @@ trim() { printf '%s' "$1" | tr -cd 'A-Za-z0-9_'; }
 extract_key() { # $1=النص $2=البادئة (pk|sk)
   printf '%s' "$1" | grep -oE "${2}_(test|live)_[A-Za-z0-9]{40}" | head -1
 }
+
+if ! $WEBHOOK_ONLY; then
 
 PK=""
 while [ -z "$PK" ]; do
@@ -90,10 +106,8 @@ while [ -z "$SK" ]; do
 done
 
 # وضع حي؟ تأكيد صريح — بيئة العرض فيها رمز OTP ثابت يفتح أي حساب
-MODE="اختبار"
 case "$SK" in
   sk_live_*)
-    MODE="حي"
     echo
     warn "⚠️  هذه مفاتيح حية — مال حقيقي من عملاء حقيقيين."
     warn "    وبيئة العرض الحالية رمز دخولها ثابت (1234) يفتح أي حساب."
@@ -106,6 +120,10 @@ esac
 case "$PK$SK" in
   *pk_test_*sk_live_*|*pk_live_*sk_test_*) die "المفتاحان من وضعين مختلفين (اختبار مقابل حي) — استخدم زوجاً واحداً" ;;
 esac
+
+fi # WEBHOOK_ONLY يتخطى إدخال المفاتيح
+
+case "$SK" in sk_live_*) MODE="حي" ;; *) MODE="اختبار" ;; esac
 
 # ————— ٢) سر webhook عشوائي —————
 WH=$(openssl rand -hex 24) || die "تعذّر توليد السر"
@@ -136,21 +154,23 @@ echo "تسجيل الـwebhook لدى ميسر…"
 EXISTING=$(curl -sS -u "$SK:" https://api.moyasar.com/v1/webhooks 2>/dev/null || echo "")
 if printf '%s' "$EXISTING" | grep -qF "$WEBHOOK_URL"; then
   warn "⚠ يوجد webhook بنفس الرابط مسبقاً — سرّه القديم لن يطابق السر الجديد."
-  warn "  احذفه من لوحة ميسر ثم أعد تشغيل هذا الأمر، أو حدّث سرّه يدوياً إلى:"
-  echo "  $WH"
+  warn "  احذفه من لوحة ميسر (Webhooks) ثم أعد: bash $0 --webhook-only"
 else
+  # بلا قائمة أحداث = مستمع شامل لكل الأحداث الحالية والمستقبلية (توصية وثائق ميسر) —
+  # المعالج لدينا يترجم ما يعرفه ويستنتج البقية من حالة العملية.
   RESP=$(curl -sS -w '\n%{http_code}' -u "$SK:" \
     -H 'Content-Type: application/json' \
-    -d "{\"url\":\"$WEBHOOK_URL\",\"http_method\":\"post\",\"shared_secret\":\"$WH\",\"events\":$EVENTS}" \
+    -d "{\"url\":\"$WEBHOOK_URL\",\"http_method\":\"post\",\"shared_secret\":\"$WH\"}" \
     https://api.moyasar.com/v1/webhooks 2>/dev/null)
   CODE=$(printf '%s' "$RESP" | tail -1)
   if [ "$CODE" = "200" ] || [ "$CODE" = "201" ]; then
-    ok "✓ سُجّل الـwebhook تلقائياً — لا حاجة للوحة ميسر"
+    ok "✓ سُجّل الـwebhook تلقائياً (مستمع شامل) — لا حاجة للوحة ميسر"
   else
-    warn "⚠ تعذّر التسجيل التلقائي (رمز $CODE). أضفه يدوياً من لوحة ميسر:"
-    echo "    الرابط:  $WEBHOOK_URL"
-    echo "    السر:    $WH"
-    echo "    الأحداث: payment_paid payment_authorized payment_captured payment_faild payment_voided"
+    warn "⚠ تعذّر التسجيل التلقائي (رمز $CODE) — ردّ ميسر:"
+    printf '%s\n' "$RESP" | head -n -1 | head -c 500
+    echo
+    warn "  أضفه يدوياً من لوحة ميسر → Webhooks بالرابط: $WEBHOOK_URL"
+    warn "  والسر موجود على السيرفر في .env (PAYMENT_WEBHOOK_SECRET) — لا تنسخه من أي محادثة."
   fi
 fi
 unset SK
