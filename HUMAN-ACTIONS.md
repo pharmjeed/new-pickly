@@ -75,16 +75,34 @@
   يمرّ بالمسار كما يمرّ به العميل (دخول ← طلب ← ترميز بطاقة ← تأكيد ← تحدي 3DS)
   ويطبع رابط التحدي؛ بعد إكماله: `node infra/scripts/verify-moyasar.mjs --sync <order-id>`.
   بطاقات الاختبار: `--card visa|mada|mastercard`.
-- **قبل التبديل إلى `live`:** بيئة العرض الحالية فيها رمز OTP ثابت (`OTP_DEV_FIXED_CODE=1234`)
-  يفتح أي حساب، و`NODE_ENV=development`. المال الحقيقي على هذه البيئة يعني أن أي شخص
-  يعرف رقم جوال عميل يدخل حسابه ويدفع ببطاقته المحفوظة. أغلق هذا أولاً (يستلزم B2).
-- **Apple Pay:** يحتاج Apple Merchant ID ونطاقاً موثقاً لدى آبل (مرتبط بـB5). حتى ذلك الحين
-  يُخفى تلقائياً من شاشة الدفع؛ لتفعيله بعد التوثيق اضبط `MOYASAR_APPLE_PAY=true`.
+- **التبديل إلى `live` (المال الحقيقي) — ثلاثة أوامر بالترتيب، كلٌّ منها تفاعلي وآمن:**
+  1. `bash infra/scripts/setup-sms.sh` — يفعّل Unifonic (يحتاج B2) ويختبر الإرسال على جوالك.
+  2. `bash infra/scripts/go-live.sh` — يقتل رمز 1234 الثابت، يولّد JWT قوياً، يقيّد CORS،
+     ويرفض العمل إن لم يكن SMS الحقيقي مفعّلاً. (كل الجلسات تُسجَّل خروجاً — طبيعي.)
+  3. `bash infra/scripts/setup-moyasar.sh` — بمفاتيح `live` هذه المرة (تأكيد «نعم أفهم»).
+  تنبيه تشغيلي: تأكد قبلها أن بيانات العرض (مطاعم تجريبية مثل «بيست برجر») أُخفيت أو
+  استُبدلت بتجار حقيقيين — وإلا قد يدفع عميل حقيقي مالاً حقيقياً لمطعم وهمي.
+- **Apple Pay (مرتبط بـB5 — حساب Apple Developer 99$/سنة):** الخادم جاهز (يستقبل
+  `apple_pay_token` ويمرره لميسر بمصدر `applepay`)، والمتبقي ثلاث خطوات مالك + خطوة كود:
+  1. من Apple Developer: أنشئ **Merchant ID** (مثل `merchant.com.thepickly`).
+  2. من لوحة ميسر → Settings → Apple Pay: اتبع معالجهم (CSR من ميسر → شهادة من آبل →
+     رفعها لميسر)، ووثّق النطاق `app.thepickly.com` (ملف `apple-developer-merchantid-domain-association`
+     يعطيك إياه المعالج — سلّمه لـClaude ليخدمه على `/.well-known/`).
+  3. عند اكتمال 1+2: اطلب من Claude بناء جلسة Apple Pay JS في صفحة الدفع
+     (onvalidatemerchant + onpaymentauthorized) — مبنية على `ApplePaySession` في Safari.
+  4. `.env` → `MOYASAR_APPLE_PAY=true` ثم إعادة تشغيل api. حتى ذلك الحين الطريقة مخفية تلقائياً.
+  **قيد مهم:** Apple Pay على الويب يعمل في Safari فقط — لن يعمل داخل غلاف WebView
+  لتطبيق iOS (يتطلب تكاملاً أصلياً لاحقاً عبر Expo). عملاء الآيفون عبر المتصفح سيرونه.
 
 ### B2. مزود SMS (OTP)
-- **المرشحون:** Unifonic / Msegat (مسجلان لدى CITC لأسماء المرسِل).
-- **ماذا تفعل:** حساب + اسم مرسِل `Pickly` + مفتاح API.
-- **أين يُلصق:** `.env` → `SMS_PROVIDER=<المزود>`، `SMS_API_KEY=...`، `SMS_SENDER_NAME=Pickly`.
+- **المنفَّذ في الكود:** Unifonic (جاهز ونائم). Msegat بديل غير منفَّذ.
+- **ماذا تفعل:** حساب على https://cloud.unifonic.com + توثيق النشاط + **اسم مرسِل**
+  (مثل `Pickly`) معتمد لدى CITC + رصيد رسائل، ثم انسخ **AppSid** من Dev Tools → Applications.
+- **أين يُلصق:** لا لصق يدوياً — شغّل من جهازك:
+  ```
+  ssh -t -i ~/.oci/pickly_vm_ssh ubuntu@193.122.83.224 "bash /home/ubuntu/pickly/infra/scripts/setup-sms.sh"
+  ```
+  يقرأ AppSid بأمان، يعيد التشغيل، ويرسل رسالة اختبار حقيقية على جوالك.
 
 ### B3. Firebase / FCM (الإشعارات)
 - **الرابط:** https://console.firebase.google.com

@@ -42,8 +42,25 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
   });
 
+  // الإنتاج: كل واجهات المنصة على نطاقات فرعية (app/merchant/branch/admin + الجذر) —
+  // حصر الأصل في WEB_BASE_URL وحده يكسرها جميعاً عدا تطبيق العميل.
+  // CORS_ORIGINS (مفصولة بفواصل) تتقدم إن وُجدت؛ وإلا نشتق نطاق الجذر من WEB_BASE_URL
+  // ونسمح له ولكل فروعه عبر https حصراً.
+  const prodOrigins = (): Array<string | RegExp> => {
+    const explicit = process.env.CORS_ORIGINS?.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (explicit?.length) return explicit;
+    try {
+      const host = new URL(process.env.WEB_BASE_URL ?? "").hostname;
+      const root = host.split(".").slice(-2).join(".");
+      return [new RegExp(`^https://([a-z0-9-]+\\.)?${root.replace(/\./g, "\\.")}$`)];
+    } catch {
+      return [process.env.WEB_BASE_URL ?? ""];
+    }
+  };
   await app.register(cors, {
-    origin: process.env.NODE_ENV === "production" ? [process.env.WEB_BASE_URL ?? ""] : true
+    origin: process.env.NODE_ENV === "production" ? prodOrigins() : true
   });
 
   // غلاف الخطأ الموحد {error: {code, message_ar, message_en}} — docs/11§0

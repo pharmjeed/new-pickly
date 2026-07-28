@@ -9,7 +9,10 @@ x-env: &app-env
   JWT_SECRET: ${JWT_SECRET:-demo-secret-change-me-please}
   # مهلة طويلة للعرض حتى لا تنتهي الجلسة أثناء الاستخدام (الإنتاج يقصّرها ويضيف refresh)
   JWT_ACCESS_TTL: 12h
-  SMS_PROVIDER: mock
+  # SMS: mock افتراضياً. للتفعيل الحقيقي (Unifonic) شغّل: infra/scripts/setup-sms.sh
+  SMS_PROVIDER: ${SMS_PROVIDER:-mock}
+  SMS_API_KEY: ${SMS_API_KEY:-}
+  SMS_SENDER_NAME: ${SMS_SENDER_NAME:-Pickly}
   # الدفع: mock افتراضياً. لتفعيل ميسر ضع في /home/ubuntu/pickly/.env:
   #   PAYMENT_PROVIDER=moyasar
   #   PAYMENT_API_KEY=sk_live_…            (سري — لا يُرفع للمستودع أبداً)
@@ -26,9 +29,11 @@ x-env: &app-env
   WEB_BASE_URL: ${WEB_BASE_URL:-https://app.thepickly.com}
   GEO_PROVIDER: mock
   PUSH_PROVIDER: mock
+  # الرمز الثابت يعمل فقط عندما NODE_ENV != production (حماية في packages/auth/src/otp.ts)
   OTP_DEV_FIXED_CODE: "1234"
-  # development يُبقي مسارات بوابة الدفع التجريبية (/v1/dev/mock-gateway) شغالة للعرض
-  NODE_ENV: development
+  # development يُبقي مسارات بوابة الدفع التجريبية ورمز OTP الثابت شغالين للعرض.
+  # التحويل الحقيقي: NODE_ENV=production في .env (يقتل الرمز الثابت) — عبر infra/scripts/go-live.sh
+  NODE_ENV: ${NODE_ENV:-development}
 
 services:
   postgres:
