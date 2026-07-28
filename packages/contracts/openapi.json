@@ -2472,7 +2472,8 @@
                         "enum": [
                           "apple_pay",
                           "card",
-                          "stc_pay"
+                          "stc_pay",
+                          "google_pay"
                         ]
                       },
                       "name_ar": {
@@ -2652,9 +2653,16 @@
                         "enum": [
                           "card",
                           "apple_pay",
-                          "stc_pay"
+                          "stc_pay",
+                          "google_pay"
                         ]
                       }
+                    },
+                    "google_pay_merchant_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -5458,6 +5466,7 @@
                       "card",
                       "apple_pay",
                       "stc_pay",
+                      "google_pay",
                       "wallet"
                     ],
                     "default": "card"
@@ -5693,6 +5702,10 @@
                     "type": "string",
                     "minLength": 10
                   },
+                  "google_pay_token": {
+                    "type": "string",
+                    "minLength": 10
+                  },
                   "save_card": {
                     "type": "boolean",
                     "default": false
@@ -5702,7 +5715,8 @@
                     "enum": [
                       "card",
                       "apple_pay",
-                      "stc_pay"
+                      "stc_pay",
+                      "google_pay"
                     ]
                   }
                 }

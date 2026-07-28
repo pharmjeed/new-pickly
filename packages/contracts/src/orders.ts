@@ -70,6 +70,9 @@ export const OrderSchema = z.object({
   /** مسار التجهيز الموازي (docs/05§3) — حقيقتا التحضير والجاهزية مستقلتان عن حالة رحلة العميل */
   preparing_at: z.string().datetime().nullable().default(null),
   ready_at: z.string().datetime().nullable().default(null),
+  /** لحظة اعتذار المطعم — تُشتق من سجل الحالات لأن الرفض ينتقل فوراً لحالات الاسترداد،
+   *  فتميّز شاشة «اعتذر المطعم» عن استرداد الإلغاء/عدم الحضور */
+  rejected_at: z.string().datetime().nullable().default(null),
   pickup_time: PickupTimeSchema,
   /** فترة BR-5 المحجوزة — null لغير المجدول */
   scheduled_slot: z
@@ -121,9 +124,10 @@ export const RescheduleOrderBodySchema = z.object({
 
 /**
  * وسيلة الدفع — طرق يديرها السوبر أدمن (docs/01§1، قرار المالك 2026-07-12):
- * apple_pay | card | stc_pay عبر البوابة، و"wallet" القديمة (C-33) تبقى للتوافق.
+ * apple_pay | card | stc_pay | google_pay (قرار المالك 2026-07-29) عبر البوابة،
+ * و"wallet" القديمة (C-33) تبقى للتوافق.
  */
-export const PaymentMethodKeySchema = z.enum(["card", "apple_pay", "stc_pay", "wallet"]);
+export const PaymentMethodKeySchema = z.enum(["card", "apple_pay", "stc_pay", "google_pay", "wallet"]);
 export type PaymentMethodKey = z.infer<typeof PaymentMethodKeySchema>;
 
 export const CreatePaymentIntentBodySchema = z.object({

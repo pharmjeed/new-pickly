@@ -264,7 +264,9 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
       provider: payments.provider,
       client_tokenization: Boolean(payments.deferred_charge),
       publishable_key,
-      supported_methods: payments.supportedMethods?.() ?? ["apple_pay", "card", "stc_pay"]
+      supported_methods: payments.supportedMethods?.() ?? ["apple_pay", "card", "stc_pay"],
+      // معرّف Google Business Console — وضع الإنتاج فقط؛ TEST يعمل بدونه
+      google_pay_merchant_id: process.env.GOOGLE_PAY_MERCHANT_ID || null
     };
   });
 

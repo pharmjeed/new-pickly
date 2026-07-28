@@ -169,7 +169,7 @@ export type ContentCategory = z.infer<typeof ContentCategorySchema>;
  * (system_settings:payments.methods — قرار المالك 2026-07-12). الفعّالة فقط.
  */
 export const ContentPaymentMethodSchema = z.object({
-  key: z.enum(["apple_pay", "card", "stc_pay"]),
+  key: z.enum(["apple_pay", "card", "stc_pay", "google_pay"]),
   name_ar: z.string(),
   desc_ar: z.string().nullable(),
   /** شارة اختيارية بجانب الاسم — مثل «جديد» */

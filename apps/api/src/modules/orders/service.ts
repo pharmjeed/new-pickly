@@ -45,6 +45,7 @@ function hintForChargeError(raw: string): string {
   if (raw.includes("missing_card_token")) return "اختر بطاقة أو أضف بطاقة جديدة";
   if (raw.includes("missing_mobile")) return "أدخل رقم جوال محفظة STC Pay";
   if (raw.includes("missing_applepay_token")) return "Apple Pay غير مهيأ على هذا الجهاز";
+  if (raw.includes("missing_googlepay_token")) return "Google Pay غير مهيأ على هذا الجهاز";
   if (raw.includes("client_tokenization_required"))
     return "أضف البطاقة من شاشة الدفع — الترميز يتم لدى البوابة مباشرة";
   if (/insufficient|declin|refus/i.test(raw)) return "البنك رفض العملية — جرّب بطاقة أخرى";
@@ -58,6 +59,7 @@ type OrderWithItems = Prisma.OrderGetPayload<{
     vehicle: true;
     branch: { include: { brand: true } };
     scheduled_slot: true;
+    status_history: { where: { to_status: "MERCHANT_REJECTED" }; take: 1 };
   };
 }>;
 
@@ -65,7 +67,9 @@ const orderInclude = {
   items: { include: { modifiers: true } },
   vehicle: true,
   branch: { include: { brand: true } },
-  scheduled_slot: true
+  scheduled_slot: true,
+  // لحظة اعتذار المطعم إن وُجدت — الرفض ينتقل فوراً لحالات الاسترداد فلا تكفي order_status
+  status_history: { where: { to_status: "MERCHANT_REJECTED" as const }, take: 1 }
 } as const;
 
 /** قيمة إعداد رقمي من system_settings — أحدث قيمة سارية */
@@ -131,6 +135,7 @@ export function toOrderDto(o: OrderWithItems, arrivalRadiusM = ARRIVAL_RADIUS_M_
     arrival_radius_m: arrivalRadiusM,
     preparing_at: o.preparing_at?.toISOString() ?? null,
     ready_at: o.ready_at?.toISOString() ?? null,
+    rejected_at: o.status_history[0]?.created_at.toISOString() ?? null,
     pickup_time: o.pickup_time as PickupTime,
     scheduled_slot: o.scheduled_slot
       ? {
@@ -547,7 +552,10 @@ export class OrderService {
     }
 
     const effectiveMethod = (retrying && body.method) || intent.method;
-    const method = effectiveMethod === "wallet" ? "card" : (effectiveMethod as "card" | "apple_pay" | "stc_pay");
+    const method =
+      effectiveMethod === "wallet"
+        ? "card"
+        : (effectiveMethod as "card" | "apple_pay" | "stc_pay" | "google_pay");
 
     // بطاقة محفوظة: الملكية والصلاحية تُتحقق خادمياً قبل أي نداء للبوابة
     let card_token = body.card_token;
@@ -585,6 +593,7 @@ export class OrderService {
         ...(card_token ? { card_token } : {}),
         ...(mobile ? { mobile } : {}),
         ...(body.apple_pay_token ? { apple_pay_token: body.apple_pay_token } : {}),
+        ...(body.google_pay_token ? { google_pay_token: body.google_pay_token } : {}),
         metadata: { order_id, user_id }
       });
     } catch (err) {

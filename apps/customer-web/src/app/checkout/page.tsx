@@ -107,7 +107,7 @@ interface OrderCreated {
 }
 
 /* طرق الدفع من GET /v1/content/payment-methods — الفعّالة فقط بترتيب السوبر أدمن */
-type PayMethodKey = "apple_pay" | "card" | "stc_pay";
+type PayMethodKey = "apple_pay" | "card" | "stc_pay" | "google_pay";
 interface PayMethod {
   key: PayMethodKey;
   name_ar: string;
@@ -128,6 +128,8 @@ interface PayConfig {
   client_tokenization: boolean;
   publishable_key: string | null;
   supported_methods: PayMethodKey[];
+  /** معرّف تاجر Google Business Console — لازم لوضع الإنتاج في Google Pay فقط */
+  google_pay_merchant_id?: string | null;
 }
 
 /** بطاقة رُمّزت للتو ولم تُحفظ بعد — تُستخدم لهذه الدفعة وتُحفظ عند نجاحها */
@@ -327,9 +329,20 @@ function CardNetworks() {
   );
 }
 
+/** علامة «G Pay» — نفس أسلوب شارة Apple Pay البيضاء */
+function GPayMark() {
+  return (
+    <span className={styles.apMark} aria-label="Google Pay">
+      <b>G</b>
+      <span>Pay</span>
+    </span>
+  );
+}
+
 /** أيقونة الطريقة في صف الاختيار */
 function MethodIcon({ k }: { k: PayMethodKey }) {
   if (k === "apple_pay") return <ApplePayMark />;
+  if (k === "google_pay") return <GPayMark />;
   if (k === "stc_pay") return <span className={styles.stcMark}>stc<b>pay</b></span>;
   return <CardIcon />;
 }
@@ -545,6 +558,67 @@ export default function CheckoutPage() {
       .then(setCatalog)
       .catch(() => undefined); // بلا كتالوج تبقى الإضافة بالكتابة الحرة
   }, []);
+
+  /**
+   * Google Pay: تحميل مكتبة Google كسولاً ثم فحص جاهزية الجهاز — الطريقة تُعرض
+   * فقط عندما يؤكد isReadyToPay أن المتصفح/الجهاز يدعمها (أندرويد/كروم عادة).
+   * ملاحظة ميسر: مدى مستبعدة من Google Pay — فيزا وماستركارد فقط (مطابق لمكتبتهم).
+   */
+  const gpClient = useRef<GooglePaymentsClient | null>(null);
+  const [gpReady, setGpReady] = useState(false);
+  const GP_NETWORKS = useMemo(() => ["VISA", "MASTERCARD"], []);
+  const GP_AUTH = useMemo(() => ["PAN_ONLY", "CRYPTOGRAM_3DS"], []);
+  useEffect(() => {
+    if (!payCfg?.supported_methods.includes("google_pay") || !payCfg.publishable_key) return;
+    const boot = () => {
+      const PC = window.google?.payments?.api.PaymentsClient;
+      if (!PC) return;
+      const client = new PC({
+        environment: payCfg.publishable_key?.startsWith("pk_live_") ? "PRODUCTION" : "TEST"
+      });
+      client
+        .isReadyToPay({
+          apiVersion: 2,
+          apiVersionMinor: 0,
+          allowedPaymentMethods: [
+            { type: "CARD", parameters: { allowedAuthMethods: GP_AUTH, allowedCardNetworks: GP_NETWORKS } }
+          ]
+        })
+        .then((r) => {
+          if (r.result) {
+            gpClient.current = client;
+            setGpReady(true);
+          }
+        })
+        .catch(() => undefined); // غير مدعوم → تبقى الطريقة مخفية
+    };
+    if (window.google?.payments) {
+      boot();
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://pay.google.com/gp/p/js/pay.js";
+    s.async = true;
+    s.onload = boot;
+    document.head.appendChild(s);
+  }, [payCfg, GP_AUTH, GP_NETWORKS]);
+
+  // إخفاء طرق المحافظ غير الممكنة على هذا الجهاز (Apple Pay خارج Safari، Google Pay غير الجاهزة)
+  const visibleMethods = useMemo(
+    () =>
+      methods.filter(
+        (m) =>
+          (m.key !== "apple_pay" || (typeof window !== "undefined" && Boolean(window.ApplePaySession))) &&
+          (m.key !== "google_pay" || gpReady)
+      ),
+    [methods, gpReady]
+  );
+  useEffect(() => {
+    // الافتراضية يجب أن تكون طريقة ظاهرة فعلاً
+    if (visibleMethods.length > 0 && !visibleMethods.some((m) => m.key === payMethod)) {
+      setPayMethod(visibleMethods[0].key);
+    }
+  }, [visibleMethods, payMethod]);
 
   // BR-5: فترات الفرع تُجلب عند اختيار الجدولة
   useEffect(() => {
@@ -818,10 +892,10 @@ export default function CheckoutPage() {
   };
 
   /**
-   * الدفع وإنشاء الطلب. تُرجع نجاح العملية — Apple Pay يحتاجها لإبلاغ
-   * session.completePayment. appleToken يأتي من onpaymentauthorized حصراً.
+   * الدفع وإنشاء الطلب. تُرجع نجاح العملية — محافظ Apple/Google تحتاجها لإبلاغ
+   * جلساتها بالنتيجة. توكنات المحافظ تأتي من معالجات التفويض حصراً.
    */
-  const payAndOrder = async (appleToken?: string): Promise<boolean> => {
+  const payAndOrder = async (walletTokens?: { apple?: string; google?: string }): Promise<boolean> => {
     if (!cartId || !quoteId || !vehicleId) return false;
     if (pickupTime === "scheduled" && !slotId) return false;
     // بوابة حقيقية + بطاقة: لا بد من مصدر دفع قبل إنشاء الطلب
@@ -890,7 +964,8 @@ export default function CheckoutPage() {
               ...(pendingCard && !cardId ? { card_token: pendingCard.token } : {}),
               ...(cardId ? { card_id: cardId } : {}),
               ...(stcMobile ? { mobile: stcMobile } : {}),
-              ...(appleToken ? { apple_pay_token: appleToken } : {}),
+              ...(walletTokens?.apple ? { apple_pay_token: walletTokens.apple } : {}),
+              ...(walletTokens?.google ? { google_pay_token: walletTokens.google } : {}),
               save_card: pendingCard?.save ?? false
             },
             { idempotent: true }
@@ -991,12 +1066,60 @@ export default function CheckoutPage() {
         });
     };
     session.onpaymentauthorized = (ev) => {
-      void payAndOrder(JSON.stringify(ev.payment.token)).then((paid) => {
+      void payAndOrder({ apple: JSON.stringify(ev.payment.token) }).then((paid) => {
         session.completePayment({ status: paid ? AP.STATUS_SUCCESS : AP.STATUS_FAILURE });
       });
     };
     session.oncancel = () => setBusy(false);
     session.begin();
+  };
+
+  /**
+   * Google Pay (أندرويد/كروم): ورقة الدفع من مكتبة Google، والتوكن يمر بمسار
+   * الدفع الاعتيادي نفسه. العقد مطابق لمكتبة ميسر الرسمية: بوابة "moyasar"،
+   * والمصدر الخادمي {type:"googlepay", token: tokenizationData.token}.
+   */
+  const payWithGooglePay = () => {
+    const client = gpClient.current;
+    const pk = payCfg?.publishable_key;
+    if (!client || !pk) {
+      setError("Google Pay غير متاح على هذا الجهاز — اختر طريقة دفع أخرى");
+      return;
+    }
+    if ((dueTotal ?? 0) <= 0) return;
+    setBusy(true);
+    setError(null);
+    client
+      .loadPaymentData({
+        apiVersion: 2,
+        apiVersionMinor: 0,
+        allowedPaymentMethods: [
+          {
+            type: "CARD",
+            parameters: { allowedAuthMethods: GP_AUTH, allowedCardNetworks: GP_NETWORKS },
+            tokenizationSpecification: {
+              type: "PAYMENT_GATEWAY",
+              parameters: { gateway: "moyasar", gatewayMerchantId: pk }
+            }
+          }
+        ],
+        merchantInfo: {
+          merchantName: "Pickly",
+          ...(payCfg?.google_pay_merchant_id ? { merchantId: payCfg.google_pay_merchant_id } : {})
+        },
+        transactionInfo: {
+          totalPriceStatus: "FINAL",
+          totalPrice: ((dueTotal ?? 0) / 100).toFixed(2),
+          currencyCode: "SAR",
+          countryCode: "SA"
+        }
+      })
+      .then((pd) => payAndOrder({ google: pd.paymentMethodData.tokenizationData.token }))
+      .catch((e: { statusCode?: string }) => {
+        setBusy(false);
+        // إغلاق الورقة من العميل ليس خطأ يستحق رسالة
+        if (e?.statusCode !== "CANCELED") setError("تعذّر إتمام Google Pay — جرّب طريقة أخرى");
+      });
   };
 
   const errorNote = error && (
@@ -1363,6 +1486,25 @@ export default function CheckoutPage() {
               </>
             )}
           </button>
+        ) : payMethod === "google_pay" && (dueTotal ?? 1) > 0 ? (
+          <button
+            className={`${styles.payBtn} ${styles.appleBtn}`}
+            data-testid="pay-button"
+            disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
+            onClick={payWithGooglePay}
+          >
+            {busy ? (
+              "جارٍ الدفع…"
+            ) : (
+              <>
+                <span className={styles.apLogo} aria-label="ادفع عبر Google Pay">
+                  <b>G</b>
+                  <span>Pay</span>
+                </span>
+                {dueTotal != null && <AnimatedSar halalas={dueTotal} className={styles.payAmt} />}
+              </>
+            )}
+          </button>
         ) : (
         <button
           className={busy || total == null ? `${styles.payBtn} ${styles.payBtnCenter}` : `${styles.payBtn} ${styles.cta}`}
@@ -1425,7 +1567,7 @@ export default function CheckoutPage() {
               <span>الدفع الإلكتروني مؤمن — Tokenization فقط، لا نخزن رقم بطاقتك أبداً.</span>
             </div>
             <div className={styles.paySechTitle}>خيارات الدفع</div>
-            {methods.map((m) => {
+            {visibleMethods.map((m) => {
               const on = payMethod === m.key && (m.key !== "card" || !cardId);
               return (
                 <button

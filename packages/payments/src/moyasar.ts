@@ -124,10 +124,11 @@ export class MoyasarPaymentAdapter implements PaymentAdapter {
     return this.publicKey || null;
   }
 
-  /** الطرق التي يخدمها هذا الحساب فعلياً (Apple Pay يحتاج إعداد Apple Merchant) */
-  supportedMethods(): Array<"card" | "apple_pay" | "stc_pay"> {
-    const methods: Array<"card" | "apple_pay" | "stc_pay"> = ["card", "stc_pay"];
+  /** الطرق التي يخدمها هذا الحساب فعلياً (Apple/Google Pay تحتاجان تهيئة لدى ميسر/Google) */
+  supportedMethods(): Array<"card" | "apple_pay" | "stc_pay" | "google_pay"> {
+    const methods: Array<"card" | "apple_pay" | "stc_pay" | "google_pay"> = ["card", "stc_pay"];
     if (process.env.MOYASAR_APPLE_PAY === "true") methods.push("apple_pay");
+    if (process.env.MOYASAR_GOOGLE_PAY === "true") methods.push("google_pay");
     return methods;
   }
 
@@ -232,6 +233,11 @@ export class MoyasarPaymentAdapter implements PaymentAdapter {
     if (input.method === "apple_pay") {
       if (!input.apple_pay_token) throw new Error("moyasar_missing_applepay_token");
       return { type: "applepay", token: input.apple_pay_token, manual };
+    }
+    if (input.method === "google_pay") {
+      if (!input.google_pay_token) throw new Error("moyasar_missing_googlepay_token");
+      // token = paymentMethodData.tokenizationData.token كما تعيده مكتبة Google Pay
+      return { type: "googlepay", token: input.google_pay_token, manual };
     }
     if (!input.card_token) throw new Error("moyasar_missing_card_token");
     return {

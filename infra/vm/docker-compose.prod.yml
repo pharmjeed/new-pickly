@@ -25,6 +25,9 @@ x-env: &app-env
   PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-demo-webhook-secret}
   PAYMENT_MANUAL_CAPTURE: ${PAYMENT_MANUAL_CAPTURE:-true}
   MOYASAR_APPLE_PAY: ${MOYASAR_APPLE_PAY:-false}
+  MOYASAR_GOOGLE_PAY: ${MOYASAR_GOOGLE_PAY:-false}
+  # معرّف تاجر Google Business Console — لازم لوضع PRODUCTION في زر Google Pay فقط
+  GOOGLE_PAY_MERCHANT_ID: ${GOOGLE_PAY_MERCHANT_ID:-}
   # يُبنى منه رابط عودة العميل بعد تحدي 3DS — لا بد أن يكون العنوان العام الحقيقي
   WEB_BASE_URL: ${WEB_BASE_URL:-https://app.thepickly.com}
   GEO_PROVIDER: mock
