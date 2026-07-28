@@ -492,6 +492,16 @@ export default function CheckoutPage() {
 
   const expiryValid = /^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry);
   const cardFormValid = pan.replace(/\s/g, "").length >= 13 && expiryValid && /^\d{3,4}$/.test(cvv);
+  // زر «تأكيد» يتعطل حتى اكتمال النموذج — نقول للعميل ما الناقص بدل الصمت
+  const panDigits = pan.replace(/\s/g, "");
+  const cardHint =
+    panDigits.length > 0 && panDigits.length < 13
+      ? "أكمل رقم البطاقة"
+      : expiry.length > 0 && !expiryValid
+        ? "أكمل تاريخ الانتهاء بصيغة شهر/سنة من خانتين — مثال: 12/29"
+        : cvv.length > 0 && cvv.length < 3
+          ? "رمز CVV ثلاثة أرقام أو أربعة"
+          : null;
 
   useEffect(() => {
     api<Record<string, boolean>>("GET", "/v1/feature-flags")
@@ -1528,6 +1538,11 @@ export default function CheckoutPage() {
               <span>✓ في حال حدوث عملية تفويض مسبق، سيتم إعادة المبلغ على الفور.</span>
             </div>
 
+            {cardHint && (
+              <div className={`${styles.note} ${styles.noteSoft}`} data-testid="card-hint">
+                {cardHint}
+              </div>
+            )}
             <button
               className={`${styles.payBtn} ${styles.payBtnCenter}`}
               data-testid="card-save"
