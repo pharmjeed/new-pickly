@@ -1242,7 +1242,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         methods: z
           .array(
             z.object({
-              key: z.enum(["apple_pay", "card", "stc_pay"]),
+              key: z.enum(["apple_pay", "card", "stc_pay", "google_pay"]),
               name_ar: z.string().trim().min(1).max(60),
               desc_ar: z.string().max(160).nullable().default(null),
               badge_ar: z.string().max(20).nullable().default(null),
