@@ -107,7 +107,7 @@ interface OrderCreated {
 }
 
 /* طرق الدفع من GET /v1/content/payment-methods — الفعّالة فقط بترتيب السوبر أدمن */
-type PayMethodKey = "apple_pay" | "card" | "stc_pay" | "google_pay";
+type PayMethodKey = "apple_pay" | "card" | "stc_pay" | "google_pay" | "samsung_pay";
 interface PayMethod {
   key: PayMethodKey;
   name_ar: string;
@@ -130,6 +130,8 @@ interface PayConfig {
   supported_methods: PayMethodKey[];
   /** معرّف تاجر Google Business Console — لازم لوضع الإنتاج في Google Pay فقط */
   google_pay_merchant_id?: string | null;
+  /** معرّف خدمة Samsung Pay — بدونه لا تُفتح ورقة سامسونج */
+  samsung_pay_service_id?: string | null;
 }
 
 /** بطاقة رُمّزت للتو ولم تُحفظ بعد — تُستخدم لهذه الدفعة وتُحفظ عند نجاحها */
@@ -339,10 +341,21 @@ function GPayMark() {
   );
 }
 
+/** علامة «Samsung Pay» — نفس أسلوب الشارة البيضاء */
+function SamsungPayMark() {
+  return (
+    <span className={styles.apMark} aria-label="Samsung Pay">
+      <b>Samsung</b>
+      <span>Pay</span>
+    </span>
+  );
+}
+
 /** أيقونة الطريقة في صف الاختيار */
 function MethodIcon({ k }: { k: PayMethodKey }) {
   if (k === "apple_pay") return <ApplePayMark />;
   if (k === "google_pay") return <GPayMark />;
+  if (k === "samsung_pay") return <SamsungPayMark />;
   if (k === "stc_pay") return <span className={styles.stcMark}>stc<b>pay</b></span>;
   return <CardIcon />;
 }
@@ -603,15 +616,61 @@ export default function CheckoutPage() {
     document.head.appendChild(s);
   }, [payCfg, GP_AUTH, GP_NETWORKS]);
 
-  // إخفاء طرق المحافظ غير الممكنة على هذا الجهاز (Apple Pay خارج Safari، Google Pay غير الجاهزة)
+  /**
+   * Samsung Pay: تحميل SDK سامسونج كسولاً وفحص الجاهزية — العقد مطابق لمكتبة
+   * ميسر الرسمية (PROTOCOL_3DS، والتوكن في 3DS.data). مدى مدعومة هنا بعكس قوقل.
+   */
+  const spClient = useRef<SamsungPayClientInstance | null>(null);
+  const [spReady, setSpReady] = useState(false);
+  const spConfig = useMemo<SamsungPayMethodsConfig | null>(
+    () =>
+      payCfg?.samsung_pay_service_id
+        ? {
+            version: "2",
+            serviceId: payCfg.samsung_pay_service_id,
+            protocol: "PROTOCOL_3DS",
+            allowedBrands: ["mada", "visa", "mastercard"]
+          }
+        : null,
+    [payCfg]
+  );
+  useEffect(() => {
+    if (!payCfg?.supported_methods.includes("samsung_pay") || !spConfig) return;
+    const boot = () => {
+      const SP = window.SamsungPay;
+      if (!SP) return;
+      const client = new SP.PaymentClient({ environment: "PRODUCTION" });
+      client
+        .isReadyToPay(spConfig)
+        .then((r) => {
+          if (r.result) {
+            spClient.current = client;
+            setSpReady(true);
+          }
+        })
+        .catch(() => undefined); // غير مدعوم → تبقى الطريقة مخفية
+    };
+    if (window.SamsungPay) {
+      boot();
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://img.mpay.samsung.com/gsmpi/sdk/samsungpay_web_sdk.js";
+    s.async = true;
+    s.onload = boot;
+    document.head.appendChild(s);
+  }, [payCfg, spConfig]);
+
+  // إخفاء طرق المحافظ غير الممكنة على هذا الجهاز (Apple Pay خارج Safari، وقوقل/سامسونج غير الجاهزة)
   const visibleMethods = useMemo(
     () =>
       methods.filter(
         (m) =>
           (m.key !== "apple_pay" || (typeof window !== "undefined" && Boolean(window.ApplePaySession))) &&
-          (m.key !== "google_pay" || gpReady)
+          (m.key !== "google_pay" || gpReady) &&
+          (m.key !== "samsung_pay" || spReady)
       ),
-    [methods, gpReady]
+    [methods, gpReady, spReady]
   );
   useEffect(() => {
     // الافتراضية يجب أن تكون طريقة ظاهرة فعلاً
@@ -895,7 +954,11 @@ export default function CheckoutPage() {
    * الدفع وإنشاء الطلب. تُرجع نجاح العملية — محافظ Apple/Google تحتاجها لإبلاغ
    * جلساتها بالنتيجة. توكنات المحافظ تأتي من معالجات التفويض حصراً.
    */
-  const payAndOrder = async (walletTokens?: { apple?: string; google?: string }): Promise<boolean> => {
+  const payAndOrder = async (walletTokens?: {
+    apple?: string;
+    google?: string;
+    samsung?: string;
+  }): Promise<boolean> => {
     if (!cartId || !quoteId || !vehicleId) return false;
     if (pickupTime === "scheduled" && !slotId) return false;
     // بوابة حقيقية + بطاقة: لا بد من مصدر دفع قبل إنشاء الطلب
@@ -966,6 +1029,7 @@ export default function CheckoutPage() {
               ...(stcMobile ? { mobile: stcMobile } : {}),
               ...(walletTokens?.apple ? { apple_pay_token: walletTokens.apple } : {}),
               ...(walletTokens?.google ? { google_pay_token: walletTokens.google } : {}),
+              ...(walletTokens?.samsung ? { samsung_pay_token: walletTokens.samsung } : {}),
               save_card: pendingCard?.save ?? false
             },
             { idempotent: true }
@@ -1119,6 +1183,44 @@ export default function CheckoutPage() {
         setBusy(false);
         // إغلاق الورقة من العميل ليس خطأ يستحق رسالة
         if (e?.statusCode !== "CANCELED") setError("تعذّر إتمام Google Pay — جرّب طريقة أخرى");
+      });
+  };
+
+  /**
+   * Samsung Pay: ورقة سامسونج ثم التوكن (3DS.data) بمسار الدفع الاعتيادي،
+   * مع إبلاغ سامسونج بالمصير (CHARGED/REJECTED) كما تفعل مكتبة ميسر.
+   */
+  const payWithSamsungPay = () => {
+    const client = spClient.current;
+    if (!client || !spConfig) {
+      setError("Samsung Pay غير متاح على هذا الجهاز — اختر طريقة دفع أخرى");
+      return;
+    }
+    if ((dueTotal ?? 0) <= 0) return;
+    setBusy(true);
+    setError(null);
+    client
+      .loadPaymentSheet(spConfig, {
+        orderNumber: `PK${Date.now()}`,
+        merchant: { name: "Pickly", countryCode: "SA", url: window.location.hostname },
+        amount: {
+          option: "FORMAT_TOTAL_ESTIMATED_AMOUNT",
+          currency: "SAR",
+          total: ((dueTotal ?? 0) / 100).toFixed(2)
+        }
+      })
+      .then((sheet) =>
+        payAndOrder({ samsung: sheet["3DS"].data }).then((paid) => {
+          client.notify({ status: paid ? "CHARGED" : "REJECTED", provider: "Moyasar" });
+        })
+      )
+      .catch(() => {
+        setBusy(false);
+        try {
+          client.notify({ status: "ERRED", provider: "Moyasar" });
+        } catch {
+          // إغلاق الورقة قبل الاكتمال — لا شيء يُبلغ
+        }
       });
   };
 
@@ -1480,6 +1582,25 @@ export default function CheckoutPage() {
               <>
                 <span className={styles.apLogo} aria-label="ادفع عبر Apple Pay">
                   <AppleLogo size={17} color="currentColor" />
+                  <span>Pay</span>
+                </span>
+                {dueTotal != null && <AnimatedSar halalas={dueTotal} className={styles.payAmt} />}
+              </>
+            )}
+          </button>
+        ) : payMethod === "samsung_pay" && (dueTotal ?? 1) > 0 ? (
+          <button
+            className={`${styles.payBtn} ${styles.appleBtn}`}
+            data-testid="pay-button"
+            disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
+            onClick={payWithSamsungPay}
+          >
+            {busy ? (
+              "جارٍ الدفع…"
+            ) : (
+              <>
+                <span className={styles.apLogo} aria-label="ادفع عبر Samsung Pay">
+                  <b>Samsung</b>
                   <span>Pay</span>
                 </span>
                 {dueTotal != null && <AnimatedSar halalas={dueTotal} className={styles.payAmt} />}

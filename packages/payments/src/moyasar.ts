@@ -124,11 +124,17 @@ export class MoyasarPaymentAdapter implements PaymentAdapter {
     return this.publicKey || null;
   }
 
-  /** الطرق التي يخدمها هذا الحساب فعلياً (Apple/Google Pay تحتاجان تهيئة لدى ميسر/Google) */
-  supportedMethods(): Array<"card" | "apple_pay" | "stc_pay" | "google_pay"> {
-    const methods: Array<"card" | "apple_pay" | "stc_pay" | "google_pay"> = ["card", "stc_pay"];
+  /** الطرق التي يخدمها هذا الحساب فعلياً (المحافظ تحتاج تهيئة لدى ميسر/Google/سامسونج) */
+  supportedMethods(): Array<"card" | "apple_pay" | "stc_pay" | "google_pay" | "samsung_pay"> {
+    const methods: Array<"card" | "apple_pay" | "stc_pay" | "google_pay" | "samsung_pay"> = [
+      "card",
+      "stc_pay"
+    ];
     if (process.env.MOYASAR_APPLE_PAY === "true") methods.push("apple_pay");
     if (process.env.MOYASAR_GOOGLE_PAY === "true") methods.push("google_pay");
+    // سامسونج تشترط Service ID لفتح ورقة الدفع — العلم وحده لا يكفي
+    if (process.env.MOYASAR_SAMSUNG_PAY === "true" && process.env.SAMSUNG_PAY_SERVICE_ID)
+      methods.push("samsung_pay");
     return methods;
   }
 
@@ -238,6 +244,11 @@ export class MoyasarPaymentAdapter implements PaymentAdapter {
       if (!input.google_pay_token) throw new Error("moyasar_missing_googlepay_token");
       // token = paymentMethodData.tokenizationData.token كما تعيده مكتبة Google Pay
       return { type: "googlepay", token: input.google_pay_token, manual };
+    }
+    if (input.method === "samsung_pay") {
+      if (!input.samsung_pay_token) throw new Error("moyasar_missing_samsungpay_token");
+      // token = حقل 3DS.data من ورقة دفع سامسونج (PROTOCOL_3DS)
+      return { type: "samsungpay", token: input.samsung_pay_token, manual };
     }
     if (!input.card_token) throw new Error("moyasar_missing_card_token");
     return {

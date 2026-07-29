@@ -15,9 +15,11 @@ export const PaymentConfigSchema = z.object({
   /** المفتاح القابل للنشر (pk_) — علني بطبيعته، لا يُتيح أي عملية سرية */
   publishable_key: z.string().nullable(),
   /** الطرق التي يخدمها حساب البوابة فعلياً — الواجهة تخفي ما عداها */
-  supported_methods: z.array(z.enum(["card", "apple_pay", "stc_pay", "google_pay"])),
+  supported_methods: z.array(z.enum(["card", "apple_pay", "stc_pay", "google_pay", "samsung_pay"])),
   /** معرّف تاجر Google Pay (من Google Business Console) — لازم لوضع الإنتاج فقط */
-  google_pay_merchant_id: z.string().nullable().optional()
+  google_pay_merchant_id: z.string().nullable().optional(),
+  /** معرّف خدمة Samsung Pay (من بوابة سامسونج للمطورين) — علني؛ لازم لفتح ورقة الدفع */
+  samsung_pay_service_id: z.string().nullable().optional()
 });
 export type PaymentConfig = z.infer<typeof PaymentConfigSchema>;
 
@@ -38,17 +40,21 @@ export const ConfirmPaymentBodySchema = z
     apple_pay_token: z.string().min(10).optional(),
     /** توكن Google Pay — paymentMethodData.tokenizationData.token كما تعيده مكتبة Google Pay */
     google_pay_token: z.string().min(10).optional(),
+    /** توكن Samsung Pay — حقل 3DS.data من ورقة دفع سامسونج كما هو */
+    samsung_pay_token: z.string().min(10).optional(),
     /** «حفظ كطريقة الدفع الأساسية» — البطاقة تُحفظ بعد نجاح الدفع */
     save_card: z.boolean().default(false),
     /**
      * الطريقة عند إعادة المحاولة بعد رفض البنك — العميل قد يبدّل من بطاقة
      * إلى STC Pay مثلاً؛ تُحدَّث على النية نفسها بلا طلب جديد.
      */
-    method: z.enum(["card", "apple_pay", "stc_pay", "google_pay"]).optional()
+    method: z.enum(["card", "apple_pay", "stc_pay", "google_pay", "samsung_pay"]).optional()
   })
-  .refine((b) => b.card_token || b.card_id || b.mobile || b.apple_pay_token || b.google_pay_token, {
-    message: "مصدر الدفع مطلوب"
-  });
+  .refine(
+    (b) =>
+      b.card_token || b.card_id || b.mobile || b.apple_pay_token || b.google_pay_token || b.samsung_pay_token,
+    { message: "مصدر الدفع مطلوب" }
+  );
 export type ConfirmPaymentBody = z.infer<typeof ConfirmPaymentBodySchema>;
 
 export const ConfirmPaymentResponseSchema = z.object({

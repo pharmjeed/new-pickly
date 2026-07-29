@@ -2473,7 +2473,8 @@
                           "apple_pay",
                           "card",
                           "stc_pay",
-                          "google_pay"
+                          "google_pay",
+                          "samsung_pay"
                         ]
                       },
                       "name_ar": {
@@ -2654,11 +2655,18 @@
                           "card",
                           "apple_pay",
                           "stc_pay",
-                          "google_pay"
+                          "google_pay",
+                          "samsung_pay"
                         ]
                       }
                     },
                     "google_pay_merchant_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "samsung_pay_service_id": {
                       "type": [
                         "string",
                         "null"
@@ -5483,6 +5491,7 @@
                       "apple_pay",
                       "stc_pay",
                       "google_pay",
+                      "samsung_pay",
                       "wallet"
                     ],
                     "default": "card"
@@ -5722,6 +5731,10 @@
                     "type": "string",
                     "minLength": 10
                   },
+                  "samsung_pay_token": {
+                    "type": "string",
+                    "minLength": 10
+                  },
                   "save_card": {
                     "type": "boolean",
                     "default": false
@@ -5732,7 +5745,8 @@
                       "card",
                       "apple_pay",
                       "stc_pay",
-                      "google_pay"
+                      "google_pay",
+                      "samsung_pay"
                     ]
                   }
                 }

@@ -97,6 +97,19 @@
   غلاف WebView لتطبيق iOS (يتطلب تكاملاً أصلياً لاحقاً)، ولن يظهر لمستخدمي أندرويد.
   المراجع: [Web Registration](https://docs.moyasar.com/guides/apple-pay/web-registration/) ·
   [Request Apple Pay Session](https://docs.moyasar.com/api/other/apple-pay/request-apple-pay-session/)
+- **Samsung Pay (الكود مكتمل — ينقصه Service ID من سامسونج):**
+  1. من لوحة ميسر → Settings → **Samsung Certificate** → Request CSR ونزّل الملف (تم ✓).
+  2. أنشئ حساب [Samsung Pay Developers](https://pay.samsung.com/developers) (حساب أعمال —
+     يحتاج توثيق سامسونج وقد يأخذ أياماً)، ثم Service Management → أنشئ خدمة
+     **Web Checkout** لدولة SA، ارفع **CSR ميسر** فيها، وسجّل النطاق `app.thepickly.com`.
+  3. انسخ **Service ID** الناتج وأعطه لـClaude — يفعّل على السيرفر:
+     `MOYASAR_SAMSUNG_PAY=true` + `SAMSUNG_PAY_SERVICE_ID=...` + إدراجها في طرق الأدمن.
+  4. إن طلبت لوحة ميسر رفع شهادة صادرة من سامسونج بعد إنشاء الخدمة، نزّلها من صفحة
+     الخدمة لدى سامسونج وارفعها في نفس صفحة Samsung Certificate لدى ميسر.
+  ملاحظة: مدى **مدعومة** في Samsung Pay (بعكس Google Pay)، والطريقة تظهر فقط
+  للأجهزة التي تجتاز isReadyToPay (سامسونج غالباً).
+  المراجع: [Samsung Basic Integration](https://docs.moyasar.com/guides/samsung-pay/basic-integration/) ·
+  [Certificates](https://docs.moyasar.com/guides/dashboard/certificates/)
 
 ### B2. مزود SMS (OTP)
 - **المنفَّذ في الكود:** Unifonic (جاهز ونائم). Msegat بديل غير منفَّذ.

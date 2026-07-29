@@ -195,6 +195,7 @@ async function seedSystemDefaults() {
       [
         { key: "apple_pay", name_ar: "Apple Pay", desc_ar: null, badge_ar: null, is_active: true },
         { key: "google_pay", name_ar: "Google Pay", desc_ar: null, badge_ar: null, is_active: true },
+        { key: "samsung_pay", name_ar: "Samsung Pay", desc_ar: null, badge_ar: null, is_active: true },
         { key: "card", name_ar: "بطاقة — مدى وفيزا وماستركارد", desc_ar: "احفظ وادفع عبر البطاقة", badge_ar: null, is_active: true },
         { key: "stc_pay", name_ar: "stc pay", desc_ar: "ادفع لطلبك باستخدام رقم الجوال المسجل في STC Pay", badge_ar: null, is_active: true }
       ]

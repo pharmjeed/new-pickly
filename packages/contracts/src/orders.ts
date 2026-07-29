@@ -127,7 +127,14 @@ export const RescheduleOrderBodySchema = z.object({
  * apple_pay | card | stc_pay | google_pay (قرار المالك 2026-07-29) عبر البوابة،
  * و"wallet" القديمة (C-33) تبقى للتوافق.
  */
-export const PaymentMethodKeySchema = z.enum(["card", "apple_pay", "stc_pay", "google_pay", "wallet"]);
+export const PaymentMethodKeySchema = z.enum([
+  "card",
+  "apple_pay",
+  "stc_pay",
+  "google_pay",
+  "samsung_pay",
+  "wallet"
+]);
 export type PaymentMethodKey = z.infer<typeof PaymentMethodKeySchema>;
 
 export const CreatePaymentIntentBodySchema = z.object({

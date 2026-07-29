@@ -46,6 +46,7 @@ function hintForChargeError(raw: string): string {
   if (raw.includes("missing_mobile")) return "أدخل رقم جوال محفظة STC Pay";
   if (raw.includes("missing_applepay_token")) return "Apple Pay غير مهيأ على هذا الجهاز";
   if (raw.includes("missing_googlepay_token")) return "Google Pay غير مهيأ على هذا الجهاز";
+  if (raw.includes("missing_samsungpay_token")) return "Samsung Pay غير مهيأ على هذا الجهاز";
   if (raw.includes("client_tokenization_required"))
     return "أضف البطاقة من شاشة الدفع — الترميز يتم لدى البوابة مباشرة";
   if (/insufficient|declin|refus/i.test(raw)) return "البنك رفض العملية — جرّب بطاقة أخرى";
@@ -555,7 +556,7 @@ export class OrderService {
     const method =
       effectiveMethod === "wallet"
         ? "card"
-        : (effectiveMethod as "card" | "apple_pay" | "stc_pay" | "google_pay");
+        : (effectiveMethod as "card" | "apple_pay" | "stc_pay" | "google_pay" | "samsung_pay");
 
     // بطاقة محفوظة: الملكية والصلاحية تُتحقق خادمياً قبل أي نداء للبوابة
     let card_token = body.card_token;
@@ -594,6 +595,7 @@ export class OrderService {
         ...(mobile ? { mobile } : {}),
         ...(body.apple_pay_token ? { apple_pay_token: body.apple_pay_token } : {}),
         ...(body.google_pay_token ? { google_pay_token: body.google_pay_token } : {}),
+        ...(body.samsung_pay_token ? { samsung_pay_token: body.samsung_pay_token } : {}),
         metadata: { order_id, user_id }
       });
     } catch (err) {

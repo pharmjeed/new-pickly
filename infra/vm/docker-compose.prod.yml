@@ -28,6 +28,9 @@ x-env: &app-env
   MOYASAR_GOOGLE_PAY: ${MOYASAR_GOOGLE_PAY:-false}
   # معرّف تاجر Google Business Console — لازم لوضع PRODUCTION في زر Google Pay فقط
   GOOGLE_PAY_MERCHANT_ID: ${GOOGLE_PAY_MERCHANT_ID:-}
+  # سامسونج: العلم + معرّف الخدمة من بوابة سامسونج (بعد رفع CSR ميسر وتوثيق النطاق)
+  MOYASAR_SAMSUNG_PAY: ${MOYASAR_SAMSUNG_PAY:-false}
+  SAMSUNG_PAY_SERVICE_ID: ${SAMSUNG_PAY_SERVICE_ID:-}
   # يُبنى منه رابط عودة العميل بعد تحدي 3DS — لا بد أن يكون العنوان العام الحقيقي
   WEB_BASE_URL: ${WEB_BASE_URL:-https://app.thepickly.com}
   GEO_PROVIDER: mock

@@ -266,7 +266,9 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
       publishable_key,
       supported_methods: payments.supportedMethods?.() ?? ["apple_pay", "card", "stc_pay"],
       // معرّف Google Business Console — وضع الإنتاج فقط؛ TEST يعمل بدونه
-      google_pay_merchant_id: process.env.GOOGLE_PAY_MERCHANT_ID || null
+      google_pay_merchant_id: process.env.GOOGLE_PAY_MERCHANT_ID || null,
+      // معرّف خدمة سامسونج (علني) — بدونه لا تُفتح ورقة Samsung Pay أصلاً
+      samsung_pay_service_id: process.env.SAMSUNG_PAY_SERVICE_ID || null
     };
   });
 
