@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#C8F542",
     "splash": {
-      "image": "./assets/icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#C8F542"
     },
@@ -27,7 +27,7 @@
       "package": "sa.pickly.customer",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#C8F542"
       },
       "permissions": [
