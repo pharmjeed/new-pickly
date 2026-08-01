@@ -8,7 +8,7 @@ import type { ContentPaymentMethod } from "@pickly/contracts";
  */
 
 export interface PaymentMethodSetting {
-  key: "apple_pay" | "card" | "stc_pay";
+  key: "google_pay" | "card" | "stc_pay" | "samsung_pay";
   name_ar: string;
   desc_ar: string | null;
   badge_ar: string | null;
@@ -16,7 +16,7 @@ export interface PaymentMethodSetting {
 }
 
 export const DEFAULT_PAYMENT_METHODS: PaymentMethodSetting[] = [
-  { key: "apple_pay", name_ar: "Apple Pay", desc_ar: null, badge_ar: null, is_active: true },
+  { key: "google_pay", name_ar: "Google Pay", desc_ar: null, badge_ar: null, is_active: true },
   { key: "card", name_ar: "بطاقة — مدى وفيزا وماستركارد", desc_ar: "احفظ وادفع عبر البطاقة", badge_ar: null, is_active: true },
   { key: "stc_pay", name_ar: "stc pay", desc_ar: "ادفع لطلبك باستخدام رقم الجوال المسجل في STC Pay", badge_ar: null, is_active: true }
 ];
@@ -27,8 +27,13 @@ export async function paymentMethodsConfig(): Promise<PaymentMethodSetting[]> {
     where: { key: "payments.methods", effective_at: { lte: new Date() } },
     orderBy: { effective_at: "desc" }
   });
-  const stored = setting?.value as PaymentMethodSetting[] | null | undefined;
-  return Array.isArray(stored) && stored.length > 0 ? stored : DEFAULT_PAYMENT_METHODS;
+  const stored = setting?.value as
+    | Array<Omit<PaymentMethodSetting, "key"> & { key: PaymentMethodSetting["key"] | "apple_pay" }>
+    | null
+    | undefined;
+  const rows = Array.isArray(stored) && stored.length > 0 ? stored : DEFAULT_PAYMENT_METHODS;
+  // آبل باي حُذفت نهائياً (قرار المالك 2026-08-02) — تُرشّح حتى من الصفوف المخزنة تاريخياً
+  return rows.filter((m): m is PaymentMethodSetting => m.key !== "apple_pay");
 }
 
 /** الفعّالة فقط بترتيب الأدمن — ما يراه العميل في «اختر طريقة الدفع» */

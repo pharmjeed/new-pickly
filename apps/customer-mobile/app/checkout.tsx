@@ -3,7 +3,7 @@
  * السلة C-26 مدموجة هنا (قرار المالك 2026-07-12): حذف عنصر → إعادة تسعير فورية،
  * والتسعير خادمي حصراً (BR-6) — app/cart.tsx تحوّل إلى هنا.
  * وقت الاستلام FR-C06: أقرب وقت / مجدول بفترات وسعة (BR-5).
- * الدفع C-33: بطاقة أو محفظة (Apple Pay/STC Pay) — بوابة sandbox بنفس مسار الإنتاج.
+ * الدفع C-33: بطاقة أو محفظة (Google Pay/STC Pay) — بوابة sandbox بنفس مسار الإنتاج.
  * السيارة: بطاقة لوحة سعودية (حروف + أرقام) + إضافة/تعديل من كتالوج الماركات والموديلات
  * GET /v1/vehicle-catalog · GET/POST/PATCH/DELETE /v1/customers/me/vehicles
  * POST /v1/orders (idempotent) → payment-intent → mock-gateway pay → /track/{id}
@@ -157,7 +157,7 @@ interface OrderCreated {
 }
 
 /* طرق الدفع من GET /v1/content/payment-methods — الفعّالة فقط بترتيب السوبر أدمن */
-type PayMethodKey = "apple_pay" | "card" | "stc_pay";
+type PayMethodKey = "card" | "stc_pay" | "google_pay" | "samsung_pay";
 interface PayMethod {
   key: PayMethodKey;
   name_ar: string;
@@ -167,9 +167,6 @@ interface PayMethod {
 interface WalletInfo {
   balance_halalas: number;
 }
-
-/** علامة « Pay» — رمز التفاحة نص iOS، ونص كامل على أندرويد */
-const APPLE_PAY_LABEL = Platform.OS === "ios" ? " Pay" : "Apple Pay";
 
 /* بطاقاتي — Tokenization فقط: لا يُخزن رقم البطاقة، فقط brand/last4/expiry */
 interface SavedCard {
@@ -904,7 +901,7 @@ export default function CheckoutScreen() {
           >
             <View style={st.pmMark}>
               <Text style={st.pmMarkTxt}>
-                {payMethod === "apple_pay" ? APPLE_PAY_LABEL : payMethod === "stc_pay" ? "stc pay" : "💳"}
+                {payMethod === "google_pay" ? "G Pay" : payMethod === "stc_pay" ? "stc pay" : "💳"}
               </Text>
             </View>
             <View style={{ flex: 1 }}>
@@ -993,25 +990,25 @@ export default function CheckoutScreen() {
         )}
       </ScrollView>
 
-      {/* CTA الدفع — أسود بشعار Apple Pay عند اختياره، وإلا الزر الليموني الحيوي */}
+      {/* CTA الدفع — أسود بشعار Google Pay عند اختياره، وإلا الزر الليموني الحيوي */}
       {!isEmpty && (
         <View style={st.footbar}>
-          {payMethod === "apple_pay" && (dueTotal ?? 1) > 0 ? (
+          {payMethod === "google_pay" && (dueTotal ?? 1) > 0 ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="ادفع عبر Apple Pay"
+              accessibilityLabel="ادفع عبر Google Pay"
               disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
               onPress={() => void payAndOrder()}
               style={({ pressed }) => [
-                st.appleBtn,
+                st.walletBtn,
                 pressed ? { opacity: 0.85 } : null,
                 busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)
                   ? { opacity: 0.5 }
                   : null
               ]}
             >
-              <Text style={st.appleBtnTxt}>{busy ? "جارٍ الدفع…" : APPLE_PAY_LABEL}</Text>
-              {!busy && dueTotal != null && <Text style={st.appleBtnAmt}>{fmtSar(shownTotal)}</Text>}
+              <Text style={st.walletBtnTxt}>{busy ? "جارٍ الدفع…" : "G Pay"}</Text>
+              {!busy && dueTotal != null && <Text style={st.walletBtnAmt}>{fmtSar(shownTotal)}</Text>}
             </Pressable>
           ) : (
             <>
@@ -1072,7 +1069,7 @@ export default function CheckoutScreen() {
                   </View>
                   <View style={st.pmMark}>
                     <Text style={st.pmMarkTxt}>
-                      {m.key === "apple_pay" ? APPLE_PAY_LABEL : m.key === "stc_pay" ? "stc pay" : "💳"}
+                      {m.key === "google_pay" ? "G Pay" : m.key === "stc_pay" ? "stc pay" : "💳"}
                     </Text>
                   </View>
                 </Pressable>
@@ -1548,8 +1545,8 @@ const st = StyleSheet.create({
   panInp: { letterSpacing: 1, textAlign: "left", writingDirection: "ltr" },
   assureTitle: { color: colors.success, fontSize: fs.fs14, fontWeight: "800", textAlign: "right" },
   assureTxt: { color: light.text2, fontSize: fs.fs12, textAlign: "right", lineHeight: 19 },
-  /* زر Apple Pay الأسود — بشعارهم كما في المرجع */
-  appleBtn: {
+  /* زر Google Pay الأسود — بشعارهم كما في المرجع */
+  walletBtn: {
     backgroundColor: "#000000",
     borderRadius: radiusPill,
     minHeight: touch,
@@ -1559,8 +1556,8 @@ const st = StyleSheet.create({
     justifyContent: "center",
     gap: 10
   },
-  appleBtnTxt: { color: colors.white, fontSize: fs.fs20, fontWeight: "700", writingDirection: "ltr" },
-  appleBtnAmt: { color: colors.white, fontSize: fs.fs16, fontWeight: "800" },
+  walletBtnTxt: { color: colors.white, fontSize: fs.fs20, fontWeight: "700", writingDirection: "ltr" },
+  walletBtnAmt: { color: colors.white, fontSize: fs.fs16, fontWeight: "800" },
   /* جدولة BR-5 — ورقة «حدد موعد طلبك»: عجلتا يوم/وقت */
   schedHead: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" },
   schedClose: { width: touch, height: touch, alignItems: "center", justifyContent: "center" },

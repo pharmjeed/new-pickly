@@ -132,7 +132,7 @@ describe.skipIf(!hasDb)("النقاط والدعوة وملف العميل", asy
       method: "POST",
       url: `/v1/orders/${order.id}/payment-intent`,
       headers: { ...authed(token), "idempotency-key": randomUUID() },
-      payload: { method: "apple_pay" }
+      payload: { method: "google_pay" }
     });
     expect(intent.statusCode, intent.body).toBe(200);
     const pay = await app.inject({ method: "POST", url: `/v1/dev/mock-gateway/by-order/${order.id}/pay` });

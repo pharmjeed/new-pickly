@@ -126,7 +126,7 @@ describe.skipIf(!hasDb)("طرق الدفع + محفظة بيكلي", async () =>
   describe("طرق الدفع من السوبر أدمن", () => {
     it("العميل يقرأ الفعّالة فقط بترتيب الأدمن، والموقوفة تُرفض في intent برمز PAY-5001", async () => {
       const admin = await adminLogin();
-      // stc_pay موقوفة + بطاقة أولاً + شارة «جديد» على Apple Pay
+      // stc_pay موقوفة + بطاقة أولاً + شارة «جديد» على Google Pay
       const save = await app.inject({
         method: "POST",
         url: "/v1/admin/payments/methods",
@@ -134,7 +134,7 @@ describe.skipIf(!hasDb)("طرق الدفع + محفظة بيكلي", async () =>
         payload: {
           methods: [
             { key: "card", name_ar: "بطاقة — مدى وفيزا وماستركارد", desc_ar: null, badge_ar: null, is_active: true },
-            { key: "apple_pay", name_ar: "Apple Pay", desc_ar: null, badge_ar: "جديد", is_active: true },
+            { key: "google_pay", name_ar: "Google Pay", desc_ar: null, badge_ar: "جديد", is_active: true },
             { key: "stc_pay", name_ar: "stc pay", desc_ar: null, badge_ar: null, is_active: false }
           ],
           reason: "ترتيب اختباري"
@@ -144,7 +144,7 @@ describe.skipIf(!hasDb)("طرق الدفع + محفظة بيكلي", async () =>
 
       const pub = await app.inject({ method: "GET", url: "/v1/content/payment-methods" });
       const list = pub.json() as Array<{ key: string; badge_ar: string | null }>;
-      expect(list.map((m) => m.key)).toEqual(["card", "apple_pay"]);
+      expect(list.map((m) => m.key)).toEqual(["card", "google_pay"]);
       expect(list[1]?.badge_ar).toBe("جديد");
 
       // intent بطريقة موقوفة → PAY-5001
@@ -166,7 +166,7 @@ describe.skipIf(!hasDb)("طرق الدفع + محفظة بيكلي", async () =>
         headers: authed(admin),
         payload: {
           methods: [
-            { key: "apple_pay", name_ar: "Apple Pay", desc_ar: null, badge_ar: null, is_active: true },
+            { key: "google_pay", name_ar: "Google Pay", desc_ar: null, badge_ar: null, is_active: true },
             { key: "card", name_ar: "بطاقة — مدى وفيزا وماستركارد", desc_ar: null, badge_ar: null, is_active: true },
             { key: "stc_pay", name_ar: "stc pay", desc_ar: null, badge_ar: null, is_active: true }
           ],
@@ -358,7 +358,7 @@ describe.skipIf(!hasDb)("طرق الدفع + محفظة بيكلي", async () =>
         method: "POST",
         url: `/v1/orders/${order.id}/payment-intent`,
         headers: { ...authed(token), "idempotency-key": key },
-        payload: { method: "apple_pay", use_wallet: true }
+        payload: { method: "google_pay", use_wallet: true }
       });
       expect(intentRes.statusCode).toBe(200);
       const intent = intentRes.json() as {
@@ -385,7 +385,7 @@ describe.skipIf(!hasDb)("طرق الدفع + محفظة بيكلي", async () =>
         method: "POST",
         url: `/v1/orders/${order.id}/payment-intent`,
         headers: { ...authed(token), "idempotency-key": key },
-        payload: { method: "apple_pay", use_wallet: true }
+        payload: { method: "google_pay", use_wallet: true }
       });
       expect(replay.statusCode).toBe(200);
       expect(replay.json().status).toBe("authorized");

@@ -6,7 +6,7 @@
  *   والتسعير خادمي حصراً (BR-6) — /cart تحوّل إلى هنا.
  * - وقت الاستلام FR-C06: أقرب وقت / مجدول بفترات وسعة (BR-5)
  * - السيارة كشرائح + إضافة سيارة مصغرة عبر Sheet (S3: لون + آخر 4 أرقام)
- * - الدفع C-33: بطاقة أو محفظة (Apple Pay/STC Pay) — بوابة sandbox بنفس مسار الإنتاج
+ * - الدفع C-33: بطاقة أو محفظة (Google Pay/STC Pay) — بوابة sandbox بنفس مسار الإنتاج
  * - كوبون BR-7: التحقق والخصم خادميان
  * - النجاح حالة ختامية (C-37) ثم الانتقال للتتبع /track/{id}
  */
@@ -107,7 +107,7 @@ interface OrderCreated {
 }
 
 /* طرق الدفع من GET /v1/content/payment-methods — الفعّالة فقط بترتيب السوبر أدمن */
-type PayMethodKey = "apple_pay" | "card" | "stc_pay" | "google_pay" | "samsung_pay";
+type PayMethodKey = "card" | "stc_pay" | "google_pay" | "samsung_pay";
 interface PayMethod {
   key: PayMethodKey;
   name_ar: string;
@@ -295,28 +295,6 @@ function WalletIcon({ size = 20 }: { size?: number }) {
     </svg>
   );
 }
-/** شعار Apple — لعلامة Apple Pay (زر الدفع الأسود وصف الطريقة) */
-function AppleLogo({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size * (512 / 384)} viewBox="0 0 384 512" aria-hidden="true">
-      <path
-        fill={color}
-        d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"
-      />
-    </svg>
-  );
-}
-
-/** علامة «⌘ Pay» — شارة بيضاء بحدود كما في التصميم المرجعي */
-function ApplePayMark() {
-  return (
-    <span className={styles.apMark} aria-label="Apple Pay">
-      <AppleLogo size={12} />
-      <span>Pay</span>
-    </span>
-  );
-}
-
 /** شارات شبكات البطاقات — مدى / فيزا / ماستركارد */
 function CardNetworks() {
   return (
@@ -331,7 +309,7 @@ function CardNetworks() {
   );
 }
 
-/** علامة «G Pay» — نفس أسلوب شارة Apple Pay البيضاء */
+/** علامة «G Pay» — شارة بيضاء بحدود كما في التصميم المرجعي */
 function GPayMark() {
   return (
     <span className={styles.apMark} aria-label="Google Pay">
@@ -353,7 +331,6 @@ function SamsungPayMark() {
 
 /** أيقونة الطريقة في صف الاختيار */
 function MethodIcon({ k }: { k: PayMethodKey }) {
-  if (k === "apple_pay") return <ApplePayMark />;
   if (k === "google_pay") return <GPayMark />;
   if (k === "samsung_pay") return <SamsungPayMark />;
   if (k === "stc_pay") return <span className={styles.stcMark}>stc<b>pay</b></span>;
@@ -661,14 +638,11 @@ export default function CheckoutPage() {
     document.head.appendChild(s);
   }, [payCfg, spConfig]);
 
-  // إخفاء طرق المحافظ غير الممكنة على هذا الجهاز (Apple Pay خارج Safari، وقوقل/سامسونج غير الجاهزة)
+  // إخفاء طرق المحافظ غير الجاهزة على هذا الجهاز (قوقل/سامسونج قبل اجتياز isReadyToPay)
   const visibleMethods = useMemo(
     () =>
       methods.filter(
-        (m) =>
-          (m.key !== "apple_pay" || (typeof window !== "undefined" && Boolean(window.ApplePaySession))) &&
-          (m.key !== "google_pay" || gpReady) &&
-          (m.key !== "samsung_pay" || spReady)
+        (m) => (m.key !== "google_pay" || gpReady) && (m.key !== "samsung_pay" || spReady)
       ),
     [methods, gpReady, spReady]
   );
@@ -951,11 +925,10 @@ export default function CheckoutPage() {
   };
 
   /**
-   * الدفع وإنشاء الطلب. تُرجع نجاح العملية — محافظ Apple/Google تحتاجها لإبلاغ
+   * الدفع وإنشاء الطلب. تُرجع نجاح العملية — محافظ Google/سامسونج تحتاجها لإبلاغ
    * جلساتها بالنتيجة. توكنات المحافظ تأتي من معالجات التفويض حصراً.
    */
   const payAndOrder = async (walletTokens?: {
-    apple?: string;
     google?: string;
     samsung?: string;
   }): Promise<boolean> => {
@@ -1027,7 +1000,6 @@ export default function CheckoutPage() {
               ...(pendingCard && !cardId ? { card_token: pendingCard.token } : {}),
               ...(cardId ? { card_id: cardId } : {}),
               ...(stcMobile ? { mobile: stcMobile } : {}),
-              ...(walletTokens?.apple ? { apple_pay_token: walletTokens.apple } : {}),
               ...(walletTokens?.google ? { google_pay_token: walletTokens.google } : {}),
               ...(walletTokens?.samsung ? { samsung_pay_token: walletTokens.samsung } : {}),
               save_card: pendingCard?.save ?? false
@@ -1083,59 +1055,6 @@ export default function CheckoutPage() {
     } finally {
       setBusy(false);
     }
-  };
-
-  /**
-   * Apple Pay (Safari فقط): الجلسة تُنشأ متزامنة داخل نقرة المستخدم (شرط آبل)،
-   * تحقق التاجر عبر ميسر مباشرة (تسجيل النطاق في لوحة ميسر — بلا حساب Apple Developer)،
-   * وعند التفويض يمر التوكن بمسار الدفع الاعتيادي نفسه (نية ← تأكيد).
-   * العقد مطابق لمكتبة ميسر الرسمية (mpf v1.14): POST /v1/applepay/initiate
-   * بـvalidation_url/domain_name/display_name/publishable_api_key، والتوكن يُرسل
-   * JSON.stringify(event.payment.token) كاملاً.
-   */
-  const payWithApplePay = () => {
-    const AP = window.ApplePaySession;
-    if (!AP || !AP.canMakePayments()) {
-      setError("Apple Pay متاح على أجهزة آبل في متصفح Safari فقط — اختر طريقة دفع أخرى");
-      return;
-    }
-    const pk = payCfg?.publishable_key;
-    if (!pk || (dueTotal ?? 0) <= 0) return;
-    setBusy(true);
-    setError(null);
-    const session = new AP(6, {
-      countryCode: "SA",
-      currencyCode: "SAR",
-      supportedNetworks: ["mada", "visa", "mastercard"],
-      merchantCapabilities: ["supports3DS", "supportsCredit", "supportsDebit"],
-      total: { label: "Pickly — بيكلي", amount: ((dueTotal ?? 0) / 100).toFixed(2) }
-    });
-    session.onvalidatemerchant = (ev) => {
-      void fetch("https://api.moyasar.com/v1/applepay/initiate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          validation_url: ev.validationURL,
-          domain_name: window.location.hostname,
-          display_name: "Pickly",
-          publishable_api_key: pk
-        })
-      })
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("merchant_validation_failed"))))
-        .then((merchantSession) => session.completeMerchantValidation(merchantSession))
-        .catch(() => {
-          session.abort();
-          setBusy(false);
-          setError("تعذّر بدء جلسة Apple Pay — أعد المحاولة أو اختر طريقة أخرى");
-        });
-    };
-    session.onpaymentauthorized = (ev) => {
-      void payAndOrder({ apple: JSON.stringify(ev.payment.token) }).then((paid) => {
-        session.completePayment({ status: paid ? AP.STATUS_SUCCESS : AP.STATUS_FAILURE });
-      });
-    };
-    session.oncancel = () => setBusy(false);
-    session.begin();
   };
 
   /**
@@ -1567,28 +1486,9 @@ export default function CheckoutPage() {
         </>
       )}
 
-      {/* ===== CTA الدفع — أسود بشعار Apple Pay عند اختياره، وإلا الزر الليموني الحيوي ===== */}
+      {/* ===== CTA الدفع — أسود بشعار المحفظة (قوقل/سامسونج) عند اختيارها، وإلا الزر الليموني الحيوي ===== */}
       <div className={styles.footbar}>
-        {payMethod === "apple_pay" && (dueTotal ?? 1) > 0 ? (
-          <button
-            className={`${styles.payBtn} ${styles.appleBtn}`}
-            data-testid="pay-button"
-            disabled={busy || !vehicleId || !cartId || (pickupTime === "scheduled" && !slotId)}
-            onClick={payWithApplePay}
-          >
-            {busy ? (
-              "جارٍ الدفع…"
-            ) : (
-              <>
-                <span className={styles.apLogo} aria-label="ادفع عبر Apple Pay">
-                  <AppleLogo size={17} color="currentColor" />
-                  <span>Pay</span>
-                </span>
-                {dueTotal != null && <AnimatedSar halalas={dueTotal} className={styles.payAmt} />}
-              </>
-            )}
-          </button>
-        ) : payMethod === "samsung_pay" && (dueTotal ?? 1) > 0 ? (
+        {payMethod === "samsung_pay" && (dueTotal ?? 1) > 0 ? (
           <button
             className={`${styles.payBtn} ${styles.appleBtn}`}
             data-testid="pay-button"

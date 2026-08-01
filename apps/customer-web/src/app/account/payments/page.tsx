@@ -78,7 +78,7 @@ export default function PaymentsPage() {
               </div>
             ))}
             <div className={pageStyles.acMuted}>
-              الدفع عبر Apple Pay وبطاقات مدى/فيزا/ماستركارد وSTC Pay — وإضافة بطاقة جديدة تتم أثناء الدفع.
+              الدفع عبر Google Pay وبطاقات مدى/فيزا/ماستركارد وSTC Pay — وإضافة بطاقة جديدة تتم أثناء الدفع.
             </div>
           </>
         )}

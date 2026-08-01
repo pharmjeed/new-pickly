@@ -22,7 +22,7 @@ type Flag = {
 const FLAG_AR: Record<string, string> = {
   scheduled_orders: "الطلب المجدول بفترات وسعات (BR-5)",
   coupons_full: "الكوبونات بأنواعها (BR-7)",
-  wallet_payments: "محافظ الدفع Apple Pay / STC Pay",
+  wallet_payments: "محافظ الدفع Google Pay / STC Pay",
   search: "البحث في الرئيسية (C-11)",
   support_tickets: "تذاكر الدعم (C-65)",
   tips: "البقشيش",

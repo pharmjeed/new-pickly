@@ -99,7 +99,7 @@ async function seedSystemDefaults() {
   const flags: Array<[string, boolean]> = [
     ["scheduled_orders", true], // BR-5 — بُنيت في مرحلة 2
     ["coupons_full", true], // BR-7 — بُنيت في مرحلة 2
-    ["wallet_payments", true], // Apple Pay/STC Pay عبر البوابة — sandbox حتى B1
+    ["wallet_payments", true], // Google Pay/STC Pay عبر البوابة — sandbox حتى B1
     ["in_app_wallet", true], // محفظة بيكلي — رصيد داخل التطبيق (قرار المالك 2026-07-12)
     ["search", true], // C-11/C-12
     ["support_tickets", true], // C-65/66 + A-15
@@ -193,7 +193,6 @@ async function seedSystemDefaults() {
     [
       "payments.methods",
       [
-        { key: "apple_pay", name_ar: "Apple Pay", desc_ar: null, badge_ar: null, is_active: true },
         { key: "google_pay", name_ar: "Google Pay", desc_ar: null, badge_ar: null, is_active: true },
         { key: "samsung_pay", name_ar: "Samsung Pay", desc_ar: null, badge_ar: null, is_active: true },
         { key: "card", name_ar: "بطاقة — مدى وفيزا وماستركارد", desc_ar: "احفظ وادفع عبر البطاقة", badge_ar: null, is_active: true },

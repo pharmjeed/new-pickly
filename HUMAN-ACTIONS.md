@@ -82,21 +82,11 @@
   3. `bash infra/scripts/setup-moyasar.sh` — بمفاتيح `live` هذه المرة (تأكيد «نعم أفهم»).
   تنبيه تشغيلي: تأكد قبلها أن بيانات العرض (مطاعم تجريبية مثل «بيست برجر») أُخفيت أو
   استُبدلت بتجار حقيقيين — وإلا قد يدفع عميل حقيقي مالاً حقيقياً لمطعم وهمي.
-- **Apple Pay — بلا حساب Apple Developer إطلاقاً (تسجيل النطاق عبر ميسر):**
-  الكود مكتمل الطرفين: الخادم يمرر `apple_pay_token` لميسر بمصدر `applepay`، وصفحة الدفع
-  فيها جلسة Apple Pay JS كاملة (تحقق التاجر عبر `/v1/applepay/initiate` مطابقاً لمكتبة
-  ميسر الرسمية). المتبقي ثلاث خطوات مالك بسيطة:
-  1. لوحة ميسر → **Settings → Apple Pay Domains** → أضف النطاق `app.thepickly.com`
-     (النطاق الفرعي بالضبط، لا الجذر) واضغط **Download Association**.
-  2. سلّم الملف المنزّل لـClaude — يضعه في
-     `apps/customer-web/public/.well-known/apple-developer-merchantid-domain-association`
-     (بلا امتداد) وينشره، ثم ارجع للوحة ميسر واضغط **Validate** ثم **Register**.
-  3. على السيرفر: أضف `MOYASAR_APPLE_PAY=true` في `.env` وأعد تشغيل api —
-     تظهر الطريقة تلقائياً في شاشة الدفع. (اطلبها من Claude — لا أسرار فيها.)
-  **قيد مهم:** Apple Pay على الويب يعمل في Safari على أجهزة آبل فقط — لن يعمل داخل
-  غلاف WebView لتطبيق iOS (يتطلب تكاملاً أصلياً لاحقاً)، ولن يظهر لمستخدمي أندرويد.
-  المراجع: [Web Registration](https://docs.moyasar.com/guides/apple-pay/web-registration/) ·
-  [Request Apple Pay Session](https://docs.moyasar.com/api/other/apple-pay/request-apple-pay-session/)
+- **Apple Pay — حُذفت نهائياً (قرار المالك 2026-08-02):** أُزيلت من الواجهة والخادم
+  وقائمة طرق الأدمن (تُرشّح حتى من الإعدادات المخزنة تاريخياً). لا خطوات مالك متبقية.
+  **Google Pay معتمدة افتراضياً** بنفس القرار — تعمل في وضع TEST بلا أي مفاتيح؛
+  ولوضع PRODUCTION لاحقاً (بعد B1/live) يلزم `GOOGLE_PAY_MERCHANT_ID` من
+  [Google Pay Business Console](https://pay.google.com/business/console).
 - **Samsung Pay (الكود مكتمل — ينقصه Service ID من سامسونج):**
   1. من لوحة ميسر → Settings → **Samsung Certificate** → Request CSR ونزّل الملف (تم ✓).
   2. أنشئ حساب [Samsung Pay Developers](https://pay.samsung.com/developers) (حساب أعمال —

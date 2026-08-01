@@ -12,7 +12,7 @@ import { ApiError, apiGet, apiPost } from "@/lib/api";
 import ReasonModal from "@/components/ReasonModal";
 import { QirtasLoader } from "@/components/qirtas";
 
-type MethodKey = "apple_pay" | "card" | "stc_pay";
+type MethodKey = "google_pay" | "card" | "stc_pay" | "samsung_pay";
 
 type Method = {
   key: MethodKey;
@@ -41,9 +41,10 @@ type WalletView = {
 type PendingSave = { kind: "methods" } | { kind: "adjust"; amount_halalas: number };
 
 const METHOD_LABEL: Record<MethodKey, string> = {
-  apple_pay: "Apple Pay",
+  google_pay: "Google Pay",
   card: "بطاقة",
-  stc_pay: "stc pay"
+  stc_pay: "stc pay",
+  samsung_pay: "Samsung Pay"
 };
 
 const sar = (halalas: number): string => `${(halalas / 100).toFixed(2)} ر.س`;
@@ -204,7 +205,7 @@ export default function Payments() {
           </div>
           <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
             الترتيب هنا هو ترتيب الظهور في «اختر طريقة الدفع» — والأولى الفعّالة هي الافتراضية · المعطلة تختفي فوراً
-            ويرفض الخادم أي intent بها · Apple Pay المختارة تعرض زر الدفع الأسود بشعارهم.
+            ويرفض الخادم أي intent بها · Google Pay وSamsung Pay المختارتان تعرضان زر الدفع الأسود بشعارهما.
           </p>
         </div>
       )}

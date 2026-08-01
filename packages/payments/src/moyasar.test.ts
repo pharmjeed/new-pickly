@@ -296,11 +296,11 @@ describe("MoyasarPaymentAdapter — حدود PCI", () => {
     });
   });
 
-  it("لا يعرض Apple Pay إلا بتفعيل صريح", () => {
-    process.env.MOYASAR_APPLE_PAY = "false";
+  it("قوقل باي معتمدة افتراضياً ولا تختفي إلا بإيقاف صريح", () => {
+    delete process.env.MOYASAR_GOOGLE_PAY;
+    expect(adapter().supportedMethods()).toEqual(["card", "stc_pay", "google_pay"]);
+    process.env.MOYASAR_GOOGLE_PAY = "false";
     expect(adapter().supportedMethods()).toEqual(["card", "stc_pay"]);
-    process.env.MOYASAR_APPLE_PAY = "true";
-    expect(adapter().supportedMethods()).toContain("apple_pay");
-    process.env.MOYASAR_APPLE_PAY = "false";
+    delete process.env.MOYASAR_GOOGLE_PAY;
   });
 });

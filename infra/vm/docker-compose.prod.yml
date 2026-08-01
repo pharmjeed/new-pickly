@@ -24,8 +24,8 @@ x-env: &app-env
   PAYMENT_PUBLISHABLE_KEY: ${PAYMENT_PUBLISHABLE_KEY:-}
   PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-demo-webhook-secret}
   PAYMENT_MANUAL_CAPTURE: ${PAYMENT_MANUAL_CAPTURE:-true}
-  MOYASAR_APPLE_PAY: ${MOYASAR_APPLE_PAY:-false}
-  MOYASAR_GOOGLE_PAY: ${MOYASAR_GOOGLE_PAY:-false}
+  # قوقل باي معتمدة افتراضياً (قرار المالك 2026-08-02) — false فقط لإيقافها
+  MOYASAR_GOOGLE_PAY: ${MOYASAR_GOOGLE_PAY:-true}
   # معرّف تاجر Google Business Console — لازم لوضع PRODUCTION في زر Google Pay فقط
   GOOGLE_PAY_MERCHANT_ID: ${GOOGLE_PAY_MERCHANT_ID:-}
   # سامسونج: العلم + معرّف الخدمة من بوابة سامسونج (بعد رفع CSR ميسر وتوثيق النطاق)

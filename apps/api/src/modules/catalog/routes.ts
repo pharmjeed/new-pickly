@@ -248,7 +248,7 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
   /** طرق الدفع الظاهرة للعميل — يديرها السوبر أدمن (payments.methods)؛ الفعّالة فقط بترتيبها */
   app.get("/content/payment-methods", async () => {
     const active = await activePaymentMethods();
-    // بوابة حقيقية لا تخدم طريقة ما (Apple Pay بلا إعداد Apple Merchant مثلاً)
+    // بوابة حقيقية لا تخدم طريقة ما (Samsung Pay بلا Service ID مثلاً)
     // → لا تُعرض للعميل أصلاً بدل أن يصطدم بها عند الدفع
     const supported = payments.supportedMethods?.();
     return supported ? active.filter((m) => supported.includes(m.key)) : active;
@@ -264,7 +264,7 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
       provider: payments.provider,
       client_tokenization: Boolean(payments.deferred_charge),
       publishable_key,
-      supported_methods: payments.supportedMethods?.() ?? ["apple_pay", "card", "stc_pay"],
+      supported_methods: payments.supportedMethods?.() ?? ["card", "stc_pay"],
       // معرّف Google Business Console — وضع الإنتاج فقط؛ TEST يعمل بدونه
       google_pay_merchant_id: process.env.GOOGLE_PAY_MERCHANT_ID || null,
       // معرّف خدمة سامسونج (علني) — بدونه لا تُفتح ورقة Samsung Pay أصلاً

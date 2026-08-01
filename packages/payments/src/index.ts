@@ -23,8 +23,8 @@ export interface CreateIntentInput {
   currency: "SAR";
   order_ref: string;
   idempotency_key: string;
-  /** وسيلة الدفع: card | apple_pay | stc_pay | google_pay | samsung_pay ("wallet" القديمة C-33 للتوافق) — docs/13§2 */
-  method?: "card" | "apple_pay" | "stc_pay" | "google_pay" | "samsung_pay" | "wallet";
+  /** وسيلة الدفع: card | stc_pay | google_pay | samsung_pay ("wallet" القديمة C-33 للتوافق) — docs/13§2 */
+  method?: "card" | "stc_pay" | "google_pay" | "samsung_pay" | "wallet";
   /** token بطاقة محفوظة — الدفع بها دون لمس رقم البطاقة */
   card_token?: string;
 }
@@ -77,20 +77,19 @@ export interface SavedCardFromCharge {
 
 /**
  * تنفيذ الدفع لدى بوابة «مؤجلة الشحن» (ميسر مثلاً): العملية تُنشأ لحظة تسليم
- * المصدر (توكن بطاقة / جوال STC / توكن Apple Pay) لا لحظة إنشاء النية.
+ * المصدر (توكن بطاقة / جوال STC / توكن Google Pay) لا لحظة إنشاء النية.
  */
 export interface ChargeInput {
   amount_halalas: number;
   currency: "SAR";
   order_ref: string;
   idempotency_key: string;
-  method: "card" | "apple_pay" | "stc_pay" | "google_pay" | "samsung_pay";
+  method: "card" | "stc_pay" | "google_pay" | "samsung_pay";
   /** توكن بطاقة من البوابة — مُرمَّز في المتصفح أو بطاقة محفوظة */
   card_token?: string;
   cvc?: string;
   /** جوال محفظة STC Pay */
   mobile?: string;
-  apple_pay_token?: string;
   /** توكن Google Pay — paymentMethodData.tokenizationData.token كما هو */
   google_pay_token?: string;
   /** توكن Samsung Pay — حقل 3DS.data من ورقة سامسونج كما هو */
@@ -144,7 +143,7 @@ export interface PaymentAdapter {
   /** المفتاح القابل للنشر — الواجهة تُرمّز به البطاقة مباشرة لدى البوابة */
   publishableKey?(): string | null;
   /** الطرق التي يخدمها حساب البوابة فعلياً */
-  supportedMethods?(): Array<"card" | "apple_pay" | "stc_pay" | "google_pay" | "samsung_pay">;
+  supportedMethods?(): Array<"card" | "stc_pay" | "google_pay" | "samsung_pay">;
 }
 
 const logger = createLogger("payments");

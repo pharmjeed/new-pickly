@@ -14,7 +14,7 @@ import type {
 } from "./index.js";
 
 /**
- * محوّل ميسر (Moyasar) — بوابة سعودية: مدى/فيزا/ماستركارد وSTC Pay وApple Pay.
+ * محوّل ميسر (Moyasar) — بوابة سعودية: مدى/فيزا/ماستركارد وSTC Pay وGoogle Pay.
  *
  * الفرق الجوهري عن المحاكي: ميسر لا تُنشئ عملية عند «نية الدفع» بل عند تسليم
  * المصدر (توكن البطاقة أو جوال STC) — لذا `deferred_charge = true` والخادم
@@ -125,13 +125,13 @@ export class MoyasarPaymentAdapter implements PaymentAdapter {
   }
 
   /** الطرق التي يخدمها هذا الحساب فعلياً (المحافظ تحتاج تهيئة لدى ميسر/Google/سامسونج) */
-  supportedMethods(): Array<"card" | "apple_pay" | "stc_pay" | "google_pay" | "samsung_pay"> {
-    const methods: Array<"card" | "apple_pay" | "stc_pay" | "google_pay" | "samsung_pay"> = [
+  supportedMethods(): Array<"card" | "stc_pay" | "google_pay" | "samsung_pay"> {
+    const methods: Array<"card" | "stc_pay" | "google_pay" | "samsung_pay"> = [
       "card",
       "stc_pay"
     ];
-    if (process.env.MOYASAR_APPLE_PAY === "true") methods.push("apple_pay");
-    if (process.env.MOYASAR_GOOGLE_PAY === "true") methods.push("google_pay");
+    // قوقل باي معتمدة افتراضياً (قرار المالك 2026-08-02) — الإيقاف الصريح فقط يخفيها
+    if (process.env.MOYASAR_GOOGLE_PAY !== "false") methods.push("google_pay");
     // سامسونج تشترط Service ID لفتح ورقة الدفع — العلم وحده لا يكفي
     if (process.env.MOYASAR_SAMSUNG_PAY === "true" && process.env.SAMSUNG_PAY_SERVICE_ID)
       methods.push("samsung_pay");
@@ -235,10 +235,6 @@ export class MoyasarPaymentAdapter implements PaymentAdapter {
     if (input.method === "stc_pay") {
       if (!input.mobile) throw new Error("moyasar_missing_mobile");
       return { type: "stcpay", mobile: input.mobile };
-    }
-    if (input.method === "apple_pay") {
-      if (!input.apple_pay_token) throw new Error("moyasar_missing_applepay_token");
-      return { type: "applepay", token: input.apple_pay_token, manual };
     }
     if (input.method === "google_pay") {
       if (!input.google_pay_token) throw new Error("moyasar_missing_googlepay_token");
