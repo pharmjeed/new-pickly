@@ -6,10 +6,17 @@ import PushRegister from "./push-register";
 
 export const metadata: Metadata = {
   title: "بيكلي — وصلت؟ إحنا عرفنا.",
-  description: "خلّك في سيارتك — طلبك يجيك."
+  description: "خلّك في سيارتك — طلبك يجيك.",
+  // اختصار iOS يفتح قائماً بذاته بعنوان وأيقونة صحيحين (أندرويد عبر manifest.ts)
+  appleWebApp: { capable: true, title: "بيكلي", statusBarStyle: "default" }
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, interactiveWidget: "resizes-content" };
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+  themeColor: "#F7F3E9"
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
