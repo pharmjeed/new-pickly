@@ -10,9 +10,7 @@
  */
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import {
-  Animated,
   BackHandler,
-  Easing,
   Linking,
   Platform,
   RefreshControl,
@@ -20,9 +18,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
 } from "react-native";
-import Svg, { Circle, G, Line, Path } from "react-native-svg";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Location from "expo-location";
@@ -50,8 +46,7 @@ const SITE_URL: string =
   (Constants.expoConfig?.extra as { siteUrl?: string } | undefined)?.siteUrl ||
   "https://app.thepickly.com";
 const SURFACE = "#F7F3E9"; // عاجي — سطح صفحات العميل (الأشرطة الآمنة تندمج معه)
-const LAUNCH_BG = "#C8F542"; // ليموني — لحظة الإقلاع فقط (شاشة البدء + التحميل الأول)
-const LAUNCH_INK = "#0E1B3D"; // كحلي — المؤشّر/النص فوق الليموني
+const INK = "#0E1B3D"; // كحلي — نصوص شاشة «لا اتصال»
 const NEEDS_LOCATION = true;
 
 // مضيفات الخرائط تُفتح خارج التطبيق (لا داخل الغلاف)
@@ -86,138 +81,12 @@ function openExternal(url: string) {
   });
 }
 
-// ————— شاشة الإقلاع: «القرطاس الماشي» (جولة تصميم 2026-07-19 — الخيار ٢ بإيقاع سريع) —————
-// هندسة الكاركتر حرفياً من apps/customer-web/src/app/qirtas.tsx (ميلان ٧°، القاعدة المسنّنة،
-// خطوط السرعة ١٠٠/٥٥/٣٠٪). الخطوط الوردية تتلألأ تتابعياً = مؤشر التحميل الرسمي —
-// لا دوائر دوّارة (كتاب الهوية §10). كل الإحداثيات داخل SVG واحد كي لا يقلبها RTL.
-const PINK = "#FF4D9D";
-const CHAR_H = 132; // يقارب حجم أيقونة شاشة البدء الأصلية فيبدو الانتقال ذوباناً لا قفزة
-const CHAR_W = Math.round((CHAR_H * 202) / 186); // نسبة إطار العرض "14 26 202 186"
-
-const AnimatedLine = Animated.createAnimatedComponent(Line);
-
-function LaunchWalk() {
-  const enter = useRef(new Animated.Value(0)).current; // ظهور خاطف
-  const walk = useRef(new Animated.Value(0)).current; // دورة المشي (وثب + تمايل)
-  const shimmer = useRef(new Animated.Value(0)).current; // موجة الخطوط — JS driver لأنها خصائص SVG
-
-  useEffect(() => {
-    Animated.timing(enter, {
-      toValue: 1,
-      duration: 160,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(walk, {
-          toValue: 1,
-          duration: 200,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(walk, {
-          toValue: 0,
-          duration: 200,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-    Animated.loop(
-      Animated.timing(shimmer, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      })
-    ).start();
-  }, [enter, walk, shimmer]);
-
-  // تلألؤ تتابعي ١ ثم ٢ ثم ٣ — يحاكي QirtasLoader في الويب
-  const lineOpacity = [
-    shimmer.interpolate({ inputRange: [0, 0.15, 0.3, 1], outputRange: [1, 0.35, 1, 1] }),
-    shimmer.interpolate({ inputRange: [0, 0.2, 0.35, 0.5, 1], outputRange: [0.3, 0.3, 1, 0.3, 0.3] }),
-    shimmer.interpolate({ inputRange: [0, 0.45, 0.6, 0.75, 1], outputRange: [0.25, 0.25, 1, 0.25, 0.25] }),
-  ];
-
-  return (
-    <Animated.View
-      style={{
-        alignItems: "center",
-        opacity: enter,
-        transform: [{ scale: enter.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
-      }}
-    >
-      <Animated.View
-        style={{
-          transform: [
-            { translateY: walk.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) },
-            { rotate: walk.interpolate({ inputRange: [0, 1], outputRange: ["-2deg", "3deg"] }) },
-          ],
-        }}
-      >
-        <Svg width={CHAR_W} height={CHAR_H} viewBox="14 26 202 186">
-          <AnimatedLine x1={22} y1={94} x2={78} y2={94} stroke={PINK} strokeWidth={11} opacity={lineOpacity[0]} />
-          <AnimatedLine x1={22} y1={126} x2={66} y2={126} stroke={PINK} strokeWidth={11} opacity={lineOpacity[1]} />
-          <AnimatedLine x1={22} y1={158} x2={54} y2={158} stroke={PINK} strokeWidth={11} opacity={lineOpacity[2]} />
-          <G rotation={7} originX={144} originY={124}>
-            <Path d="M88 84 L116 66 L102 42 Z" fill="#FFFFFF" stroke={LAUNCH_INK} strokeWidth={7} strokeLinejoin="round" />
-            <Path d="M88 84 L116 66 L116 192 L88 204 Z" fill="#FFFFFF" stroke={LAUNCH_INK} strokeWidth={7} strokeLinejoin="round" />
-            <Path
-              d="M116 62 L200 62 L200 182 L189.5 196 L179 182 L168.5 196 L158 182 L147.5 196 L137 182 L126.5 196 L116 182 Z"
-              fill="#FFFFFF"
-              stroke={LAUNCH_INK}
-              strokeWidth={7}
-              strokeLinejoin="round"
-            />
-            <Circle cx={144} cy={112} r={7.5} fill={LAUNCH_INK} />
-            <Circle cx={176} cy={112} r={7.5} fill={LAUNCH_INK} />
-            <Path d="M142 140 Q160 160 178 140" fill="none" stroke={LAUNCH_INK} strokeWidth={9} strokeLinecap="round" />
-          </G>
-        </Svg>
-      </Animated.View>
-      {/* الظل تحت القرطاس (يمين مركز الرسم لأن الخطوط تشغل يساره) — ينضغط مع كل خطوة */}
-      <Animated.View
-        style={[
-          styles.walkShadow,
-          {
-            transform: [
-              { translateX: 24 },
-              { scaleX: walk.interpolate({ inputRange: [0, 1], outputRange: [1, 0.78] }) },
-            ],
-          },
-        ]}
-      />
-      {/* الاسم الثنائي — عمود بمحاذاة يسار فيزيائية (لا ينقلب مع RTL) */}
-      <View style={styles.wordmark}>
-        <Text style={styles.wordmarkEn}>pickly</Text>
-        <Text style={styles.wordmarkAr}>بيكلي</Text>
-      </View>
-    </Animated.View>
-  );
-}
-
 export default function App() {
   const webRef = useRef<WebView>(null);
-  const [firstLoadDone, setFirstLoadDone] = useState(false);
-  const [launchGone, setLaunchGone] = useState(false);
   const [errored, setErrored] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const canGoBack = useRef(false);
   const pushToken = useRef<string | null>(null);
-  const launchFade = useRef(new Animated.Value(1)).current;
-
-  // اكتمل أول تحميل ← شاشة الإقلاع تتلاشى بسرعة عن الرئيسية بدل الاختفاء المفاجئ
-  useEffect(() => {
-    if (!firstLoadDone || launchGone) return;
-    Animated.timing(launchFade, {
-      toValue: 0,
-      duration: 240,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start(() => setLaunchGone(true));
-  }, [firstLoadDone, launchGone, launchFade]);
 
   // إذن الموقع الأصلي مرة واحدة — كي ينجح navigator.geolocation داخل الويب فوراً
   useEffect(() => {
@@ -351,13 +220,9 @@ export default function App() {
             onShouldStartLoadWithRequest={onShouldStart}
             onNavigationStateChange={onNavChange}
             onLoadEnd={() => {
-              setFirstLoadDone(true);
               injectPushToken(); // التوكن قد يسبق تحميل الصفحة أو تعاد بعد سحب-للتحديث
             }}
-            onError={() => {
-              setFirstLoadDone(true);
-              setErrored(true);
-            }}
+            onError={() => setErrored(true)}
             // إبقاء الجلسة (تسجيل الدخول برمز OTP) بين التشغيلات
             sharedCookiesEnabled
             thirdPartyCookiesEnabled
@@ -365,7 +230,8 @@ export default function App() {
             javaScriptEnabled
             // الموقع الجغرافي داخل الويب
             geolocationEnabled
-            // إعلام صفحة الويب أن الغلاف يعرض شاشة إقلاع أصلية — فلا تكرر سبلاش الويب بعدها
+            // داخل الغلاف يكفي سبلاش النظام الثابت — العلامة تُسكت سبلاش الويب كي لا تظهر شاشة إضافية
+            // (قرار المالك 2026-08-02: حذف شاشة الإقلاع المتحركة، والدخول للرئيسية مباشرة)
             injectedJavaScriptBeforeContentLoaded={"window.__picklyHasNativeSplash=true;true;"}
             // منع نوافذ منبثقة منفصلة — روابط target=_blank تمرّ عبر onShouldStart
             setSupportMultipleWindows={false}
@@ -377,16 +243,6 @@ export default function App() {
             style={styles.web}
           />
         )}
-
-        {/* شاشة الإقلاع «القرطاس الماشي» — حتى انتهاء أول تحميل فقط (لا تومض في كل تنقّل) */}
-        {!launchGone && !errored ? (
-          <Animated.View
-            style={[styles.launchOverlay, { opacity: launchFade }]}
-            pointerEvents="none"
-          >
-            <LaunchWalk />
-          </Animated.View>
-        ) : null}
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -395,23 +251,6 @@ export default function App() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: SURFACE },
   web: { flex: 1, backgroundColor: SURFACE },
-  launchOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: LAUNCH_BG,
-  },
-  walkShadow: {
-    width: 74,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: "rgba(14,27,61,0.16)",
-    marginTop: 4,
-  },
-  // محاذاة يسار فيزيائية عبر textAlign (لا تنقلب مع RTL) — العمود يتمدد لعرض أوسع سطر
-  wordmark: { marginTop: 16 },
-  wordmarkEn: { fontSize: 24, fontWeight: "800", color: LAUNCH_INK, textAlign: "left", lineHeight: 26 },
-  wordmarkAr: { fontSize: 17, fontWeight: "700", color: LAUNCH_INK, textAlign: "left", lineHeight: 22, marginTop: 2 },
   errorWrap: {
     flexGrow: 1,
     alignItems: "center",
@@ -419,10 +258,10 @@ const styles = StyleSheet.create({
     padding: 32,
     backgroundColor: SURFACE,
   },
-  errorTitle: { fontSize: 22, fontWeight: "800", color: LAUNCH_INK, marginBottom: 8 },
-  errorBody: { fontSize: 15, color: LAUNCH_INK, opacity: 0.75, textAlign: "center", marginBottom: 24 },
+  errorTitle: { fontSize: 22, fontWeight: "800", color: INK, marginBottom: 8 },
+  errorBody: { fontSize: 15, color: INK, opacity: 0.75, textAlign: "center", marginBottom: 24 },
   retryBtn: {
-    backgroundColor: LAUNCH_INK,
+    backgroundColor: INK,
     paddingVertical: 14,
     paddingHorizontal: 40,
     borderRadius: 999,
