@@ -89,7 +89,10 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
   await b.getByTestId("login-submit").click();
   await b.waitForURL(/\/board/);
 
-  const orderCard = b.getByTestId("order-card").filter({ hasText: orderCode });
+  // البطاقة تعرض الرقم اليومي (#N) والكود P-XXXX بديل فقط عند غيابه — نصطادها
+  // بجوال العميل المقنّع (05X *** XXXX): عشوائي لكل محاولة فلا تلتبس ببطاقات محاولة سابقة
+  const maskedPhone = `${phone.slice(0, 3)} *** ${phone.slice(-4)}`;
+  const orderCard = b.getByTestId("order-card").filter({ hasText: maskedPhone });
   await expect(orderCard).toBeVisible();
   await expect(orderCard).toContainText("أبيض"); // بطاقة السيارة أكبر عنصر — اللون كما اختير من الكتالوج
   // قبول بضغطة — الوقت المتوقع يُختم آلياً من «متوسط وقت التجهيز» في إعدادات المطعم
