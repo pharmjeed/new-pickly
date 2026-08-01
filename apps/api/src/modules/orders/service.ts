@@ -331,6 +331,10 @@ export class OrderService {
       include: { scheduled_slot: true }
     });
     if (!order || order.user_id !== user_id) throw new AppError("ORDER-4001");
+    // آبل باي حُذفت نهائياً (قرار المالك 2026-08-02) — العقد يحملها بقايا خاملة فقط،
+    // والرفض هنا يضيّق النوع لبقية الدالة (البوابة لم تعد تعرفها)
+    if (method === "apple_pay")
+      throw new AppError("PAY-5001", { hint: "طريقة الدفع غير مفعلة حالياً" });
     if (method === "wallet") await requireFlag("wallet_payments");
     // الطرق يديرها السوبر أدمن — طريقة موقوفة تُرفض خادمياً (قرار المالك 2026-07-12)
     if (method !== "wallet") {

@@ -251,7 +251,8 @@ export async function catalogRoutes(app: FastifyInstance): Promise<void> {
     // بوابة حقيقية لا تخدم طريقة ما (Samsung Pay بلا Service ID مثلاً)
     // → لا تُعرض للعميل أصلاً بدل أن يصطدم بها عند الدفع
     const supported = payments.supportedMethods?.();
-    return supported ? active.filter((m) => supported.includes(m.key)) : active;
+    // العقد أوسع من البوابة (بقايا apple_pay الخاملة) — المقارنة نصية
+    return supported ? active.filter((m) => (supported as readonly string[]).includes(m.key)) : active;
   });
 
   /**
