@@ -56,13 +56,13 @@ describe.skipIf(!hasDb)("طرق الدفع + محفظة بيكلي", async () =>
   const adminLogin = () => login("+966510000001"); // مشرف عام من الseed
 
   /** سلة مسعرة جاهزة للطلب */
-  async function readyCart(token: string, branch_code = "BB-OLAYA") {
+  async function readyCart(token: string, branch_code = "101") {
     const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code } });
     const veh = await app.inject({
       method: "POST",
       url: "/v1/customers/me/vehicles",
       headers: authed(token),
-      payload: { color_ar: "بيضاء", plate_short: "7777" }
+      payload: { color_ar: "بيضاء", plate_letters_ar: "ح ع ن", plate_digits: "7777" }
     });
     const cart = await app.inject({
       method: "POST",

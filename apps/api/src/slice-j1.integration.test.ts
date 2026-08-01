@@ -77,7 +77,7 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
       method: "POST",
       url: "/v1/customers/me/vehicles",
       headers: authed(customerToken),
-      payload: { color_ar: "بيضاء", plate_short: "8241", model_ar: "كامري" }
+      payload: { color_ar: "بيضاء", plate_letters_ar: "ح ع ن", plate_digits: "8241", model_ar: "كامري" }
     });
     expect(veh.statusCode).toBe(200);
     vehicleId = veh.json().id;
@@ -214,7 +214,7 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
       url: "/v1/auth/branch/login",
       payload: {
         branch_code: branch.branch_code,
-        username: `${branch.branch_code}-cashier`,
+        username: `cashier${branch.branch_code}`,
         pin: "1234",
         device_name: "تابلت الاختبار"
       }
@@ -462,7 +462,7 @@ describe.skipIf(!hasDb)("Vertical Slice — J1 Happy Path (E2E)", async () => {
       url: "/v1/auth/branch/login",
       payload: {
         branch_code: otherBranch.branch_code,
-        username: `${otherBranch.branch_code}-cashier`,
+        username: `cashier${otherBranch.branch_code}`,
         pin: "1234",
         device_name: "تابلت آخر"
       }

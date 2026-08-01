@@ -83,8 +83,8 @@ test("رحلة J1 كاملة عبر الواجهات", async ({ browser }) => {
 
   // ===== 6. لوحة الفرع: دخول + قبول + تجهيز + جاهز (B-01→B-03) =====
   await b.goto(BRANCH);
-  await b.getByTestId("branch-code").fill("BB-OLAYA");
-  await b.getByTestId("username").fill("BB-OLAYA-cashier");
+  await b.getByTestId("branch-code").fill("101");
+  await b.getByTestId("username").fill("cashier101");
   await b.getByTestId("pin").fill("1234");
   await b.getByTestId("login-submit").click();
   await b.waitForURL(/\/board/);

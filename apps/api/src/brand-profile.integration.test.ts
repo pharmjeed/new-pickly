@@ -47,7 +47,7 @@ describe.skipIf(!hasDb)("Brand Profile (M-02)", async () => {
 
   beforeAll(async () => {
     await app.ready();
-    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
+    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "101" } });
     const brand = await prisma.brand.findUniqueOrThrow({ where: { id: branch.brand_id } });
     brandId = brand.id;
     original = {
@@ -112,7 +112,7 @@ describe.skipIf(!hasDb)("Brand Profile (M-02)", async () => {
   });
 
   it("مدير الفرع لا يعدّل هوية العلامة (403)", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
+    const manager = await staffLogin("101", "manager101");
     const res = await app.inject({
       method: "PATCH",
       url: `/v1/merchant/brands/${brandId}`,

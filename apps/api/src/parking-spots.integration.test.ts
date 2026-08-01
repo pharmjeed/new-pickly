@@ -35,7 +35,7 @@ describe.skipIf(!hasDb)("Parking Spots — مواقف الفرع", async () => {
 
   beforeAll(async () => {
     await app.ready();
-    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
+    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "101" } });
     branchId = branch.id;
   });
 
@@ -46,7 +46,7 @@ describe.skipIf(!hasDb)("Parking Spots — مواقف الفرع", async () => {
   });
 
   it("المدير يقرأ مواقف فرعه (الseed يبذرها)", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
+    const manager = await staffLogin("101", "manager101");
     const res = await app.inject({
       method: "GET",
       url: `/v1/merchant/branches/${branchId}/parking-spots`,
@@ -59,7 +59,7 @@ describe.skipIf(!hasDb)("Parking Spots — مواقف الفرع", async () => {
   });
 
   it("إضافة موقف بنقطة خريطة → يظهر للعميل بإحداثياته؛ التكرار مرفوض", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
+    const manager = await staffLogin("101", "manager101");
     const created = await app.inject({
       method: "POST",
       url: `/v1/merchant/branches/${branchId}/parking-spots`,
@@ -100,7 +100,7 @@ describe.skipIf(!hasDb)("Parking Spots — مواقف الفرع", async () => {
   });
 
   it("تحريك نقطة الموقف على الخريطة (PATCH lat/lng)", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
+    const manager = await staffLogin("101", "manager101");
     const spot = await prisma.parkingSpot.findUniqueOrThrow({
       where: { branch_id_label: { branch_id: branchId, label: LABEL } }
     });
@@ -118,7 +118,7 @@ describe.skipIf(!hasDb)("Parking Spots — مواقف الفرع", async () => {
   });
 
   it("إيقاف الموقف يخفيه عن العميل، وإعادة تفعيله تعيده", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
+    const manager = await staffLogin("101", "manager101");
     const spot = await prisma.parkingSpot.findUniqueOrThrow({
       where: { branch_id_label: { branch_id: branchId, label: LABEL } }
     });
@@ -146,7 +146,7 @@ describe.skipIf(!hasDb)("Parking Spots — مواقف الفرع", async () => {
   });
 
   it("عزل التجار: مدير تاجر آخر لا يقرأ ولا يعدل ولا يحذف مواقف غير فرعه", async () => {
-    const foreign = await staffLogin("DW-MALAZ", "DW-MALAZ-manager");
+    const foreign = await staffLogin("201", "manager201");
     const spot = await prisma.parkingSpot.findUniqueOrThrow({
       where: { branch_id_label: { branch_id: branchId, label: LABEL } }
     });
@@ -187,7 +187,7 @@ describe.skipIf(!hasDb)("Parking Spots — مواقف الفرع", async () => {
   });
 
   it("الحذف يزيل الموقف نهائياً من قائمتي التاجر والعميل", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
+    const manager = await staffLogin("101", "manager101");
     const spot = await prisma.parkingSpot.findUniqueOrThrow({
       where: { branch_id_label: { branch_id: branchId, label: LABEL } }
     });

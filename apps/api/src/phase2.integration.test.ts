@@ -65,13 +65,13 @@ describe.skipIf(!hasDb)("Phase 2 — الميزات المؤجلة", async () =>
   }
 
   /** سلة مسعرة جاهزة للطلب */
-  async function readyCart(token: string, branch_code = "BB-OLAYA") {
+  async function readyCart(token: string, branch_code = "101") {
     const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code } });
     const veh = await app.inject({
       method: "POST",
       url: "/v1/customers/me/vehicles",
       headers: authed(token),
-      payload: { color_ar: "بيضاء", plate_short: "2222" }
+      payload: { color_ar: "بيضاء", plate_letters_ar: "ح ع ن", plate_digits: "2222" }
     });
     const cart = await app.inject({
       method: "POST",
@@ -255,7 +255,7 @@ describe.skipIf(!hasDb)("Phase 2 — الميزات المؤجلة", async () =>
 
     it("الجدولة على فرع غير مفعّلها تُرفض ORDER-4007", async () => {
       const token = await customerLogin();
-      const c = await readyCart(token, "DW-MALAZ");
+      const c = await readyCart(token, "201");
       await prisma.branchPickupSettings.upsert({
         where: { branch_id: c.branch.id },
         create: { branch_id: c.branch.id, scheduled_enabled: false },
@@ -449,14 +449,14 @@ describe.skipIf(!hasDb)("Phase 2 — الميزات المؤجلة", async () =>
       const res = await app.inject({
         method: "POST",
         url: "/v1/auth/branch/login",
-        payload: { branch_code, username: `${branch_code}-manager`, pin: "1234", device_name: "اختبار" }
+        payload: { branch_code, username: `manager${branch_code}`, pin: "1234", device_name: "اختبار" }
       });
       return res.json().access_token as string;
     }
 
     it("حفظ الدوام يولّد فترات الأيام السبعة ويوائم الفارغة مع القالب الجديد", async () => {
-      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "DW-MALAZ" } });
-      const token = await managerLogin("DW-MALAZ");
+      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "201" } });
+      const token = await managerLogin("201");
 
       // فترة مستقبلية فارغة خارج القالب — الحفظ يجب أن يحذفها (مواءمة)
       const strayStart = new Date(Date.now() + 3 * 3600_000 + 17 * 60_000);
@@ -510,8 +510,8 @@ describe.skipIf(!hasDb)("Phase 2 — الميزات المؤجلة", async () =>
     });
 
     it("الدوام الممتد بعد منتصف الليل يُقبل ويولّد فترات", async () => {
-      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "DW-MALAZ" } });
-      const token = await managerLogin("DW-MALAZ");
+      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "201" } });
+      const token = await managerLogin("201");
       const res = await app.inject({
         method: "POST",
         url: "/v1/merchant/scheduled/week",
@@ -529,8 +529,8 @@ describe.skipIf(!hasDb)("Phase 2 — الميزات المؤجلة", async () =>
     });
 
     it("isolation: مدير تاجر آخر لا يعدّل دوام فرع غيره (403)", async () => {
-      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
-      const foreign = await managerLogin("DW-MALAZ");
+      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "101" } });
+      const foreign = await managerLogin("201");
       const res = await app.inject({
         method: "POST",
         url: "/v1/merchant/scheduled/week",
