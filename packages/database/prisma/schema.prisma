@@ -228,16 +228,19 @@ enum AdjustmentStatus {
 // ===================== الهوية والحسابات =====================
 
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  phone        String     @unique // E.164
-  full_name    String?
-  email        String?
-  actor_type   ActorType  @default(customer)
-  status       UserStatus @default(active)
-  mfa_enabled  Boolean    @default(false)
-  last_seen_at DateTime?  @db.Timestamptz(6)
-  created_at   DateTime   @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime   @updatedAt @db.Timestamptz(6)
+  id               String     @id @default(uuid()) @db.Uuid
+  phone            String     @unique // E.164
+  full_name        String?
+  email            String?
+  /// كلمة المرور مشفرة (argon2) — nullable عند OTP signup فقط
+  password_hash    String?
+  password_changed_at DateTime? @db.Timestamptz(6)
+  actor_type       ActorType  @default(customer)
+  status           UserStatus @default(active)
+  mfa_enabled      Boolean    @default(false)
+  last_seen_at     DateTime?  @db.Timestamptz(6)
+  created_at       DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime   @updatedAt @db.Timestamptz(6)
 
   customer_profile          CustomerProfile?
   sessions                  UserSession[]

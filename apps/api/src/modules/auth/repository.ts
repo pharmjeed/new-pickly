@@ -140,6 +140,14 @@ export const authRepository = {
         branch_id: data.branch_id
       }
     });
+  },
+
+  /** تغيير كلمة المرور — تحديث password_hash و password_changed_at */
+  updateUserPassword(user_id: string, password_hash: string): Promise<User> {
+    return prisma.user.update({
+      where: { id: user_id },
+      data: { password_hash, password_changed_at: new Date() }
+    });
   }
 };
 

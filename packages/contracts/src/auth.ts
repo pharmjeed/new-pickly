@@ -32,6 +32,32 @@ export const RefreshBodySchema = z.object({
   refresh_token: z.string()
 });
 
+/** تغيير كلمة المرور — OTP عبر الهاتف المسجل */
+export const PasswordChangeRequestBodySchema = z.object({
+  phone: SaudiPhoneSchema
+});
+export type PasswordChangeRequestBody = z.infer<typeof PasswordChangeRequestBodySchema>;
+
+export const PasswordChangeVerifyBodySchema = z.object({
+  phone: SaudiPhoneSchema,
+  code: z.string().regex(/^\d{4,6}$/),
+  new_password: z.string().min(8).max(128)
+});
+export type PasswordChangeVerifyBody = z.infer<typeof PasswordChangeVerifyBodySchema>;
+
+/** استرجاع الحساب (نسيان كلمة المرور) — OTP عبر الهاتف */
+export const PasswordResetRequestBodySchema = z.object({
+  phone: SaudiPhoneSchema
+});
+export type PasswordResetRequestBody = z.infer<typeof PasswordResetRequestBodySchema>;
+
+export const PasswordResetVerifyBodySchema = z.object({
+  phone: SaudiPhoneSchema,
+  code: z.string().regex(/^\d{4,6}$/),
+  new_password: z.string().min(8).max(128)
+});
+export type PasswordResetVerifyBody = z.infer<typeof PasswordResetVerifyBodySchema>;
+
 /** دخول فريق الفرع: كود فرع + حساب/PIN — docs/11§1 */
 export const BranchLoginBodySchema = z.object({
   // ٣ أحرف كحد أدنى — رموز الفروع القصيرة (101، 202...) بقرار المالك 2026-07-18

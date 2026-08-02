@@ -6,9 +6,11 @@ import {
   generateOtpCode,
   generateRefreshToken,
   hashOtp,
+  hashPassword,
   hashRefreshToken,
   signAccessToken,
   verifyOtpHash,
+  verifyPassword,
   type SmsAdapter
 } from "@pickly/auth";
 import type { TokenPair } from "@pickly/contracts";
@@ -143,6 +145,89 @@ export class AuthService {
 
   async logout(session_id: string): Promise<void> {
     await this.repo.revokeSession(session_id);
+  }
+
+  /** تغيير كلمة المرور — OTP لـ تحقق شخصية العميل المسجل */
+  async requestPasswordChange(phone: string, ip?: string): Promise<{ request_id: string; retry_after_seconds: number }> {
+    const user = await this.repo.findUserByPhone(phone);
+    if (!user) throw new AppError("AUTH-1001"); // لا حساب بهذا الرقم
+
+    const recent = await this.repo.countRecentOtpRequests(phone, OTP_RATE_WINDOW_SECONDS);
+    if (recent >= otpRateMaxPerWindow()) throw new AppError("AUTH-1004");
+
+    const code = generateOtpCode();
+    const req = await this.repo.createOtpRequest({
+      phone,
+      code_hash: hashOtp(code),
+      expires_at: new Date(Date.now() + OTP_TTL_SECONDS * 1000),
+      ...(ip ? { request_ip: ip } : {})
+    });
+
+    await this.sms.sendOtp(phone, code);
+    return { request_id: req.id, retry_after_seconds: OTP_RESEND_SECONDS };
+  }
+
+  /** التحقق و تحديث كلمة المرور */
+  async verifyPasswordChange(phone: string, code: string, newPassword: string): Promise<{ success: boolean }> {
+    const user = await this.repo.findUserByPhone(phone);
+    if (!user) throw new AppError("AUTH-1001");
+
+    const otp = await this.repo.findLatestActiveOtp(phone);
+    if (!otp) throw new AppError("AUTH-1003");
+    if (otp.attempts >= OTP_MAX_ATTEMPTS) throw new AppError("AUTH-1004");
+
+    if (!verifyOtpHash(code, otp.code_hash)) {
+      await this.repo.incrementOtpAttempts(otp.id);
+      throw new AppError("AUTH-1002");
+    }
+
+    await this.repo.consumeOtp(otp.id);
+    const hash = await hashPassword(newPassword);
+    await this.repo.updateUserPassword(user.id, hash);
+
+    return { success: true };
+  }
+
+  /** استرجاع الحساب (نسيان كلمة المرور) — OTP للتحقق */
+  async requestPasswordReset(phone: string, ip?: string): Promise<{ request_id: string; retry_after_seconds: number }> {
+    const user = await this.repo.findUserByPhone(phone);
+    if (!user) throw new AppError("AUTH-1001");
+
+    const recent = await this.repo.countRecentOtpRequests(phone, OTP_RATE_WINDOW_SECONDS);
+    if (recent >= otpRateMaxPerWindow()) throw new AppError("AUTH-1004");
+
+    const code = generateOtpCode();
+    const req = await this.repo.createOtpRequest({
+      phone,
+      code_hash: hashOtp(code),
+      expires_at: new Date(Date.now() + OTP_TTL_SECONDS * 1000),
+      ...(ip ? { request_ip: ip } : {})
+    });
+
+    await this.sms.sendOtp(phone, code);
+    return { request_id: req.id, retry_after_seconds: OTP_RESEND_SECONDS };
+  }
+
+  /** التحقق و تعيين كلمة المرور الجديدة عند الاسترجاع */
+  async verifyPasswordReset(phone: string, code: string, newPassword: string): Promise<TokenPair> {
+    const user = await this.repo.findUserByPhone(phone);
+    if (!user) throw new AppError("AUTH-1001");
+
+    const otp = await this.repo.findLatestActiveOtp(phone);
+    if (!otp) throw new AppError("AUTH-1003");
+    if (otp.attempts >= OTP_MAX_ATTEMPTS) throw new AppError("AUTH-1004");
+
+    if (!verifyOtpHash(code, otp.code_hash)) {
+      await this.repo.incrementOtpAttempts(otp.id);
+      throw new AppError("AUTH-1002");
+    }
+
+    await this.repo.consumeOtp(otp.id);
+    const hash = await hashPassword(newPassword);
+    await this.repo.updateUserPassword(user.id, hash);
+
+    // إصدار token جديد للعودة بعد الاسترجاع
+    return this.issueTokens(user.id, false);
   }
 
   /** دخول فريق الفرع: كود فرع + حساب/PIN، أجهزة مسماة — docs/11§1 */

@@ -3,6 +3,10 @@ import {
   BranchLoginBodySchema,
   OtpRequestBodySchema,
   OtpVerifyBodySchema,
+  PasswordChangeRequestBodySchema,
+  PasswordChangeVerifyBodySchema,
+  PasswordResetRequestBodySchema,
+  PasswordResetVerifyBodySchema,
   RefreshBodySchema
 } from "@pickly/contracts";
 import { verifyAccessToken } from "@pickly/auth";
@@ -47,5 +51,29 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
     await service.logout(claims.session_id);
     return reply.status(204).send();
+  });
+
+  /** تغيير كلمة المرور — مرحلة 1: طلب OTP */
+  app.post("/password/change-request", async (req) => {
+    const body = PasswordChangeRequestBodySchema.parse(req.body);
+    return service.requestPasswordChange(body.phone, req.ip);
+  });
+
+  /** تغيير كلمة المرور — مرحلة 2: التحقق و التحديث */
+  app.post("/password/change-verify", async (req) => {
+    const body = PasswordChangeVerifyBodySchema.parse(req.body);
+    return service.verifyPasswordChange(body.phone, body.code, body.new_password);
+  });
+
+  /** استرجاع الحساب — مرحلة 1: طلب OTP */
+  app.post("/password/reset-request", async (req) => {
+    const body = PasswordResetRequestBodySchema.parse(req.body);
+    return service.requestPasswordReset(body.phone, req.ip);
+  });
+
+  /** استرجاع الحساب — مرحلة 2: التحقق و التحديث و إصدار token */
+  app.post("/password/reset-verify", async (req) => {
+    const body = PasswordResetVerifyBodySchema.parse(req.body);
+    return service.verifyPasswordReset(body.phone, body.code, body.new_password);
   });
 }

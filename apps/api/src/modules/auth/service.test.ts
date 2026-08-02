@@ -24,7 +24,8 @@ function makeRepo(overrides: Partial<AuthRepository> = {}): AuthRepository {
     findSessionByRefreshHash: vi.fn().mockResolvedValue(null),
     rotateSession: vi.fn().mockResolvedValue({}),
     revokeSession: vi.fn().mockResolvedValue({}),
-    merchantBranchIds: vi.fn().mockResolvedValue([])
+    merchantBranchIds: vi.fn().mockResolvedValue([]),
+    updateUserPassword: vi.fn().mockResolvedValue({})
   } as unknown as AuthRepository;
   return Object.assign(base, overrides);
 }
@@ -162,5 +163,87 @@ describe("AuthService — OTP (BR-13)", () => {
     } as Partial<AuthRepository>);
     const service = new AuthService(repo, mockSms);
     await expect(service.refresh("token")).rejects.toMatchObject({ code: "AUTH-1005" });
+  });
+});
+
+describe("AuthService — تغيير كلمة المرور", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("طلب تغيير كلمة المرور ← يرسل OTP لمستخدم موجود", async () => {
+    const repo = makeRepo({
+      findUserByPhone: vi.fn().mockResolvedValue({
+        id: "11111111-1111-4111-8111-111111111111",
+        status: "active"
+      })
+    } as Partial<AuthRepository>);
+    const service = new AuthService(repo, mockSms);
+    const res = await service.requestPasswordChange("+966500000001");
+    expect(res.request_id).toBeTruthy();
+    expect(mockSms.sendOtp).toHaveBeenCalledOnce();
+  });
+
+  it("طلب تغيير لمستخدم غير موجود ← AUTH-1001", async () => {
+    const service = new AuthService(makeRepo(), mockSms);
+    await expect(service.requestPasswordChange("+966500000001")).rejects.toMatchObject({
+      code: "AUTH-1001"
+    });
+  });
+
+  it("التحقق و تحديث كلمة المرور بـOTP صحيح", async () => {
+    const updatePassword = vi.fn().mockResolvedValue({});
+    const repo = makeRepo({
+      findUserByPhone: vi.fn().mockResolvedValue({
+        id: "11111111-1111-4111-8111-111111111111",
+        status: "active"
+      }),
+      findLatestActiveOtp: vi.fn().mockResolvedValue({
+        id: "otp-1",
+        attempts: 0,
+        code_hash: hashOtp("1234")
+      }),
+      updateUserPassword: updatePassword
+    } as Partial<AuthRepository>);
+    const service = new AuthService(repo, mockSms);
+    const res = await service.verifyPasswordChange("+966500000001", "1234", "newPassword123");
+    expect(res.success).toBe(true);
+    expect(updatePassword).toHaveBeenCalledOnce();
+  });
+});
+
+describe("AuthService — استرجاع الحساب (نسيان كلمة المرور)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("طلب إعادة تعيين ← يرسل OTP لمستخدم موجود", async () => {
+    const repo = makeRepo({
+      findUserByPhone: vi.fn().mockResolvedValue({
+        id: "11111111-1111-4111-8111-111111111111",
+        status: "active"
+      })
+    } as Partial<AuthRepository>);
+    const service = new AuthService(repo, mockSms);
+    const res = await service.requestPasswordReset("+966500000001");
+    expect(res.request_id).toBeTruthy();
+    expect(mockSms.sendOtp).toHaveBeenCalledOnce();
+  });
+
+  it("التحقق و تحديث و إصدار token جديد", async () => {
+    const updatePassword = vi.fn().mockResolvedValue({});
+    const repo = makeRepo({
+      findUserByPhone: vi.fn().mockResolvedValue({
+        id: "11111111-1111-4111-8111-111111111111",
+        status: "active"
+      }),
+      findLatestActiveOtp: vi.fn().mockResolvedValue({
+        id: "otp-1",
+        attempts: 0,
+        code_hash: hashOtp("1234")
+      }),
+      updateUserPassword: updatePassword
+    } as Partial<AuthRepository>);
+    const service = new AuthService(repo, mockSms);
+    const res = await service.verifyPasswordReset("+966500000001", "1234", "newPassword123");
+    expect(res.access_token).toBeTruthy();
+    expect(res.refresh_token).toBeTruthy();
+    expect(updatePassword).toHaveBeenCalledOnce();
   });
 });

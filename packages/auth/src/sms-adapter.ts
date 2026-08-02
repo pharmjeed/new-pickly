@@ -67,9 +67,47 @@ export class UnifonicSmsAdapter implements SmsAdapter {
   }
 }
 
+/** Orbit SMS — https://app.mobile.net.sa/api/v1/send */
+export class OrbitSmsAdapter implements SmsAdapter {
+  readonly provider = "orbit";
+  constructor(
+    private apiToken: string,
+    private senderName: string
+  ) {}
+
+  async sendOtp(phone: string, code: string): Promise<{ ok: boolean; provider_ref?: string }> {
+    const res = await fetch("https://app.mobile.net.sa/api/v1/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiToken}`
+      },
+      body: JSON.stringify({
+        number: phone.replace("+", ""),
+        senderName: this.senderName,
+        messageBody: `رمز التحقق الخاص بك في بيكلي: ${code}`,
+        sendAtOption: "NOW",
+        allow_duplicate: true
+      })
+    });
+    if (!res.ok) {
+      logger.error({ status: res.status }, "orbit send failed");
+      return { ok: false };
+    }
+    const body = (await res.json()) as { data?: { message?: { id?: string } } };
+    const ref = body.data?.message?.id;
+    return ref ? { ok: true, provider_ref: ref } : { ok: true };
+  }
+}
+
 export function createSmsAdapter(): SmsAdapter {
   const provider = process.env.SMS_PROVIDER ?? "mock";
   switch (provider) {
+    case "orbit": {
+      const token = process.env.SMS_API_TOKEN;
+      if (!token) throw new Error("SMS_API_TOKEN مطلوب مع SMS_PROVIDER=orbit");
+      return new OrbitSmsAdapter(token, process.env.SMS_SENDER_NAME ?? "Pickly");
+    }
     case "unifonic": {
       const key = process.env.SMS_API_KEY;
       if (!key) throw new Error("SMS_API_KEY مطلوب مع SMS_PROVIDER=unifonic");
