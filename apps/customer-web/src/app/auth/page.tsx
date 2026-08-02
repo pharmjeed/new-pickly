@@ -8,7 +8,7 @@ import { cacheClear } from "@/lib/cache";
 import { QirtasLive } from "../qirtas-motion";
 import s from "./auth.module.css";
 
-const OTP_LEN = 6;
+const OTP_LEN = 4; // الخادم يولّد 4 أرقام (generateOtpCode: 1000-9999)
 const RESEND_SECONDS = 47;
 
 /** قائمة تحويلات الدول — السعودية أولاً ثم الخليج والعالم العربي ثم الأشهر عالمياً */
