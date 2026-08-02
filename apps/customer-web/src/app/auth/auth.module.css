@@ -82,6 +82,84 @@
 
 .errMsg { color: var(--pk-error); font-size: var(--pk-fs-12); }
 
+/* زر التحويلة الدولية — علم + رمز، يفتح قائمة الدول */
+.ccBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 12px;
+  border: var(--pk-b2);
+  border-radius: var(--pk-radius);
+  background: var(--pk-cloud-2);
+  font-family: var(--pk-font-mono);
+  font-size: var(--pk-fs-15);
+  color: var(--pk-text);
+  cursor: pointer;
+  direction: ltr;
+}
+.ccBtn:focus-visible { border-color: var(--pk-lime-500); box-shadow: 0 0 0 2px var(--pk-lime-500); outline: none; }
+.ccFlag { font-size: var(--pk-fs-20); line-height: 1; }
+
+/* قائمة الدول — Sheet سفلي بتمرير */
+.sheetOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgb(0 0 0 / 45%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.sheet {
+  width: 100%;
+  max-width: 430px;
+  max-height: 70dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--pk-surface);
+  border: var(--pk-b2);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  box-shadow: var(--pk-pop-sm);
+}
+.sheetHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: var(--pk-b2);
+  font-family: var(--pk-font-display);
+  font-size: var(--pk-fs-16);
+}
+.ccList {
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 6px 0 max(12px, env(safe-area-inset-bottom));
+}
+.ccItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  padding: 0 18px;
+  border: none;
+  background: transparent;
+  font-family: var(--pk-font-body);
+  font-size: var(--pk-fs-15);
+  color: var(--pk-text);
+  cursor: pointer;
+  text-align: start;
+}
+.ccItem:hover { background: var(--pk-cloud-2); }
+.ccItemOn { background: var(--pk-lime-100); font-weight: 700; }
+.ccName { flex: 1; }
+.ccDial { color: var(--pk-text-2); }
+
 /* الأزرار — الرئيسي أزرق الفعل بخط العرض وظل صلب ينزلق */
 .btn {
   display: inline-flex;

@@ -76,22 +76,22 @@ export class OrbitSmsAdapter implements SmsAdapter {
   ) {}
 
   async sendOtp(phone: string, code: string): Promise<{ ok: boolean; provider_ref?: string }> {
+    // Orbit لا يقبل JSON — الحقول form-data حصراً (جُرّب فعلياً: JSON يرجع 422 «حقل مطلوب»)
+    const form = new FormData();
+    form.set("number", phone.replace("+", ""));
+    form.set("senderName", this.senderName);
+    form.set("messageBody", `رمز التحقق الخاص بك في بيكلي: ${code}`);
+    form.set("sendAtOption", "NOW");
+    form.set("allow_duplicate", "true");
+
     const res = await fetch("https://app.mobile.net.sa/api/v1/send", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiToken}`
-      },
-      body: JSON.stringify({
-        number: phone.replace("+", ""),
-        senderName: this.senderName,
-        messageBody: `رمز التحقق الخاص بك في بيكلي: ${code}`,
-        sendAtOption: "NOW",
-        allow_duplicate: true
-      })
+      headers: { Authorization: `Bearer ${this.apiToken}` },
+      body: form
     });
     if (!res.ok) {
-      logger.error({ status: res.status }, "orbit send failed");
+      const errBody = await res.text().catch(() => "");
+      logger.error({ status: res.status, body: errBody.slice(0, 500) }, "orbit send failed");
       return { ok: false };
     }
     const body = (await res.json()) as { data?: { message?: { id?: string } } };

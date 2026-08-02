@@ -11,6 +11,51 @@ import s from "./auth.module.css";
 const OTP_LEN = 6;
 const RESEND_SECONDS = 47;
 
+/** قائمة تحويلات الدول — السعودية أولاً ثم الخليج والعالم العربي ثم الأشهر عالمياً */
+const COUNTRIES = [
+  { iso: "SA", dial: "+966", flag: "🇸🇦", name: "السعودية" },
+  { iso: "AE", dial: "+971", flag: "🇦🇪", name: "الإمارات" },
+  { iso: "KW", dial: "+965", flag: "🇰🇼", name: "الكويت" },
+  { iso: "BH", dial: "+973", flag: "🇧🇭", name: "البحرين" },
+  { iso: "QA", dial: "+974", flag: "🇶🇦", name: "قطر" },
+  { iso: "OM", dial: "+968", flag: "🇴🇲", name: "عُمان" },
+  { iso: "YE", dial: "+967", flag: "🇾🇪", name: "اليمن" },
+  { iso: "EG", dial: "+20", flag: "🇪🇬", name: "مصر" },
+  { iso: "JO", dial: "+962", flag: "🇯🇴", name: "الأردن" },
+  { iso: "IQ", dial: "+964", flag: "🇮🇶", name: "العراق" },
+  { iso: "SY", dial: "+963", flag: "🇸🇾", name: "سوريا" },
+  { iso: "LB", dial: "+961", flag: "🇱🇧", name: "لبنان" },
+  { iso: "PS", dial: "+970", flag: "🇵🇸", name: "فلسطين" },
+  { iso: "SD", dial: "+249", flag: "🇸🇩", name: "السودان" },
+  { iso: "LY", dial: "+218", flag: "🇱🇾", name: "ليبيا" },
+  { iso: "TN", dial: "+216", flag: "🇹🇳", name: "تونس" },
+  { iso: "DZ", dial: "+213", flag: "🇩🇿", name: "الجزائر" },
+  { iso: "MA", dial: "+212", flag: "🇲🇦", name: "المغرب" },
+  { iso: "MR", dial: "+222", flag: "🇲🇷", name: "موريتانيا" },
+  { iso: "SO", dial: "+252", flag: "🇸🇴", name: "الصومال" },
+  { iso: "DJ", dial: "+253", flag: "🇩🇯", name: "جيبوتي" },
+  { iso: "KM", dial: "+269", flag: "🇰🇲", name: "جزر القمر" },
+  { iso: "TR", dial: "+90", flag: "🇹🇷", name: "تركيا" },
+  { iso: "PK", dial: "+92", flag: "🇵🇰", name: "باكستان" },
+  { iso: "IN", dial: "+91", flag: "🇮🇳", name: "الهند" },
+  { iso: "BD", dial: "+880", flag: "🇧🇩", name: "بنغلاديش" },
+  { iso: "PH", dial: "+63", flag: "🇵🇭", name: "الفلبين" },
+  { iso: "ID", dial: "+62", flag: "🇮🇩", name: "إندونيسيا" },
+  { iso: "MY", dial: "+60", flag: "🇲🇾", name: "ماليزيا" },
+  { iso: "US", dial: "+1", flag: "🇺🇸", name: "أمريكا" },
+  { iso: "GB", dial: "+44", flag: "🇬🇧", name: "بريطانيا" },
+  { iso: "FR", dial: "+33", flag: "🇫🇷", name: "فرنسا" },
+  { iso: "DE", dial: "+49", flag: "🇩🇪", name: "ألمانيا" },
+  { iso: "CA", dial: "+1", flag: "🇨🇦", name: "كندا" },
+  { iso: "AU", dial: "+61", flag: "🇦🇺", name: "أستراليا" },
+  { iso: "CN", dial: "+86", flag: "🇨🇳", name: "الصين" },
+  { iso: "JP", dial: "+81", flag: "🇯🇵", name: "اليابان" },
+  { iso: "KR", dial: "+82", flag: "🇰🇷", name: "كوريا الجنوبية" },
+  { iso: "RU", dial: "+7", flag: "🇷🇺", name: "روسيا" },
+  { iso: "BR", dial: "+55", flag: "🇧🇷", name: "البرازيل" }
+] as const;
+type Country = (typeof COUNTRIES)[number];
+
 function ChevBack() {
   return (
     <svg width="16" height="16" viewBox="0 0 100 100" aria-hidden="true">
@@ -26,12 +71,22 @@ function AuthFlow() {
 
   const [step, setStep] = useState<"phone" | "otp" | "name">("phone");
   const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState<Country>(COUNTRIES[0]);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendIn, setResendIn] = useState(0);
   const otpRef = useRef<HTMLInputElement>(null);
+
+  // يفهم الصيغتين: 05XXXXXXXX (من الصفر) أو 5XXXXXXXX — الصفر الأول يُحذف قبل التحويلة
+  const nationalDigits = phone.replace(/\D/g, "").replace(/^0/, "");
+  const e164 = `${country.dial}${nationalDigits}`;
+  const phoneValid =
+    country.iso === "SA"
+      ? nationalDigits.length === 9 && nationalDigits.startsWith("5")
+      : nationalDigits.length >= 7;
 
   // عدّاد إعادة الإرسال (C-06: «إعادة الإرسال بعد 00:47»)
   useEffect(() => {
@@ -44,7 +99,7 @@ function AuthFlow() {
     setBusy(true);
     setError(null);
     try {
-      await api("POST", "/v1/auth/otp/request", { phone });
+      await api("POST", "/v1/auth/otp/request", { phone: e164 });
       setStep("otp");
       setResendIn(RESEND_SECONDS);
     } catch (e) {
@@ -61,7 +116,7 @@ function AuthFlow() {
       const res = await api<{ access_token: string; refresh_token: string; is_new_user: boolean }>(
         "POST",
         "/v1/auth/otp/verify",
-        { phone, code }
+        { phone: e164, code }
       );
       cacheClear(); // دخول مستخدم (قد يكون غير السابق) — لا تُعرض بيانات me/* مخبأة لغيره
       setTokens(res.access_token, res.refresh_token);
@@ -117,7 +172,16 @@ function AuthFlow() {
           <div className={s.fld}>
             <label htmlFor="pk-phone">رقم الجوال</label>
             <div className={s.row}>
-              <span className={s.prefix}>+966</span>
+              <button
+                type="button"
+                className={s.ccBtn}
+                data-testid="country-picker"
+                aria-label={`الدولة: ${country.name} ${country.dial}`}
+                onClick={() => setPickerOpen(true)}
+              >
+                <span className={s.ccFlag}>{country.flag}</span>
+                <span className={s.mono}>{country.dial}</span>
+              </button>
               <input
                 id="pk-phone"
                 className={`${s.inp} ${s.mono} ${error ? s.inpErr : ""}`}
@@ -129,6 +193,9 @@ function AuthFlow() {
                 onChange={(e) => setPhone(e.target.value)}
               />
             </div>
+            <span className={s.hint}>
+              اكتب رقمك كاملاً من الصفر (05…) أو مباشرة من 5 — النظام يفهم الطريقتين
+            </span>
             {error && (
               <div className={s.errMsg} data-testid="auth-error">
                 {error}
@@ -136,8 +203,8 @@ function AuthFlow() {
             )}
           </div>
 
-          <button className={s.btn} data-testid="phone-submit" disabled={busy || phone.length < 10} onClick={requestOtp}>
-            متابعة
+          <button className={s.btn} data-testid="phone-submit" disabled={busy || !phoneValid} onClick={requestOtp}>
+            تسجيل الدخول / إنشاء حساب
           </button>
 
           <div className={s.divider}>
@@ -155,6 +222,38 @@ function AuthFlow() {
             <br />
             بمتابعتك توافق على الشروط وسياسة الخصوصية
           </p>
+
+          {/* منتقي الدولة — قائمة تمرير بكل التحويلات مع الأعلام */}
+          {pickerOpen && (
+            <div className={s.sheetOverlay} onClick={() => setPickerOpen(false)}>
+              <div className={s.sheet} role="dialog" aria-label="اختر الدولة" onClick={(e) => e.stopPropagation()}>
+                <div className={s.sheetHead}>
+                  <b>اختر الدولة</b>
+                  <button className={s.link} onClick={() => setPickerOpen(false)}>
+                    إغلاق
+                  </button>
+                </div>
+                <ul className={s.ccList}>
+                  {COUNTRIES.map((c) => (
+                    <li key={c.iso}>
+                      <button
+                        type="button"
+                        className={`${s.ccItem} ${c.iso === country.iso ? s.ccItemOn : ""}`}
+                        onClick={() => {
+                          setCountry(c);
+                          setPickerOpen(false);
+                        }}
+                      >
+                        <span className={s.ccFlag}>{c.flag}</span>
+                        <span className={s.ccName}>{c.name}</span>
+                        <span className={`${s.mono} ${s.ccDial}`}>{c.dial}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -170,7 +269,7 @@ function AuthFlow() {
 
           <div className={s.body}>
             <p className={s.muted}>
-              أرسلنا رمزاً من 6 أرقام إلى <b className={`${s.mono} ${s.strong}`}>{phone}</b> ·{" "}
+              أرسلنا رمزاً إلى <b className={`${s.mono} ${s.strong}`}>{e164}</b> ·{" "}
               <button className={s.link} onClick={backToPhone}>
                 تعديل الرقم
               </button>
