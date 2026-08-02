@@ -1,0 +1,11 @@
+# نسخة مرجعية — المثبّتة فعلياً في /etc/systemd/system/pickly-autodeploy.timer
+[Unit]
+Description=Pickly auto-deploy — كل دقيقتين
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=120s
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

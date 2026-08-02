@@ -1,0 +1,10 @@
+# نسخة مرجعية — المثبّتة فعلياً في /etc/systemd/system/pickly-autodeploy.service
+[Unit]
+Description=Pickly auto-deploy (pull main + rebuild changed services)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+ExecStart=/home/ubuntu/pickly-autodeploy.sh
