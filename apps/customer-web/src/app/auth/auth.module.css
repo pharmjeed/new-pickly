@@ -82,18 +82,18 @@
 
 .errMsg { color: var(--pk-error); font-size: var(--pk-fs-12); }
 
-/* زر التحويلة الدولية — علم + رمز، يفتح قائمة الدول */
+/* زر التحويلة الدولية — علم رسمي + رمز + سهم يدل على القائمة، خلفية بيضاء */
 .ccBtn {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
   min-height: 48px;
   padding: 0 12px;
   border: var(--pk-b2);
   border-radius: var(--pk-radius);
-  background: var(--pk-cloud-2);
+  background: var(--pk-white);
   font-family: var(--pk-font-mono);
   font-size: var(--pk-fs-15);
   color: var(--pk-text);
@@ -101,7 +101,15 @@
   direction: ltr;
 }
 .ccBtn:focus-visible { border-color: var(--pk-lime-500); box-shadow: 0 0 0 2px var(--pk-lime-500); outline: none; }
-.ccFlag { font-size: var(--pk-fs-20); line-height: 1; }
+.ccChev { display: flex; align-items: center; color: var(--pk-text-2); }
+.ccFlagImg {
+  display: block;
+  width: 26px;
+  height: auto;
+  border-radius: 3px;
+  border: 1px solid var(--pk-line);
+  flex-shrink: 0;
+}
 
 /* قائمة الدول — Sheet سفلي بتمرير */
 .sheetOverlay {

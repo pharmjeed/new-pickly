@@ -64,6 +64,30 @@ function ChevBack() {
   );
 }
 
+function ChevDown() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M26,38 L50,62 L74,38" fill="none" stroke="currentColor" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** العلم الرسمي — صور flagcdn (الإيموجي لا يُصيَّر كأعلام على أندرويد/ويندوز) */
+function Flag({ iso, name }: { iso: string; name: string }) {
+  const lc = iso.toLowerCase();
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- أعلام خارجية صغيرة؛ next/image يتطلب تهيئة نطاقات
+    <img
+      className={s.ccFlagImg}
+      src={`https://flagcdn.com/w40/${lc}.png`}
+      srcSet={`https://flagcdn.com/w80/${lc}.png 2x`}
+      width={26}
+      height={19}
+      alt={`علم ${name}`}
+    />
+  );
+}
+
 function AuthFlow() {
   const router = useRouter();
   const params = useSearchParams();
@@ -179,8 +203,11 @@ function AuthFlow() {
                 aria-label={`الدولة: ${country.name} ${country.dial}`}
                 onClick={() => setPickerOpen(true)}
               >
-                <span className={s.ccFlag}>{country.flag}</span>
+                <Flag iso={country.iso} name={country.name} />
                 <span className={s.mono}>{country.dial}</span>
+                <span className={s.ccChev} aria-hidden="true">
+                  <ChevDown />
+                </span>
               </button>
               <input
                 id="pk-phone"
@@ -244,7 +271,7 @@ function AuthFlow() {
                           setPickerOpen(false);
                         }}
                       >
-                        <span className={s.ccFlag}>{c.flag}</span>
+                        <Flag iso={c.iso} name={c.name} />
                         <span className={s.ccName}>{c.name}</span>
                         <span className={`${s.mono} ${s.ccDial}`}>{c.dial}</span>
                       </button>
