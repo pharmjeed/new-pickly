@@ -104,8 +104,8 @@ export function createSmsAdapter(): SmsAdapter {
   const provider = process.env.SMS_PROVIDER ?? "mock";
   switch (provider) {
     case "orbit": {
-      const token = process.env.SMS_API_TOKEN;
-      if (!token) throw new Error("SMS_API_TOKEN مطلوب مع SMS_PROVIDER=orbit");
+      const token = process.env.SMS_API_TOKEN || process.env.SMS_API_KEY;
+      if (!token) throw new Error("SMS_API_TOKEN أو SMS_API_KEY مطلوب مع SMS_PROVIDER=orbit");
       return new OrbitSmsAdapter(token, process.env.SMS_SENDER_NAME ?? "Pickly");
     }
     case "unifonic": {
