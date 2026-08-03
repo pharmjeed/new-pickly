@@ -32,7 +32,7 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
       url: "/v1/auth/branch/login",
       payload: {
         branch_code,
-        username: `${branch_code}-cashier`,
+        username: `cashier${branch_code}`,
         pin: "1234",
         device_name: "اختبار"
       }
@@ -59,7 +59,7 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
       method: "POST",
       url: "/v1/customers/me/vehicles",
       headers: authed(token),
-      payload: { color_ar: "زرقاء", plate_short: "1111" }
+      payload: { color_ar: "زرقاء", plate_letters_ar: "ح ع ن", plate_digits: "1111" }
     });
     const cart = await app.inject({
       method: "POST",
@@ -105,8 +105,8 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
 
   describe("isolation — عزل التجار (BR-15)", () => {
     it("موظف تاجر آخر لا يقرأ طلبات/منيو/لوحة تاجر غيره", async () => {
-      const { branchId } = await paidOrder("BB-OLAYA");
-      const foreignToken = await staffLogin("DW-MALAZ"); // تاجر مختلف
+      const { branchId } = await paidOrder("101");
+      const foreignToken = await staffLogin("201"); // تاجر مختلف
 
       const orders = await app.inject({
         method: "GET",
@@ -131,8 +131,8 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
     });
 
     it("isolation: توكن Push لجهاز الفرع — يُسجَّل لفرعه، upsert لا يكرره، ويُرفض لفرع تاجر آخر", async () => {
-      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
-      const staff = await staffLogin("BB-OLAYA");
+      const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "101" } });
+      const staff = await staffLogin("101");
       const token = `ExponentPushToken[test-${randomUUID()}]`;
       const payload = { branch_id: branch.id, token, platform: "ios" };
 
@@ -156,7 +156,7 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
       expect(again.json().device_id).toBe(ok.json().device_id);
 
       // موظف تاجر آخر لا يسجّل جهازاً على فرع غيره
-      const foreign = await staffLogin("DW-MALAZ");
+      const foreign = await staffLogin("201");
       const denied = await app.inject({
         method: "POST",
         url: "/v1/merchant/devices/push-token",
@@ -220,7 +220,7 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
     });
 
     it("isolation: عميل لا يقرأ طلب عميل آخر", async () => {
-      const { orderId } = await paidOrder("BB-OLAYA");
+      const { orderId } = await paidOrder("101");
       const stranger = await customerLogin();
       const res = await app.inject({
         method: "GET",
@@ -254,7 +254,7 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
   describe("idempotency — لا تكرار مالي (docs/13§4-2)", () => {
     it("idempotency: نفس مفتاح إنشاء الطلب يعيد الطلب نفسه", async () => {
       // مغطى تفصيلاً في slice-j1 — هنا تأكيد السلوك عبر مفتاح ثابت
-      const { token, orderId } = await paidOrder("BB-OLAYA");
+      const { token, orderId } = await paidOrder("101");
       void token;
       const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
       const dup = await prisma.order.findMany({ where: { idempotency_key: order.idempotency_key } });
@@ -262,7 +262,7 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
     });
 
     it("idempotency: webhook مكرر لا يُعالج مرتين ولا يكرر قيود ledger", async () => {
-      const { orderId } = await paidOrder("BB-OLAYA");
+      const { orderId } = await paidOrder("101");
       const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { order_id: orderId } });
       const authsBefore = await prisma.paymentTransaction.count({
         where: { intent_id: intent.id, type: "authorization" }
@@ -298,7 +298,7 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
 
   describe("refunds — الاسترجاع (BR-2/BR-12 + docs/13§5)", () => {
     it("refunds: رفض الفرع ← REFUNDED كامل + قيد ledger + منع التكرار", { timeout: 15_000 }, async () => {
-      const { token, orderId, branchId } = await paidOrder("BB-OLAYA");
+      const { token, orderId, branchId } = await paidOrder("101");
       const branch = await prisma.branch.findUniqueOrThrow({ where: { id: branchId } });
       const staff = await staffLogin(branch.branch_code);
 
@@ -348,7 +348,7 @@ describe.skipIf(!hasDb)("Mandatory Suites", async () => {
 
   describe("state machine — قواعد صلبة على API (docs/05§4)", () => {
     it("state machine: لا HANDOFF قبل READY ولا COMPLETED بلا تسليم", async () => {
-      const { orderId, branchId } = await paidOrder("BB-OLAYA");
+      const { orderId, branchId } = await paidOrder("101");
       const branch = await prisma.branch.findUniqueOrThrow({ where: { id: branchId } });
       const staff = await staffLogin(branch.branch_code);
 

@@ -101,6 +101,14 @@ jobs:
       - run: pnpm --filter @pickly/e2e e2e
         env:
           CI: "true"
+      # الـtrace وسياق الخطأ عند الفشل — بدونهما لا تشخيص لفشل يظهر في CI فقط
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-test-results
+          path: tests/e2e/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
 
 # النشر تلقائي على السيرفر نفسه عبر systemd timer (pickly-autodeploy) يسحب main
 # كل دقيقتين ويعيد بناء الخدمات المتأثرة فقط — بلا أسرار على GitHub. لا وظيفة نشر هنا.

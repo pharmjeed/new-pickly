@@ -47,7 +47,7 @@ describe.skipIf(!hasDb)("تبويبات العميل — العروض وطلبا
 
   beforeAll(async () => {
     await app.ready();
-    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
+    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "101" } });
     branchId = branch.id;
     brandId = branch.brand_id;
     merchantId = branch.merchant_id;

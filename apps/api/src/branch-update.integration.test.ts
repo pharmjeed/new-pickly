@@ -141,7 +141,7 @@ describe.skipIf(!hasDb)("Branch Update (M-03)", async () => {
   });
 
   it("مدير فرع مقيّد لا يعدّل فرعاً خارج نطاق رمزه (403)", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
+    const manager = await staffLogin("101", "manager101");
     const res = await app.inject({
       method: "PATCH",
       url: `/v1/merchant/branches/${branchId}`,

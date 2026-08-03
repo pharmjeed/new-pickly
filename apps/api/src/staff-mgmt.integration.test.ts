@@ -49,8 +49,8 @@ describe.skipIf(!hasDb)("Staff Management (M-10)", async () => {
   }
 
   it("مدير الفرع يضيف كاشيراً في فرعه ويستطيع الكاشير الدخول", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
-    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
+    const manager = await staffLogin("101", "manager101");
+    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "101" } });
     const username = `test-cashier-${suffix}`;
     createdUsernames.push(username);
 
@@ -72,15 +72,15 @@ describe.skipIf(!hasDb)("Staff Management (M-10)", async () => {
     const login = await app.inject({
       method: "POST",
       url: "/v1/auth/branch/login",
-      payload: { branch_code: "BB-OLAYA", username, pin: "5678", device_name: "جهاز الكاشير" }
+      payload: { branch_code: "101", username, pin: "5678", device_name: "جهاز الكاشير" }
     });
     expect(login.statusCode).toBe(200);
     expect(login.json().access_token).toBeTruthy();
   });
 
   it("مدير الفرع لا يمنح دوراً برتبته أو أعلى (دون مدراء)", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
-    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
+    const manager = await staffLogin("101", "manager101");
+    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "101" } });
     for (const role_key of ["branch_manager", "general_manager"]) {
       const res = await app.inject({
         method: "POST",
@@ -99,8 +99,8 @@ describe.skipIf(!hasDb)("Staff Management (M-10)", async () => {
   });
 
   it("مدير الفرع لا يعيّن موظفاً على فرع خارج نطاقه", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
-    const other = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-NAKHEEL" } });
+    const manager = await staffLogin("101", "manager101");
+    const other = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "102" } });
     const res = await app.inject({
       method: "POST",
       url: "/v1/merchant/staff",
@@ -117,17 +117,17 @@ describe.skipIf(!hasDb)("Staff Management (M-10)", async () => {
   });
 
   it("قائمة الطاقم مقيدة بنطاق الفاعل (مدير العليا لا يرى طاقم النخيل)", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
+    const manager = await staffLogin("101", "manager101");
     const res = await app.inject({ method: "GET", url: "/v1/merchant/staff", headers: authed(manager) });
     expect(res.statusCode).toBe(200);
     const usernames = (res.json() as Array<{ username: string }>).map((m) => m.username);
-    expect(usernames).toContain("BB-OLAYA-cashier");
-    expect(usernames).not.toContain("BB-NAKHEEL-cashier");
+    expect(usernames).toContain("cashier101");
+    expect(usernames).not.toContain("cashier102");
   });
 
   it("العزل: مدير تاجر لا يعدّل موظف تاجر آخر", async () => {
-    const foreignManager = await staffLogin("DW-MALAZ", "DW-MALAZ-manager");
-    const victim = await prisma.merchantStaff.findFirstOrThrow({ where: { username: "BB-OLAYA-cashier" } });
+    const foreignManager = await staffLogin("201", "manager201");
+    const victim = await prisma.merchantStaff.findFirstOrThrow({ where: { username: "cashier101" } });
     const res = await app.inject({
       method: "PATCH",
       url: `/v1/merchant/staff/${victim.id}`,
@@ -140,8 +140,8 @@ describe.skipIf(!hasDb)("Staff Management (M-10)", async () => {
   });
 
   it("الإيقاف يلغي جلسات الموظف فوراً ويمنع دخوله ثم التفعيل يعيده", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
-    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
+    const manager = await staffLogin("101", "manager101");
+    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "101" } });
     const username = `test-suspend-${suffix}`;
     createdUsernames.push(username);
 
@@ -151,7 +151,7 @@ describe.skipIf(!hasDb)("Staff Management (M-10)", async () => {
       headers: authed(manager),
       payload: { full_name: "موظف للإيقاف", username, pin: "4321", role_key: "handoff", branch_ids: [branch.id] }
     });
-    const staffToken = await staffLogin("BB-OLAYA", username, "4321");
+    const staffToken = await staffLogin("101", username, "4321");
     expect(staffToken).toBeTruthy();
 
     const row = await prisma.merchantStaff.findFirstOrThrow({ where: { username } });
@@ -175,7 +175,7 @@ describe.skipIf(!hasDb)("Staff Management (M-10)", async () => {
     const relogin = await app.inject({
       method: "POST",
       url: "/v1/auth/branch/login",
-      payload: { branch_code: "BB-OLAYA", username, pin: "4321", device_name: "اختبار" }
+      payload: { branch_code: "101", username, pin: "4321", device_name: "اختبار" }
     });
     expect(relogin.statusCode).toBeGreaterThanOrEqual(400);
 
@@ -186,13 +186,13 @@ describe.skipIf(!hasDb)("Staff Management (M-10)", async () => {
       headers: authed(manager),
       payload: { status: "active" }
     });
-    const back = await staffLogin("BB-OLAYA", username, "4321");
+    const back = await staffLogin("101", username, "4321");
     expect(back).toBeTruthy();
   });
 
   it("تعديل الدور والفروع معاً + تغيير PIN", async () => {
-    const manager = await staffLogin("BB-OLAYA", "BB-OLAYA-manager");
-    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "BB-OLAYA" } });
+    const manager = await staffLogin("101", "manager101");
+    const branch = await prisma.branch.findUniqueOrThrow({ where: { branch_code: "101" } });
     const username = `test-edit-${suffix}`;
     createdUsernames.push(username);
 
@@ -220,10 +220,10 @@ describe.skipIf(!hasDb)("Staff Management (M-10)", async () => {
     const oldPin = await app.inject({
       method: "POST",
       url: "/v1/auth/branch/login",
-      payload: { branch_code: "BB-OLAYA", username, pin: "1111", device_name: "اختبار" }
+      payload: { branch_code: "101", username, pin: "1111", device_name: "اختبار" }
     });
     expect(oldPin.statusCode).toBeGreaterThanOrEqual(400);
-    const newPin = await staffLogin("BB-OLAYA", username, "2222");
+    const newPin = await staffLogin("101", username, "2222");
     expect(newPin).toBeTruthy();
   });
 });
