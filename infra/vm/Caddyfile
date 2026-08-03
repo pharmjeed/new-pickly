@@ -72,18 +72,8 @@ site.193-122-83-224.sslip.io {
 	reverse_proxy site:3004
 }
 
-# Medify — medifysa.co (كتلة إضافية واحدة؛ سطور pickly أعلاه لم تُمس)
-# الجذر → صفحة الهبوط الثابتة (medify-landing:8081)، وبقية المسارات → تطبيق Medify (prod:8080)
-medifysa.co {
-	@home path /
-	handle @home {
-		reverse_proxy 172.18.0.1:8081
-	}
-	handle {
-		reverse_proxy 172.18.0.1:8080
-	}
-}
-
-www.medifysa.co {
-	redir https://medifysa.co{uri} permanent
-}
+# ── مستأجرون خارجيون: كل مشروع يملك شظيته ولا يحرّر هذا الملف ──────────
+# الشظايا في /data/conf.d/*.caddyfile (فوليوم vm_caddydata، مركّب أصلاً على /data).
+# اليوم: medifysa.caddyfile (مشروع Medify ← 172.18.0.1:8080/8081).
+# هذا السطر ثابت — إضافة دومين لاحقاً = ملف جديد هناك، بلا أي تعديل هنا.
+import /data/conf.d/*.caddyfile
